@@ -1,0 +1,29 @@
+name: Test Yoru Game
+
+# When the work?
+on:
+  push:
+    branches: [ main ]  # save to the main branch
+  workflow_dispatch:    # run it manually
+
+# What should do?
+jobs:
+  hello-world:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Say Hello
+      run: echo "🌙 Hello from Yoru's robot helper!"
+      
+    - name: Check what's here
+      run: ls -la
+      
+    - name: Download my code
+      uses: actions/checkout@v4
+      
+    - name: Check my code is here
+      run: |
+        echo "📁 Your project files:"
+        ls -la
+        echo "🎮 Looking for Unity files..."
+        find . -name "*.unity" -o -name "*.cs" | head -10
