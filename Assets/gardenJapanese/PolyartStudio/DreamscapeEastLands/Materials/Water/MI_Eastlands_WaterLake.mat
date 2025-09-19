@@ -11,7 +11,8 @@ Material:
   m_Shader: {fileID: 4800000, guid: acbcda7c9a10c8f4fa6c6ed23f49b53b, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
+  m_ValidKeywords:
+  - _EMISSIVE_ON
   m_InvalidKeywords:
   - _ENABLEFOAM_ON
   m_LightmapFlags: 0
@@ -28,8 +29,20 @@ Material:
         m_Texture: {fileID: 2800000, guid: 0695fb758668c584badb3d37cc51ed53, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _CloudNoise:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ColorVariationTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _EmissiveTexture:
         m_Texture: {fileID: 2800000, guid: e44f15dd20677654495c9debea046535, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NoiseLines:
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Normal:
@@ -52,12 +65,35 @@ Material:
         m_Texture: {fileID: 2800000, guid: e805e35c15a0161448afe9d296eecfa2, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _TopVoronoi:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WaterfallEdge:
+        m_Texture: {fileID: 2800000, guid: 6c6e2a23ad2379b439393259ddaff19d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WaterfallStartNoise:
+        m_Texture: {fileID: 2800000, guid: 5592d5353472a1840880192b0a423e4c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _WavesNormal:
         m_Texture: {fileID: 2800000, guid: c7eecd4c36cac8043b0fb53e64169d7e, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _texcoord:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _BottomFoamDistortion: 0.05
+    - _BottomFoamExtendMax: 0.15
+    - _BottomFoamExtendMin: 0
+    - _BottomFoamSpeed: -0.1
+    - _BottomFoamStep: 0.5
+    - _BottomFoamWidthPow: 0
+    - _BottomOpacityCutout: 0.9
     - _CausticsDistance: 1.1
     - _CausticsDistortion: -0.03
     - _CausticsHeightOffset: -0.3
@@ -66,8 +102,21 @@ Material:
     - _CausticsScale: 3.08
     - _CausticsSpeed: -0.025
     - _ChromaticAberration: 0.1
-    - _EmissiveIntensity: 25
-    - _EmissiveScale: 50
+    - _CloudNoiseSpeed: -0.1
+    - _ColorVariationContrast: 1
+    - _ColorVariationDepth: 0.054
+    - _ColorVariationSpeed: -0.1
+    - _DEBUG: 0
+    - _DebugCloudNoise: 0
+    - _DebugNormals: 0
+    - _DebugWaterColor: 0
+    - _EdgeFoamDistance: 1
+    - _EdgeFoamOpacity: 1
+    - _EdgeFoamStep: 0.1
+    - _Emissive: 1
+    - _EmissiveIntensity: 1
+    - _EmissiveRefraction: 1
+    - _EmissiveScale: 42.37
     - _EnableFoam: 1
     - _Float0: 0.54
     - _FoamDistance: 1.01
@@ -76,13 +125,19 @@ Material:
     - _FoamNoiseScale: 26.24
     - _FoamNoiseSpeed: 0.025
     - _FoamOpacity: 18.54
-    - _FoamOpacity1: 0.889
+    - _FoamOpacity1: 0.54
     - _FoamOpacityContrast: 2.72
     - _FoamPow: 8.97
     - _FoamSpeed: -0.62
     - _FoamTiling: 8.88
     - _FoamWaveNumber: 2.99
     - _FoamWaveSpeed: 1.7
+    - _InitialOpacityGradience: 10
+    - _NoiseLinesDistortion: 0.042
+    - _NoiseLinesOpacity: 0.8
+    - _NoiseLinesPow: 1
+    - _NoiseLinesReveal: 0.8
+    - _NoiseLinesSpeed: -0.2
     - _Normal1Scale: 55
     - _Normal1Speed: 0.011
     - _Normal2Scale: 35
@@ -92,12 +147,36 @@ Material:
     - _Refraction: 1.173
     - _Refraction1: 0.022
     - _ShallowWaterDistance: 0.09
+    - _SmallDots1Distortion: 0.045
+    - _SmallDots1Opacity: 0.8
+    - _SmallDots1Speed: -0.1
+    - _SmallDots1Step: 0.8
+    - _SmallDots2Distortion: 0.045
+    - _SmallDots2Opacity: 0.8
+    - _SmallDots2Speed: -0.1
+    - _SmallDots2Step: 0.8
     - _Smoothness: 0.997
+    - _StartNoiseHarshDistortion: 0.026
+    - _StartNoiseHarshSpeed: -1
+    - _StartNoiseHarshStep: 0.51
+    - _StartNoiseharshBottomBlend: 0.07522548
+    - _StartNoiseharshBottomPosition: 0.4435484
+    - _StartNoiseharshTopBlend: 0.07522548
+    - _StartNoiseharshTopPosition: 0.24
     - _Tiling: 0.15
     - _WaterEdgeDistance: 26.6
     - _WaterMaxOpacity: 0.793
     - _WaterRefractionEdgeDistance: 0.12
     - _WaterShallowOpacityDistance: 0.07
+    - _WaterfallEdgeFoamOpacity: 0.5
+    - _WaterfallEdgeSpeed: 0.2
+    - _WaterfallStartNoiseDepth: 0.037
+    - _WaterfallStartNoiseDistortion: 0.037
+    - _WaterfallStartNoiseExtend: 0.22
+    - _WaterfallStartNoiseOpacity: 0.22
+    - _WaterfallStartNoisePosition: 0.22
+    - _WaterfallStartNoisePow: 1
+    - _WaterfallStartNoiseSpeed: 0.2842633
     - _Waves01Scale: 50
     - _Waves01Speed: 0.02
     - _Waves02Scale: 40
@@ -106,6 +185,13 @@ Material:
     - _WavesSpeed: 0.3
     - __dirty: 0
     m_Colors:
+    - _Color1: {r: 0, g: 0.8273995, b: 1, a: 0}
+    - _Color2: {r: 0, g: 0.5989819, b: 0.8867924, a: 0}
+    - _Color3: {r: 0, g: 0.5989819, b: 0.8867924, a: 0}
+    - _Color4: {r: 0, g: 0.5989819, b: 0.8867924, a: 0}
     - _ColorDeep: {r: 0, g: 0.4233885, b: 0.5698112, a: 1}
     - _ColorShallow: {r: 0.09265217, g: 0.3831406, b: 0.5396226, a: 1}
+    - _SmallDots1Scale: {r: 1, g: 1, b: 0, a: 0}
+    - _SmallDots2Scale: {r: 1, g: 1, b: 0, a: 0}
+    - _StartNoiseHarshTiling: {r: 1, g: 1, b: 0, a: 0}
   m_BuildTextureStacks: []
