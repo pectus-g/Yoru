@@ -29,6 +29,9 @@ public class GhostEffect3D : MonoBehaviour
             SetAlphaImmediate(ghostAlpha);
             isGhost = true;
         }
+        
+        // Debug check
+        Debug.Log($"GhostEffect3D Setup: Renderers: {characterRenderers?.Length}, Materials: {originalMaterials?.Length}");
     }
     
     void SetupMaterials() 
@@ -37,6 +40,13 @@ public class GhostEffect3D : MonoBehaviour
         if (characterRenderers == null || characterRenderers.Length == 0) 
         {
             characterRenderers = GetComponentsInChildren<Renderer>();
+            Debug.Log($"Auto-detected {characterRenderers.Length} renderers");
+        }
+        
+        if (characterRenderers == null || characterRenderers.Length == 0) 
+        {
+            Debug.LogError("GhostEffect3D: No renderers found! Cannot create ghost effect.");
+            return;
         }
         
         List<Material> origMats = new List<Material>();
@@ -46,8 +56,12 @@ public class GhostEffect3D : MonoBehaviour
         // Process all renderers and their materials
         foreach (Renderer renderer in characterRenderers) 
         {
+            if (renderer == null) continue;
+            
             foreach (Material mat in renderer.materials) 
             {
+                if (mat == null) continue;
+                
                 origMats.Add(mat);
                 origColors.Add(mat.color);
                 
@@ -61,6 +75,8 @@ public class GhostEffect3D : MonoBehaviour
         originalMaterials = origMats.ToArray();
         ghostMaterials = ghostMats.ToArray();
         originalColors = origColors.ToArray();
+        
+        Debug.Log($"GhostEffect3D: Setup complete - {originalMaterials.Length} materials prepared");
     }
     
     void SetupTransparentMaterial(Material material) 
@@ -128,6 +144,12 @@ public class GhostEffect3D : MonoBehaviour
     // Instant alpha change without animation
     public void SetAlphaImmediate(float alpha) 
     {
+        if (characterRenderers == null || originalColors == null) 
+        {
+            Debug.LogWarning("GhostEffect3D: Cannot set alpha - materials not setup properly");
+            return;
+        }
+        
         SwitchToGhostMaterials();
         SetAlpha(alpha);
     }
@@ -163,14 +185,25 @@ public class GhostEffect3D : MonoBehaviour
     
     void SwitchToGhostMaterials() 
     {
+        if (characterRenderers == null || ghostMaterials == null) 
+        {
+            Debug.LogWarning("GhostEffect3D: Cannot switch to ghost materials - arrays are null");
+            return;
+        }
+        
         int materialIndex = 0;
         foreach (Renderer renderer in characterRenderers) 
         {
+            if (renderer == null) continue;
+            
             Material[] newMaterials = new Material[renderer.materials.Length];
             for (int i = 0; i < renderer.materials.Length; i++) 
             {
-                newMaterials[i] = ghostMaterials[materialIndex];
-                materialIndex++;
+                if (materialIndex < ghostMaterials.Length) 
+                {
+                    newMaterials[i] = ghostMaterials[materialIndex];
+                    materialIndex++;
+                }
             }
             renderer.materials = newMaterials;
         }
