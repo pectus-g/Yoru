@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -10,42 +9,52 @@ public class YukiHideAndSeek : MonoBehaviour
     [SerializeField] private GhostEffect3D ghostEffect;
     [SerializeField] private NavMeshAgent navMeshAgent;
     [SerializeField] private Transform player;
+    [SerializeField] private ParticleSystem fairyParticles;
+    [SerializeField] private AudioSource audioSource;
     
     [Header("Hide and Seek Settings")]
     [SerializeField] private Transform[] hidingSpots;
-    [SerializeField] private float detectionRange = 8f;
-    [SerializeField] private float hidingRange = 2f; // How close to hiding spot to be considered hidden
-    [SerializeField] private float playerViewAngle = 60f; // Player's field of view
-    [SerializeField] private LayerMask obstacleLayer = -1;
+    [SerializeField] private float detectionRange = 8f; // When Yuki starts running
+    [SerializeField] private float foundRange = 2f; // When player finds Yuki
+    [SerializeField] private float nearSpotDistance = 5f; // How far from hiding spot to appear
     
     [Header("Behavior Settings")]
-    [SerializeField] private float minHideTime = 3f; // Minimum time to stay hidden
-    [SerializeField] private float maxHideTime = 10f; // Maximum time before automatically relocating
-    [SerializeField] private float disappearTime = 2f; // Time before respawning after being found
-    [SerializeField] private float respawnDelay = 3f; // Delay before appearing in new location
+    [SerializeField] private float fadeOutTime = 2f;
+    [SerializeField] private float fadeInTime = 2f;
+    [SerializeField] private float respawnDelay = 1f;
+    [SerializeField] private float runSpeed = 5f;
+    [SerializeField] private float walkSpeed = 3.5f;
     
-    // Animation parameter names
-    private const string ANIM_IS_RUNNING = "IsRunning";
-    private const string ANIM_IS_HIDING = "IsHiding";
-    private const string ANIM_IS_DISCOVERED = "IsDiscovered";
-    private const string ANIM_SHOULD_DISAPPEAR = "ShouldDisappear";
+    [Header("Fairy Effects")]
+    [SerializeField] private float particleStartDelay = 0.3f;
+    [SerializeField] private float particleDuration = 4f;
+    [SerializeField] private AudioClip laughingSound;
+    [SerializeField] private AudioClip screamSound; // NEW: Scream for devil spawn
+    [SerializeField] private AudioClip backgroundMusic;
+    
+    [Header("Game Progression")]
+    [SerializeField] private int maxHideSeekRounds = 3;
+    [SerializeField] private GameObject devilToSpawn; // Changed from enemyToSpawn
+    [SerializeField] private Transform devilSpawnPoint;
     
     // State management
     public enum YukiState 
     {
-        Idle,
-        Running,
-        Hiding,
-        Discovered,
-        Disappearing,
-        Respawning
+        WaitingNearSpot,    // NEW: Waiting near a hiding spot for player to approach
+        RunningToHide,      // Running TO the hiding spot
+        Hiding,             // At the hiding spot, ghostly
+        FadingOut,          // Vanishing after being found
+        Vanished,           // Invisible, teleporting
+        FadingIn,           // Appearing near next spot
+        FinalHiding,        // NEW: At final spot, waiting for devil spawn
+        DevilSummoned       // NEW: Devil has appeared
     }
     
-    private YukiState currentState = YukiState.Idle;
-    private Transform currentTargetSpot;
-    private Vector3 lastPlayerPosition;
-    private float hideTimer = 0f;
-    private bool playerCanSeeYuki = false;
+    private YukiState currentState = YukiState.FadingIn; // Start by appearing near first spot
+    private Transform currentHidingSpot;
+    private int currentSpotIndex = 0;
+    private int timesFound = 0;
+    private bool backgroundMusicPlaying = false;
     
     void Start() 
     {
@@ -55,19 +64,17 @@ public class YukiHideAndSeek : MonoBehaviour
     
     void SetupComponents() 
     {
-        // Get components if not assigned
         if (animator == null) animator = GetComponent<Animator>();
         if (ghostEffect == null) ghostEffect = GetComponent<GhostEffect3D>();
         if (navMeshAgent == null) navMeshAgent = GetComponent<NavMeshAgent>();
+        if (audioSource == null) audioSource = GetComponent<AudioSource>();
         
-        // Find player if not assigned
         if (player == null) 
         {
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null) player = playerObj.transform;
         }
         
-        // Find hiding spots if not assigned
         if (hidingSpots == null || hidingSpots.Length == 0) 
         {
             GameObject[] spotObjects = GameObject.FindGameObjectsWithTag("HidingSpot");
@@ -77,321 +84,409 @@ public class YukiHideAndSeek : MonoBehaviour
                 hidingSpots[i] = spotObjects[i].transform;
             }
         }
+        
+        if (fairyParticles != null) fairyParticles.Stop();
+        
+        navMeshAgent.speed = walkSpeed;
+        Debug.Log($"Yuki Setup: Found {hidingSpots.Length} hiding spots");
     }
     
     void StartGame() 
     {
-        // Start by finding a hiding spot
-        FindNewHidingSpot();
+        currentSpotIndex = 0;
+        timesFound = 0;
+        
+        if (hidingSpots.Length > 0) 
+        {
+            currentHidingSpot = hidingSpots[currentSpotIndex];
+        }
+        
+        PlayBackgroundMusic();
+        
+        // Start by appearing near first hiding spot
+        StartCoroutine(AppearNearSpot());
+        
+        Debug.Log($"=== GAME STARTED === Will appear near Element {currentSpotIndex}");
     }
     
     void Update() 
     {
         if (player == null) return;
         
-        UpdatePlayerDetection();
-        HandleCurrentState();
-        UpdateAnimator();
-    }
-    
-    void UpdatePlayerDetection() 
-    {
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-        playerCanSeeYuki = CanPlayerSeeYuki(distanceToPlayer);
-    }
-    
-    bool CanPlayerSeeYuki(float distance) 
-    {
-        if (distance > detectionRange) return false;
         
-        // Check if player is looking at Yuki
-        Vector3 directionToYuki = (transform.position - player.position).normalized;
-        Vector3 playerForward = player.forward;
-        
-        float angle = Vector3.Angle(playerForward, directionToYuki);
-        if (angle > playerViewAngle / 2f) return false;
-        
-        // Raycast to check for obstacles
-        RaycastHit hit;
-        if (Physics.Raycast(player.position + Vector3.up * 1.5f, directionToYuki, out hit, distance, obstacleLayer)) 
-        {
-            if (hit.transform != transform) return false; // Something is blocking the view
-        }
-        
-        return true;
-    }
-    
-    void HandleCurrentState() 
-    {
         switch (currentState) 
         {
-            case YukiState.Idle:
-                HandleIdleState();
+            case YukiState.WaitingNearSpot:
+                HandleWaitingNearSpot(distanceToPlayer);
                 break;
                 
-            case YukiState.Running:
-                HandleRunningState();
+            case YukiState.RunningToHide:
+                HandleRunningToHide(distanceToPlayer);
                 break;
                 
             case YukiState.Hiding:
-                HandleHidingState();
+                HandleHiding(distanceToPlayer);
                 break;
                 
-            case YukiState.Discovered:
-                HandleDiscoveredState();
+            case YukiState.FinalHiding:
+                HandleFinalHiding(distanceToPlayer);
                 break;
-                
-            case YukiState.Disappearing:
-                HandleDisappearingState();
-                break;
-                
-            case YukiState.Respawning:
-                HandleRespawningState();
-                break;
-        }
-    }
-    
-    void HandleIdleState() 
-    {
-        if (playerCanSeeYuki || Vector3.Distance(transform.position, player.position) < detectionRange) 
-        {
-            StartRunningToHide();
-        }
-    }
-    
-    void HandleRunningState() 
-    {
-        if (navMeshAgent.remainingDistance < 0.5f && !navMeshAgent.pathPending) 
-        {
-            StartHiding();
         }
         
-        // If player can still see Yuki while running, find a new spot
-        if (playerCanSeeYuki && Random.Range(0f, 1f) < 0.1f) // 10% chance per frame to change spot
+        UpdateAnimator();
+    }
+    
+    void HandleWaitingNearSpot(float distanceToPlayer) 
+    {
+        // When player gets close, start running to the actual hiding spot
+        if (distanceToPlayer <= detectionRange) 
         {
-            FindNewHidingSpot();
+            StartRunningToActualSpot();
         }
     }
     
-    void HandleHidingState() 
+    void HandleRunningToHide(float distanceToPlayer) 
     {
-        hideTimer += Time.deltaTime;
-        
+        // Check if reached hiding spot
+        if (navMeshAgent.enabled && navMeshAgent.remainingDistance < 1f && !navMeshAgent.pathPending) 
+        {
+            ReachedHidingSpot();
+        }
+    }
+    
+    void HandleHiding(float distanceToPlayer) 
+    {
         // Check if player found Yuki
-        if (playerCanSeeYuki && Vector3.Distance(transform.position, player.position) < hidingRange) 
+        if (distanceToPlayer <= foundRange) 
         {
-            OnDiscovered();
-            return;
-        }
-        
-        // Automatically find new spot after max hide time
-        if (hideTimer > maxHideTime) 
-        {
-            FindNewHidingSpot();
+            OnPlayerFoundYuki();
         }
     }
     
-    void HandleDiscoveredState() 
+    void HandleFinalHiding(float distanceToPlayer) 
     {
-        // This state is handled by the OnDiscovered coroutine
-    }
-    
-    void HandleDisappearingState() 
-    {
-        // This state is handled by the DisappearAndRespawn coroutine
-    }
-    
-    void HandleRespawningState() 
-    {
-        // This state is handled by the DisappearAndRespawn coroutine
-    }
-    
-    void StartRunningToHide() 
-    {
-        if (currentState == YukiState.Running) return;
-        
-        currentState = YukiState.Running;
-        ghostEffect.BecomeVisible(); // Make sure Yuki is visible while running
-        
-        if (currentTargetSpot == null) 
+        // Check if player found Yuki at final spot
+        if (distanceToPlayer <= foundRange) 
         {
-            FindNewHidingSpot();
-        }
-        
-        navMeshAgent.SetDestination(currentTargetSpot.position);
-    }
-    
-    void StartHiding() 
-    {
-        currentState = YukiState.Hiding;
-        hideTimer = 0f;
-        ghostEffect.BecomeGhost(); // Become semi-transparent when hiding
-        navMeshAgent.ResetPath();
-    }
-    
-    void FindNewHidingSpot() 
-    {
-        if (hidingSpots.Length == 0) return;
-        
-        // Find the furthest hiding spot from the player
-        Transform bestSpot = null;
-        float maxDistance = 0f;
-        
-        foreach (Transform spot in hidingSpots) 
-        {
-            float distance = Vector3.Distance(spot.position, player.position);
-            if (distance > maxDistance && spot != currentTargetSpot) 
-            {
-                maxDistance = distance;
-                bestSpot = spot;
-            }
-        }
-        
-        if (bestSpot != null) 
-        {
-            currentTargetSpot = bestSpot;
-            if (currentState != YukiState.Running) 
-            {
-                StartRunningToHide();
-            }
-            else 
-            {
-                navMeshAgent.SetDestination(currentTargetSpot.position);
-            }
+            OnFinalDiscovery();
         }
     }
     
-    void OnDiscovered() 
+    void StartRunningToActualSpot() 
     {
-        if (currentState == YukiState.Discovered) return;
+        currentState = YukiState.RunningToHide;
+        navMeshAgent.speed = runSpeed;
+        navMeshAgent.enabled = true;
         
-        currentState = YukiState.Discovered;
-        ghostEffect.BecomeVisible(); // Make sure player can see the discovery
-        navMeshAgent.ResetPath();
-        
-        StartCoroutine(DisappearAndRespawn());
+        if (currentHidingSpot != null) 
+        {
+            navMeshAgent.SetDestination(currentHidingSpot.position);
+            Debug.Log($"=== YUKI RUNNING TO SPOT === Element {currentSpotIndex}: {currentHidingSpot.name}");
+        }
     }
     
-    IEnumerator DisappearAndRespawn() 
+    void ReachedHidingSpot() 
     {
-        // Wait a moment for the discovery animation
-        yield return new WaitForSeconds(disappearTime);
-        
-        // Start disappearing
-        currentState = YukiState.Disappearing;
-        ghostEffect.FadeOut();
-        
-        // Wait for fade out to complete
-        yield return new WaitForSeconds(1f);
-        
-        // Respawn phase
-        currentState = YukiState.Respawning;
-        
-        // Move to new location instantly
-        FindBestRespawnSpot();
-        if (currentTargetSpot != null) 
+        // Check if this is the final spot
+        if (currentSpotIndex >= maxHideSeekRounds - 1) 
         {
-            transform.position = currentTargetSpot.position;
+            // Final spot - stay here and wait
+            currentState = YukiState.FinalHiding;
+            navMeshAgent.ResetPath();
+            ghostEffect.BecomeGhost(); // Become ghostly but don't vanish
+            Debug.Log($"=== REACHED FINAL SPOT === Element {currentSpotIndex}, waiting for discovery");
+        }
+        else 
+        {
+            // Normal spot - become ghostly and wait to be found
+            currentState = YukiState.Hiding;
+            navMeshAgent.ResetPath();
+            ghostEffect.BecomeGhost();
+            Debug.Log($"=== REACHED HIDING SPOT === Element {currentSpotIndex}, now hiding (ghostly)");
+        }
+    }
+    
+    void OnPlayerFoundYuki() 
+    {
+        if (currentState != YukiState.Hiding) return;
+        
+        timesFound++;
+        Debug.Log($"=== FOUND AT ELEMENT {currentSpotIndex} === Round {timesFound}/{maxHideSeekRounds}");
+        
+        // Vanish and move to near next spot
+        StartCoroutine(VanishAndMoveToNextArea());
+    }
+    
+    void OnFinalDiscovery() 
+    {
+        if (currentState != YukiState.FinalHiding) return;
+        
+        timesFound++;
+        currentState = YukiState.DevilSummoned;
+        
+        Debug.Log($"=== FINAL DISCOVERY === Summoning devil!");
+        
+        // Play laugh then scream, then spawn devil
+        StartCoroutine(DevilSummonSequence());
+    }
+    
+    IEnumerator VanishAndMoveToNextArea() 
+    {
+        currentState = YukiState.FadingOut;
+        
+        // Play laughing sound
+        if (audioSource != null && laughingSound != null) 
+        {
+            audioSource.PlayOneShot(laughingSound);
         }
         
-        // Wait before becoming visible again
+        // Start vanish with particles
+        yield return new WaitForSeconds(particleStartDelay);
+        PlayAngelicParticles();
+        StartCoroutine(AngelicFadeOut());
+        
+        // Wait for fade to complete
+        yield return new WaitForSeconds(fadeOutTime - particleStartDelay);
+        
+        currentState = YukiState.Vanished;
+        
+        // Move to next spot area
+        currentSpotIndex++;
         yield return new WaitForSeconds(respawnDelay);
         
-        // Reappear and start the game again
-        ghostEffect.BecomeGhost(); // Start as ghost in new hiding spot
-        currentState = YukiState.Hiding;
-        hideTimer = 0f;
+        // Appear near next spot
+        StartCoroutine(AppearNearSpot());
     }
     
-    void FindBestRespawnSpot() 
+    IEnumerator AppearNearSpot() 
     {
-        if (hidingSpots.Length == 0) return;
+        currentState = YukiState.FadingIn;
         
-        // Find a spot that's far from player and not in line of sight
-        Transform bestSpot = null;
-        float bestScore = 0f;
-        
-        foreach (Transform spot in hidingSpots) 
+        if (currentSpotIndex < hidingSpots.Length) 
         {
-            float distance = Vector3.Distance(spot.position, player.position);
-            bool inLineOfSight = CanPlayerSeePosition(spot.position);
+            currentHidingSpot = hidingSpots[currentSpotIndex];
             
-            float score = distance;
-            if (!inLineOfSight) score *= 2f; // Prefer spots out of sight
+            // Find a position NEAR the hiding spot (not at it)
+            Vector3 nearPosition = GetPositionNearSpot(currentHidingSpot.position);
+            transform.position = nearPosition;
             
-            if (score > bestScore) 
-            {
-                bestScore = score;
-                bestSpot = spot;
-            }
+            Debug.Log($"=== APPEARING NEAR ELEMENT {currentSpotIndex} === At distance {nearSpotDistance} from {currentHidingSpot.name}");
+            
+            // Play appear particles
+            PlayAngelicParticles();
+            StartCoroutine(AngelicFadeIn());
+            
+            yield return new WaitForSeconds(fadeInTime);
+            
+            // Now waiting near the spot for player to approach
+            currentState = YukiState.WaitingNearSpot;
+            Debug.Log($"=== NOW WAITING === Near Element {currentSpotIndex} for player to get close");
+        }
+    }
+    
+    Vector3 GetPositionNearSpot(Vector3 spotPosition) 
+    {
+        // Find a position nearSpotDistance away from the hiding spot
+        Vector3 randomDirection = Random.insideUnitSphere;
+        randomDirection.y = 0; // Keep on same height level
+        randomDirection.Normalize();
+        
+        Vector3 nearPosition = spotPosition + (randomDirection * nearSpotDistance);
+        
+        // Make sure the position is on the ground
+        if (Physics.Raycast(nearPosition + Vector3.up * 10f, Vector3.down, out RaycastHit hit, 20f)) 
+        {
+            nearPosition = hit.point;
         }
         
-        currentTargetSpot = bestSpot;
+        return nearPosition;
     }
     
-    bool CanPlayerSeePosition(Vector3 position) 
+    IEnumerator DevilSummonSequence() 
     {
-        Vector3 directionToPosition = (position - player.position).normalized;
-        float angle = Vector3.Angle(player.forward, directionToPosition);
+        Debug.Log("=== DEVIL SUMMON SEQUENCE === Starting...");
         
-        if (angle > playerViewAngle / 2f) return false;
+        // First: Laugh
+        if (audioSource != null && laughingSound != null) 
+        {
+            audioSource.PlayOneShot(laughingSound);
+            yield return new WaitForSeconds(laughingSound.length);
+        }
         
-        RaycastHit hit;
-        float distance = Vector3.Distance(position, player.position);
+        // Then: Scream
+        if (audioSource != null && screamSound != null) 
+        {
+            audioSource.PlayOneShot(screamSound);
+        }
         
-        return !Physics.Raycast(player.position + Vector3.up * 1.5f, directionToPosition, out hit, distance, obstacleLayer);
+        // Spawn devil
+        if (devilToSpawn != null && devilSpawnPoint != null) 
+        {
+            GameObject spawnedDevil = Instantiate(devilToSpawn, devilSpawnPoint.position, devilSpawnPoint.rotation);
+            Debug.Log($"=== DEVIL SPAWNED === At {devilSpawnPoint.name}!");
+        }
+        
+        // Play dramatic particles
+        PlayAngelicParticles();
+        
+        // Stop background music (optional - create tension)
+        if (audioSource != null && audioSource.isPlaying) 
+        {
+            audioSource.Stop();
+        }
+        
+        Debug.Log("=== GAME PHASE COMPLETE === Devil has been summoned!");
+    }
+    
+    // Particle and fade effects (same as before)
+    IEnumerator AngelicFadeOut() 
+    {
+        float elapsedTime = 0f;
+        float startAlpha = ghostEffect.CurrentAlpha;
+        
+        while (elapsedTime < fadeOutTime) 
+        {
+            elapsedTime += Time.deltaTime;
+            float progress = elapsedTime / fadeOutTime;
+            float curve = Mathf.Sin(progress * Mathf.PI * 0.5f);
+            float currentAlpha = Mathf.Lerp(startAlpha, 0f, curve);
+            ghostEffect.SetAlphaImmediate(currentAlpha);
+            yield return null;
+        }
+        
+        ghostEffect.SetAlphaImmediate(0f);
+    }
+    
+    IEnumerator AngelicFadeIn() 
+    {
+        float elapsedTime = 0f;
+        
+        while (elapsedTime < fadeInTime) 
+        {
+            elapsedTime += Time.deltaTime;
+            float progress = elapsedTime / fadeInTime;
+            float curve = Mathf.Sin(progress * Mathf.PI * 0.5f);
+            float currentAlpha = Mathf.Lerp(0f, 0.3f, curve);
+            ghostEffect.SetAlphaImmediate(currentAlpha);
+            yield return null;
+        }
+        
+        ghostEffect.SetAlphaImmediate(0.3f);
+    }
+    
+    void PlayAngelicParticles() 
+    {
+        if (fairyParticles != null) 
+        {
+            fairyParticles.transform.position = transform.position + Vector3.up * 1f;
+            fairyParticles.Play();
+            StartCoroutine(StopParticlesAfterDelay());
+        }
+    }
+    
+    IEnumerator StopParticlesAfterDelay() 
+    {
+        yield return new WaitForSeconds(particleDuration);
+        if (fairyParticles != null) fairyParticles.Stop();
+    }
+    
+    void PlayBackgroundMusic() 
+    {
+        if (audioSource != null && backgroundMusic != null && !backgroundMusicPlaying) 
+        {
+            audioSource.clip = backgroundMusic;
+            audioSource.loop = true;
+            audioSource.volume = 0.3f;
+            audioSource.Play();
+            backgroundMusicPlaying = true;
+        }
     }
     
     void UpdateAnimator() 
     {
         if (animator == null) return;
         
-        // Update animator parameters based on current state
-        animator.SetBool(ANIM_IS_RUNNING, currentState == YukiState.Running);
-        animator.SetBool(ANIM_IS_HIDING, currentState == YukiState.Hiding);
-        animator.SetBool(ANIM_IS_DISCOVERED, currentState == YukiState.Discovered);
+        bool isMoving = currentState == YukiState.RunningToHide;
+        bool isHiding = currentState == YukiState.Hiding || currentState == YukiState.FinalHiding;
+        bool isDiscovered = currentState == YukiState.FadingOut;
+        bool isWaiting = currentState == YukiState.WaitingNearSpot;
         
-        if (currentState == YukiState.Disappearing) 
+        animator.SetBool("IsRunning", isMoving);
+        animator.SetBool("IsHiding", isHiding);
+        animator.SetBool("IsDiscovered", isDiscovered);
+        
+        if (animator.parameters.Length > 3) 
         {
-            animator.SetTrigger(ANIM_SHOULD_DISAPPEAR);
+            animator.SetBool("IsWaiting", isWaiting);
+        }
+        
+        if (isDiscovered) 
+        {
+            animator.SetTrigger("ShouldDisappear");
         }
     }
     
-    // Public methods for external control
+    // Public methods
     public void ResetGame() 
     {
-        currentState = YukiState.Idle;
-        ghostEffect.BecomeVisible();
-        hideTimer = 0f;
-        FindNewHidingSpot();
+        StopAllCoroutines();
+        currentSpotIndex = 0;
+        timesFound = 0;
+        navMeshAgent.enabled = true;
+        StartGame();
     }
     
     public YukiState GetCurrentState() => currentState;
-    public bool IsHidden => currentState == YukiState.Hiding && !playerCanSeeYuki;
+    public bool IsDevilSummoned => currentState == YukiState.DevilSummoned;
+    public int GetTimesFound() => timesFound;
+    public int GetCurrentSpotIndex() => currentSpotIndex;
     
-    // Debug methods
+    // Debug visualization
     void OnDrawGizmosSelected() 
     {
-        // Draw detection range (as a wire sphere)
+        // Draw detection range
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
         
-        // Draw hiding range (as a wire sphere)
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position, hidingRange);
+        // Draw found range
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, foundRange);
         
-        // Draw line to current target
-        if (currentTargetSpot != null) 
+        // Draw line to current hiding spot
+        if (currentHidingSpot != null) 
         {
-            Gizmos.color = Color.blue;
-            Gizmos.DrawLine(transform.position, currentTargetSpot.position);
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawLine(transform.position, currentHidingSpot.position);
         }
         
-        // Draw player's view direction
-        if (player != null) 
+        // Draw near-spot range around hiding spots
+        if (hidingSpots != null) 
         {
-            Gizmos.color = playerCanSeeYuki ? Color.red : Color.white;
-            Gizmos.DrawRay(player.position, player.forward * detectionRange);
+            for (int i = 0; i < hidingSpots.Length; i++) 
+            {
+                Transform spot = hidingSpots[i];
+                if (spot != null) 
+                {
+                    if (i == currentSpotIndex) 
+                        Gizmos.color = Color.green;
+                    else if (i < currentSpotIndex) 
+                        Gizmos.color = Color.gray;
+                    else 
+                        Gizmos.color = Color.white;
+                        
+                    Gizmos.DrawWireCube(spot.position, Vector3.one * 0.8f);
+                    
+                    // Draw "near spot" area
+                    Gizmos.color = Color.magenta;
+                    Gizmos.DrawWireSphere(spot.position, nearSpotDistance);
+                }
+            }
         }
+        
+        #if UNITY_EDITOR
+        UnityEditor.Handles.Label(transform.position + Vector3.up * 2f, 
+            $"Element: {currentSpotIndex}/{hidingSpots?.Length - 1}\nRound: {timesFound}/{maxHideSeekRounds}\nState: {currentState}");
+        #endif
     }
 }
