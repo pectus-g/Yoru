@@ -424,23 +424,44 @@ public class YukiHideAndSeek : MonoBehaviour
     {
         if (animator == null) return;
         
-        bool isMoving = currentState == YukiState.RunningToHide;
-        bool isHiding = currentState == YukiState.Hiding || currentState == YukiState.FinalHiding;
-        bool isDiscovered = currentState == YukiState.FadingOut;
-        bool isWaiting = currentState == YukiState.WaitingNearSpot;
+        // Reset all animation bools
+        animator.SetBool("IsAlert", false);
+        animator.SetBool("IsLookAround", false);
+        animator.SetBool("IsRunning", false);
         
-        animator.SetBool("IsRunning", isMoving);
-        animator.SetBool("IsHiding", isHiding);
-        animator.SetBool("IsDiscovered", isDiscovered);
-        
-        if (animator.parameters.Length > 3) 
+        // Set correct animation based on current state
+        switch (currentState) 
         {
-            animator.SetBool("IsWaiting", isWaiting);
-        }
-        
-        if (isDiscovered) 
-        {
-            animator.SetTrigger("ShouldDisappear");
+            case YukiState.WaitingNearSpot:
+                // Use Alert animation - waiting for player to get close
+                animator.SetBool("IsAlert", true);
+                Debug.Log("=== ANIMATION === Alert (waiting for player approach)");
+                break;
+                
+            case YukiState.RunningToHide:
+                // Use Running animation - moving to hiding spot
+                animator.SetBool("IsRunning", true);
+                Debug.Log("=== ANIMATION === Running (to hiding spot)");
+                break;
+                
+            case YukiState.Hiding:
+            case YukiState.FinalHiding:
+                // Use Look Around animation - hiding and waiting to be found
+                animator.SetBool("IsLookAround", true);
+                Debug.Log("=== ANIMATION === Look Around (waiting to be found)");
+                break;
+                
+            case YukiState.FadingOut:
+                // Keep current animation while fading out
+                Debug.Log("=== ANIMATION === Fading out (keep current pose)");
+                break;
+                
+            case YukiState.FadingIn:
+            case YukiState.Vanished:
+            case YukiState.DevilSummoned:
+                // Use Idle for these states
+                Debug.Log("=== ANIMATION === Idle");
+                break;
         }
     }
     
