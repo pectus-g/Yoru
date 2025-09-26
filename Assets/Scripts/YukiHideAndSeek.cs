@@ -271,7 +271,11 @@ public class YukiHideAndSeek : MonoBehaviour
             Vector3 nearPosition = GetPositionNearSpot(currentHidingSpot.position);
             transform.position = nearPosition;
             
-            Debug.Log($"=== APPEARING NEAR ELEMENT {currentSpotIndex} === At distance {nearSpotDistance} from {currentHidingSpot.name}");
+            // Make sure Yuki is visible (not ghostly) when appearing near spot
+            ghostEffect.SetAlphaImmediate(0f); // Start invisible
+            
+            Debug.Log($"=== APPEARING NEAR ELEMENT {currentSpotIndex} === Distance {Vector3.Distance(nearPosition, currentHidingSpot.position):F1}m from {currentHidingSpot.name}");
+            Debug.Log($"=== POSITIONS === Yuki: {transform.position}, Hiding Spot: {currentHidingSpot.position}");
             
             // Play appear particles
             PlayAngelicParticles();
@@ -281,23 +285,36 @@ public class YukiHideAndSeek : MonoBehaviour
             
             // Now waiting near the spot for player to approach
             currentState = YukiState.WaitingNearSpot;
-            Debug.Log($"=== NOW WAITING === Near Element {currentSpotIndex} for player to get close");
+            Debug.Log($"=== NOW WAITING === Near Element {currentSpotIndex} for player to get close (detection range: {detectionRange})");
+        }
+        else 
+        {
+            Debug.LogError($"=== ERROR === CurrentSpotIndex {currentSpotIndex} is beyond hidingSpots length {hidingSpots.Length}");
         }
     }
     
     Vector3 GetPositionNearSpot(Vector3 spotPosition) 
     {
-        // Find a position nearSpotDistance away from the hiding spot
-        Vector3 randomDirection = Random.insideUnitSphere;
-        randomDirection.y = 0; // Keep on same height level
-        randomDirection.Normalize();
+        // Instead of random, use a fixed offset from the hiding spot toward the player
+        Vector3 directionToPlayer = (player.position - spotPosition).normalized;
         
-        Vector3 nearPosition = spotPosition + (randomDirection * nearSpotDistance);
+        // Place Yuki between the player and the hiding spot, at nearSpotDistance from the spot
+        Vector3 nearPosition = spotPosition + (directionToPlayer * nearSpotDistance);
         
-        // Make sure the position is on the ground
-        if (Physics.Raycast(nearPosition + Vector3.up * 10f, Vector3.down, out RaycastHit hit, 20f)) 
+        // Ensure Y position is same as hiding spot (avoid floating/underground)
+        nearPosition.y = spotPosition.y;
+        
+        // Try to find valid NavMesh position near this point
+        UnityEngine.AI.NavMeshHit navHit;
+        if (UnityEngine.AI.NavMesh.SamplePosition(nearPosition, out navHit, nearSpotDistance * 2f, UnityEngine.AI.NavMesh.AllAreas))
         {
-            nearPosition = hit.point;
+            nearPosition = navHit.position;
+        }
+        else
+        {
+            // Fallback: use the hiding spot position itself if no valid nearby position found
+            Debug.LogWarning($"Could not find valid near position for {currentHidingSpot.name}, using spot position");
+            nearPosition = spotPosition;
         }
         
         return nearPosition;
