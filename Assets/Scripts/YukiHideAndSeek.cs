@@ -29,28 +29,29 @@ public class YukiHideAndSeek : MonoBehaviour
     [SerializeField] private float particleStartDelay = 0.3f;
     [SerializeField] private float particleDuration = 4f;
     [SerializeField] private AudioClip laughingSound;
-    [SerializeField] private AudioClip screamSound; // NEW: Scream for devil spawn
+    [SerializeField] private AudioClip screamSound;
     [SerializeField] private AudioClip backgroundMusic;
     
     [Header("Game Progression")]
     [SerializeField] private int maxHideSeekRounds = 3;
-    [SerializeField] private GameObject devilToSpawn; // Changed from enemyToSpawn
+    [SerializeField] private int hidingSpotsInThisScene = 2; // How many spots before ending this scene
+    [SerializeField] private GameObject devilToSpawn;
     [SerializeField] private Transform devilSpawnPoint;
     
     // State management
     public enum YukiState 
     {
-        WaitingNearSpot,    // NEW: Waiting near a hiding spot for player to approach
+        WaitingNearSpot,    // Waiting near a hiding spot for player to approach
         RunningToHide,      // Running TO the hiding spot
         Hiding,             // At the hiding spot, ghostly
         FadingOut,          // Vanishing after being found
         Vanished,           // Invisible, teleporting
         FadingIn,           // Appearing near next spot
-        FinalHiding,        // NEW: At final spot, waiting for devil spawn
-        DevilSummoned       // NEW: Devil has appeared
+        FinalHiding,        // At final spot, waiting for devil spawn
+        DevilSummoned       // Devil has appeared
     }
     
-    private YukiState currentState = YukiState.FadingIn; // Start by appearing near first spot
+    private YukiState currentState = YukiState.FadingIn;
     private Transform currentHidingSpot;
     private int currentSpotIndex = 0;
     private int timesFound = 0;
@@ -96,7 +97,7 @@ public class YukiHideAndSeek : MonoBehaviour
         currentSpotIndex = 0;
         timesFound = 0;
         
-        if (hidingSpots.Length > 0) 
+        if (hidingSpots.Length > currentSpotIndex) 
         {
             currentHidingSpot = hidingSpots[currentSpotIndex];
         }
@@ -106,7 +107,7 @@ public class YukiHideAndSeek : MonoBehaviour
         // Start by appearing near first hiding spot
         StartCoroutine(AppearNearSpot());
         
-        Debug.Log($"=== GAME STARTED === Will appear near Element {currentSpotIndex}");
+        Debug.Log($"=== GAME STARTED === Element {currentSpotIndex}, Round {timesFound + 1}");
     }
     
     void Update() 
@@ -166,7 +167,7 @@ public class YukiHideAndSeek : MonoBehaviour
     
     void HandleFinalHiding(float distanceToPlayer) 
     {
-        // Check if player found Yuki at final spot
+        // Check if player found Yuki at final spot - triggers boss fight
         if (distanceToPlayer <= foundRange) 
         {
             OnFinalDiscovery();
@@ -214,7 +215,7 @@ public class YukiHideAndSeek : MonoBehaviour
         timesFound++;
         Debug.Log($"=== FOUND AT ELEMENT {currentSpotIndex} === Round {timesFound}/{maxHideSeekRounds}");
         
-        // Vanish and move to near next spot
+        // Vanish and move to next area
         StartCoroutine(VanishAndMoveToNextArea());
     }
     
@@ -251,12 +252,24 @@ public class YukiHideAndSeek : MonoBehaviour
         
         currentState = YukiState.Vanished;
         
-        // Move to next spot area
-        currentSpotIndex++;
-        yield return new WaitForSeconds(respawnDelay);
-        
-        // Appear near next spot
-        StartCoroutine(AppearNearSpot());
+        // Check if we've completed all spots in this scene
+        if (timesFound >= hidingSpotsInThisScene) 
+        {
+            Debug.Log($"=== HIDE AND SEEK COMPLETE IN THIS SCENE === Found {timesFound}/{hidingSpotsInThisScene} spots");
+            Debug.Log("=== YUKI DISAPPEARS === Player can now manually go to next scene");
+            
+            // End the hide and seek in this scene - Yuki disappears completely
+            gameObject.SetActive(false);
+        }
+        else 
+        {
+            // Continue to next spot in same scene
+            currentSpotIndex++;
+            yield return new WaitForSeconds(respawnDelay);
+            
+            // Appear near next spot
+            StartCoroutine(AppearNearSpot());
+        }
     }
     
     IEnumerator AppearNearSpot() 
@@ -275,7 +288,6 @@ public class YukiHideAndSeek : MonoBehaviour
             ghostEffect.SetAlphaImmediate(0f); // Start invisible
             
             Debug.Log($"=== APPEARING NEAR ELEMENT {currentSpotIndex} === Distance {Vector3.Distance(nearPosition, currentHidingSpot.position):F1}m from {currentHidingSpot.name}");
-            Debug.Log($"=== POSITIONS === Yuki: {transform.position}, Hiding Spot: {currentHidingSpot.position}");
             
             // Play appear particles
             PlayAngelicParticles();
@@ -295,16 +307,14 @@ public class YukiHideAndSeek : MonoBehaviour
     
     Vector3 GetPositionNearSpot(Vector3 spotPosition) 
     {
-        // Instead of random, use a fixed offset from the hiding spot toward the player
+        // Place Yuki between the player and the hiding spot
         Vector3 directionToPlayer = (player.position - spotPosition).normalized;
-        
-        // Place Yuki between the player and the hiding spot, at nearSpotDistance from the spot
         Vector3 nearPosition = spotPosition + (directionToPlayer * nearSpotDistance);
         
-        // Ensure Y position is same as hiding spot (avoid floating/underground)
+        // Ensure Y position is same as hiding spot
         nearPosition.y = spotPosition.y;
         
-        // Try to find valid NavMesh position near this point
+        // Try to find valid NavMesh position
         UnityEngine.AI.NavMeshHit navHit;
         if (UnityEngine.AI.NavMesh.SamplePosition(nearPosition, out navHit, nearSpotDistance * 2f, UnityEngine.AI.NavMesh.AllAreas))
         {
@@ -312,7 +322,7 @@ public class YukiHideAndSeek : MonoBehaviour
         }
         else
         {
-            // Fallback: use the hiding spot position itself if no valid nearby position found
+            // Fallback: use the hiding spot position itself
             Debug.LogWarning($"Could not find valid near position for {currentHidingSpot.name}, using spot position");
             nearPosition = spotPosition;
         }
@@ -347,7 +357,7 @@ public class YukiHideAndSeek : MonoBehaviour
         // Play dramatic particles
         PlayAngelicParticles();
         
-        // Stop background music (optional - create tension)
+        // Stop background music (create tension)
         if (audioSource != null && audioSource.isPlaying) 
         {
             audioSource.Stop();
@@ -356,7 +366,7 @@ public class YukiHideAndSeek : MonoBehaviour
         Debug.Log("=== GAME PHASE COMPLETE === Devil has been summoned!");
     }
     
-    // Particle and fade effects (same as before)
+    // Particle and fade effects
     IEnumerator AngelicFadeOut() 
     {
         float elapsedTime = 0f;
@@ -435,32 +445,24 @@ public class YukiHideAndSeek : MonoBehaviour
             case YukiState.WaitingNearSpot:
                 // Use Alert animation - waiting for player to get close
                 animator.SetBool("IsAlert", true);
-                Debug.Log("=== ANIMATION === Alert (waiting for player approach)");
                 break;
                 
             case YukiState.RunningToHide:
                 // Use Running animation - moving to hiding spot
                 animator.SetBool("IsRunning", true);
-                Debug.Log("=== ANIMATION === Running (to hiding spot)");
                 break;
                 
             case YukiState.Hiding:
             case YukiState.FinalHiding:
                 // Use Look Around animation - hiding and waiting to be found
                 animator.SetBool("IsLookAround", true);
-                Debug.Log("=== ANIMATION === Look Around (waiting to be found)");
                 break;
                 
             case YukiState.FadingOut:
-                // Keep current animation while fading out
-                Debug.Log("=== ANIMATION === Fading out (keep current pose)");
-                break;
-                
             case YukiState.FadingIn:
             case YukiState.Vanished:
             case YukiState.DevilSummoned:
                 // Use Idle for these states
-                Debug.Log("=== ANIMATION === Idle");
                 break;
         }
     }
