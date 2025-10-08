@@ -119,39 +119,44 @@ public class SmoothCameraController : MonoBehaviour
     }
     
     void HandleCursorLock()
+{
+    // Don't handle cursor if inventory is open
+    if (InventoryUI.Instance != null && InventoryUI.Instance.IsInventoryOpen())
     {
-        // Toggle cursor lock with ESC key
-        if (Input.GetKeyDown(KeyCode.Escape))
+        return; // Exit early, don't touch cursor
+    }
+    
+    // Toggle cursor lock with ESC key
+    if (Input.GetKeyDown(KeyCode.Escape))
+    {
+        if (Cursor.lockState == CursorLockMode.Locked)
         {
-            if (Cursor.lockState == CursorLockMode.Locked)
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
-            else
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
-        
-        // Re-lock cursor when clicking in game (but not right-click if it's used for camera)
-        if (Cursor.lockState == CursorLockMode.None)
+        else
         {
-            bool shouldLock = Input.GetMouseButtonDown(0);
-            // Don't lock on right-click if it's used for vertical camera control
-            if (!requireRightClickForVertical)
-            {
-                shouldLock = shouldLock || Input.GetMouseButtonDown(1);
-            }
-            
-            if (shouldLock)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
     }
+    
+    // Re-lock cursor when clicking in game (but not right-click if it's used for camera)
+    if (Cursor.lockState == CursorLockMode.None)
+    {
+        bool shouldLock = Input.GetMouseButtonDown(0);
+        if (!requireRightClickForVertical)
+        {
+            shouldLock = shouldLock || Input.GetMouseButtonDown(1);
+        }
+        
+        if (shouldLock)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+    }
+}
     
     // Public methods
     public void SetMouseSensitivity(float sensitivity)

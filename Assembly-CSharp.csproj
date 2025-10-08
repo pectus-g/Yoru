@@ -64,9 +64,11 @@
     <Analyzer Include="/Applications/Unity/Hub/Editor/2022.3.62f1/Unity.app/Contents/Tools/Unity.SourceGenerators/Unity.Properties.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets/Scripts/NPCs/NPCTakeItem.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Slider/SliderManager.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXEffectController.cs" />
     <Compile Include="Assets/Scripts/SimpleCatAnimator.cs" />
+    <Compile Include="Assets/Scripts/Inventory/InventorySlot.cs" />
     <Compile Include="Assets/KriptoFX/MeshEffect/Scripts/ME_ParticleCollisionDecal.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Context Menu/ContextMenuContentMobile.cs" />
     <Compile Include="Assets/KriptoFX/MeshEffect/Scripts/ME_FixParticlesAligment.cs" />
@@ -75,13 +77,13 @@
     <Compile Include="Assets/Modern UI Pack/Scripts/Notification/NotificationManager.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/VertexShakeA.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/UI Manager/UIManagerSwitch.cs" />
-    <Compile Include="Assets/Scripts/UI/InventoryManager.cs" />
     <Compile Include="Assets/KriptoFX/MeshEffect/Scripts/ME_LightCurves.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/States/GrowingState.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Tools/FoliageInteractor.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Character/FirstPersonController_Polyart.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Demo/LaunchURL.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Context Menu/ContextMenuSubMenu.cs" />
+    <Compile Include="Assets/Scripts/Inventory/InventorySlotUI.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Charts/PieChart.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/EnvMapAnimator.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/HarvestingStateMachine.cs" />
@@ -98,7 +100,6 @@
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/Benchmark01_UGUI.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Slider/SliderInput.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/SimpleScript.cs" />
-    <Compile Include="Assets/Scripts/UI/InventorySlot.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Context Menu/ContextMenuManager.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/UI Manager/UIManagerProgressBarLoopEditor.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/Benchmark04.cs" />
@@ -122,6 +123,7 @@
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Interaction/IInteractable.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Demo/DemoElementSwayParent.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Icon/AnimatedIconHandler.cs" />
+    <Compile Include="Assets/Scripts/NPCs/NPCGiveItem.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/ShaderGraph/Custom Inspectors/RGB_Rock_CustomInspector.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/TMP_DigitValidator.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/MillRotate.cs" />
@@ -129,6 +131,7 @@
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/TMP_FrameRateCounter.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Modal Window/ModalWindowManager.cs" />
     <Compile Include="Assets/Scripts/CatAnimationManager.cs" />
+    <Compile Include="Assets/Scripts/Inventory/InventoryUI.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/States/HarvestedState.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Demo/InputSystemChecker.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/ListView/ListView.cs" />
@@ -143,8 +146,10 @@
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/Benchmark01.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/TextMeshSpawner.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/VFX Library/ParticleEffectsLibrary.cs" />
+    <Compile Include="Assets/Scripts/Inventory/InventoryItem.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/ChoppableTreeSettings.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXSceneManager.cs" />
+    <Compile Include="Assets/Scripts/World/ItemPickup.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/SimpleAI/StateMachine/States/NPCMoveState.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Switch/SwitchManager.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/SimpleAI/StateMachine/States/NPCOneShotState.cs" />
@@ -189,7 +194,6 @@
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Tools/Ocean Tool/OceanTool.cs" />
     <Compile Include="Assets/Epic Toon FX/Scripts/ETFXPitchRandomizer.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/SimpleAI/StateMachine/NPCStateMachineCustomInspector.cs" />
-    <Compile Include="Assets/Scripts/Data/Item.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Tools/PathTool/PathLODHeightMultiplier.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Icon/IconLibraryEditor.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Switch/SwitchManagerEditor.cs" />
@@ -214,6 +218,7 @@
     <Compile Include="Assets/Scripts/SmoothCameraController.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/HarvestInteraction.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Dropdown/CustomDropdown.cs" />
+    <Compile Include="Assets/Scripts/NPCs/NPCInteraction.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Context Menu/ContextMenuManagerEditor.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/SimpleAI/StateMachine/States/NPCCycleState.cs" />
     <Compile Include="Assets/KriptoFX/MeshEffect/Scripts/Rendering/ME_PerPlatformSettings.cs" />
@@ -225,7 +230,9 @@
     <Compile Include="Assets/Modern UI Pack/Scripts/UI Manager/UIManager.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Progress Bar/ProgressBar.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Misc/SmoothMouseLook.cs" />
+    <Compile Include="Assets/Scripts/Inventory/InventoryManager.cs" />
     <Compile Include="Assets/Scripts/CatAnimationController.cs" />
+    <Compile Include="Assets/Scripts/World/PlayerInteraction.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Layout Group/RadialLayoutGroup.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/UI Manager/UIManagerSliderEditor.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/ObjectSpin.cs" />
@@ -240,10 +247,8 @@
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/VertexJitter.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/SimpleAI/StateMachine/States/NPCIdleState.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Horizontal Selector/HorizontalSelector.cs" />
-    <Compile Include="Assets/Scripts/Data/Quest.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Slider/SliderManagerEditor.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Character/Interactable_Dreamscape.cs" />
-    <Compile Include="Assets/Scripts/UI/QuestItem.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/States/GrownState.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Dropdown/DropdownMultiSelectEditor.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/TextConsoleSimulator.cs" />
@@ -257,7 +262,6 @@
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXEffectCycler.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/VertexZoom.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/UI Manager/UIManagerToggle.cs" />
-    <Compile Include="Assets/Scripts/UI/QuestManager.cs" />
     <Compile Include="Assets/Scripts/ManualCatAnimator.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/UI Manager/UIManagerAnimatedIcon.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Input Field/CustomInputField.cs" />
@@ -288,7 +292,6 @@
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Tools/River Tool/WaterfallMaterialCustomInspector.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/ListView/ListViewItem.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/VFX Library/UICanvasManager.cs" />
-    <Compile Include="Assets/Scripts/UI/UIManager.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXProjectileScript.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Window/WindowManager.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/Farmlands/Scripts/ScaleParticleSystem.cs" />
