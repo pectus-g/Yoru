@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38039b016c60f49ef856ef184eaeb59e, type: 3}
+  m_Name: Hitotsume_Dialogue
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  enemyName: 
+  initialDialogue: '"Where... where am I? My family... I was just at the village
+    festival...
+
+    The lanterns were so beautiful... Then everything went dark.
+
+    Please...
+    can you tell me what happened?'
+  lightChoice:
+    choiceText: '[EMPATHIZE] You''re safe now. What happened?'
+    response:
+      responseText: 'You... you''re kind. I remember now... the fire...
+
+        My
+        family... they''re gone, aren''t they? Thank you for your compassion.
+
+        I
+        can finally rest..'
+      outcome: 0
+    type: 0
+  darkChoice:
+    choiceText: '[CONFRONT] You''re dead. Accept it.'
+    response:
+      responseText: 'No... NO! I won''t accept this! My family needs me!
+
+        How
+        dare you say such things! I''ll make you pay for your cruelty!"'
+      outcome: 1
+    type: 1
+  neutralChoice:
+    choiceText: '[LEAVE] ... (say nothing)'
+    response:
+      responseText: I'm so confused... so alone..
+      outcome: 2
+    type: 2
+  lightKarmaReward: 1
+  darkKarmaReward: 1

@@ -2,96 +2,82 @@ using UnityEngine;
 
 public class InteractableEnemy : MonoBehaviour
 {
-    [Header("Dialogue")]
-    [SerializeField] private DialogueData dialogueData;
-    
-    [Header("Interaction Settings")]
-    [SerializeField] private float interactionRange = 3f;
-    [SerializeField] private bool canInteract = true;
-    [SerializeField] private bool hasBeenTalkedTo = false;
+    public DialogueData dialogueData;
+    public float interactionRange = 7f; // Larger than NPC range
+    public GameObject interactionPrompt;
     
     private Transform player;
-    private GameObject interactionPrompt;
     private EnemyCombat enemyCombat;
+    private bool hasBeenTalkedTo = false;
     
     void Start()
     {
-        // Find player
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null)
-        {
-            player = playerObj.transform;
-        }
-        
-        // Find interaction prompt in HUD
-        Canvas hudCanvas = FindObjectOfType<Canvas>();
-        if (hudCanvas != null)
-        {
-            Transform prompt = hudCanvas.transform.Find("InteractionPrompt");
-            if (prompt != null)
-            {
-                interactionPrompt = prompt.gameObject;
-            }
-        }
-        
+        player = GameObject.FindGameObjectWithTag("Player")?.transform;
         enemyCombat = GetComponent<EnemyCombat>();
         
-        // Hide prompt by default
         if (interactionPrompt != null)
         {
             interactionPrompt.SetActive(false);
+            Debug.Log("✅ Enemy interaction prompt ready");
+        }
+        else
+        {
+            Debug.LogError("❌ InteractionPrompt NOT assigned to enemy!");
         }
     }
     
     void Update()
     {
-        if (!canInteract || hasBeenTalkedTo) return;
-        if (player == null) return;
+        if (hasBeenTalkedTo || player == null || interactionPrompt == null) return;
         
-        // Check if enemy is in LostSoul state (can only talk when confused)
+        // Only show prompt when in LostSoul state
         if (enemyCombat != null && enemyCombat.GetCurrentState() != EnemyCombat.EnemyState.LostSoul)
         {
-            if (interactionPrompt != null && interactionPrompt.activeSelf)
+            if (interactionPrompt.activeSelf)
             {
                 interactionPrompt.SetActive(false);
             }
             return;
         }
         
-        // Check distance to player
-        float distance = Vector3.Distance(transform.position, player.position);
+        // Check distance
+        float dist = Vector3.Distance(transform.position, player.position);
+        bool inRange = dist <= interactionRange;
         
-        if (distance <= interactionRange)
+        // Show/hide prompt
+        if (inRange && !interactionPrompt.activeSelf)
         {
-            // Show prompt
-            if (interactionPrompt != null)
-            {
-                interactionPrompt.SetActive(true);
-            }
-            
-            // Check for E key
-            if (Input.GetKeyDown(KeyCode.E))
-            {
-                StartDialogue();
-            }
+            interactionPrompt.SetActive(true);
+            Debug.Log("✅ Showing enemy prompt!");
         }
-        else
+        else if (!inRange && interactionPrompt.activeSelf)
         {
-            // Hide prompt
-            if (interactionPrompt != null && interactionPrompt.activeSelf)
-            {
-                interactionPrompt.SetActive(false);
-            }
+            interactionPrompt.SetActive(false);
+        }
+        
+        // Check E key
+        if (inRange && Input.GetKeyDown(KeyCode.E))
+        {
+            Debug.Log("🔑🔑🔑 E PRESSED ON ENEMY! 🔑🔑🔑");
+            StartDialogue();
         }
     }
     
-    private void StartDialogue()
+    void StartDialogue()
     {
         if (dialogueData == null)
         {
-            Debug.LogError($"{gameObject.name} has no DialogueData assigned!");
+            Debug.LogError("❌ No DialogueData assigned!");
             return;
         }
+        
+        if (DialogueManager.Instance == null)
+        {
+            Debug.LogError("❌ DialogueManager.Instance is NULL!");
+            return;
+        }
+        
+        Debug.Log("=== STARTING ENEMY DIALOGUE ===");
         
         // Hide prompt
         if (interactionPrompt != null)
@@ -99,23 +85,19 @@ public class InteractableEnemy : MonoBehaviour
             interactionPrompt.SetActive(false);
         }
         
-        // Set enemy to dialogue state
+        // Set to dialogue state
         if (enemyCombat != null)
         {
             enemyCombat.SetState(EnemyCombat.EnemyState.Dialogue);
         }
         
         // Show dialogue
-        if (DialogueManager.Instance != null)
-        {
-            DialogueManager.Instance.ShowDialogue(dialogueData, this);
-            hasBeenTalkedTo = true; // Can only talk once
-        }
+        DialogueManager.Instance.ShowDialogue(dialogueData, this);
+        hasBeenTalkedTo = true;
         
-        Debug.Log($"Started dialogue with {gameObject.name}");
+        Debug.Log("✅ Enemy dialogue started!");
     }
     
-    // Debug visualization
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.cyan;
