@@ -20,10 +20,8 @@ public class DialogueManager : MonoBehaviour
     private DialogueData currentDialogue;
     private InteractableEnemy currentEnemy;
     private KarmaManager karmaManager;
-    
-    // Store the chosen outcome to apply after delay
     private EnemyOutcome outcomeToApply;
-    private bool waitingToApplyOutcome = false;
+    private bool isDialogueActive = false;  // NEW FLAG
     
     public static DialogueManager Instance;
     
@@ -40,73 +38,68 @@ public class DialogueManager : MonoBehaviour
             dialoguePanel.SetActive(false);
         }
         
-        // Setup buttons
         if (lightChoiceButton != null)
         {
             lightChoiceButton.onClick.RemoveAllListeners();
             lightChoiceButton.onClick.AddListener(ClickedLight);
-            Debug.Log("✅ Light button setup");
         }
         
         if (darkChoiceButton != null)
         {
             darkChoiceButton.onClick.RemoveAllListeners();
             darkChoiceButton.onClick.AddListener(ClickedDark);
-            Debug.Log("✅ Dark button setup");
         }
         
         if (neutralChoiceButton != null)
         {
             neutralChoiceButton.onClick.RemoveAllListeners();
             neutralChoiceButton.onClick.AddListener(ClickedNeutral);
-            Debug.Log("✅ Neutral button setup");
         }
         
-        Debug.Log("✅ DialogueManager fully initialized!");
+        Debug.Log("✅ DialogueManager initialized!");
+    }
+    
+    void Update()
+    {
+        // FORCE CURSOR VISIBLE WHILE DIALOGUE IS ACTIVE
+        if (isDialogueActive)
+        {
+            if (!Cursor.visible || Cursor.lockState != CursorLockMode.None)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+        }
     }
     
     public void ClickedLight()
     {
-        Debug.Log("🟢🟢🟢 LIGHT BUTTON CLICKED! 🟢🟢🟢");
+        Debug.Log("🟢 LIGHT CLICKED!");
         ProcessChoice(ChoiceType.Light);
     }
     
     public void ClickedDark()
     {
-        Debug.Log("🔴🔴🔴 DARK BUTTON CLICKED! 🔴🔴🔴");
+        Debug.Log("🔴 DARK CLICKED!");
         ProcessChoice(ChoiceType.Dark);
     }
     
     public void ClickedNeutral()
     {
-        Debug.Log("⚪⚪⚪ NEUTRAL BUTTON CLICKED! ⚪⚪⚪");
+        Debug.Log("⚪ NEUTRAL CLICKED!");
         ProcessChoice(ChoiceType.Neutral);
     }
     
     public void ShowDialogue(DialogueData dialogue, InteractableEnemy enemy)
     {
-        Debug.Log("=== SHOWING DIALOGUE ===");
-        
-        if (dialogue == null)
-        {
-            Debug.LogError("❌ DialogueData is NULL!");
-            return;
-        }
-        
-        if (enemy == null)
-        {
-            Debug.LogError("❌ Enemy is NULL!");
-            return;
-        }
+        if (dialogue == null || enemy == null) return;
         
         currentDialogue = dialogue;
         currentEnemy = enemy;
-        waitingToApplyOutcome = false;
+        isDialogueActive = true;  // SET FLAG
         
-        // Show panel
         dialoguePanel.SetActive(true);
         
-        // Set texts
         speakerNameText.text = dialogue.enemyName;
         dialogueText.text = dialogue.initialDialogue;
         
@@ -114,7 +107,6 @@ public class DialogueManager : MonoBehaviour
         darkChoiceText.text = dialogue.darkChoice.choiceText;
         neutralChoiceText.text = dialogue.neutralChoice.choiceText;
         
-        // Show buttons
         lightChoiceButton.gameObject.SetActive(true);
         darkChoiceButton.gameObject.SetActive(true);
         neutralChoiceButton.gameObject.SetActive(true);
@@ -123,101 +115,61 @@ public class DialogueManager : MonoBehaviour
         darkChoiceButton.interactable = true;
         neutralChoiceButton.interactable = true;
         
-        // Unlock cursor
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         
-        Debug.Log($"✅ Dialogue showing: {dialogue.enemyName}");
-        Debug.Log($"✅ currentDialogue set: {currentDialogue != null}");
-        Debug.Log($"✅ currentEnemy set: {currentEnemy != null}");
+        Debug.Log("✅ Dialogue opened!");
     }
     
     private void ProcessChoice(ChoiceType type)
     {
-        Debug.Log($"▶▶▶ PROCESSING CHOICE: {type} ◀◀◀");
-        
-        if (currentDialogue == null)
-        {
-            Debug.LogError("❌ currentDialogue is NULL in ProcessChoice!");
-            return;
-        }
-        
-        if (currentEnemy == null)
-        {
-            Debug.LogError("❌ currentEnemy is NULL in ProcessChoice!");
-            return;
-        }
-        
-        Debug.Log("✅ Both currentDialogue and currentEnemy are valid!");
+        if (currentDialogue == null || currentEnemy == null) return;
         
         DialogueChoice choice = null;
         
-        // Get the choice based on type
         if (type == ChoiceType.Light)
         {
             choice = currentDialogue.lightChoice;
             if (karmaManager != null)
-            {
                 karmaManager.AddLightKarma(currentDialogue.lightKarmaReward);
-                Debug.Log($"💚 Added {currentDialogue.lightKarmaReward} light karma");
-            }
         }
         else if (type == ChoiceType.Dark)
         {
             choice = currentDialogue.darkChoice;
             if (karmaManager != null)
-            {
                 karmaManager.AddDarkKarma(currentDialogue.darkKarmaReward);
-                Debug.Log($"💔 Added {currentDialogue.darkKarmaReward} dark karma");
-            }
         }
         else
         {
             choice = currentDialogue.neutralChoice;
-            Debug.Log("😶 Neutral choice - no karma");
         }
         
-        if (choice == null)
-        {
-            Debug.LogError("❌ Selected choice is NULL!");
-            return;
-        }
+        if (choice == null) return;
         
-        Debug.Log($"✅ Choice response: {choice.response.responseText}");
-        Debug.Log($"✅ Choice outcome: {choice.response.outcome}");
-        
-        // Hide buttons immediately
+        // Hide buttons
         lightChoiceButton.gameObject.SetActive(false);
         darkChoiceButton.gameObject.SetActive(false);
         neutralChoiceButton.gameObject.SetActive(false);
         
-        // Show response text
+        // Show response
         dialogueText.text = choice.response.responseText;
         speakerNameText.text = currentDialogue.enemyName + " responds:";
         
-        // Store outcome to apply later
+        // Store outcome
         outcomeToApply = choice.response.outcome;
-        waitingToApplyOutcome = true;
         
-        Debug.Log($"⏰ Waiting 2 seconds before applying outcome: {outcomeToApply}");
+        // CURSOR STAYS VISIBLE - Update() will enforce this
         
-        // Wait 2 seconds then apply outcome
+        Debug.Log("Waiting 2 seconds...");
         Invoke("ApplyOutcomeNow", 2f);
     }
     
     private void ApplyOutcomeNow()
     {
-        Debug.Log("⏰⏰⏰ 2 SECONDS PASSED - APPLYING OUTCOME NOW! ⏰⏰⏰");
-        
-        if (!waitingToApplyOutcome)
-        {
-            Debug.LogWarning("⚠️ Not waiting for outcome anymore!");
-            return;
-        }
+        Debug.Log("Applying outcome!");
         
         if (currentEnemy == null)
         {
-            Debug.LogError("❌ currentEnemy is NULL when trying to apply outcome!");
             CloseDialogue();
             return;
         }
@@ -225,44 +177,38 @@ public class DialogueManager : MonoBehaviour
         EnemyCombat combat = currentEnemy.GetComponent<EnemyCombat>();
         if (combat == null)
         {
-            Debug.LogError("❌ EnemyCombat component not found!");
             CloseDialogue();
             return;
         }
         
-        Debug.Log($"🎭 Applying outcome: {outcomeToApply}");
+        Debug.Log($"Outcome: {outcomeToApply}");
         
-        // Apply the outcome
         if (outcomeToApply == EnemyOutcome.BecomePeaceful)
         {
-            Debug.Log("✨✨✨ CALLING BecomePeaceful() ✨✨✨");
+            Debug.Log("✨ Peaceful");
             combat.BecomePeaceful();
         }
         else if (outcomeToApply == EnemyOutcome.BecomeHostile)
         {
-            Debug.Log("⚔️⚔️⚔️ CALLING BecomeHostile() ⚔️⚔️⚔️");
+            Debug.Log("⚔️ Hostile");
             combat.BecomeHostile();
         }
-        else if (outcomeToApply == EnemyOutcome.StayConfused)
+        else
         {
-            Debug.Log("❓❓❓ Keeping LostSoul state ❓❓❓");
             combat.SetState(EnemyCombat.EnemyState.LostSoul);
         }
         
-        Debug.Log("✅ Outcome applied successfully!");
+        Debug.Log($"New state: {combat.GetCurrentState()}");
         
-        // Close dialogue
         CloseDialogue();
     }
     
     private void CloseDialogue()
     {
-        Debug.Log("=== CLOSING DIALOGUE ===");
-        
         dialoguePanel.SetActive(false);
-        waitingToApplyOutcome = false;
+        isDialogueActive = false;  // CLEAR FLAG
         
-        // Re-enable buttons for next time
+        // Re-enable buttons
         lightChoiceButton.gameObject.SetActive(true);
         darkChoiceButton.gameObject.SetActive(true);
         neutralChoiceButton.gameObject.SetActive(true);
@@ -271,13 +217,13 @@ public class DialogueManager : MonoBehaviour
         darkChoiceButton.interactable = true;
         neutralChoiceButton.interactable = true;
         
-        // Lock cursor
+        // NOW lock cursor
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         
         currentDialogue = null;
         currentEnemy = null;
         
-        Debug.Log("✅ Dialogue closed, cursor locked");
+        Debug.Log("✅ Dialogue closed!");
     }
 }
