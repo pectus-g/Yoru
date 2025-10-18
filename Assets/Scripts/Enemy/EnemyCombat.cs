@@ -20,8 +20,8 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float attackRange = 2.5f;
     
     [Header("Attack Settings")]
-    [SerializeField] private int punchDamage = 10;
-    [SerializeField] private int kickDamage = 15;
+    [SerializeField] private int punchDamage = 1;
+    [SerializeField] private int kickDamage = 2;
     [SerializeField] private float attackCooldown = 2f;
     private float attackTimer = 0f;
     

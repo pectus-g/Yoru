@@ -2,112 +2,38 @@ using UnityEngine;
 
 public class EnemyDamageTest : MonoBehaviour
 {
-    [SerializeField] private int damageAmount = 10;
+    [SerializeField] private int damageAmount = 1;
     
     void Update()
     {
-        // Press SPACE to damage nearest enemy
-        if (Input.GetKeyDown(KeyCode.Space))
+        // Press K to damage player (NOT SPACE!)
+        if (Input.GetKeyDown(KeyCode.K))
         {
-            DamageNearestEnemy();
+            DamagePlayer();
         }
         
-        // Press L to damage ALL enemies
-        if (Input.GetKeyDown(KeyCode.L))
+        // Press J to heal player
+        if (Input.GetKeyDown(KeyCode.J))
         {
-            DamageAllEnemies();
-        }
-        
-        // Press M to kill nearest enemy instantly
-        if (Input.GetKeyDown(KeyCode.M))
-        {
-            KillNearestEnemy();
+            HealPlayer();
         }
     }
     
-    void DamageNearestEnemy()
+    void DamagePlayer()
     {
-        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
-        
-        if (enemies.Length == 0)
+        PlayerHealth playerHealth = GetComponent<PlayerHealth>();
+        if (playerHealth != null)
         {
-            Debug.Log("No enemies found!");
-            return;
-        }
-        
-        // Find closest
-        GameObject closestEnemy = null;
-        float closestDistance = Mathf.Infinity;
-        
-        foreach (GameObject enemy in enemies)
-        {
-            float distance = Vector3.Distance(transform.position, enemy.transform.position);
-            if (distance < closestDistance)
-            {
-                closestDistance = distance;
-                closestEnemy = enemy;
-            }
-        }
-        
-        // Damage it
-        if (closestEnemy != null)
-        {
-            EnemyHealth enemyHealth = closestEnemy.GetComponent<EnemyHealth>();
-            if (enemyHealth != null)
-            {
-                enemyHealth.TakeDamage(damageAmount);
-            }
+            playerHealth.TakeDamage(damageAmount);
         }
     }
     
-    void DamageAllEnemies()
+    void HealPlayer()
     {
-        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
-        
-        foreach (GameObject enemy in enemies)
+        PlayerHealth playerHealth = GetComponent<PlayerHealth>();
+        if (playerHealth != null)
         {
-            EnemyHealth enemyHealth = enemy.GetComponent<EnemyHealth>();
-            if (enemyHealth != null && enemyHealth.IsAlive())
-            {
-                enemyHealth.TakeDamage(damageAmount);
-            }
-        }
-        
-        Debug.Log($"Damaged all {enemies.Length} enemies!");
-    }
-    
-    void KillNearestEnemy()
-    {
-        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
-        
-        if (enemies.Length == 0)
-        {
-            Debug.Log("No enemies found!");
-            return;
-        }
-        
-        // Find closest
-        GameObject closestEnemy = null;
-        float closestDistance = Mathf.Infinity;
-        
-        foreach (GameObject enemy in enemies)
-        {
-            float distance = Vector3.Distance(transform.position, enemy.transform.position);
-            if (distance < closestDistance)
-            {
-                closestDistance = distance;
-                closestEnemy = enemy;
-            }
-        }
-        
-        // Kill it
-        if (closestEnemy != null)
-        {
-            EnemyHealth enemyHealth = closestEnemy.GetComponent<EnemyHealth>();
-            if (enemyHealth != null)
-            {
-                enemyHealth.TakeDamage(1000);
-            }
+            playerHealth.Heal(1);
         }
     }
 }
