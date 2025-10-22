@@ -5,26 +5,26 @@ using TMPro;
 public class SoulManager : MonoBehaviour
 {
     [Header("Soul Settings")]
-    [SerializeField] private int maxSoul = 100;
+    [SerializeField] private int maxSoul = 12; // Changed from 100!
     private int currentSoul;
     
     [Header("Regeneration")]
-    [SerializeField] private float soulRegenRate = 0.5f; // Soul per second
-    [SerializeField] private float regenDelay = 5f; // Delay after using soul
+    [SerializeField] private float soulRegenRate = 0.5f;
+    [SerializeField] private float regenDelay = 5f;
     private float regenTimer = 0f;
-    private float regenAccumulator = 0f; // Accumulates fractional soul regen
+    private float regenAccumulator = 0f;
     
-    [Header("UI References")]
+    [Header("OLD UI References")]
     [SerializeField] private Image soulBarFill;
     [SerializeField] private TMP_Text soulText;
     
     [Header("Soul Bar Colors")]
-    [SerializeField] private Color soulHighColor = new Color(0.4f, 0.6f, 1f); // Blue
-    [SerializeField] private Color soulMediumColor = new Color(0.6f, 0.4f, 1f); // Purple
-    [SerializeField] private Color soulLowColor = new Color(0.8f, 0.3f, 0.8f); // Magenta
+    [SerializeField] private Color soulHighColor = new Color(0.4f, 0.6f, 1f);
+    [SerializeField] private Color soulMediumColor = new Color(0.6f, 0.4f, 1f);
+    [SerializeField] private Color soulLowColor = new Color(0.8f, 0.3f, 0.8f);
     
-    // Reference to rect transform for scaling
     private RectTransform fillRect;
+    private SoulIconUI soulIconUI;
     
     void Start()
     {
@@ -35,9 +35,15 @@ public class SoulManager : MonoBehaviour
             fillRect = soulBarFill.GetComponent<RectTransform>();
         }
         
+        soulIconUI = FindObjectOfType<SoulIconUI>();
+        
         UpdateSoulBar();
         
-        Debug.Log("SoulManager started. Current soul: " + currentSoul);
+        if (soulIconUI != null)
+        {
+            soulIconUI.UpdateSoul(currentSoul);
+            Debug.Log("✅ Soul icon system connected!");
+        }
     }
     
     void Update()
@@ -47,49 +53,39 @@ public class SoulManager : MonoBehaviour
     
     private void HandleSoulRegeneration()
     {
-        // Only regenerate if not at max soul
         if (currentSoul >= maxSoul)
         {
             regenAccumulator = 0f;
             return;
         }
         
-        // Handle regen delay countdown
         if (regenTimer > 0)
         {
             regenTimer -= Time.deltaTime;
-            regenAccumulator = 0f; // Reset accumulator during delay
-            
-            // Debug log every second
-            if (Mathf.FloorToInt(regenTimer) != Mathf.FloorToInt(regenTimer + Time.deltaTime))
-            {
-                Debug.Log($"Regen delay: {regenTimer:F1}s remaining");
-            }
-            
+            regenAccumulator = 0f;
             return;
         }
         
-        // Accumulate regeneration over time
         regenAccumulator += soulRegenRate * Time.deltaTime;
         
-        // Only add integer soul when we've accumulated at least 1
         if (regenAccumulator >= 1f)
         {
             int soulToAdd = Mathf.FloorToInt(regenAccumulator);
             currentSoul += soulToAdd;
             currentSoul = Mathf.Clamp(currentSoul, 0, maxSoul);
-            regenAccumulator -= soulToAdd; // Keep the fractional remainder
+            regenAccumulator -= soulToAdd;
             
-            // Debug log
-            Debug.Log($"Added {soulToAdd} soul. Current: {currentSoul}/{maxSoul}");
+            Debug.Log($"💙 Regen: {currentSoul}/{maxSoul}");
             
             UpdateSoulBar();
+            
+            if (soulIconUI != null)
+            {
+                soulIconUI.UpdateSoul(currentSoul);
+            }
         }
     }
     
-    /// <summary>
-    /// Spend soul for abilities
-    /// </summary>
     public bool SpendSoul(int amount)
     {
         if (currentSoul >= amount)
@@ -97,11 +93,15 @@ public class SoulManager : MonoBehaviour
             currentSoul -= amount;
             currentSoul = Mathf.Clamp(currentSoul, 0, maxSoul);
             
-            Debug.Log($"Spent {amount} soul. Remaining: {currentSoul}/{maxSoul}");
+            Debug.Log($"🔮 Spent {amount} soul. Remaining: {currentSoul}/{maxSoul}");
             
             UpdateSoulBar();
             
-            // Start regen delay
+            if (soulIconUI != null)
+            {
+                soulIconUI.UpdateSoul(currentSoul);
+            }
+            
             regenTimer = regenDelay;
             regenAccumulator = 0f;
             
@@ -109,64 +109,64 @@ public class SoulManager : MonoBehaviour
         }
         else
         {
-            Debug.Log($"Not enough soul! Need {amount}, have {currentSoul}");
+            Debug.Log($"❌ Not enough soul! Need {amount}, have {currentSoul}");
             return false;
         }
     }
     
-    /// <summary>
-    /// Restore soul (from pickups)
-    /// </summary>
     public void RestoreSoul(int amount)
     {
         currentSoul += amount;
         currentSoul = Mathf.Clamp(currentSoul, 0, maxSoul);
         
-        Debug.Log($"Restored {amount} soul. Current: {currentSoul}/{maxSoul}");
+        Debug.Log($"💙 Restored {amount} soul. Current: {currentSoul}/{maxSoul}");
         
         UpdateSoulBar();
+        
+        if (soulIconUI != null)
+        {
+            soulIconUI.UpdateSoul(currentSoul);
+        }
     }
     
-    /// <summary>
-    /// Drain soul (enemy attack)
-    /// </summary>
     public void DrainSoul(int amount)
     {
         currentSoul -= amount;
         currentSoul = Mathf.Clamp(currentSoul, 0, maxSoul);
         
-        Debug.Log($"Drained {amount} soul. Current: {currentSoul}/{maxSoul}");
+        Debug.Log($"💔 Drained {amount} soul. Current: {currentSoul}/{maxSoul}");
         
         UpdateSoulBar();
         
-        // Start regen delay
+        if (soulIconUI != null)
+        {
+            soulIconUI.UpdateSoul(currentSoul);
+        }
+        
         regenTimer = regenDelay;
         regenAccumulator = 0f;
     }
     
-    /// <summary>
-    /// Set soul to specific amount
-    /// </summary>
     public void SetSoul(int amount)
     {
         currentSoul = Mathf.Clamp(amount, 0, maxSoul);
         UpdateSoulBar();
+        
+        if (soulIconUI != null)
+        {
+            soulIconUI.UpdateSoul(currentSoul);
+        }
     }
     
-    /// <summary>
-    /// Update soul bar UI
-    /// </summary>
     private void UpdateSoulBar()
     {
         float soulPercentage = (float)currentSoul / maxSoul;
         
-        // Update fill using Rect Transform scaling
         if (fillRect != null)
         {
             fillRect.anchorMax = new Vector2(soulPercentage, 1f);
         }
         
-        // Update color based on percentage
         if (soulBarFill != null)
         {
             if (soulPercentage > 0.5f)
@@ -177,14 +177,12 @@ public class SoulManager : MonoBehaviour
                 soulBarFill.color = soulLowColor;
         }
         
-        // Update text
         if (soulText != null)
         {
             soulText.text = $"{currentSoul} / {maxSoul}";
         }
     }
     
-    // Public getters
     public int GetCurrentSoul() => currentSoul;
     public int GetMaxSoul() => maxSoul;
     public float GetSoulPercentage() => (float)currentSoul / maxSoul;
