@@ -3,193 +3,95 @@ using Unity.Cinemachine;
 
 public class ThirdPersonCamera : MonoBehaviour
 {
-    [Header("Camera Rotation Settings")]
-    [Tooltip("Mouse sensitivity for camera rotation")]
+    [Header("Camera Settings")]
     [SerializeField] private float mouseSensitivity = 2f;
-    
-    [Tooltip("How far down you can look (negative = downward)")]
     [SerializeField] private float minVerticalAngle = -30f;
-    
-    [Tooltip("How far up you can look (positive = upward)")]
     [SerializeField] private float maxVerticalAngle = 60f;
     
-    [Tooltip("How much vertical look affects camera tilt (higher = more dramatic)")]
-    [SerializeField] private float verticalLookMultiplier = 0.05f;
-    
     [Header("References")]
-    [Tooltip("Drag PlayerYoru GameObject here")]
     [SerializeField] private Transform playerTransform;
+    [SerializeField] private CinemachineCamera virtualCamera;
     
-    [Tooltip("Drag CM vcam_FollowYoru here")]
-    [SerializeField] private CinemachineCamera cinemachineCamera;
-    
-    // Private variables
-    private float currentRotationY = 0f;   // Horizontal rotation (around Y axis)
-    private float currentRotationX = 0f;   // Vertical rotation (up/down)
+    private float yaw = 0f;    // Horizontal rotation
+    private float pitch = 0f;  // Vertical rotation
     private bool cameraEnabled = true;
-    private CinemachineHardLookAt hardLookAt;
-    private Vector3 originalLookAtOffset;
+    
+    private CinemachineFollow followComponent;
     
     private void Start()
     {
-        // Lock and hide cursor at start
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         
-        // Auto-find player if not assigned
         if (playerTransform == null)
         {
             GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null)
-            {
-                playerTransform = player.transform;
-                Debug.Log("ThirdPersonCamera: Found Player automatically");
-            }
-            else
-            {
-                Debug.LogError("ThirdPersonCamera: No Player found! Make sure Player has 'Player' tag!");
-            }
+            if (player != null) playerTransform = player.transform;
         }
         
-        // Auto-find Cinemachine camera if not assigned
-        if (cinemachineCamera == null)
+        if (virtualCamera == null)
         {
-            cinemachineCamera = FindObjectOfType<CinemachineCamera>();
-            if (cinemachineCamera != null)
-            {
-                Debug.Log("ThirdPersonCamera: Found Cinemachine Camera automatically");
-            }
-            else
-            {
-                Debug.LogError("ThirdPersonCamera: No Cinemachine Camera found in scene!");
-            }
+            virtualCamera = FindObjectOfType<CinemachineCamera>();
         }
         
-        // Get Hard Look At component
-        if (cinemachineCamera != null)
+        if (virtualCamera != null)
         {
-            hardLookAt = cinemachineCamera.GetComponent<CinemachineHardLookAt>();
-            if (hardLookAt != null)
-            {
-                // Store original look at offset
-                originalLookAtOffset = hardLookAt.LookAtOffset;
-                Debug.Log($"ThirdPersonCamera: Hard Look At found. Original offset: {originalLookAtOffset}");
-            }
-            else
-            {
-                Debug.LogWarning("ThirdPersonCamera: No CinemachineHardLookAt component found on virtual camera!");
-            }
+            followComponent = virtualCamera.GetComponent<CinemachineFollow>();
         }
         
-        // Initialize rotation to match player's current rotation
+        // Initialize camera angle to look at player from behind
         if (playerTransform != null)
         {
-            currentRotationY = playerTransform.eulerAngles.y;
+            yaw = playerTransform.eulerAngles.y;
         }
-        
-        // Initialize vertical rotation to 0 (looking straight)
-        currentRotationX = 0f;
     }
     
     private void LateUpdate()
     {
-        // Don't update camera if disabled or player doesn't exist
-        if (!cameraEnabled || playerTransform == null) 
-        {
-            return;
-        }
+        if (!cameraEnabled || playerTransform == null) return;
         
-        // Don't rotate camera when inventory is open
         if (InventoryUI.Instance != null && InventoryUI.Instance.IsInventoryOpen())
         {
             return;
         }
         
-        // Only rotate camera when right mouse button is held
+        // Right-click to rotate camera
         if (Input.GetMouseButton(1))
         {
-            // Get mouse input
             float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
             float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
             
-            // === HORIZONTAL ROTATION (Left/Right) ===
-            currentRotationY += mouseX;
+            yaw += mouseX;
+            pitch -= mouseY;
+            pitch = Mathf.Clamp(pitch, minVerticalAngle, maxVerticalAngle);
+        }
+        
+        // Update camera position based on angles
+        if (followComponent != null)
+        {
+            Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
+            Vector3 direction = rotation * Vector3.back;  // Back = -Z
             
-            // Rotate the player to face the camera direction
-            playerTransform.rotation = Quaternion.Euler(0f, currentRotationY, 0f);
-            
-            // === VERTICAL ROTATION (Up/Down) ===
-            currentRotationX -= mouseY; // Subtract because mouse Y is inverted
-            
-            // Clamp vertical rotation between min and max angles
-            currentRotationX = Mathf.Clamp(currentRotationX, minVerticalAngle, maxVerticalAngle);
-            
-            // Apply vertical rotation to camera look offset
-            if (hardLookAt != null)
-            {
-                // Calculate new Y offset based on vertical rotation
-                float verticalOffset = originalLookAtOffset.y + (currentRotationX * verticalLookMultiplier);
-                
-                // Apply to Hard Look At offset
-                hardLookAt.LookAtOffset = new Vector3(
-                    originalLookAtOffset.x,
-                    verticalOffset,
-                    originalLookAtOffset.z
-                );
-            }
+            followComponent.FollowOffset = direction * 6f + Vector3.up * 3f;
         }
     }
     
-    /// <summary>
-    /// Enable or disable camera rotation (called by InventoryUI)
-    /// </summary>
     public void SetCameraEnabled(bool enabled)
     {
         cameraEnabled = enabled;
-        
-        if (enabled)
-        {
-            Debug.Log("ThirdPersonCamera: Camera rotation enabled");
-        }
-        else
-        {
-            Debug.Log("ThirdPersonCamera: Camera rotation disabled");
-        }
     }
     
-    /// <summary>
-    /// Reset camera rotation to default forward position
-    /// </summary>
-    public void ResetCameraRotation()
+    // Get camera forward direction (for player movement)
+    public Vector3 GetCameraForward()
     {
-        currentRotationX = 0f;
-        
-        if (playerTransform != null)
-        {
-            currentRotationY = playerTransform.eulerAngles.y;
-        }
-        
-        if (hardLookAt != null)
-        {
-            hardLookAt.LookAtOffset = originalLookAtOffset;
-        }
-        
-        Debug.Log("ThirdPersonCamera: Camera rotation reset");
+        Vector3 forward = Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;
+        return forward;
     }
     
-    /// <summary>
-    /// Get current vertical rotation angle (for debugging)
-    /// </summary>
-    public float GetVerticalAngle()
+    // Get camera right direction (for player movement)
+    public Vector3 GetCameraRight()
     {
-        return currentRotationX;
-    }
-    
-    /// <summary>
-    /// Get current horizontal rotation angle (for debugging)
-    /// </summary>
-    public float GetHorizontalAngle()
-    {
-        return currentRotationY;
+        Vector3 right = Quaternion.Euler(0f, yaw, 0f) * Vector3.right;
+        return right;
     }
 }
