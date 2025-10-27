@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.UI;
 using TMPro;
-using Cinemachine;
 
 public class InventoryUI : MonoBehaviour
 {
@@ -35,7 +34,7 @@ public class InventoryUI : MonoBehaviour
     private RectTransform inventoryRect;
     
     private NavMeshAgent playerNavAgent;
-    private CinemachineBrain cinemachineBrain;
+    private ThirdPersonCamera cameraController;
     
     private void Awake()
     {
@@ -60,12 +59,16 @@ public class InventoryUI : MonoBehaviour
             playerNavAgent = player.GetComponent<NavMeshAgent>();
         }
         
-        cinemachineBrain = Camera.main?.GetComponent<CinemachineBrain>();
+        // Find camera controller
+        cameraController = FindObjectOfType<ThirdPersonCamera>();
+        if (cameraController == null)
+        {
+            Debug.LogWarning("ThirdPersonCamera not found in scene!");
+        }
     }
     
     private void Start()
     {
-        // Make sure everything starts closed and game is running
         if (inventoryPanel != null) inventoryPanel.SetActive(false);
         if (dimBackground != null) dimBackground.SetActive(false);
         if (previewPanel != null) previewPanel.SetActive(false);
@@ -73,7 +76,6 @@ public class InventoryUI : MonoBehaviour
         isInventoryOpen = false;
         Time.timeScale = 1f;
         
-        // Subscribe to inventory changes
         if (InventoryManager.Instance != null)
         {
             InventoryManager.Instance.OnInventoryChanged += RefreshInventoryDisplay;
@@ -96,23 +98,21 @@ public class InventoryUI : MonoBehaviour
             ToggleInventory();
         }
         
-        // Drop with X key when inventory is open and hovering over a slot
-    if (isInventoryOpen && Input.GetKeyDown(KeyCode.X))
-    {
-        // Find which slot the mouse is over
-        foreach (InventorySlotUI slotUI in activeSlots)
+        if (isInventoryOpen && Input.GetKeyDown(KeyCode.X))
         {
-            if (slotUI != null && RectTransformUtility.RectangleContainsScreenPoint(
-                slotUI.GetComponent<RectTransform>(), 
-                Input.mousePosition, 
-                GetComponentInParent<Canvas>().worldCamera))
+            foreach (InventorySlotUI slotUI in activeSlots)
             {
-                int slotIndex = activeSlots.IndexOf(slotUI);
-                InventoryManager.Instance.DropItem(slotIndex);
-                break;
+                if (slotUI != null && RectTransformUtility.RectangleContainsScreenPoint(
+                    slotUI.GetComponent<RectTransform>(), 
+                    Input.mousePosition, 
+                    GetComponentInParent<Canvas>().worldCamera))
+                {
+                    int slotIndex = activeSlots.IndexOf(slotUI);
+                    InventoryManager.Instance.DropItem(slotIndex);
+                    break;
+                }
             }
         }
-    }
     }
     
     private void RefreshInventoryDisplay()
@@ -220,15 +220,18 @@ public class InventoryUI : MonoBehaviour
         if (dimBackground != null) dimBackground.SetActive(true);
 
         HideItemPreview();
-        //  RefreshInventoryDisplay();
 
         if (pauseGameWhenOpen)
         {
             Time.timeScale = 0f;
             if (playerNavAgent != null) playerNavAgent.enabled = false;
-            if (freezeCameraWhenOpen && cinemachineBrain != null) cinemachineBrain.enabled = false;
-
+            
+            if (freezeCameraWhenOpen && cameraController != null)
+            {
+                cameraController.SetCameraEnabled(false);
+            }
         }
+        
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -245,9 +248,13 @@ public class InventoryUI : MonoBehaviour
         {
             Time.timeScale = 1f;
             if (playerNavAgent != null) playerNavAgent.enabled = true;
-            if (freezeCameraWhenOpen && cinemachineBrain != null) cinemachineBrain.enabled = true;
-
+            
+            if (freezeCameraWhenOpen && cameraController != null)
+            {
+                cameraController.SetCameraEnabled(true);
+            }
         }
+        
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
