@@ -7,13 +7,15 @@ public class ThirdPersonCamera : MonoBehaviour
     [SerializeField] private float mouseSensitivity = 2f;
     [SerializeField] private float minVerticalAngle = -30f;
     [SerializeField] private float maxVerticalAngle = 60f;
+    [SerializeField] private float cameraDistance = 6f;      // NEW - Adjustable!
+    [SerializeField] private float cameraHeight = 3f;        // NEW - Adjustable!
     
     [Header("References")]
     [SerializeField] private Transform playerTransform;
     [SerializeField] private CinemachineCamera virtualCamera;
     
-    private float yaw = 0f;    // Horizontal rotation
-    private float pitch = 0f;  // Vertical rotation
+    private float yaw = 0f;
+    private float pitch = 0f;
     private bool cameraEnabled = true;
     
     private CinemachineFollow followComponent;
@@ -39,7 +41,6 @@ public class ThirdPersonCamera : MonoBehaviour
             followComponent = virtualCamera.GetComponent<CinemachineFollow>();
         }
         
-        // Initialize camera angle to look at player from behind
         if (playerTransform != null)
         {
             yaw = playerTransform.eulerAngles.y;
@@ -70,9 +71,10 @@ public class ThirdPersonCamera : MonoBehaviour
         if (followComponent != null)
         {
             Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
-            Vector3 direction = rotation * Vector3.back;  // Back = -Z
+            Vector3 direction = rotation * Vector3.back;
             
-            followComponent.FollowOffset = direction * 6f + Vector3.up * 3f;
+            // NOW USES ADJUSTABLE VARIABLES!
+            followComponent.FollowOffset = direction * cameraDistance + Vector3.up * cameraHeight;
         }
     }
     
@@ -81,14 +83,12 @@ public class ThirdPersonCamera : MonoBehaviour
         cameraEnabled = enabled;
     }
     
-    // Get camera forward direction (for player movement)
     public Vector3 GetCameraForward()
     {
         Vector3 forward = Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;
         return forward;
     }
     
-    // Get camera right direction (for player movement)
     public Vector3 GetCameraRight()
     {
         Vector3 right = Quaternion.Euler(0f, yaw, 0f) * Vector3.right;

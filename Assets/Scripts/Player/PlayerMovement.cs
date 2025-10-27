@@ -7,12 +7,14 @@ public class PlayerMovement : MonoBehaviour
     [Header("Movement Settings")]
     [SerializeField] private float walkSpeed = 3f;
     [SerializeField] private float runSpeed = 6f;
-    [SerializeField] private float rotationSpeed = 10f;  // How fast Yoru turns to face direction
+    [SerializeField] private float rotationSpeed = 10f;
     
     [Header("Jump Settings")]
     [SerializeField] private float jumpHeight = 2f;
     [SerializeField] private float doubleJumpHeight = 1.5f;
+    [SerializeField] private float tripleJumpHeight = 1.2f;      // NEW
     [SerializeField] private bool allowDoubleJump = true;
+    [SerializeField] private bool allowTripleJump = true;        // NEW
     
     [Header("Gravity")]
     [SerializeField] private float gravity = -15f;
@@ -51,8 +53,8 @@ public class PlayerMovement : MonoBehaviour
             jumpCount = 0;
         }
         
-        // Jump
-        if (Input.GetButtonDown("Jump"))
+        // === JUMP - CHANGED TO DIRECT SPACEBAR ===
+        if (Input.GetKeyDown(KeyCode.Space))
         {
             if (isGrounded && jumpCount == 0)
             {
@@ -62,31 +64,29 @@ public class PlayerMovement : MonoBehaviour
             {
                 Jump(doubleJumpHeight);
             }
+            else if (allowTripleJump && jumpCount == 2)    // NEW
+            {
+                Jump(tripleJumpHeight);
+            }
         }
         
-        // Get input
+        // === MOVEMENT (UNTOUCHED) ===
         float horizontal = Input.GetAxis("Horizontal");
         float vertical = Input.GetAxis("Vertical");
         
-        // Move in CAMERA direction
         if (Mathf.Abs(horizontal) > 0.1f || Mathf.Abs(vertical) > 0.1f)
         {
-            // Get camera directions
             Vector3 cameraForward = cameraController != null ? 
                 cameraController.GetCameraForward() : transform.forward;
             Vector3 cameraRight = cameraController != null ? 
                 cameraController.GetCameraRight() : transform.right;
             
-            // Calculate move direction in camera space
             Vector3 moveDirection = (cameraForward * vertical + cameraRight * horizontal).normalized;
             
-            // Move speed
             float currentSpeed = Input.GetKey(KeyCode.LeftShift) ? runSpeed : walkSpeed;
             
-            // Move the character
             controller.Move(moveDirection * currentSpeed * Time.deltaTime);
             
-            // Rotate Yoru to face movement direction SMOOTHLY
             if (moveDirection.magnitude > 0.1f)
             {
                 Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
