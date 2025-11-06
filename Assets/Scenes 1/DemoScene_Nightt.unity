@@ -41248,7 +41248,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4836342095142440652, guid: caed7a8f3820c7147b37c74ca0abbdf2, type: 3}
       propertyPath: m_Intensity
-      value: 2.3825672
+      value: 2.3477192
       objectReference: {fileID: 0}
     - target: {fileID: 8187425317335136438, guid: caed7a8f3820c7147b37c74ca0abbdf2, type: 3}
       propertyPath: m_Name
@@ -136394,7 +136394,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4836342095142440652, guid: a23b0eefb2e58e4409be35ebb51560f7, type: 3}
       propertyPath: m_Intensity
-      value: 2.7651343
+      value: 2.6954384
       objectReference: {fileID: 0}
     - target: {fileID: 8187425317335136438, guid: a23b0eefb2e58e4409be35ebb51560f7, type: 3}
       propertyPath: m_Name
@@ -337486,7 +337486,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4836342095142440652, guid: caed7a8f3820c7147b37c74ca0abbdf2, type: 3}
       propertyPath: m_Intensity
-      value: 2.7651343
+      value: 2.6954384
       objectReference: {fileID: 0}
     - target: {fileID: 8187425317335136438, guid: caed7a8f3820c7147b37c74ca0abbdf2, type: 3}
       propertyPath: m_Name
@@ -338863,6 +338863,10 @@ PrefabInstance:
       propertyPath: _renderingResources.internalFurMaterialDoubleSided
       value: 
       objectReference: {fileID: 1467974008}
+    - target: {fileID: 5226699352343296125, guid: 73f6a517ba21c4f3ba2837ddf405e50b, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6405098974071523351, guid: 73f6a517ba21c4f3ba2837ddf405e50b, type: 3}
       propertyPath: m_LocalPosition.x
       value: 820
@@ -338906,8 +338910,16 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1882884767583391955, guid: 73f6a517ba21c4f3ba2837ddf405e50b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7188650064539905261}
   m_SourcePrefab: {fileID: 100100000, guid: 73f6a517ba21c4f3ba2837ddf405e50b, type: 3}
+--- !u!1 &5041826325167202113 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1882884767583391955, guid: 73f6a517ba21c4f3ba2837ddf405e50b, type: 3}
+  m_PrefabInstance: {fileID: 5041826325167202112}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &5076630779801425959
 GameObject:
   m_ObjectHideFlags: 0
@@ -339993,6 +340005,28 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6405098974071523351, guid: 73f6a517ba21c4f3ba2837ddf405e50b, type: 3}
   m_PrefabInstance: {fileID: 5041826325167202112}
   m_PrefabAsset: {fileID: 0}
+--- !u!95 &7188650064539905261
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5041826325167202113}
+  m_Enabled: 1
+  m_Avatar: {fileID: 9000000, guid: d8a65d6ccc8fd494ca42d9eaa754f835, type: 3}
+  m_Controller: {fileID: 9100000, guid: 95f5871e5c1ac42b59a75ff919ef176d, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &7234407290633924898
 GameObject:
   m_ObjectHideFlags: 0
