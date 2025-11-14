@@ -21,211 +21,151 @@ public class PlayerMovement : MonoBehaviour
     
     private CharacterController controller;
     private ThirdPersonCamera cameraController;
-    private Animator animator; // ← THIS WAS MISSING!
+    private Animator animator;
     
     private Vector3 velocity;
     private bool isGrounded;
-    private int jumpCount = 0;
-    private int maxJumps = 1;
+    private int jumpCount;
+    private bool canMultiJump;
+    
+    // Cache to avoid redundant animator calls
+    private float lastSpeed = -1f;
+    private bool lastRunning4Legs;
+    private bool lastGrounded = true;
+    
+    private void Awake()
+    {
+        controller = GetComponent<CharacterController>();
+        animator = GetComponent<Animator>();
+    }
     
     private void Start()
     {
-        controller = GetComponent<CharacterController>();
         cameraController = FindObjectOfType<ThirdPersonCamera>();
-        animator = GetComponent<Animator>(); // ← THIS WAS MISSING!
-        
-        if (animator == null)
-        {
-            Debug.LogError("❌ NO ANIMATOR COMPONENT FOUND!");
-        }
-        else
-        {
-            Debug.Log("✅ Animator found and connected!");
-        }
-        
-        // Disable NavMeshAgent if present
-        UnityEngine.AI.NavMeshAgent agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        var agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
         if (agent != null) agent.enabled = false;
     }
     
     private void Update()
     {
-        // Skip if inventory open
+        // Inventory check
         if (InventoryUI.Instance != null && InventoryUI.Instance.IsInventoryOpen())
         {
-            if (animator != null)
+            if (lastSpeed != 0f)
             {
                 animator.SetFloat("Speed", 0f);
                 animator.SetBool("IsRunning4Legs", false);
+                lastSpeed = 0f;
+                lastRunning4Legs = false;
             }
             return;
         }
         
-        // === GROUND CHECK ===
+        // Ground check
         bool wasGrounded = isGrounded;
-        isGrounded = Physics.Raycast(
-            transform.position, 
-            Vector3.down, 
-            controller.bounds.extents.y + groundCheckDistance, 
-            groundLayer
-        );
+        isGrounded = Physics.Raycast(transform.position, Vector3.down, 
+            controller.bounds.extents.y + groundCheckDistance, groundLayer);
         
-        // Reset jump when landing
         if (!wasGrounded && isGrounded)
         {
             jumpCount = 0;
-            maxJumps = 1;
-            Debug.Log("✅ LANDED!");
+            canMultiJump = false;
         }
         
-        // Apply small downward force when grounded
         if (isGrounded && velocity.y < 0)
-        {
             velocity.y = -2f;
-        }
         
-        // Update animator grounded state
-        if (animator != null)
+        // Only update animator when ground state changes
+        if (isGrounded != lastGrounded)
         {
             animator.SetBool("IsGrounded", isGrounded);
+            lastGrounded = isGrounded;
         }
         
-        // === INPUT ===
+        // Input
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
         bool isMoving = (h * h + v * v) > 0.01f;
-        bool wantsToRun = Input.GetKey(KeyCode.LeftShift);
-        bool isRunning = isMoving && wantsToRun;
+        bool shiftHeld = Input.GetKey(KeyCode.LeftShift);
+        bool isRunning = isMoving && shiftHeld;
         
-        // === JUMP SYSTEM ===
+        // Jump
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            // First jump - determine type
             if (isGrounded && jumpCount == 0)
             {
-                PerformJump(jumpHeight);
+                velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                jumpCount = 1;
                 
-                if (animator != null)
+                if (isRunning)
                 {
-                    if (isRunning)
-                    {
-                        // 4-leg jump - allow triple jump
-                        animator.SetTrigger("Jump4Legs");
-                        maxJumps = 3;
-                        Debug.Log("🐾 4-LEG JUMP!");
-                    }
-                    else
-                    {
-                        // 2-leg jump - single jump only
-                        animator.SetTrigger("Jump2Legs");
-                        maxJumps = 1;
-                        Debug.Log("🚶 2-LEG JUMP!");
-                    }
+                    animator.SetTrigger("Jump4Legs");
+                    canMultiJump = true;
+                }
+                else
+                {
+                    animator.SetTrigger("Jump2Legs");
+                    canMultiJump = false;
                 }
             }
-            // Multi-jump (only for 4-leg jumps)
-            else if (!isGrounded && jumpCount < maxJumps)
+            else if (!isGrounded && canMultiJump && jumpCount < 3)
             {
-                if (maxJumps == 3)
-                {
-                    if (jumpCount == 1)
-                    {
-                        PerformJump(doubleJumpHeight);
-                        if (animator != null) animator.SetTrigger("Jump4Legs");
-                        Debug.Log("⬆️ DOUBLE JUMP!");
-                    }
-                    else if (jumpCount == 2)
-                    {
-                        PerformJump(tripleJumpHeight);
-                        if (animator != null) animator.SetTrigger("Jump4Legs");
-                        Debug.Log("⬆️⬆️ TRIPLE JUMP!");
-                    }
-                }
+                float power = (jumpCount == 1) ? doubleJumpHeight : tripleJumpHeight;
+                velocity.y = Mathf.Sqrt(power * -2f * gravity);
+                jumpCount++;
+                animator.SetTrigger("Jump4Legs");
             }
         }
         
-        // === MOVEMENT ===
+        // Movement
         if (isMoving)
         {
-            // Get camera directions
-            Vector3 camForward = cameraController != null ? 
-                cameraController.GetCameraForward() : transform.forward;
-            Vector3 camRight = cameraController != null ? 
-                cameraController.GetCameraRight() : transform.right;
+            Vector3 forward = cameraController != null ? cameraController.GetCameraForward() : transform.forward;
+            Vector3 right = cameraController != null ? cameraController.GetCameraRight() : transform.right;
             
-            // Calculate movement direction
-            Vector3 moveDir = (camForward * v + camRight * h).normalized;
+            Vector3 moveDir = (forward * v + right * h).normalized;
+            float speed = isRunning ? runSpeed : walkSpeed;
             
-            // Determine speed
-            float moveSpeed = isRunning ? runSpeed : walkSpeed;
+            controller.Move(moveDir * speed * Time.deltaTime);
             
-            // Move the character
-            controller.Move(moveDir * moveSpeed * Time.deltaTime);
-            
-            // Rotate character
             if (moveDir.sqrMagnitude > 0.01f)
             {
-                Quaternion targetRotation = Quaternion.LookRotation(moveDir);
-                transform.rotation = Quaternion.Slerp(
-                    transform.rotation, 
-                    targetRotation, 
-                    Time.deltaTime * rotationSpeed
-                );
+                transform.rotation = Quaternion.Slerp(transform.rotation, 
+                    Quaternion.LookRotation(moveDir), Time.deltaTime * rotationSpeed);
             }
             
-            // === UPDATE ANIMATOR ===
-            if (animator != null)
+            // Only update animator when values change
+            float targetSpeed = isRunning ? 2f : 1f;
+            if (lastSpeed != targetSpeed)
             {
-                animator.SetFloat("Speed", isRunning ? 2f : 1f);
+                animator.SetFloat("Speed", targetSpeed);
+                lastSpeed = targetSpeed;
+            }
+            
+            if (lastRunning4Legs != isRunning)
+            {
                 animator.SetBool("IsRunning4Legs", isRunning);
+                lastRunning4Legs = isRunning;
             }
         }
         else
         {
-            // === IDLE ===
-            if (animator != null)
+            // Only update when changing to idle
+            if (lastSpeed != 0f)
             {
                 animator.SetFloat("Speed", 0f);
+                lastSpeed = 0f;
+            }
+            
+            if (lastRunning4Legs)
+            {
                 animator.SetBool("IsRunning4Legs", false);
+                lastRunning4Legs = false;
             }
         }
         
-        // === APPLY GRAVITY ===
+        // Gravity
         velocity.y += gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
-    }
-    
-    private void PerformJump(float height)
-    {
-        velocity.y = Mathf.Sqrt(height * -2f * gravity);
-        jumpCount++;
-    }
-    
-    // === DEBUG DISPLAY ===
-    private void OnGUI()
-    {
-        if (animator == null) return;
-        
-        GUI.Box(new Rect(10, 10, 340, 220), "🐱 Cat Debug");
-        GUI.Label(new Rect(20, 35, 320, 20), $"Speed: {animator.GetFloat("Speed"):F2}");
-        GUI.Label(new Rect(20, 55, 320, 20), $"IsRunning4Legs: {animator.GetBool("IsRunning4Legs")}");
-        GUI.Label(new Rect(20, 75, 320, 20), $"IsGrounded: {animator.GetBool("IsGrounded")}");
-        GUI.Label(new Rect(20, 95, 320, 20), $"Jump: {jumpCount}/{maxJumps}");
-        GUI.Label(new Rect(20, 115, 320, 20), $"Type: {(maxJumps == 3 ? "4-LEGS" : "2-LEGS")}");
-        GUI.Label(new Rect(20, 135, 320, 20), $"Grounded: {isGrounded}");
-        GUI.Label(new Rect(20, 155, 320, 20), $"Velocity Y: {velocity.y:F2}");
-        GUI.Label(new Rect(20, 175, 320, 20), $"Shift: {Input.GetKey(KeyCode.LeftShift)}");
-        GUI.Label(new Rect(20, 195, 320, 20), $"Moving: {(Input.GetAxis("Horizontal") != 0 || Input.GetAxis("Vertical") != 0)}");
-    }
-    
-    private void OnDrawGizmos()
-    {
-        if (controller == null) return;
-        
-        Gizmos.color = isGrounded ? Color.green : Color.red;
-        Vector3 start = transform.position;
-        Vector3 end = start + Vector3.down * (controller.bounds.extents.y + groundCheckDistance);
-        Gizmos.DrawLine(start, end);
-        Gizmos.DrawWireSphere(end, 0.15f);
     }
 }
