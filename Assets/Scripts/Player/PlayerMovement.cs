@@ -8,13 +8,14 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float walkSpeed = 2f;
     [SerializeField] private float runSpeed = 7f;
     [SerializeField] private float rotationSpeed = 8f;
-    [SerializeField] private float speedDampTime = 0.2f; // Smooth animation blending
+    [SerializeField] private float speedDampTime = 0.25f; // Smooth animation blending
     
     [Header("Jump")]
     [SerializeField] private float jumpHeight = 2f;
     [SerializeField] private float doubleJumpHeight = 1.5f;
     [SerializeField] private float tripleJumpHeight = 1.2f;
-    [SerializeField] private float jumpForwardSpeed = 3f; // Forward momentum during jump
+    [SerializeField] private float jumpForwardSpeed = 4f; // Forward momentum during jump
+    [SerializeField] private float landingBlendTime = 0.3f; // Smooth landing transition
     
     [Header("Gravity")]
     [SerializeField] private float gravity = -15f;
@@ -26,6 +27,7 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 velocity;
     private Vector3 jumpMomentum; // Stores horizontal movement during jump
     private bool isGrounded;
+    private bool wasGrounded;
     private int jumpCount = 0;
     private bool canMultiJump = false;
     
@@ -34,12 +36,13 @@ public class PlayerMovement : MonoBehaviour
     private float animSpeedVelocity; // For SmoothDamp
     private bool isJumping = false;
     private float jumpTimer = 0f;
+    private float landingTimer = 0f;
+    private bool isLanding = false;
     
-    // Input caching for smoother movement
-    private float smoothedHorizontal;
-    private float smoothedVertical;
-    private float inputSmoothVelocityX;
-    private float inputSmoothVelocityY;
+    // Movement state tracking
+    private Vector3 lastMoveDirection;
+    private bool wasMovingBeforeJump = false;
+    private float lastGroundSpeed = 0f;
     
     void Awake()
     {
@@ -59,13 +62,42 @@ public class PlayerMovement : MonoBehaviour
         // Check inventory
         if (InventoryUI.Instance != null && InventoryUI.Instance.IsInventoryOpen())
         {
-            UpdateAnimationSpeed(0f);
+            currentAnimSpeed = Mathf.SmoothDamp(currentAnimSpeed, 0f, ref animSpeedVelocity, speedDampTime);
+            animator.SetFloat("Speed", currentAnimSpeed);
             return;
         }
         
         // Ground check
-        bool wasGrounded = isGrounded;
+        wasGrounded = isGrounded;
         isGrounded = controller.isGrounded;
+        
+        // Get input
+        float horizontal = Input.GetAxis("Horizontal");
+        float vertical = Input.GetAxis("Vertical");
+        bool isMoving = Mathf.Abs(horizontal) > 0.01f || Mathf.Abs(vertical) > 0.01f;
+        bool isRunning = isMoving && Input.GetKey(KeyCode.LeftShift);
+        
+        // Calculate movement direction
+        Vector3 moveDirection = Vector3.zero;
+        if (isMoving)
+        {
+            if (cameraController != null)
+            {
+                Vector3 forward = cameraController.GetCameraForward();
+                Vector3 right = cameraController.GetCameraRight();
+                moveDirection = (forward * vertical + right * horizontal).normalized;
+            }
+            else
+            {
+                moveDirection = (transform.forward * vertical + transform.right * horizontal).normalized;
+            }
+            lastMoveDirection = moveDirection; // Store for jump direction
+        }
+        
+        // Check animation state
+        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
+        bool wasJumping = isJumping;
+        isJumping = stateInfo.IsName("JumpWith2Legs") || stateInfo.IsName("JumpWith4Legs");
         
         // Landing detection
         if (!wasGrounded && isGrounded)
@@ -73,35 +105,44 @@ public class PlayerMovement : MonoBehaviour
             OnLanded();
         }
         
+        // Detect when jumping animation ends in air (your 2-leg jump issue)
+        if (wasJumping && !isJumping && !isGrounded)
+        {
+            // Force back to jump animation if still in air
+            if (jumpCount == 1 && !canMultiJump)
+            {
+                animator.CrossFade("JumpWith2Legs", 0.1f, 0, 0.9f); // Start near end
+            }
+            else if (canMultiJump)
+            {
+                animator.CrossFade("JumpWith4Legs", 0.1f, 0, 0.9f);
+            }
+        }
+        
+        // Handle landing transition
+        if (isLanding)
+        {
+            landingTimer -= Time.deltaTime;
+            if (landingTimer <= 0)
+            {
+                isLanding = false;
+            }
+        }
+        
         // Reset velocity when grounded
         if (isGrounded && velocity.y < 0)
         {
             velocity.y = -2f;
-            jumpCount = 0;
+            if (!isLanding) jumpCount = 0;
         }
         
-        // Get raw input
-        float rawH = Input.GetAxis("Horizontal");
-        float rawV = Input.GetAxis("Vertical");
-        
-        // Smooth the input for better animation blending
-        smoothedHorizontal = Mathf.SmoothDamp(smoothedHorizontal, rawH, ref inputSmoothVelocityX, 0.1f);
-        smoothedVertical = Mathf.SmoothDamp(smoothedVertical, rawV, ref inputSmoothVelocityY, 0.1f);
-        
-        bool isMoving = Mathf.Abs(smoothedHorizontal) > 0.01f || Mathf.Abs(smoothedVertical) > 0.01f;
-        bool isRunning = isMoving && Input.GetKey(KeyCode.LeftShift);
-        
-        // Check if we're in a jump animation
-        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
-        isJumping = stateInfo.IsName("JumpWith2Legs") || stateInfo.IsName("JumpWith4Legs");
-        
-        // Track jump animation time
+        // Jump animation timeout
         if (isJumping)
         {
             jumpTimer += Time.deltaTime;
-            if (jumpTimer > 1.5f) // Force exit if stuck
+            if (jumpTimer > 2f) // Safety timeout
             {
-                animator.Play("Locomotion", 0, 0f);
+                animator.CrossFade("Locomotion", 0.2f);
                 isJumping = false;
                 jumpTimer = 0f;
             }
@@ -111,58 +152,58 @@ public class PlayerMovement : MonoBehaviour
             jumpTimer = 0f;
         }
         
-        // Calculate movement direction
-        Vector3 moveDirection = Vector3.zero;
-        if (cameraController != null)
-        {
-            Vector3 forward = cameraController.GetCameraForward();
-            Vector3 right = cameraController.GetCameraRight();
-            moveDirection = (forward * smoothedVertical + right * smoothedHorizontal).normalized;
-        }
-        else
-        {
-            moveDirection = (transform.forward * smoothedVertical + transform.right * smoothedHorizontal).normalized;
-        }
-        
-        // Handle jump
+        // Handle jump input
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            if (isGrounded)
+            if (isGrounded && jumpCount == 0)
             {
-                // Store movement direction for forward jump
-                jumpMomentum = moveDirection * (isRunning ? jumpForwardSpeed * 1.5f : jumpForwardSpeed);
+                // Store state before jump
+                wasMovingBeforeJump = isMoving;
+                lastGroundSpeed = currentAnimSpeed;
+                
+                // Calculate jump momentum - FIXED for first 4-leg jump
+                if (isMoving)
+                {
+                    // Use actual movement direction for forward jump
+                    jumpMomentum = moveDirection * (isRunning ? jumpForwardSpeed * 1.5f : jumpForwardSpeed);
+                }
+                else
+                {
+                    // Standing jump - minimal forward movement
+                    jumpMomentum = transform.forward * 0.5f;
+                }
                 
                 // Apply vertical jump force
                 velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
                 jumpCount = 1;
                 
-                // Clear animation states
-                animator.SetFloat("Speed", 0f, 0.05f, Time.deltaTime); // Quick blend to 0
-                animator.ResetTrigger("Jump2Legs");
-                animator.ResetTrigger("Jump4Legs");
-                
+                // Start jump animation
                 if (isRunning)
                 {
                     canMultiJump = true;
-                    animator.Play("JumpWith4Legs", 0, 0f);
+                    animator.CrossFade("JumpWith4Legs", 0.05f);
                     Debug.Log("🐾 4-LEG JUMP with forward momentum");
                 }
                 else
                 {
                     canMultiJump = false;
-                    animator.Play("JumpWith2Legs", 0, 0f);
-                    Debug.Log("🚶 2-LEG JUMP with forward momentum");
+                    animator.CrossFade("JumpWith2Legs", 0.05f);
+                    Debug.Log("🚶 2-LEG JUMP");
                 }
             }
             else if (!isGrounded && canMultiJump && jumpCount < 3)
             {
-                // Multi-jump
-                jumpMomentum = moveDirection * jumpForwardSpeed * 1.2f; // Slight forward boost
+                // Multi-jump - maintain or add momentum
+                if (isMoving)
+                {
+                    jumpMomentum = moveDirection * jumpForwardSpeed * 1.2f;
+                }
+                
                 float power = (jumpCount == 1) ? doubleJumpHeight : tripleJumpHeight;
                 velocity.y = Mathf.Sqrt(power * -2f * gravity);
                 jumpCount++;
                 
-                animator.Play("JumpWith4Legs", 0, 0f);
+                animator.CrossFade("JumpWith4Legs", 0.05f);
                 Debug.Log($"⬆️ MULTI-JUMP #{jumpCount}");
             }
         }
@@ -170,14 +211,16 @@ public class PlayerMovement : MonoBehaviour
         // Apply movement
         Vector3 horizontalMovement = Vector3.zero;
         
-        if (isGrounded && !isJumping)
+        if (isGrounded && !isJumping && !isLanding)
         {
             // Normal ground movement
             float currentSpeed = isRunning ? runSpeed : walkSpeed;
             horizontalMovement = moveDirection * currentSpeed * Time.deltaTime;
-            jumpMomentum = Vector3.zero; // Clear jump momentum when grounded
+            
+            // Clear jump momentum gradually when grounded
+            jumpMomentum = Vector3.Lerp(jumpMomentum, Vector3.zero, Time.deltaTime * 5f);
         }
-        else if (!isGrounded)
+        else if (!isGrounded || isLanding)
         {
             // Air movement - use jump momentum
             horizontalMovement = jumpMomentum * Time.deltaTime;
@@ -188,10 +231,10 @@ public class PlayerMovement : MonoBehaviour
         {
             controller.Move(horizontalMovement);
             
-            // Rotate to face movement direction (even in air)
-            if (!isJumping || !isGrounded)
+            // Rotate to face movement direction
+            if (moveDirection.magnitude > 0.01f && (!isJumping || !isGrounded))
             {
-                Quaternion targetRotation = Quaternion.LookRotation(moveDirection != Vector3.zero ? moveDirection : transform.forward);
+                Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
             }
         }
@@ -200,60 +243,69 @@ public class PlayerMovement : MonoBehaviour
         velocity.y += gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
         
-        // Update animator with smooth speed transitions
-        UpdateAnimatorSmooth(isMoving, isRunning);
+        // Update animator - ALWAYS update to prevent freezing
+        UpdateAnimatorAlways(isMoving, isRunning);
         animator.SetBool("IsGrounded", isGrounded);
     }
     
     private void OnLanded()
     {
         Debug.Log("✅ LANDED!");
-        jumpCount = 0;
-        canMultiJump = false;
-        jumpMomentum = Vector3.zero;
-        jumpTimer = 0f;
         
-        // Force animation reset
+        // Start landing transition
+        isLanding = true;
+        landingTimer = landingBlendTime;
+        
+        // Smoothly blend back to locomotion
         if (isJumping)
         {
-            animator.Play("Locomotion", 0, 0f);
+            // Use CrossFade for smooth transition instead of Play
+            animator.CrossFade("Locomotion", landingBlendTime);
         }
+        
+        // Restore movement speed if was moving before jump
+        if (wasMovingBeforeJump)
+        {
+            currentAnimSpeed = lastGroundSpeed * 0.7f; // Start at 70% to blend up
+        }
+        
+        // Clear jump state after landing
+        jumpMomentum = Vector3.Lerp(jumpMomentum, Vector3.zero, 0.5f); // Gradual stop
+        jumpTimer = 0f;
     }
     
-    private void UpdateAnimatorSmooth(bool isMoving, bool isRunning)
+    private void UpdateAnimatorAlways(bool isMoving, bool isRunning)
     {
-        // Don't update speed during jump animations
-        if (isJumping) return;
-        
-        // Calculate target speed based on movement
+        // ALWAYS update speed, even during jumps, to prevent freezing
         float targetSpeed = 0f;
         
-        if (isMoving)
+        // During landing, blend back to movement
+        if (isLanding && wasMovingBeforeJump)
         {
-            // Use the magnitude of smoothed input for even smoother transitions
-            float inputMagnitude = Mathf.Sqrt(smoothedHorizontal * smoothedHorizontal + smoothedVertical * smoothedVertical);
-            inputMagnitude = Mathf.Clamp01(inputMagnitude);
-            
-            if (isRunning)
-            {
-                targetSpeed = Mathf.Lerp(1.5f, 2f, inputMagnitude); // Blend between fast walk and run
-            }
-            else
-            {
-                targetSpeed = Mathf.Lerp(0.5f, 1f, inputMagnitude); // Blend between slow and normal walk
-            }
+            targetSpeed = lastGroundSpeed;
+        }
+        // During jump, maintain some speed value for blend
+        else if (isJumping)
+        {
+            // Keep a small speed value to prevent freeze
+            targetSpeed = currentAnimSpeed * 0.9f; // Gradually reduce but don't zero
+        }
+        // Normal ground movement
+        else if (isMoving && isGrounded && !isJumping)
+        {
+            targetSpeed = isRunning ? 2f : 1f;
         }
         
-        // Use SmoothDamp for very smooth transitions
+        // ALWAYS smooth the speed, never set directly to prevent freezing
         currentAnimSpeed = Mathf.SmoothDamp(currentAnimSpeed, targetSpeed, ref animSpeedVelocity, speedDampTime);
         
-        // Apply to animator
-        animator.SetFloat("Speed", currentAnimSpeed);
-    }
-    
-    private void UpdateAnimationSpeed(float target)
-    {
-        currentAnimSpeed = Mathf.SmoothDamp(currentAnimSpeed, target, ref animSpeedVelocity, speedDampTime);
+        // Ensure we never get stuck at exactly 0 (idle freeze fix)
+        if (currentAnimSpeed < 0.01f && targetSpeed == 0f)
+        {
+            currentAnimSpeed = 0f; // Clean zero for idle
+        }
+        
+        // Always update the animator
         animator.SetFloat("Speed", currentAnimSpeed);
     }
     
@@ -270,6 +322,13 @@ public class PlayerMovement : MonoBehaviour
         {
             Gizmos.color = Color.cyan;
             Gizmos.DrawRay(transform.position, jumpMomentum);
+        }
+        
+        // Landing state
+        if (isLanding)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(transform.position, 0.5f);
         }
     }
 }
