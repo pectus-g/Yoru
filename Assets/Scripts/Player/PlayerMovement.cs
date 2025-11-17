@@ -4,331 +4,341 @@ using UnityEngine;
 [RequireComponent(typeof(Animator))]
 public class PlayerMovement : MonoBehaviour
 {
+    #region Serialized Fields
     [Header("Movement")]
     [SerializeField] private float walkSpeed = 2f;
     [SerializeField] private float runSpeed = 7f;
     [SerializeField] private float rotationSpeed = 8f;
-    [SerializeField] private float speedDampTime = 0.25f; // Smooth animation blending
+    [SerializeField] private float speedDampTime = 0.25f;
     
     [Header("Jump")]
     [SerializeField] private float jumpHeight = 2f;
     [SerializeField] private float doubleJumpHeight = 1.5f;
     [SerializeField] private float tripleJumpHeight = 1.2f;
-    [SerializeField] private float jumpForwardSpeed = 4f; // Forward momentum during jump
-    [SerializeField] private float landingBlendTime = 0.3f; // Smooth landing transition
+    [SerializeField] private float jumpForwardSpeed = 4f;
     
-    [Header("Gravity")]
+    [Header("Timing")]
+    [SerializeField] private float multiJumpWindow = 0.5f;
+    [SerializeField] private float coyoteTime = 0.1f;
+    
+    [Header("Physics")]
     [SerializeField] private float gravity = -15f;
+    [SerializeField] private float fallMultiplier = 1.5f;
+    #endregion
     
+    #region Private Fields
+    // Cached components (allocated once)
     private CharacterController controller;
-    private ThirdPersonCamera cameraController;
     private Animator animator;
+    private ThirdPersonCamera cameraController;
+    private Transform cachedTransform;
     
+    // Cached animator hashes (much faster than strings)
+    private readonly int speedHash = Animator.StringToHash("Speed");
+    private readonly int isGroundedHash = Animator.StringToHash("IsGrounded");
+    private readonly int locomotionHash = Animator.StringToHash("Locomotion");
+    private readonly int jump2LegsHash = Animator.StringToHash("JumpWith2Legs");
+    private readonly int jump4LegsHash = Animator.StringToHash("JumpWith4Legs");
+    
+    // State flags (use bitwise flags for multiple states)
+    private enum PlayerState
+    {
+        Grounded = 1 << 0,
+        Jumping = 1 << 1,
+        Running = 1 << 2,
+        Moving = 1 << 3,
+        Landing = 1 << 4
+    }
+    private PlayerState currentState;
+    
+    // Physics state
     private Vector3 velocity;
-    private Vector3 jumpMomentum; // Stores horizontal movement during jump
-    private bool isGrounded;
-    private bool wasGrounded;
-    private int jumpCount = 0;
-    private bool canMultiJump = false;
+    private Vector3 jumpMomentum;
+    private Vector3 moveDirection;
+    
+    // Jump state
+    private byte jumpCount; // byte is smaller than int
+    private float jumpWindowTimer;
+    private float coyoteTimer;
     
     // Animation state
-    private float currentAnimSpeed;
-    private float animSpeedVelocity; // For SmoothDamp
-    private bool isJumping = false;
-    private float jumpTimer = 0f;
-    private float landingTimer = 0f;
-    private bool isLanding = false;
+    private float currentSpeed;
+    private float speedVelocity;
+    private int currentAnimStateHash;
     
-    // Movement state tracking
-    private Vector3 lastMoveDirection;
-    private bool wasMovingBeforeJump = false;
-    private float lastGroundSpeed = 0f;
+    // Constants
+    private const float MIN_MOVE_THRESHOLD = 0.01f;
+    private const float GROUND_CHECK_DISTANCE = 0.1f;
+    private const float ANIMATION_CROSS_FADE = 0.05f;
+    #endregion
     
-    void Awake()
+    #region Unity Lifecycle
+    private void Awake()
     {
+        // Cache all components once
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
+        cachedTransform = transform;
     }
     
-    void Start()
+    private void Start()
     {
         cameraController = FindObjectOfType<ThirdPersonCamera>();
+        
+        // Disable NavMesh if present
         var agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
-        if (agent != null) agent.enabled = false;
+        if (agent) agent.enabled = false;
     }
     
-    void Update()
+    private void Update()
     {
-        // Check inventory
-        if (InventoryUI.Instance != null && InventoryUI.Instance.IsInventoryOpen())
+        // Handle input and state updates
+        HandleInput();
+        UpdateState();
+        UpdateAnimation();
+    }
+    
+    private void FixedUpdate()
+    {
+        // Physics should be in FixedUpdate for consistency
+        ApplyMovement();
+        ApplyGravity();
+        controller.Move(velocity * Time.fixedDeltaTime);
+    }
+    #endregion
+    
+    #region Input & State Management
+    private void HandleInput()
+    {
+        // Early exit for inventory
+        if (InventoryUI.Instance?.IsInventoryOpen() ?? false)
         {
-            currentAnimSpeed = Mathf.SmoothDamp(currentAnimSpeed, 0f, ref animSpeedVelocity, speedDampTime);
-            animator.SetFloat("Speed", currentAnimSpeed);
+            SetState(PlayerState.Grounded, false);
             return;
         }
         
-        // Ground check
-        wasGrounded = isGrounded;
-        isGrounded = controller.isGrounded;
+        // Get input once per frame
+        float h = Input.GetAxis("Horizontal");
+        float v = Input.GetAxis("Vertical");
         
-        // Get input
-        float horizontal = Input.GetAxis("Horizontal");
-        float vertical = Input.GetAxis("Vertical");
-        bool isMoving = Mathf.Abs(horizontal) > 0.01f || Mathf.Abs(vertical) > 0.01f;
-        bool isRunning = isMoving && Input.GetKey(KeyCode.LeftShift);
+        // Calculate movement efficiently
+        bool isMoving = (h * h + v * v) > MIN_MOVE_THRESHOLD;
+        SetState(PlayerState.Moving, isMoving);
         
-        // Calculate movement direction
-        Vector3 moveDirection = Vector3.zero;
         if (isMoving)
         {
+            // Only calculate direction if moving
             if (cameraController != null)
             {
                 Vector3 forward = cameraController.GetCameraForward();
                 Vector3 right = cameraController.GetCameraRight();
-                moveDirection = (forward * vertical + right * horizontal).normalized;
+                moveDirection = (forward * v + right * h).normalized;
             }
             else
             {
-                moveDirection = (transform.forward * vertical + transform.right * horizontal).normalized;
+                moveDirection.Set(h, 0, v);
+                moveDirection.Normalize();
             }
-            lastMoveDirection = moveDirection; // Store for jump direction
+            
+            SetState(PlayerState.Running, Input.GetKey(KeyCode.LeftShift));
+        }
+        else
+        {
+            SetState(PlayerState.Running, false);
         }
         
-        // Check animation state
-        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
-        bool wasJumping = isJumping;
-        isJumping = stateInfo.IsName("JumpWith2Legs") || stateInfo.IsName("JumpWith4Legs");
+        // Jump input
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            TryJump();
+        }
+    }
+    
+    private void UpdateState()
+    {
+        // Ground check
+        bool wasGrounded = HasState(PlayerState.Grounded);
+        bool isGrounded = controller.isGrounded;
+        SetState(PlayerState.Grounded, isGrounded);
         
         // Landing detection
         if (!wasGrounded && isGrounded)
         {
             OnLanded();
         }
-        
-        // Detect when jumping animation ends in air (your 2-leg jump issue)
-        if (wasJumping && !isJumping && !isGrounded)
+        else if (wasGrounded && !isGrounded)
         {
-            // Force back to jump animation if still in air
-            if (jumpCount == 1 && !canMultiJump)
-            {
-                animator.CrossFade("JumpWith2Legs", 0.1f, 0, 0.9f); // Start near end
-            }
-            else if (canMultiJump)
-            {
-                animator.CrossFade("JumpWith4Legs", 0.1f, 0, 0.9f);
-            }
+            coyoteTimer = coyoteTime;
         }
         
-        // Handle landing transition
-        if (isLanding)
-        {
-            landingTimer -= Time.deltaTime;
-            if (landingTimer <= 0)
-            {
-                isLanding = false;
-            }
-        }
+        // Update timers
+        if (jumpWindowTimer > 0)
+            jumpWindowTimer -= Time.deltaTime;
+        
+        if (coyoteTimer > 0)
+            coyoteTimer -= Time.deltaTime;
         
         // Reset velocity when grounded
         if (isGrounded && velocity.y < 0)
         {
             velocity.y = -2f;
-            if (!isLanding) jumpCount = 0;
+        }
+    }
+    #endregion
+    
+    #region Movement & Physics
+    private void ApplyMovement()
+    {
+        if (!HasState(PlayerState.Moving))
+        {
+            jumpMomentum = Vector3.Lerp(jumpMomentum, Vector3.zero, Time.fixedDeltaTime * 5f);
+            return;
         }
         
-        // Jump animation timeout
-        if (isJumping)
+        // Only calculate when needed
+        if (HasState(PlayerState.Grounded) && !HasState(PlayerState.Jumping))
         {
-            jumpTimer += Time.deltaTime;
-            if (jumpTimer > 2f) // Safety timeout
+            float speed = HasState(PlayerState.Running) ? runSpeed : walkSpeed;
+            Vector3 movement = moveDirection * speed * Time.fixedDeltaTime;
+            controller.Move(movement);
+            
+            // Rotation
+            if (moveDirection.sqrMagnitude > MIN_MOVE_THRESHOLD)
             {
-                animator.CrossFade("Locomotion", 0.2f);
-                isJumping = false;
-                jumpTimer = 0f;
+                Quaternion targetRot = Quaternion.LookRotation(moveDirection);
+                cachedTransform.rotation = Quaternion.Slerp(cachedTransform.rotation, targetRot, 
+                    rotationSpeed * Time.fixedDeltaTime);
             }
+        }
+        else if (!HasState(PlayerState.Grounded))
+        {
+            // Air movement
+            controller.Move(jumpMomentum * Time.fixedDeltaTime);
+        }
+    }
+    
+    private void ApplyGravity()
+    {
+        // Apply gravity with optional fall multiplier
+        float gravityMult = (velocity.y < 0) ? fallMultiplier : 1f;
+        velocity.y += gravity * gravityMult * Time.fixedDeltaTime;
+        velocity.y = Mathf.Max(velocity.y, -50f); // Terminal velocity
+    }
+    #endregion
+    
+    #region Jump System
+    private void TryJump()
+    {
+        // First jump
+        if (jumpCount == 0 && (HasState(PlayerState.Grounded) || coyoteTimer > 0))
+        {
+            PerformJump(jumpHeight, HasState(PlayerState.Running));
+            jumpCount = 1;
+            jumpWindowTimer = multiJumpWindow;
+        }
+        // Multi-jump (only if running and within window)
+        else if (jumpCount > 0 && jumpCount < 3 && jumpWindowTimer > 0 && HasState(PlayerState.Running))
+        {
+            float power = (jumpCount == 1) ? doubleJumpHeight : tripleJumpHeight;
+            PerformJump(power, true);
+            jumpCount++;
+            jumpWindowTimer = (jumpCount < 3) ? multiJumpWindow : 0;
+        }
+    }
+    
+    private void PerformJump(float power, bool isFourLegged)
+    {
+        velocity.y = Mathf.Sqrt(power * -2f * gravity);
+        
+        // Set momentum
+        if (HasState(PlayerState.Moving))
+        {
+            float momentumSpeed = isFourLegged ? jumpForwardSpeed * 1.5f : jumpForwardSpeed;
+            jumpMomentum = moveDirection * momentumSpeed;
         }
         else
         {
-            jumpTimer = 0f;
+            jumpMomentum = cachedTransform.forward * 0.5f;
         }
         
-        // Handle jump input
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            if (isGrounded && jumpCount == 0)
-            {
-                // Store state before jump
-                wasMovingBeforeJump = isMoving;
-                lastGroundSpeed = currentAnimSpeed;
-                
-                // Calculate jump momentum - FIXED for first 4-leg jump
-                if (isMoving)
-                {
-                    // Use actual movement direction for forward jump
-                    jumpMomentum = moveDirection * (isRunning ? jumpForwardSpeed * 1.5f : jumpForwardSpeed);
-                }
-                else
-                {
-                    // Standing jump - minimal forward movement
-                    jumpMomentum = transform.forward * 0.5f;
-                }
-                
-                // Apply vertical jump force
-                velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-                jumpCount = 1;
-                
-                // Start jump animation
-                if (isRunning)
-                {
-                    canMultiJump = true;
-                    animator.CrossFade("JumpWith4Legs", 0.05f);
-                    Debug.Log("🐾 4-LEG JUMP with forward momentum");
-                }
-                else
-                {
-                    canMultiJump = false;
-                    animator.CrossFade("JumpWith2Legs", 0.05f);
-                    Debug.Log("🚶 2-LEG JUMP");
-                }
-            }
-            else if (!isGrounded && canMultiJump && jumpCount < 3)
-            {
-                // Multi-jump - maintain or add momentum
-                if (isMoving)
-                {
-                    jumpMomentum = moveDirection * jumpForwardSpeed * 1.2f;
-                }
-                
-                float power = (jumpCount == 1) ? doubleJumpHeight : tripleJumpHeight;
-                velocity.y = Mathf.Sqrt(power * -2f * gravity);
-                jumpCount++;
-                
-                animator.CrossFade("JumpWith4Legs", 0.05f);
-                Debug.Log($"⬆️ MULTI-JUMP #{jumpCount}");
-            }
-        }
-        
-        // Apply movement
-        Vector3 horizontalMovement = Vector3.zero;
-        
-        if (isGrounded && !isJumping && !isLanding)
-        {
-            // Normal ground movement
-            float currentSpeed = isRunning ? runSpeed : walkSpeed;
-            horizontalMovement = moveDirection * currentSpeed * Time.deltaTime;
-            
-            // Clear jump momentum gradually when grounded
-            jumpMomentum = Vector3.Lerp(jumpMomentum, Vector3.zero, Time.deltaTime * 5f);
-        }
-        else if (!isGrounded || isLanding)
-        {
-            // Air movement - use jump momentum
-            horizontalMovement = jumpMomentum * Time.deltaTime;
-        }
-        
-        // Apply horizontal movement
-        if (horizontalMovement.magnitude > 0.001f)
-        {
-            controller.Move(horizontalMovement);
-            
-            // Rotate to face movement direction
-            if (moveDirection.magnitude > 0.01f && (!isJumping || !isGrounded))
-            {
-                Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-            }
-        }
-        
-        // Apply gravity
-        velocity.y += gravity * Time.deltaTime;
-        controller.Move(velocity * Time.deltaTime);
-        
-        // Update animator - ALWAYS update to prevent freezing
-        UpdateAnimatorAlways(isMoving, isRunning);
-        animator.SetBool("IsGrounded", isGrounded);
+        // Trigger animation efficiently
+        SetState(PlayerState.Jumping, true);
+        int animHash = isFourLegged ? jump4LegsHash : jump2LegsHash;
+        animator.CrossFadeInFixedTime(animHash, ANIMATION_CROSS_FADE, 0);
     }
     
     private void OnLanded()
     {
-        Debug.Log("✅ LANDED!");
+        jumpCount = 0;
+        jumpWindowTimer = 0;
+        jumpMomentum *= 0.5f; // Gradual stop
         
-        // Start landing transition
-        isLanding = true;
-        landingTimer = landingBlendTime;
+        SetState(PlayerState.Jumping, false);
+        SetState(PlayerState.Landing, true);
         
-        // Smoothly blend back to locomotion
-        if (isJumping)
-        {
-            // Use CrossFade for smooth transition instead of Play
-            animator.CrossFade("Locomotion", landingBlendTime);
-        }
+        // Force locomotion state
+        animator.CrossFadeInFixedTime(locomotionHash, 0.2f, 0);
         
-        // Restore movement speed if was moving before jump
-        if (wasMovingBeforeJump)
-        {
-            currentAnimSpeed = lastGroundSpeed * 0.7f; // Start at 70% to blend up
-        }
-        
-        // Clear jump state after landing
-        jumpMomentum = Vector3.Lerp(jumpMomentum, Vector3.zero, 0.5f); // Gradual stop
-        jumpTimer = 0f;
+        // Clear landing state after a moment
+        Invoke(nameof(ClearLandingState), 0.3f);
     }
     
-    private void UpdateAnimatorAlways(bool isMoving, bool isRunning)
+    private void ClearLandingState()
     {
-        // ALWAYS update speed, even during jumps, to prevent freezing
+        SetState(PlayerState.Landing, false);
+    }
+    #endregion
+    
+    #region Animation
+    private void UpdateAnimation()
+    {
+        // Skip if jumping or landing
+        if (HasState(PlayerState.Jumping | PlayerState.Landing))
+            return;
+        
+        // Calculate target speed
         float targetSpeed = 0f;
-        
-        // During landing, blend back to movement
-        if (isLanding && wasMovingBeforeJump)
+        if (HasState(PlayerState.Moving) && HasState(PlayerState.Grounded))
         {
-            targetSpeed = lastGroundSpeed;
-        }
-        // During jump, maintain some speed value for blend
-        else if (isJumping)
-        {
-            // Keep a small speed value to prevent freeze
-            targetSpeed = currentAnimSpeed * 0.9f; // Gradually reduce but don't zero
-        }
-        // Normal ground movement
-        else if (isMoving && isGrounded && !isJumping)
-        {
-            targetSpeed = isRunning ? 2f : 1f;
+            targetSpeed = HasState(PlayerState.Running) ? 2f : 1f;
         }
         
-        // ALWAYS smooth the speed, never set directly to prevent freezing
-        currentAnimSpeed = Mathf.SmoothDamp(currentAnimSpeed, targetSpeed, ref animSpeedVelocity, speedDampTime);
-        
-        // Ensure we never get stuck at exactly 0 (idle freeze fix)
-        if (currentAnimSpeed < 0.01f && targetSpeed == 0f)
+        // Smooth transition (only update when changed)
+        if (Mathf.Abs(currentSpeed - targetSpeed) > 0.01f)
         {
-            currentAnimSpeed = 0f; // Clean zero for idle
+            currentSpeed = Mathf.SmoothDamp(currentSpeed, targetSpeed, ref speedVelocity, speedDampTime);
+            animator.SetFloat(speedHash, currentSpeed);
         }
         
-        // Always update the animator
-        animator.SetFloat("Speed", currentAnimSpeed);
+        // Update grounded state (only when changed)
+        animator.SetBool(isGroundedHash, HasState(PlayerState.Grounded));
+    }
+    #endregion
+    
+    #region Helper Methods
+    private void SetState(PlayerState state, bool value)
+    {
+        if (value)
+            currentState |= state;
+        else
+            currentState &= ~state;
     }
     
-    void OnDrawGizmos()
+    private bool HasState(PlayerState state)
+    {
+        return (currentState & state) != 0;
+    }
+    #endregion
+    
+    #region Debug
+    #if UNITY_EDITOR
+    private void OnDrawGizmos()
     {
         if (!Application.isPlaying || controller == null) return;
         
-        // Ground indicator
-        Gizmos.color = isGrounded ? Color.green : Color.red;
-        Gizmos.DrawWireSphere(transform.position - Vector3.up * (controller.height / 2f), 0.3f);
-        
-        // Jump momentum vector
-        if (jumpMomentum.magnitude > 0.1f)
-        {
-            Gizmos.color = Color.cyan;
-            Gizmos.DrawRay(transform.position, jumpMomentum);
-        }
-        
-        // Landing state
-        if (isLanding)
-        {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(transform.position, 0.5f);
-        }
+        Gizmos.color = HasState(PlayerState.Grounded) ? Color.green : Color.red;
+        Gizmos.DrawWireSphere(cachedTransform.position - Vector3.up * (controller.height * 0.5f), 0.3f);
     }
+    #endif
+    #endregion
 }
