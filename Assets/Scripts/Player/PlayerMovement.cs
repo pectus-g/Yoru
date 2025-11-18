@@ -24,6 +24,9 @@ public class PlayerMovement : MonoBehaviour
     [Header("Physics")]
     [SerializeField] private float gravity = -15f;
     [SerializeField] private float fallMultiplier = 1.5f;
+    
+    [Header("VFX")]
+    [SerializeField] private bool enableVFX = true;
     #endregion
     
     #region Private Fields
@@ -31,6 +34,7 @@ public class PlayerMovement : MonoBehaviour
     private CharacterController controller;
     private Animator animator;
     private ThirdPersonCamera cameraController;
+    private YoruVFXManager vfxManager; // VFX Integration
     private Transform cachedTransform;
     
     // Cached animator hashes (much faster than strings)
@@ -60,6 +64,7 @@ public class PlayerMovement : MonoBehaviour
     private byte jumpCount; // byte is smaller than int
     private float jumpWindowTimer;
     private float coyoteTimer;
+    private bool wasRunningForJump; // Track if running when started jumping
     
     // Animation state
     private float currentSpeed;
@@ -79,6 +84,16 @@ public class PlayerMovement : MonoBehaviour
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
         cachedTransform = transform;
+        
+        // Get VFX Manager if enabled
+        if (enableVFX)
+        {
+            vfxManager = GetComponent<YoruVFXManager>();
+            if (vfxManager == null && enableVFX)
+            {
+                Debug.LogWarning("VFX enabled but YoruVFXManager not found!");
+            }
+        }
     }
     
     private void Start()
@@ -113,7 +128,7 @@ public class PlayerMovement : MonoBehaviour
         // Early exit for inventory
         if (InventoryUI.Instance?.IsInventoryOpen() ?? false)
         {
-            SetState(PlayerState.Grounded, false);
+            SetState(PlayerState.Moving, false);
             return;
         }
         
@@ -232,17 +247,30 @@ public class PlayerMovement : MonoBehaviour
         // First jump
         if (jumpCount == 0 && (HasState(PlayerState.Grounded) || coyoteTimer > 0))
         {
-            PerformJump(jumpHeight, HasState(PlayerState.Running));
+            bool isRunning = HasState(PlayerState.Running);
+            wasRunningForJump = isRunning; // Remember if we were running for multi-jump
+            PerformJump(jumpHeight, isRunning);
             jumpCount = 1;
             jumpWindowTimer = multiJumpWindow;
+            
+            // VFX for first jump
+            vfxManager?.OnJump(jumpCount);
         }
-        // Multi-jump (only if running and within window)
-        else if (jumpCount > 0 && jumpCount < 3 && jumpWindowTimer > 0 && HasState(PlayerState.Running))
+        // Multi-jump (only if was running and within window)
+        else if (jumpCount > 0 && jumpCount < 3 && jumpWindowTimer > 0 && wasRunningForJump)
         {
             float power = (jumpCount == 1) ? doubleJumpHeight : tripleJumpHeight;
             PerformJump(power, true);
             jumpCount++;
             jumpWindowTimer = (jumpCount < 3) ? multiJumpWindow : 0;
+            
+            // VFX for multi-jump
+            vfxManager?.OnJump(jumpCount);
+            
+            if (jumpCount >= 3)
+            {
+                Debug.Log("🚫 Max jumps reached!");
+            }
         }
     }
     
@@ -265,12 +293,21 @@ public class PlayerMovement : MonoBehaviour
         SetState(PlayerState.Jumping, true);
         int animHash = isFourLegged ? jump4LegsHash : jump2LegsHash;
         animator.CrossFadeInFixedTime(animHash, ANIMATION_CROSS_FADE, 0);
+        
+        // Debug output
+        if (isFourLegged)
+            Debug.Log($"🐾 4-LEG JUMP #{jumpCount}");
+        else
+            Debug.Log($"🚶 2-LEG JUMP");
     }
     
     private void OnLanded()
     {
+        Debug.Log($"✅ LANDED! (was jump #{jumpCount})");
+        
         jumpCount = 0;
         jumpWindowTimer = 0;
+        wasRunningForJump = false;
         jumpMomentum *= 0.5f; // Gradual stop
         
         SetState(PlayerState.Jumping, false);
@@ -281,6 +318,8 @@ public class PlayerMovement : MonoBehaviour
         
         // Clear landing state after a moment
         Invoke(nameof(ClearLandingState), 0.3f);
+        
+        // VFX handles landing automatically by watching grounded state
     }
     
     private void ClearLandingState()
@@ -338,6 +377,22 @@ public class PlayerMovement : MonoBehaviour
         
         Gizmos.color = HasState(PlayerState.Grounded) ? Color.green : Color.red;
         Gizmos.DrawWireSphere(cachedTransform.position - Vector3.up * (controller.height * 0.5f), 0.3f);
+        
+        // Jump momentum visualization
+        if (jumpMomentum.magnitude > 0.1f)
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawRay(cachedTransform.position, jumpMomentum);
+        }
+        
+        // Jump window visualization
+        if (wasRunningForJump && jumpCount > 0 && jumpWindowTimer > 0)
+        {
+            float percent = jumpWindowTimer / multiJumpWindow;
+            Gizmos.color = percent > 0.5f ? Color.green : percent > 0.2f ? Color.yellow : Color.red;
+            Gizmos.DrawWireCube(cachedTransform.position + Vector3.up * 2, 
+                                new Vector3(percent * 2f, 0.1f, 0.1f));
+        }
     }
     #endif
     #endregion
