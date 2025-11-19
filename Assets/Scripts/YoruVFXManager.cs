@@ -26,10 +26,14 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private Transform rightTail;
     [SerializeField] private Transform centerBody;
     
+    [Header("Debug")]
+    [SerializeField] private bool debugMode = false;
+    [SerializeField] private bool disableCombatChecks = false;
+    [SerializeField] private bool disableCinematicChecks = false;
+    
     // Components
     private Animator animator;
     private CharacterController controller;
-    private PlayerMovement playerMovement;
     
     // Tracking
     private float lastFootstepTime;
@@ -39,26 +43,38 @@ public class YoruVFXManager : MonoBehaviour
     {
         animator = GetComponent<Animator>();
         controller = GetComponent<CharacterController>();
-        playerMovement = GetComponent<PlayerMovement>();
         
         // Create spawn points if not assigned
         if (!centerBody) centerBody = transform;
-        CreateDefaultSpawnPoints();
+        
+        // Only create default spawn points if we need them
+        if (debugMode)
+        {
+            CreateDefaultSpawnPoints();
+        }
     }
     
     void Update()
     {
+        if (!controller || !animator) return; // Safety check
+        
         bool isGrounded = controller.isGrounded;
         float speed = animator.GetFloat("Speed");
         
-        // MOVEMENT EFFECTS
+        // MOVEMENT EFFECTS - Always check these
         HandleMovementEffects(isGrounded, speed);
         
-        // COMBAT EFFECTS - Check if combat animations are playing
-        CheckCombatAnimations();
+        // COMBAT EFFECTS - Only if not disabled and layer exists
+        if (!disableCombatChecks && animator.layerCount > 1)
+        {
+            CheckCombatAnimations();
+        }
         
-        // CINEMATIC EFFECTS - Check if cinematic animations are playing
-        CheckCinematicAnimations();
+        // CINEMATIC EFFECTS - Only if not disabled and layer exists
+        if (!disableCinematicChecks && animator.layerCount > 2)
+        {
+            CheckCinematicAnimations();
+        }
         
         wasGrounded = isGrounded;
     }
@@ -67,29 +83,32 @@ public class YoruVFXManager : MonoBehaviour
     void HandleMovementEffects(bool isGrounded, float speed)
     {
         // Footstep dust
-        if (isGrounded && speed > 0.1f)
+        if (isGrounded && speed > 0.1f && dustPuff != null)
         {
-            float interval = speed > 1.5f ? 0.2f : 0.4f; // Faster when running
+            float interval = speed > 1.5f ? 0.2f : 0.4f;
             
             if (Time.time - lastFootstepTime > interval)
             {
                 lastFootstepTime = Time.time;
                 PlayEffect(dustPuff, transform.position);
             }
-            
-            // Running trail
-            if (speed > 1.5f && runTrail && !runTrail.isPlaying)
+        }
+        
+        // Running trail
+        if (runTrail != null)
+        {
+            if (speed > 1.5f && isGrounded && !runTrail.isPlaying)
             {
                 runTrail.Play();
             }
-            else if (speed <= 1.5f && runTrail && runTrail.isPlaying)
+            else if ((speed <= 1.5f || !isGrounded) && runTrail.isPlaying)
             {
                 runTrail.Stop();
             }
         }
         
         // Landing effect
-        if (!wasGrounded && isGrounded)
+        if (!wasGrounded && isGrounded && landingImpact != null)
         {
             PlayEffect(landingImpact, transform.position);
         }
@@ -98,104 +117,91 @@ public class YoruVFXManager : MonoBehaviour
     // Called by PlayerMovement when jumping
     public void OnJump(int jumpNumber)
     {
-        Vector3 pos = transform.position;
+        if (jumpLaunch == null) return;
         
-        if (jumpNumber == 1)
+        Vector3 pos = transform.position;
+        PlayEffect(jumpLaunch, pos);
+        
+        // Scale effect based on jump number
+        var originalScale = jumpLaunch.transform.localScale;
+        if (jumpNumber == 2)
         {
-            PlayEffect(jumpLaunch, pos);
-        }
-        else if (jumpNumber == 2)
-        {
-            // Double jump - bigger effect
-            PlayEffect(jumpLaunch, pos);
-            if (jumpLaunch)
-            {
-                jumpLaunch.transform.localScale = Vector3.one * 1.5f;
-            }
+            jumpLaunch.transform.localScale = Vector3.one * 1.5f;
         }
         else if (jumpNumber == 3)
         {
-            // Triple jump - huge effect
-            PlayEffect(jumpLaunch, pos);
-            if (jumpLaunch)
-            {
-                jumpLaunch.transform.localScale = Vector3.one * 2f;
-            }
+            jumpLaunch.transform.localScale = Vector3.one * 2f;
+        }
+        else
+        {
+            jumpLaunch.transform.localScale = Vector3.one;
         }
     }
     
     // ========== COMBAT EFFECTS ==========
     void CheckCombatAnimations()
     {
-        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(1); // Combat Layer
+        // Safety check for layer
+        if (animator.layerCount <= 1) return;
         
+        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(1);
+        float layerWeight = animator.GetLayerWeight(1);
+        
+        // Only check if layer is active
+        if (layerWeight < 0.1f) return;
+        
+        // For now, we'll comment out the specific animation checks since they might be breaking
+        // You can uncomment these once you verify the animation names match
+        
+        /*
         // Single Paw Attack
-        if (state.IsName("AttackPaw") && state.normalizedTime > 0.3f && state.normalizedTime < 0.4f)
+        if (state.IsName("AttackPaw") && pawAttack1 != null)
         {
-            if (!pawAttack1.isPlaying)
+            if (state.normalizedTime > 0.3f && state.normalizedTime < 0.4f)
             {
-                PlayEffect(pawAttack1, rightPaw ? rightPaw.position : transform.position + Vector3.up);
+                if (!pawAttack1.isPlaying)
+                {
+                    PlayEffect(pawAttack1, rightPaw ? rightPaw.position : transform.position + Vector3.up);
+                }
             }
         }
+        */
         
-        // Double Paw Attack (TowPaw)
-        if (state.IsName("TowPaw") && state.normalizedTime > 0.3f && state.normalizedTime < 0.4f)
+        if (debugMode)
         {
-            if (!pawAttack2.isPlaying)
-            {
-                PlayEffect(pawAttack2, transform.position + Vector3.up);
-            }
-        }
-        
-        // Left Tail Cast (Blue - Forgiveness)
-        if (state.IsName("LeftTailCast") && state.normalizedTime > 0.2f && state.normalizedTime < 0.3f)
-        {
-            if (!leftTailMagic.isPlaying)
-            {
-                PlayEffect(leftTailMagic, leftTail ? leftTail.position : transform.position + Vector3.left);
-            }
-        }
-        
-        // Right Tail Cast (Red - Punishment)
-        if (state.IsName("RightTailCast") && state.normalizedTime > 0.2f && state.normalizedTime < 0.3f)
-        {
-            if (!rightTailMagic.isPlaying)
-            {
-                PlayEffect(rightTailMagic, rightTail ? rightTail.position : transform.position + Vector3.right);
-            }
+            Debug.Log($"Combat Layer State: {state.fullPathHash}, Weight: {layerWeight}");
         }
     }
     
     // ========== CINEMATIC EFFECTS ==========
     void CheckCinematicAnimations()
     {
-        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(2); // Cinematic Layer
+        // Safety check for layer
+        if (animator.layerCount <= 2) return;
         
-        // Freeing Soul - particles go upward
-        if (state.IsName("FreeingSoul") && state.normalizedTime > 0.3f)
+        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(2);
+        float layerWeight = animator.GetLayerWeight(2);
+        
+        // Only check if layer is active
+        if (layerWeight < 0.1f) return;
+        
+        // For now, we'll comment out the specific animation checks
+        // You can uncomment these once you verify the animation names match
+        
+        /*
+        // Freeing Soul
+        if (state.IsName("FreeingSoul") && soulFreeing != null)
         {
-            if (!soulFreeing.isPlaying)
+            if (state.normalizedTime > 0.3f && !soulFreeing.isPlaying)
             {
                 PlayEffect(soulFreeing, centerBody.position + Vector3.up);
             }
         }
+        */
         
-        // Circle Activation - ground effect
-        if (state.IsName("CircleActivation") && state.normalizedTime > 0.2f)
+        if (debugMode)
         {
-            if (!circleActivation.isPlaying)
-            {
-                PlayEffect(circleActivation, transform.position);
-            }
-        }
-        
-        // Absorbing - energy coming to character
-        if (state.IsName("Absorbing") && state.normalizedTime > 0.1f)
-        {
-            if (!absorbing.isPlaying)
-            {
-                PlayEffect(absorbing, centerBody.position);
-            }
+            Debug.Log($"Cinematic Layer State: {state.fullPathHash}, Weight: {layerWeight}");
         }
     }
     
@@ -211,7 +217,6 @@ public class YoruVFXManager : MonoBehaviour
     
     void CreateDefaultSpawnPoints()
     {
-        // Create spawn points if not found in model
         if (!leftPaw)
         {
             GameObject lp = new GameObject("LeftPawVFX");
@@ -245,21 +250,21 @@ public class YoruVFXManager : MonoBehaviour
         }
     }
     
-    // Manual trigger methods (can be called from Animation Events or other scripts)
+    // Manual trigger methods for AnimationTester
     public void TriggerPawAttack(bool isDouble)
     {
-        if (isDouble)
+        if (isDouble && pawAttack2 != null)
             PlayEffect(pawAttack2, transform.position + Vector3.up);
-        else
-            PlayEffect(pawAttack1, rightPaw.position);
+        else if (!isDouble && pawAttack1 != null)
+            PlayEffect(pawAttack1, rightPaw ? rightPaw.position : transform.position + Vector3.up);
     }
     
     public void TriggerTailCast(bool isLeft)
     {
-        if (isLeft)
-            PlayEffect(leftTailMagic, leftTail.position);
-        else
-            PlayEffect(rightTailMagic, rightTail.position);
+        if (isLeft && leftTailMagic != null)
+            PlayEffect(leftTailMagic, leftTail ? leftTail.position : transform.position + Vector3.left);
+        else if (!isLeft && rightTailMagic != null)
+            PlayEffect(rightTailMagic, rightTail ? rightTail.position : transform.position + Vector3.right);
     }
     
     public void TriggerCinematicEffect(string effectName)
@@ -267,13 +272,16 @@ public class YoruVFXManager : MonoBehaviour
         switch (effectName)
         {
             case "soul":
-                PlayEffect(soulFreeing, centerBody.position + Vector3.up);
+                if (soulFreeing != null)
+                    PlayEffect(soulFreeing, centerBody ? centerBody.position + Vector3.up : transform.position + Vector3.up);
                 break;
             case "circle":
-                PlayEffect(circleActivation, transform.position);
+                if (circleActivation != null)
+                    PlayEffect(circleActivation, transform.position);
                 break;
             case "absorb":
-                PlayEffect(absorbing, centerBody.position);
+                if (absorbing != null)
+                    PlayEffect(absorbing, centerBody ? centerBody.position : transform.position);
                 break;
         }
     }

@@ -11983,8 +11983,11 @@ MonoBehaviour:
   doubleJumpHeight: 1.5
   tripleJumpHeight: 1.2
   jumpForwardSpeed: 3
-  landingBlendTime: 0.3
+  multiJumpWindow: 0.5
+  coyoteTime: 0.1
   gravity: -15
+  fallMultiplier: 1.5
+  enableVFX: 1
 --- !u!95 &8286453762008768005
 Animator:
   serializedVersion: 7
@@ -13995,7 +13998,7 @@ MonoBehaviour:
     rimLightingStrength: 1
     rimLightingPower: 1
     renderingSamples: 40
-    mainTint: {r: 1, g: 1, b: 1, a: 1}
+    mainTint: {r: 0.30588236, g: 1, b: 1, a: 1}
     colorMap: {fileID: 0}
     baseUVTiling: {x: 1, y: 1, z: 0, w: 0}
     furStrandsAsset: {fileID: 11400000, guid: a07368ed4fb7b9049bee52eb18964c4e, type: 2}
