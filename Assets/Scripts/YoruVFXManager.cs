@@ -204,11 +204,14 @@ public class YoruVFXManager : MonoBehaviour
         }
         
         // Landing effect
-        if (!wasGrounded && isGrounded && landingImpactPrefab != null)
-        {
-            SpawnEffect(landingImpactPrefab, transform.position, Quaternion.identity);
-            if (debugMode) Debug.Log("💨 Landing VFX spawned!");
-        }
+     // Landing effect
+if (!wasGrounded && isGrounded && landingImpactPrefab != null)
+{
+    Vector3 landingPos = transform.position;
+    landingPos.y += 0.5f;  // Raise it above ground
+    SpawnEffect(landingImpactPrefab, landingPos, Quaternion.identity);
+    if (debugMode) Debug.Log("💨 Landing VFX spawned!");
+}
     }
     
     // ========== COMBAT ANIMATIONS AUTO-DETECTION ==========
@@ -452,19 +455,21 @@ public class YoruVFXManager : MonoBehaviour
         
         if (circleActivationPrefab == null) return;
         
-        // FIXED: Spawn at character's current position (not world Y = 0.1)
+        // Spawn at character's position
         Vector3 position = transform.position;
         
-        // Optionally adjust to ground level using character controller
-        if (controller != null)
-        {
-            // Position at the base of the character
-            position.y = transform.position.y - (controller.height / 2f) + 0.2f;
-        }
+        // Position at ground level (character's feet)
+       if (controller != null)
+{
+    position.y = transform.position.y - (controller.height / 2f) + 1.2f;  // Raised from 0.2f to 1.0f
+}
+        // FIXED: Rotate to make it horizontal (flat on ground)
+        // Try Euler(90, 0, 0) first. If upside down, use Euler(-90, 0, 0)
+        Quaternion rotation = Quaternion.Euler(90, 0, 0);
         
-        if (debugMode) Debug.Log($"⭕ Spawning circle at position: {position}");
+        if (debugMode) Debug.Log($"⭕ Spawning circle at position: {position} with rotation: {rotation.eulerAngles}");
         
-        SpawnEffect(circleActivationPrefab, position, Quaternion.identity);
+        SpawnEffect(circleActivationPrefab, position, rotation);
     }
     
     public void VFX_Absorb()
