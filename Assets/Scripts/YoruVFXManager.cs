@@ -32,6 +32,7 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private bool autoDetectAnimations = false;  // TURN OFF - use Animation Events instead
     [SerializeField] private bool findTailTips = true;
     [SerializeField] private bool parentEffectsToTail = true;  // Makes effects follow tail movement
+    [SerializeField] private float tailProjectileSpeed = 10f;  // Speed of tail projectiles
     
     // Components
     private Animator animator;
@@ -208,8 +209,10 @@ public class YoruVFXManager : MonoBehaviour
 if (!wasGrounded && isGrounded && landingImpactPrefab != null)
 {
     Vector3 landingPos = transform.position;
-    landingPos.y += 0.5f;  // Raise it above ground
-    SpawnEffect(landingImpactPrefab, landingPos, Quaternion.identity);
+    landingPos.y += 0.5f;
+    // Rotate to make it point up
+    Quaternion rotation = Quaternion.Euler(-90, 0, 0);  // or try 90
+    SpawnEffect(landingImpactPrefab, landingPos, rotation);
     if (debugMode) Debug.Log("💨 Landing VFX spawned!");
 }
     }
@@ -308,25 +311,28 @@ if (!wasGrounded && isGrounded && landingImpactPrefab != null)
     }
     
     // Called by PlayerMovement when jumping
-    public void OnJump(int jumpNumber)
+public void OnJump(int jumpNumber)
+{
+    if (jumpLaunchPrefab == null) 
     {
-        if (jumpLaunchPrefab == null) 
-        {
-            if (debugMode) Debug.LogWarning("⚠️ Jump VFX prefab not assigned!");
-            return;
-        }
-        
-        Vector3 pos = transform.position;
-        GameObject effect = SpawnEffect(jumpLaunchPrefab, pos, Quaternion.identity);
-        
-        if (effect != null)
-        {
-            float scale = jumpNumber == 1 ? 1f : jumpNumber == 2 ? 1.5f : 2f;
-            effect.transform.localScale = Vector3.one * scale;
-        }
-        
-        if (debugMode) Debug.Log($"🐾 Jump {jumpNumber} VFX spawned!");
+        if (debugMode) Debug.LogWarning("⚠️ Jump VFX prefab not assigned!");
+        return;
     }
+    
+    Vector3 pos = transform.position;
+    pos.y += 0.5f;
+    // Make it vertical (pointing up)
+    Quaternion rotation = Quaternion.Euler(-90, 0, 0);  // Try 90 if this points down
+    GameObject effect = SpawnEffect(jumpLaunchPrefab, pos, rotation);
+    
+    if (effect != null)
+    {
+        float scale = jumpNumber == 1 ? 1f : jumpNumber == 2 ? 1.5f : 2f;
+        effect.transform.localScale = Vector3.one * scale;
+    }
+    
+    if (debugMode) Debug.Log($"🐾 Jump {jumpNumber} VFX spawned!");
+}
     
     // ========== SPAWNING SYSTEM ==========
     GameObject SpawnEffect(GameObject prefab, Vector3 position, Quaternion rotation, bool dontDestroy = false)
@@ -377,67 +383,89 @@ if (!wasGrounded && isGrounded && landingImpactPrefab != null)
         }
     }
     
-    public void VFX_LeftTail()
+ public void VFX_LeftTail()
+{
+    if (debugMode) Debug.Log("✨ VFX_LeftTail triggered!");
+    
+    if (leftTailMagicPrefab == null)
     {
-        if (debugMode) Debug.Log("✨ VFX_LeftTail triggered!");
-        
-        if (leftTailMagicPrefab == null)
-        {
-            Debug.LogWarning("⚠️ Left tail prefab not assigned!");
-            return;
-        }
-        
-        Transform spawnPoint = leftTailTip ? leftTailTip : transform;
-        
-        if (debugMode) Debug.Log($"Spawning at: {spawnPoint.name}, Position: {spawnPoint.position}");
-        
-        GameObject effect = SpawnEffect(leftTailMagicPrefab, spawnPoint.position, spawnPoint.rotation);
-        
-        if (effect != null && parentEffectsToTail && leftTailTip != null)
-        {
-            // Parent to tail so it follows the tail movement
-            effect.transform.SetParent(leftTailTip);
-            effect.transform.localPosition = Vector3.zero;
-            effect.transform.localRotation = Quaternion.identity;
-            
-            // Change color for left tail
-            var ps = effect.GetComponent<ParticleSystem>();
-            if (ps)
-            {
-                var main = ps.main;
-                main.startColor = new Color(0.3f, 0.6f, 1f); // Blue tint
-            }
-            
-            if (debugMode) Debug.Log($"✅ Left Tail VFX spawned and parented to {leftTailTip.name}!");
-        }
+        Debug.LogWarning("⚠️ Left tail prefab not assigned!");
+        return;
     }
     
-    public void VFX_RightTail()
+    Transform spawnPoint = leftTailTip ? leftTailTip : transform;
+    
+    if (debugMode) Debug.Log($"Spawning projectile at: {spawnPoint.name}, Position: {spawnPoint.position}");
+    
+    GameObject effect = SpawnEffect(leftTailMagicPrefab, spawnPoint.position, spawnPoint.rotation);
+    
+    if (effect != null)
     {
-        if (debugMode) Debug.Log("✨ VFX_RightTail triggered!");
-        
-        if (rightTailMagicPrefab == null)
+        // DON'T parent - make it a projectile!
+    Vector3 shootDirection = spawnPoint.forward;
+        Rigidbody rb = effect.GetComponent<Rigidbody>();
+        if (rb == null)
         {
-            Debug.LogWarning("⚠️ Right tail prefab not assigned!");
-            return;
+            rb = effect.AddComponent<Rigidbody>();
+            rb.useGravity = false;
+            rb.linearDamping = 0;
         }
         
-        Transform spawnPoint = rightTailTip ? rightTailTip : transform;
+        rb.linearVelocity = shootDirection * tailProjectileSpeed;
         
-        if (debugMode) Debug.Log($"Spawning at: {spawnPoint.name}, Position: {spawnPoint.position}");
-        
-        GameObject effect = SpawnEffect(rightTailMagicPrefab, spawnPoint.position, spawnPoint.rotation);
-        
-        if (effect != null && parentEffectsToTail && rightTailTip != null)
+        var ps = effect.GetComponent<ParticleSystem>();
+        if (ps)
         {
-            // Parent to tail so it follows the tail movement
-            effect.transform.SetParent(rightTailTip);
-            effect.transform.localPosition = Vector3.zero;
-            effect.transform.localRotation = Quaternion.identity;
-            
-            if (debugMode) Debug.Log($"✅ Right Tail VFX spawned and parented to {rightTailTip.name}!");
+            var main = ps.main;
+            main.startColor = new Color(0.3f, 0.6f, 1f);
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
         }
+        
+        if (debugMode) Debug.Log($"✅ Left Tail projectile launched!");
     }
+}
+    
+ public void VFX_RightTail()
+{
+    if (debugMode) Debug.Log("✨ VFX_RightTail triggered!");
+    
+    if (rightTailMagicPrefab == null)
+    {
+        Debug.LogWarning("⚠️ Right tail prefab not assigned!");
+        return;
+    }
+    
+    Transform spawnPoint = rightTailTip ? rightTailTip : transform;
+    
+    if (debugMode) Debug.Log($"Spawning projectile at: {spawnPoint.name}, Position: {spawnPoint.position}");
+    
+    GameObject effect = SpawnEffect(rightTailMagicPrefab, spawnPoint.position, spawnPoint.rotation);
+    
+    if (effect != null)
+    {
+        // DON'T parent - make it a projectile!
+        Vector3 shootDirection = spawnPoint.forward;
+        
+        Rigidbody rb = effect.GetComponent<Rigidbody>();
+        if (rb == null)
+        {
+            rb = effect.AddComponent<Rigidbody>();
+            rb.useGravity = false;
+            rb.linearDamping = 0;
+        }
+        
+        rb.linearVelocity = shootDirection * tailProjectileSpeed;
+        
+        var ps = effect.GetComponent<ParticleSystem>();
+        if (ps)
+        {
+            var main = ps.main;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+        }
+        
+        if (debugMode) Debug.Log($"✅ Right Tail projectile launched!");
+    }
+}
     
     public void VFX_Soul()
     {
@@ -446,7 +474,8 @@ if (!wasGrounded && isGrounded && landingImpactPrefab != null)
         if (soulFreeingPrefab == null) return;
         
         Vector3 position = (centerBody ? centerBody.position : transform.position) + Vector3.up * 1.5f;
-        SpawnEffect(soulFreeingPrefab, position, Quaternion.identity);
+        // CHANGED: Now rotates with character direction
+        SpawnEffect(soulFreeingPrefab, position, transform.rotation);
     }
     
     public void VFX_Circle()
@@ -472,13 +501,16 @@ if (!wasGrounded && isGrounded && landingImpactPrefab != null)
         SpawnEffect(circleActivationPrefab, position, rotation);
     }
     
-    public void VFX_Absorb()
-    {
-        if (debugMode) Debug.Log("🌀 VFX_Absorb triggered!");
-        
-        if (absorbingPrefab == null) return;
-        
-        Vector3 position = centerBody ? centerBody.position : transform.position;
-        SpawnEffect(absorbingPrefab, position, Quaternion.identity);
-    }
+   public void VFX_Absorb()
+{
+    if (debugMode) Debug.Log("🌀 VFX_Absorb triggered!");
+    
+    if (absorbingPrefab == null) return;
+    
+    Vector3 position = centerBody ? centerBody.position : transform.position;
+    position.y += 1.0f;  // Raise it above ground
+    
+    // CHANGED: Now rotates with character direction
+    SpawnEffect(absorbingPrefab, position, transform.rotation);
+}
 }
