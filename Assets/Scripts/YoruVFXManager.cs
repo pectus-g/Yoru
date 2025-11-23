@@ -22,15 +22,16 @@ public class YoruVFXManager : MonoBehaviour
     [Header("Effect Spawn Points")]
     [SerializeField] private Transform leftPaw;
     [SerializeField] private Transform rightPaw;
-    [SerializeField] private Transform leftTail;
-    [SerializeField] private Transform rightTail;
+    [SerializeField] private Transform leftTailTip;   // Will auto-find if not assigned
+    [SerializeField] private Transform rightTailTip;  // Will auto-find if not assigned
     [SerializeField] private Transform centerBody;
     
     [Header("Settings")]
     [SerializeField] private float effectLifetime = 3f;
-    [SerializeField] private bool debugMode = false;
-    [SerializeField] private bool autoDetectAnimations = true;
+    [SerializeField] private bool debugMode = true;  // Enable for testing
+    [SerializeField] private bool autoDetectAnimations = false;  // TURN OFF - use Animation Events instead
     [SerializeField] private bool findTailTips = true;
+    [SerializeField] private bool parentEffectsToTail = true;  // Makes effects follow tail movement
     
     // Components
     private Animator animator;
@@ -66,66 +67,78 @@ public class YoruVFXManager : MonoBehaviour
         
         if (debugMode)
         {
-            Debug.Log("VFX Manager initialized. Prefabs loaded: " + 
-                     (jumpLaunchPrefab != null ? "Jump✓ " : "Jump✗ ") +
-                     (landingImpactPrefab != null ? "Land✓ " : "Land✗ ") +
-                     (leftTailMagicPrefab != null ? "LTail✓ " : "LTail✗ ") +
-                     (rightTailMagicPrefab != null ? "RTail✓ " : "RTail✗ "));
+            Debug.Log("=== VFX MANAGER INITIALIZED ===");
+            Debug.Log($"Auto-detect animations: {autoDetectAnimations}");
+            Debug.Log($"Parent effects to tail: {parentEffectsToTail}");
+            Debug.Log($"Prefabs: Jump={jumpLaunchPrefab != null}, Land={landingImpactPrefab != null}, LTail={leftTailMagicPrefab != null}, RTail={rightTailMagicPrefab != null}");
             
-            if (leftTail) Debug.Log($"Left Tail: {leftTail.name}");
-            if (rightTail) Debug.Log($"Right Tail: {rightTail.name}");
+            if (leftTailTip) Debug.Log($"✅ Left Tail Tip: {leftTailTip.name}");
+            else Debug.LogWarning("❌ Left Tail Tip not found!");
+            
+            if (rightTailTip) Debug.Log($"✅ Right Tail Tip: {rightTailTip.name}");
+            else Debug.LogWarning("❌ Right Tail Tip not found!");
         }
     }
     
     void FindTailTips()
     {
-        // Find left tail tip
-        if (leftTail == null)
+        // Find left tail tip - look for Tail159_L (the last bone)
+        if (leftTailTip == null)
         {
-            Transform tail = FindDeepChild(transform, "Tail15_L", "Tail.*L", "L.*Tail");
-            if (tail != null)
-            {
-                leftTail = GetDeepestChild(tail);
-                Debug.Log($"Auto-found left tail tip: {leftTail.name}");
-            }
-        }
-        
-        // Find right tail tip
-        if (rightTail == null)
-        {
-            Transform tail = FindDeepChild(transform, "Tail15_R", "Tail.*R", "R.*Tail");
-            if (tail != null)
-            {
-                rightTail = GetDeepestChild(tail);
-                Debug.Log($"Auto-found right tail tip: {rightTail.name}");
-            }
-        }
-    }
-    
-    Transform FindDeepChild(Transform parent, params string[] possibleNames)
-    {
-        foreach (string name in possibleNames)
-        {
-            Transform[] allChildren = parent.GetComponentsInChildren<Transform>();
+            Transform[] allChildren = GetComponentsInChildren<Transform>();
             foreach (Transform child in allChildren)
             {
-                if (child.name.Contains(name.Replace(".*", "")))
+                if (child.name == "Tail159_L")
                 {
-                    return child;
+                    leftTailTip = child;
+                    Debug.Log($"✅ Auto-found left tail tip: {leftTailTip.name}");
+                    break;
+                }
+            }
+            
+            if (leftTailTip == null)
+            {
+                Debug.LogWarning("⚠️ Could not find Tail159_L - searching for any Tail.*_L...");
+                foreach (Transform child in allChildren)
+                {
+                    if (child.name.Contains("Tail") && child.name.Contains("_L"))
+                    {
+                        leftTailTip = child;
+                        Debug.Log($"Found alternative left tail: {leftTailTip.name}");
+                        break;
+                    }
                 }
             }
         }
-        return null;
-    }
-    
-    Transform GetDeepestChild(Transform parent)
-    {
-        Transform deepest = parent;
-        while (deepest.childCount > 0)
+        
+        // Find right tail tip - look for Tail6_R_end_end_end (the last bone)
+        if (rightTailTip == null)
         {
-            deepest = deepest.GetChild(deepest.childCount - 1);
+            Transform[] allChildren = GetComponentsInChildren<Transform>();
+            foreach (Transform child in allChildren)
+            {
+                if (child.name == "Tail6_R_end_end_end")
+                {
+                    rightTailTip = child;
+                    Debug.Log($"✅ Auto-found right tail tip: {rightTailTip.name}");
+                    break;
+                }
+            }
+            
+            if (rightTailTip == null)
+            {
+                Debug.LogWarning("⚠️ Could not find Tail6_R_end_end_end - searching for any Tail.*_R_end...");
+                foreach (Transform child in allChildren)
+                {
+                    if (child.name.Contains("Tail") && child.name.Contains("_R") && child.name.Contains("_end"))
+                    {
+                        rightTailTip = child;
+                        Debug.Log($"Found alternative right tail: {rightTailTip.name}");
+                        break;
+                    }
+                }
+            }
         }
-        return deepest;
     }
     
     void Update()
@@ -138,16 +151,14 @@ public class YoruVFXManager : MonoBehaviour
         // Always check movement effects
         HandleMovementEffects(isGrounded, speed);
         
-        // Only auto-detect if enabled (can disable if using Animation Events)
+        // Only auto-detect if enabled (should be OFF if using Animation Events)
         if (autoDetectAnimations)
         {
-            // Check combat animations (Layer 1)
             if (animator.layerCount > 1)
             {
                 CheckCombatAnimations();
             }
             
-            // Check cinematic animations (Layer 2)
             if (animator.layerCount > 2)
             {
                 CheckCinematicAnimations();
@@ -196,7 +207,7 @@ public class YoruVFXManager : MonoBehaviour
         if (!wasGrounded && isGrounded && landingImpactPrefab != null)
         {
             SpawnEffect(landingImpactPrefab, transform.position, Quaternion.identity);
-            if (debugMode) Debug.Log("Landing VFX spawned!");
+            if (debugMode) Debug.Log("💨 Landing VFX spawned!");
         }
     }
     
@@ -206,13 +217,6 @@ public class YoruVFXManager : MonoBehaviour
         AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(1);
         float layerWeight = animator.GetLayerWeight(1);
         
-        // Debug actual state names
-        if (debugMode && layerWeight > 0.1f && state.fullPathHash != lastStateHash)
-        {
-            Debug.Log($"Combat Layer Active - State Hash: {state.fullPathHash}, Time: {state.normalizedTime:F2}");
-        }
-        
-        // Reset triggers when animation changes
         if (state.fullPathHash != lastStateHash)
         {
             attackPawTriggered = false;
@@ -222,45 +226,37 @@ public class YoruVFXManager : MonoBehaviour
             lastStateHash = state.fullPathHash;
         }
         
-        // Only check if layer is active
         if (layerWeight < 0.1f) return;
         
-        // AttackPaw
         if (state.IsName("AttackPaw") && !attackPawTriggered && pawAttack1Prefab != null)
         {
             if (state.normalizedTime > 0.3f && state.normalizedTime < 0.5f)
             {
-                TriggerPawAttack(false);
+                VFX_AttackPaw();
                 attackPawTriggered = true;
             }
         }
-        
-        // TowPaw (Two Paw Attack)
-        else if (state.IsName("TowPaw") && !towPawTriggered && pawAttack2Prefab != null)
+        else if (state.IsName("towpaw") && !towPawTriggered && pawAttack2Prefab != null)
         {
             if (state.normalizedTime > 0.3f && state.normalizedTime < 0.5f)
             {
-                TriggerPawAttack(true);
+                VFX_TowPaw();
                 towPawTriggered = true;
             }
         }
-        
-        // LeftTailCast
-        else if (state.IsName("LeftTailCast") && !leftTailTriggered && leftTailMagicPrefab != null)
+        else if (state.IsName("leftTailcast") && !leftTailTriggered && leftTailMagicPrefab != null)
         {
             if (state.normalizedTime > 0.2f && state.normalizedTime < 0.4f)
             {
-                TriggerTailCast(true);
+                VFX_LeftTail();
                 leftTailTriggered = true;
             }
         }
-        
-        // RightTailCast
         else if (state.IsName("RightTailCast") && !rightTailTriggered && rightTailMagicPrefab != null)
         {
             if (state.normalizedTime > 0.2f && state.normalizedTime < 0.4f)
             {
-                TriggerTailCast(false);
+                VFX_RightTail();
                 rightTailTriggered = true;
             }
         }
@@ -272,13 +268,6 @@ public class YoruVFXManager : MonoBehaviour
         AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(2);
         float layerWeight = animator.GetLayerWeight(2);
         
-        // Debug actual state names
-        if (debugMode && layerWeight > 0.1f && state.fullPathHash != lastStateHash)
-        {
-            Debug.Log($"Cinematic Layer Active - State Hash: {state.fullPathHash}, Time: {state.normalizedTime:F2}");
-        }
-        
-        // Reset triggers when animation changes
         if (state.fullPathHash != lastStateHash)
         {
             soulTriggered = false;
@@ -287,35 +276,29 @@ public class YoruVFXManager : MonoBehaviour
             lastStateHash = state.fullPathHash;
         }
         
-        // Only check if layer is active
         if (layerWeight < 0.1f) return;
         
-        // FreeingSoul
         if (state.IsName("FreeingSoul") && !soulTriggered && soulFreeingPrefab != null)
         {
             if (state.normalizedTime > 0.3f && state.normalizedTime < 0.5f)
             {
-                TriggerCinematicEffect("soul");
+                VFX_Soul();
                 soulTriggered = true;
             }
         }
-        
-        // CircleActivation
         else if (state.IsName("CircleActivation") && !circleTriggered && circleActivationPrefab != null)
         {
             if (state.normalizedTime > 0.2f && state.normalizedTime < 0.4f)
             {
-                TriggerCinematicEffect("circle");
+                VFX_Circle();
                 circleTriggered = true;
             }
         }
-        
-        // Absorbing
         else if (state.IsName("Absorbing") && !absorbTriggered && absorbingPrefab != null)
         {
             if (state.normalizedTime > 0.1f && state.normalizedTime < 0.3f)
             {
-                TriggerCinematicEffect("absorb");
+                VFX_Absorb();
                 absorbTriggered = true;
             }
         }
@@ -326,7 +309,7 @@ public class YoruVFXManager : MonoBehaviour
     {
         if (jumpLaunchPrefab == null) 
         {
-            if (debugMode) Debug.LogWarning("Jump VFX prefab not assigned!");
+            if (debugMode) Debug.LogWarning("⚠️ Jump VFX prefab not assigned!");
             return;
         }
         
@@ -339,7 +322,7 @@ public class YoruVFXManager : MonoBehaviour
             effect.transform.localScale = Vector3.one * scale;
         }
         
-        if (debugMode) Debug.Log($"Jump {jumpNumber} VFX spawned!");
+        if (debugMode) Debug.Log($"🐾 Jump {jumpNumber} VFX spawned!");
     }
     
     // ========== SPAWNING SYSTEM ==========
@@ -363,103 +346,134 @@ public class YoruVFXManager : MonoBehaviour
         return effect;
     }
     
-    // ========== TRIGGER METHODS ==========
-    public void TriggerPawAttack(bool isDouble)
-    {
-        GameObject prefab = isDouble ? pawAttack2Prefab : pawAttack1Prefab;
-        Transform spawnPoint = isDouble ? transform : (rightPaw ? rightPaw : transform);
-        Vector3 pos = spawnPoint.position + (isDouble ? Vector3.up : Vector3.zero);
-        
-        if (prefab != null)
-        {
-            SpawnEffect(prefab, pos, spawnPoint.rotation);
-            if (debugMode) Debug.Log($"Paw Attack VFX spawned (Double: {isDouble})");
-        }
-    }
-    
-    public void TriggerTailCast(bool isLeft)
-    {
-        GameObject prefab = isLeft ? leftTailMagicPrefab : rightTailMagicPrefab;
-        Transform spawnPoint = isLeft ? leftTail : rightTail;
-        if (spawnPoint == null) spawnPoint = transform;
-        
-        if (prefab != null)
-        {
-            GameObject effect = SpawnEffect(prefab, spawnPoint.position, Quaternion.identity);
-            if (effect && isLeft)
-            {
-                var ps = effect.GetComponent<ParticleSystem>();
-                if (ps)
-                {
-                    var main = ps.main;
-                    main.startColor = new Color(0.3f, 0.6f, 1f);
-                }
-            }
-            if (debugMode) Debug.Log($"{(isLeft ? "Left" : "Right")} Tail VFX spawned at {spawnPoint.name}!");
-        }
-    }
-    
-    public void TriggerCinematicEffect(string effectName)
-    {
-        GameObject prefab = null;
-        Vector3 position = transform.position;
-        
-        switch (effectName)
-        {
-            case "soul":
-                prefab = soulFreeingPrefab;
-                position = (centerBody ? centerBody.position : transform.position) + Vector3.up;
-                break;
-            case "circle":
-                prefab = circleActivationPrefab;
-                break;
-            case "absorb":
-                prefab = absorbingPrefab;
-                position = centerBody ? centerBody.position : transform.position;
-                break;
-        }
-        
-        if (prefab != null)
-        {
-            SpawnEffect(prefab, position, Quaternion.identity);
-            if (debugMode) Debug.Log($"Cinematic VFX '{effectName}' spawned!");
-        }
-    }
-    
     // ========== ANIMATION EVENT METHODS ==========
-    // These can be called directly from Animation Events
+    // These are called directly from Animation Events at specific frames
+    
     public void VFX_AttackPaw()
     {
-        TriggerPawAttack(false);
+        if (debugMode) Debug.Log("🐾 VFX_AttackPaw triggered!");
+        
+        Transform spawnPoint = rightPaw ? rightPaw : transform;
+        Vector3 pos = spawnPoint.position;
+        
+        if (pawAttack1Prefab != null)
+        {
+            SpawnEffect(pawAttack1Prefab, pos, spawnPoint.rotation);
+        }
     }
     
     public void VFX_TowPaw()
     {
-        TriggerPawAttack(true);
+        if (debugMode) Debug.Log("🐾🐾 VFX_TowPaw triggered!");
+        
+        Vector3 pos = transform.position + Vector3.up;
+        
+        if (pawAttack2Prefab != null)
+        {
+            SpawnEffect(pawAttack2Prefab, pos, transform.rotation);
+        }
     }
     
     public void VFX_LeftTail()
     {
-        TriggerTailCast(true);
+        if (debugMode) Debug.Log("✨ VFX_LeftTail triggered!");
+        
+        if (leftTailMagicPrefab == null)
+        {
+            Debug.LogWarning("⚠️ Left tail prefab not assigned!");
+            return;
+        }
+        
+        Transform spawnPoint = leftTailTip ? leftTailTip : transform;
+        
+        if (debugMode) Debug.Log($"Spawning at: {spawnPoint.name}, Position: {spawnPoint.position}");
+        
+        GameObject effect = SpawnEffect(leftTailMagicPrefab, spawnPoint.position, spawnPoint.rotation);
+        
+        if (effect != null && parentEffectsToTail && leftTailTip != null)
+        {
+            // Parent to tail so it follows the tail movement
+            effect.transform.SetParent(leftTailTip);
+            effect.transform.localPosition = Vector3.zero;
+            effect.transform.localRotation = Quaternion.identity;
+            
+            // Change color for left tail
+            var ps = effect.GetComponent<ParticleSystem>();
+            if (ps)
+            {
+                var main = ps.main;
+                main.startColor = new Color(0.3f, 0.6f, 1f); // Blue tint
+            }
+            
+            if (debugMode) Debug.Log($"✅ Left Tail VFX spawned and parented to {leftTailTip.name}!");
+        }
     }
     
     public void VFX_RightTail()
     {
-        TriggerTailCast(false);
+        if (debugMode) Debug.Log("✨ VFX_RightTail triggered!");
+        
+        if (rightTailMagicPrefab == null)
+        {
+            Debug.LogWarning("⚠️ Right tail prefab not assigned!");
+            return;
+        }
+        
+        Transform spawnPoint = rightTailTip ? rightTailTip : transform;
+        
+        if (debugMode) Debug.Log($"Spawning at: {spawnPoint.name}, Position: {spawnPoint.position}");
+        
+        GameObject effect = SpawnEffect(rightTailMagicPrefab, spawnPoint.position, spawnPoint.rotation);
+        
+        if (effect != null && parentEffectsToTail && rightTailTip != null)
+        {
+            // Parent to tail so it follows the tail movement
+            effect.transform.SetParent(rightTailTip);
+            effect.transform.localPosition = Vector3.zero;
+            effect.transform.localRotation = Quaternion.identity;
+            
+            if (debugMode) Debug.Log($"✅ Right Tail VFX spawned and parented to {rightTailTip.name}!");
+        }
     }
     
     public void VFX_Soul()
     {
-        TriggerCinematicEffect("soul");
+        if (debugMode) Debug.Log("👻 VFX_Soul triggered!");
+        
+        if (soulFreeingPrefab == null) return;
+        
+        Vector3 position = (centerBody ? centerBody.position : transform.position) + Vector3.up * 1.5f;
+        SpawnEffect(soulFreeingPrefab, position, Quaternion.identity);
     }
     
     public void VFX_Circle()
     {
-        TriggerCinematicEffect("circle");
+        if (debugMode) Debug.Log("⭕ VFX_Circle triggered!");
+        
+        if (circleActivationPrefab == null) return;
+        
+        // FIXED: Spawn at character's current position (not world Y = 0.1)
+        Vector3 position = transform.position;
+        
+        // Optionally adjust to ground level using character controller
+        if (controller != null)
+        {
+            // Position at the base of the character
+            position.y = transform.position.y - (controller.height / 2f) + 0.2f;
+        }
+        
+        if (debugMode) Debug.Log($"⭕ Spawning circle at position: {position}");
+        
+        SpawnEffect(circleActivationPrefab, position, Quaternion.identity);
     }
     
     public void VFX_Absorb()
     {
-        TriggerCinematicEffect("absorb");
+        if (debugMode) Debug.Log("🌀 VFX_Absorb triggered!");
+        
+        if (absorbingPrefab == null) return;
+        
+        Vector3 position = centerBody ? centerBody.position : transform.position;
+        SpawnEffect(absorbingPrefab, position, Quaternion.identity);
     }
 }
