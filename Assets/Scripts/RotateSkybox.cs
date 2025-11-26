@@ -2,12 +2,17 @@ using UnityEngine;
 
 public class RotateSkybox : MonoBehaviour
 {
-    [Header("Rotation Settings")]
-    [SerializeField] private float rotationSpeed = 0.5f;  // Degrees per second
+    [Header("Day/Night Cycle")]
+    [SerializeField] private float dayLengthInSeconds = 120f;  // 2 minutes = 1 full day
+    [SerializeField] private bool pauseAtNight = false;
     
     void Update()
     {
-        // Rotate the skybox slowly
-        RenderSettings.skybox.SetFloat("_Rotation", Time.time * rotationSpeed);
+        // Calculate rotation speed for full 360° in dayLengthInSeconds
+        float rotationSpeed = 360f / dayLengthInSeconds;
+        
+        // Apply rotation
+        float rotation = Time.time * rotationSpeed;
+        RenderSettings.skybox.SetFloat("_Rotation", rotation);
     }
 }
