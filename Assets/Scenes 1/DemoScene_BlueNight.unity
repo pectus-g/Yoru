@@ -41232,7 +41232,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4836342095142440652, guid: caed7a8f3820c7147b37c74ca0abbdf2, type: 3}
       propertyPath: m_Intensity
-      value: 2.3791547
+      value: 2.4462442
       objectReference: {fileID: 0}
     - target: {fileID: 8187425317335136438, guid: caed7a8f3820c7147b37c74ca0abbdf2, type: 3}
       propertyPath: m_Name
@@ -59666,6 +59666,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4086390067120006063, guid: f641e27a15cbcf44991798435ce8d472, type: 3}
   m_PrefabInstance: {fileID: 405635574}
   m_PrefabAsset: {fileID: 0}
+--- !u!28 &407253435
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1001 &408771476
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -62536,52 +62582,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7728986825547640618, guid: a6d1abd96a3a9d94ab55a02f73288405, type: 3}
   m_PrefabInstance: {fileID: 437343502}
   m_PrefabAsset: {fileID: 0}
---- !u!28 &438252568
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!1001 &440354151
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -136383,7 +136383,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4836342095142440652, guid: a23b0eefb2e58e4409be35ebb51560f7, type: 3}
       propertyPath: m_Intensity
-      value: 2.7583096
+      value: 2.8924885
       objectReference: {fileID: 0}
     - target: {fileID: 8187425317335136438, guid: a23b0eefb2e58e4409be35ebb51560f7, type: 3}
       propertyPath: m_Name
@@ -238290,9 +238290,13 @@ PrefabInstance:
       propertyPath: m_Name
       value: SkyboxRotator
       objectReference: {fileID: 0}
+    - target: {fileID: 1636964916054074024, guid: d388b33e826514d84b9de39b9ec0c122, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2932541613118007251, guid: d388b33e826514d84b9de39b9ec0c122, type: 3}
       propertyPath: dayLengthInSeconds
-      value: 10
+      value: 200
       objectReference: {fileID: 0}
     - target: {fileID: 5232284856904935801, guid: d388b33e826514d84b9de39b9ec0c122, type: 3}
       propertyPath: m_LocalPosition.x
@@ -296140,6 +296144,65 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3439581322514186991, guid: 403bdf5e64f64b845b4f3ac171cde229, type: 3}
   m_PrefabInstance: {fileID: 2058712221}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2059410189
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2059410191}
+  - component: {fileID: 2059410190}
+  m_Layer: 0
+  m_Name: DayNightManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2059410190
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2059410189}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 099f7820cb08e452286fb851298264ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SkyboxSwitcher
+  daySkybox: {fileID: 2100000, guid: 2c17b6870f74ef948984bca4961a6d60, type: 2}
+  nightSkybox: {fileID: 2100000, guid: d4202e43a2c4b2b4f91376a8a8a68325, type: 2}
+  dayDuration: 60
+  nightDuration: 60
+  transitionDuration: 5
+  rotateSkybox: 1
+  rotationSpeed: 1
+  directionalLight: {fileID: 915897124}
+  dayLightIntensity: 1
+  nightLightIntensity: 0.2
+  dayLightColor: {r: 1, g: 0.95, b: 0.8, a: 1}
+  nightLightColor: {r: 0.5, g: 0.5, b: 0.8, a: 1}
+  autoTransition: 1
+  isNight: 0
+  debugMode: 1
+--- !u!4 &2059410191
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2059410189}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2059823284
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -332389,7 +332452,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4836342095142440652, guid: caed7a8f3820c7147b37c74ca0abbdf2, type: 3}
       propertyPath: m_Intensity
-      value: 2.7583096
+      value: 2.8924885
       objectReference: {fileID: 0}
     - target: {fileID: 8187425317335136438, guid: caed7a8f3820c7147b37c74ca0abbdf2, type: 3}
       propertyPath: m_Name
@@ -355048,3 +355111,4 @@ SceneRoots:
   - {fileID: 1423561902}
   - {fileID: 1868818545886973916}
   - {fileID: 545255738}
+  - {fileID: 2059410191}
