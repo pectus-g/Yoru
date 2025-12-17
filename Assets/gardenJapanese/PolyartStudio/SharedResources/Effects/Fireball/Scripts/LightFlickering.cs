@@ -3,7 +3,7 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class LightFlickering : MonoBehaviour
 {
-    private new Light light;
+    private Light light;
 
     public float speed1 = 0.5f, speed2 = 3f;
     public float minIntensity = 0.1f, maxIntensity = 3.8f;
