@@ -2,218 +2,175 @@ using UnityEngine;
 
 /// <summary>
 /// Controls the visual ring meshes on Yoru's tails.
-/// Listens to WorldStateManager and toggles the correct mesh for each tail.
-/// Only ONE mesh per tail is active at a time.
+/// 
+/// Performance: 
+/// - References cached at Start
+/// - Only toggles 2 objects per change (old off, new on)
+/// - No per-frame updates
 /// </summary>
 public class RingMeshController : MonoBehaviour
 {
-    // ═══════════════════════════════════════════════════════════
-    // REFERENCES
-    // ═══════════════════════════════════════════════════════════
+    #region Serialized Fields
     
     [Header("Left Tail Meshes (Dark/Condemn)")]
-    [Tooltip("The mesh shown when left tail has 0 rings")]
     [SerializeField] private GameObject leftTail_NoRings;
-    
-    [Tooltip("Array of meshes for 1-5 rings. Index 0 = 1 ring, Index 4 = 5 rings")]
     [SerializeField] private GameObject[] leftTailRings = new GameObject[5];
     
     [Header("Right Tail Meshes (Light/Forgive)")]
-    [Tooltip("The mesh shown when right tail has 0 rings")]
     [SerializeField] private GameObject rightTail_NoRings;
-    
-    [Tooltip("Array of meshes for 1-5 rings. Index 0 = 1 ring, Index 4 = 5 rings")]
     [SerializeField] private GameObject[] rightTailRings = new GameObject[5];
     
-    [Header("Auto-Find Settings")]
-    [Tooltip("If true, automatically finds ring meshes by name on Start")]
-    [SerializeField] private bool autoFindMeshes = true;
+    [Header("Setup")]
+    [SerializeField] private bool autoFindOnStart = true;
+    [SerializeField] private Transform meshParent;
     
-    [Tooltip("Parent transform containing all tail meshes (e.g., Cat_All_10_Tails_v3)")]
-    [SerializeField] private Transform tailMeshParent;
+    #endregion
     
-    // ═══════════════════════════════════════════════════════════
-    // LIFECYCLE
-    // ═══════════════════════════════════════════════════════════
+    #region Private State
+    
+    private int currentLeftCount = -1;  // -1 = uninitialized
+    private int currentRightCount = -1;
+    private bool isInitialized;
+    
+    #endregion
+    
+    #region Unity Lifecycle
     
     private void Start()
     {
-        if (autoFindMeshes)
+        if (autoFindOnStart && !HasAllReferences())
+            AutoFindMeshes();
+        
+        isInitialized = HasAllReferences();
+        
+        if (!isInitialized)
         {
-            FindMeshesAutomatically();
+            Debug.LogError("[RingMeshController] Missing mesh references. Assign in Inspector.");
+            enabled = false;
+            return;
         }
         
-        ValidateMeshReferences();
-        
-        // Subscribe to WorldStateManager
+        // Subscribe to events
         if (WorldStateManager.Instance != null)
         {
             WorldStateManager.Instance.OnRingsChanged.AddListener(OnRingsChanged);
-            
-            // Initialize to current state
             OnRingsChanged(WorldStateManager.Instance.LeftRings, WorldStateManager.Instance.RightRings);
-        }
-        else
-        {
-            Debug.LogError("[RingMeshController] WorldStateManager.Instance not found! Make sure it exists in the scene.");
         }
     }
     
     private void OnDestroy()
     {
-        // Unsubscribe to prevent memory leaks
         if (WorldStateManager.Instance != null)
-        {
             WorldStateManager.Instance.OnRingsChanged.RemoveListener(OnRingsChanged);
-        }
     }
     
-    // ═══════════════════════════════════════════════════════════
-    // EVENT HANDLER
-    // ═══════════════════════════════════════════════════════════
+    #endregion
+    
+    #region Event Handler
     
     private void OnRingsChanged(int leftCount, int rightCount)
     {
-        UpdateLeftTailMesh(leftCount);
-        UpdateRightTailMesh(rightCount);
+        if (!isInitialized) return;
+        
+        // Only update if changed
+        if (leftCount != currentLeftCount)
+            UpdateLeftTail(leftCount);
+        
+        if (rightCount != currentRightCount)
+            UpdateRightTail(rightCount);
     }
     
-    // ═══════════════════════════════════════════════════════════
-    // MESH TOGGLING
-    // ═══════════════════════════════════════════════════════════
+    #endregion
     
-    private void UpdateLeftTailMesh(int ringCount)
+    #region Mesh Updates
+    
+    private void UpdateLeftTail(int newCount)
     {
-        // Disable all left tail meshes first
-        if (leftTail_NoRings != null)
-            leftTail_NoRings.SetActive(false);
-        
-        for (int i = 0; i < leftTailRings.Length; i++)
+        // Disable old mesh
+        if (currentLeftCount >= 0)
         {
-            if (leftTailRings[i] != null)
-                leftTailRings[i].SetActive(false);
+            GameObject oldMesh = currentLeftCount == 0 ? leftTail_NoRings : leftTailRings[currentLeftCount - 1];
+            if (oldMesh != null) oldMesh.SetActive(false);
         }
         
-        // Enable the correct mesh
-        if (ringCount == 0)
-        {
-            if (leftTail_NoRings != null)
-                leftTail_NoRings.SetActive(true);
-        }
-        else if (ringCount >= 1 && ringCount <= 5)
-        {
-            int index = ringCount - 1; // 1 ring = index 0, 5 rings = index 4
-            if (leftTailRings[index] != null)
-                leftTailRings[index].SetActive(true);
-        }
+        // Enable new mesh
+        GameObject newMesh = newCount == 0 ? leftTail_NoRings : leftTailRings[newCount - 1];
+        if (newMesh != null) newMesh.SetActive(true);
+        
+        currentLeftCount = newCount;
     }
     
-    private void UpdateRightTailMesh(int ringCount)
+    private void UpdateRightTail(int newCount)
     {
-        // Disable all right tail meshes first
-        if (rightTail_NoRings != null)
-            rightTail_NoRings.SetActive(false);
-        
-        for (int i = 0; i < rightTailRings.Length; i++)
+        // Disable old mesh
+        if (currentRightCount >= 0)
         {
-            if (rightTailRings[i] != null)
-                rightTailRings[i].SetActive(false);
+            GameObject oldMesh = currentRightCount == 0 ? rightTail_NoRings : rightTailRings[currentRightCount - 1];
+            if (oldMesh != null) oldMesh.SetActive(false);
         }
         
-        // Enable the correct mesh
-        if (ringCount == 0)
-        {
-            if (rightTail_NoRings != null)
-                rightTail_NoRings.SetActive(true);
-        }
-        else if (ringCount >= 1 && ringCount <= 5)
-        {
-            int index = ringCount - 1;
-            if (rightTailRings[index] != null)
-                rightTailRings[index].SetActive(true);
-        }
+        // Enable new mesh
+        GameObject newMesh = newCount == 0 ? rightTail_NoRings : rightTailRings[newCount - 1];
+        if (newMesh != null) newMesh.SetActive(true);
+        
+        currentRightCount = newCount;
     }
     
-    // ═══════════════════════════════════════════════════════════
-    // AUTO-FIND MESHES
-    // ═══════════════════════════════════════════════════════════
+    #endregion
     
-    private void FindMeshesAutomatically()
+    #region Setup Helpers
+    
+    private bool HasAllReferences()
     {
-        if (tailMeshParent == null)
+        if (leftTail_NoRings == null || rightTail_NoRings == null)
+            return false;
+        
+        for (int i = 0; i < 5; i++)
         {
-            // Try to find by common name
-            GameObject player = GameObject.FindWithTag("Player");
+            if (leftTailRings[i] == null || rightTailRings[i] == null)
+                return false;
+        }
+        return true;
+    }
+    
+    private void AutoFindMeshes()
+    {
+        if (meshParent == null)
+        {
+            var player = GameObject.FindWithTag("Player");
             if (player != null)
-            {
-                tailMeshParent = player.transform.Find("Cat_All_10_Tails_v3");
-            }
+                meshParent = player.transform.Find("Cat_All_10_Tails_v3");
         }
         
-        if (tailMeshParent == null)
+        if (meshParent == null)
         {
-            Debug.LogWarning("[RingMeshController] Could not find tail mesh parent. Please assign manually.");
+            Debug.LogWarning("[RingMeshController] Could not find mesh parent.");
             return;
         }
         
-        // Find left tail meshes
-        leftTail_NoRings = FindChildByName(tailMeshParent, "LeftTail_NoRings");
-        for (int i = 0; i < 5; i++)
-        {
-            string meshName = $"LeftTail_{i + 1}_Ring" + (i > 0 ? "s" : "");
-            // Try both singular and plural
-            leftTailRings[i] = FindChildByName(tailMeshParent, $"LeftTail_{i + 1}_Ring");
-            if (leftTailRings[i] == null)
-                leftTailRings[i] = FindChildByName(tailMeshParent, $"LeftTail_{i + 1}_Rings");
-        }
+        // Cache the transform lookup - do this once
+        var allChildren = meshParent.GetComponentsInChildren<Transform>(true);
         
-        // Find right tail meshes
-        rightTail_NoRings = FindChildByName(tailMeshParent, "RightTail_NoRings");
-        for (int i = 0; i < 5; i++)
+        foreach (var child in allChildren)
         {
-            rightTailRings[i] = FindChildByName(tailMeshParent, $"RightTail_{i + 1}_Ring");
-            if (rightTailRings[i] == null)
-                rightTailRings[i] = FindChildByName(tailMeshParent, $"RightTail_{i + 1}_Rings");
+            string name = child.name;
+            
+            // Left tail
+            if (name == "LeftTail_NoRings") leftTail_NoRings = child.gameObject;
+            else if (name == "LeftTail_1_Ring") leftTailRings[0] = child.gameObject;
+            else if (name == "LeftTail_2_Rings") leftTailRings[1] = child.gameObject;
+            else if (name == "LeftTail_3_Rings") leftTailRings[2] = child.gameObject;
+            else if (name == "LeftTail_4_Rings") leftTailRings[3] = child.gameObject;
+            else if (name == "LeftTail_5_Rings") leftTailRings[4] = child.gameObject;
+            // Right tail
+            else if (name == "RightTail_NoRings") rightTail_NoRings = child.gameObject;
+            else if (name == "RightTail_1_Ring") rightTailRings[0] = child.gameObject;
+            else if (name == "RightTail_2_Rings") rightTailRings[1] = child.gameObject;
+            else if (name == "RightTail_3_Rings") rightTailRings[2] = child.gameObject;
+            else if (name == "RightTail_4_Rings") rightTailRings[3] = child.gameObject;
+            else if (name == "RightTail_5_Rings") rightTailRings[4] = child.gameObject;
         }
-        
-        Debug.Log("[RingMeshController] Auto-find complete. Check Inspector to verify all meshes found.");
     }
     
-    private GameObject FindChildByName(Transform parent, string name)
-    {
-        // Recursive search through all children
-        foreach (Transform child in parent.GetComponentsInChildren<Transform>(true))
-        {
-            if (child.name == name)
-                return child.gameObject;
-        }
-        return null;
-    }
-    
-    // ═══════════════════════════════════════════════════════════
-    // VALIDATION
-    // ═══════════════════════════════════════════════════════════
-    
-    private void ValidateMeshReferences()
-    {
-        int missingCount = 0;
-        
-        if (leftTail_NoRings == null) { Debug.LogWarning("[RingMeshController] Missing: LeftTail_NoRings"); missingCount++; }
-        if (rightTail_NoRings == null) { Debug.LogWarning("[RingMeshController] Missing: RightTail_NoRings"); missingCount++; }
-        
-        for (int i = 0; i < 5; i++)
-        {
-            if (leftTailRings[i] == null) { Debug.LogWarning($"[RingMeshController] Missing: LeftTail_{i + 1}_Ring(s)"); missingCount++; }
-            if (rightTailRings[i] == null) { Debug.LogWarning($"[RingMeshController] Missing: RightTail_{i + 1}_Ring(s)"); missingCount++; }
-        }
-        
-        if (missingCount == 0)
-        {
-            Debug.Log("[RingMeshController] All 12 mesh references found!");
-        }
-        else
-        {
-            Debug.LogWarning($"[RingMeshController] {missingCount} mesh reference(s) missing. Assign in Inspector.");
-        }
-    }
+    #endregion
 }
