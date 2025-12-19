@@ -87,6 +87,7 @@
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Misc/QuadTreeCulling/CullingUtilities.cs" />
     <Compile Include="Assets/Scripts/Player/TestDemage.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Character/FirstPersonController_Dreamscape.cs" />
+    <Compile Include="Assets/Scripts/BalanceSystem/Ringmeshcontroller.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXTarget.cs" />
     <Compile Include="Assets/KriptoFX/MeshEffect/Scripts/Rendering/ME_PerPlatformSettings.cs" />
     <Compile Include="Assets/KriptoFX/MeshEffect/Scripts/ME_MeshMaterialEffect.cs" />
@@ -151,6 +152,7 @@
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Character/TestInteractable.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Tools/Decal Tool/DecalProjector.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/States/BasePlantGrowthState.cs" />
+    <Compile Include="Assets/Scripts/BalanceSystem/Worldstatemanager.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXFireProjectile.cs" />
     <Compile Include="Assets/KriptoFX/MeshEffect/Scripts/Helpers/ME_EffectSettingColor.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/HarvestInteraction.cs" />
@@ -164,6 +166,7 @@
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Misc/CloudRenderer.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Misc/Flythrough.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXEffectCycler.cs" />
+    <Compile Include="Assets/Scripts/BalanceSystem/Yorucozyintegration.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Core/SceneEntrance.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Tools/PathTool/PathTool.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXButtonScript.cs" />
@@ -1475,10 +1478,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="DistantLands.Cozy.Eclipse.Editor.csproj" />
     <ProjectReference Include="XFurStudio4.Editor.csproj" />
     <ProjectReference Include="DistantLands.Cozy.Runtime.csproj" />
     <ProjectReference Include="DistantLands.Cozy.Editor.csproj" />
     <ProjectReference Include="XFurStudio4.csproj" />
+    <ProjectReference Include="DistantLands.Cozy.Eclipse.Runtime.csproj" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
   <ItemGroup>
