@@ -3,6 +3,10 @@ using UnityEngine;
 /// <summary>
 /// Controls the visual ring meshes on Yoru's tails.
 /// 
+/// Each tail can have 0-10 rings:
+/// - Left tail: LeftTail_NoRings, LeftTail_1_Ring, ..., LeftTail_10_Rings
+/// - Right tail: RightTail_NoRings, RightTail_1_Ring, ..., RightTail_10_Rings
+/// 
 /// Performance: 
 /// - References cached at Start
 /// - Only toggles 2 objects per change (old off, new on)
@@ -12,13 +16,13 @@ public class RingMeshController : MonoBehaviour
 {
     #region Serialized Fields
     
-    [Header("Left Tail Meshes (Dark/Condemn)")]
+    [Header("Left Tail Meshes (Dark/Condemn) - 0 to 10 rings")]
     [SerializeField] private GameObject leftTail_NoRings;
-    [SerializeField] private GameObject[] leftTailRings = new GameObject[5];
+    [SerializeField] private GameObject[] leftTailRings = new GameObject[10];
     
-    [Header("Right Tail Meshes (Light/Forgive)")]
+    [Header("Right Tail Meshes (Light/Forgive) - 0 to 10 rings")]
     [SerializeField] private GameObject rightTail_NoRings;
-    [SerializeField] private GameObject[] rightTailRings = new GameObject[5];
+    [SerializeField] private GameObject[] rightTailRings = new GameObject[10];
     
     [Header("Setup")]
     [SerializeField] private bool autoFindOnStart = true;
@@ -28,9 +32,8 @@ public class RingMeshController : MonoBehaviour
     
     #region Private State
     
-    private int currentLeftCount = -1;  // -1 = uninitialized
+    private int currentLeftCount = -1;
     private int currentRightCount = -1;
-    private bool isInitialized;
     
     #endregion
     
@@ -41,16 +44,8 @@ public class RingMeshController : MonoBehaviour
         if (autoFindOnStart && !HasAllReferences())
             AutoFindMeshes();
         
-        isInitialized = HasAllReferences();
+        ValidateReferences();
         
-        if (!isInitialized)
-        {
-            Debug.LogError("[RingMeshController] Missing mesh references. Assign in Inspector.");
-            enabled = false;
-            return;
-        }
-        
-        // Subscribe to events
         if (WorldStateManager.Instance != null)
         {
             WorldStateManager.Instance.OnRingsChanged.AddListener(OnRingsChanged);
@@ -70,9 +65,6 @@ public class RingMeshController : MonoBehaviour
     
     private void OnRingsChanged(int leftCount, int rightCount)
     {
-        if (!isInitialized) return;
-        
-        // Only update if changed
         if (leftCount != currentLeftCount)
             UpdateLeftTail(leftCount);
         
@@ -86,15 +78,13 @@ public class RingMeshController : MonoBehaviour
     
     private void UpdateLeftTail(int newCount)
     {
-        // Disable old mesh
         if (currentLeftCount >= 0)
         {
-            GameObject oldMesh = currentLeftCount == 0 ? leftTail_NoRings : leftTailRings[currentLeftCount - 1];
+            GameObject oldMesh = currentLeftCount == 0 ? leftTail_NoRings : GetLeftMesh(currentLeftCount);
             if (oldMesh != null) oldMesh.SetActive(false);
         }
         
-        // Enable new mesh
-        GameObject newMesh = newCount == 0 ? leftTail_NoRings : leftTailRings[newCount - 1];
+        GameObject newMesh = newCount == 0 ? leftTail_NoRings : GetLeftMesh(newCount);
         if (newMesh != null) newMesh.SetActive(true);
         
         currentLeftCount = newCount;
@@ -102,18 +92,28 @@ public class RingMeshController : MonoBehaviour
     
     private void UpdateRightTail(int newCount)
     {
-        // Disable old mesh
         if (currentRightCount >= 0)
         {
-            GameObject oldMesh = currentRightCount == 0 ? rightTail_NoRings : rightTailRings[currentRightCount - 1];
+            GameObject oldMesh = currentRightCount == 0 ? rightTail_NoRings : GetRightMesh(currentRightCount);
             if (oldMesh != null) oldMesh.SetActive(false);
         }
         
-        // Enable new mesh
-        GameObject newMesh = newCount == 0 ? rightTail_NoRings : rightTailRings[newCount - 1];
+        GameObject newMesh = newCount == 0 ? rightTail_NoRings : GetRightMesh(newCount);
         if (newMesh != null) newMesh.SetActive(true);
         
         currentRightCount = newCount;
+    }
+    
+    private GameObject GetLeftMesh(int ringCount)
+    {
+        if (ringCount < 1 || ringCount > 10) return null;
+        return leftTailRings[ringCount - 1];
+    }
+    
+    private GameObject GetRightMesh(int ringCount)
+    {
+        if (ringCount < 1 || ringCount > 10) return null;
+        return rightTailRings[ringCount - 1];
     }
     
     #endregion
@@ -125,12 +125,28 @@ public class RingMeshController : MonoBehaviour
         if (leftTail_NoRings == null || rightTail_NoRings == null)
             return false;
         
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 10; i++)
         {
             if (leftTailRings[i] == null || rightTailRings[i] == null)
                 return false;
         }
         return true;
+    }
+    
+    private void ValidateReferences()
+    {
+        int leftCount = 0, rightCount = 0;
+        
+        for (int i = 0; i < 10; i++)
+        {
+            if (leftTailRings[i] != null) leftCount++;
+            if (rightTailRings[i] != null) rightCount++;
+        }
+        
+        if (leftTail_NoRings == null || rightTail_NoRings == null)
+            Debug.LogWarning("[RingMeshController] Missing NoRings meshes");
+        
+        Debug.Log($"[RingMeshController] Found {leftCount}/10 left, {rightCount}/10 right tail meshes");
     }
     
     private void AutoFindMeshes()
@@ -142,13 +158,8 @@ public class RingMeshController : MonoBehaviour
                 meshParent = player.transform.Find("Cat_All_10_Tails_v3");
         }
         
-        if (meshParent == null)
-        {
-            Debug.LogWarning("[RingMeshController] Could not find mesh parent.");
-            return;
-        }
+        if (meshParent == null) return;
         
-        // Cache the transform lookup - do this once
         var allChildren = meshParent.GetComponentsInChildren<Transform>(true);
         
         foreach (var child in allChildren)
@@ -157,19 +168,33 @@ public class RingMeshController : MonoBehaviour
             
             // Left tail
             if (name == "LeftTail_NoRings") leftTail_NoRings = child.gameObject;
-            else if (name == "LeftTail_1_Ring") leftTailRings[0] = child.gameObject;
-            else if (name == "LeftTail_2_Rings") leftTailRings[1] = child.gameObject;
-            else if (name == "LeftTail_3_Rings") leftTailRings[2] = child.gameObject;
-            else if (name == "LeftTail_4_Rings") leftTailRings[3] = child.gameObject;
-            else if (name == "LeftTail_5_Rings") leftTailRings[4] = child.gameObject;
+            else if (name.StartsWith("LeftTail_") && name.Contains("Ring"))
+            {
+                int ringNum = ExtractRingNumber(name);
+                if (ringNum >= 1 && ringNum <= 10)
+                    leftTailRings[ringNum - 1] = child.gameObject;
+            }
             // Right tail
             else if (name == "RightTail_NoRings") rightTail_NoRings = child.gameObject;
-            else if (name == "RightTail_1_Ring") rightTailRings[0] = child.gameObject;
-            else if (name == "RightTail_2_Rings") rightTailRings[1] = child.gameObject;
-            else if (name == "RightTail_3_Rings") rightTailRings[2] = child.gameObject;
-            else if (name == "RightTail_4_Rings") rightTailRings[3] = child.gameObject;
-            else if (name == "RightTail_5_Rings") rightTailRings[4] = child.gameObject;
+            else if (name.StartsWith("RightTail_") && name.Contains("Ring"))
+            {
+                int ringNum = ExtractRingNumber(name);
+                if (ringNum >= 1 && ringNum <= 10)
+                    rightTailRings[ringNum - 1] = child.gameObject;
+            }
         }
+    }
+    
+    private int ExtractRingNumber(string name)
+    {
+        // Extract number from strings like "LeftTail_5_Rings" or "RightTail_10_Rings"
+        string[] parts = name.Split('_');
+        foreach (string part in parts)
+        {
+            if (int.TryParse(part, out int num))
+                return num;
+        }
+        return -1;
     }
     
     #endregion
