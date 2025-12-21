@@ -1,386 +1,587 @@
 using UnityEngine;
 using DistantLands.Cozy;
+using DistantLands.Cozy.Data;
+using System.Collections.Generic;
 
 /// <summary>
-/// YORU: Connects karma rings to COZY Weather system.
+/// YORU: Complete COZY 3 Integration
 /// 
-/// SIMPLE APPROACH:
-/// - COZY "Pause Time" should be CHECKED (time paused)
-/// - We directly SET the time when rings change
-/// - Uses Coroutines for smooth transitions (not Update loop)
+/// ECLIPSE:
+/// - ONLY triggers at exactly 5L/5R (balance)
+/// - eclipseRatio = 1.0 (full eclipse)
+/// - Time = 5:00 PM (17:00) so sun is visible lower in sky
 /// 
-/// SETUP:
-/// - Time Module: CHECK "Pause Time" 
-/// - Weather Module: "Manual" mode
-/// - Eclipse Module: "Manual" mode
+/// WIND:
+/// - Uses Polyart WindSway shader properties
+/// - Also updates COZY's CZY_ global properties
+/// - Also updates terrain grass wind
 /// </summary>
 public class YoruCozyIntegration : MonoBehaviour
 {
-    #region Serialized Fields
+    [Header("=== WEATHER PROFILES ===")]
+    public WeatherProfile clearWeather;
+    public WeatherProfile mostlyClearWeather;
+    public WeatherProfile partlyCloudyWeather;
+    public WeatherProfile overcastWeather;
+    public WeatherProfile lightRainWeather;
+    public WeatherProfile heavyRainWeather;
+    public WeatherProfile thunderStormWeather;
     
-    [Header("=== TIME MAPPING ===")]
-    [Tooltip("Time at 0 rings (neutral). 12 = Noon")]
-    [SerializeField] private float timeAt0Rings = 12f;
+    [Header("=== TIME SETTINGS ===")]
+    [Tooltip("Time for 0 rings (neutral noon)")]
+    [SerializeField] private int neutralHour = 12;
+    [Tooltip("Time for 5 left rings (sunset)")]
+    [SerializeField] private int sunset5LeftHour = 18;
+    [Tooltip("Time for 10 left rings (midnight)")]
+    [SerializeField] private int midnight10LeftHour = 0;
+    [Tooltip("Time for 5 right rings (morning)")]
+    [SerializeField] private int morning5RightHour = 9;
+    [Tooltip("Time for 10 right rings (late morning)")]
+    [SerializeField] private int lateMorning10RightHour = 11;
     
-    [Tooltip("Time at 5 LEFT rings (sunset). 18 = 6PM")]
-    [SerializeField] private float timeAt5Left = 18f;
+    [Header("=== ECLIPSE SETTINGS ===")]
+    [Tooltip("Hour when eclipse appears (5L/5R only)")]
+    [SerializeField] private int eclipseHour = 17; // 5 PM - lower in sky
     
-    [Tooltip("Time at 10 LEFT rings (midnight). 0 or 24 = Midnight")]
-    [SerializeField] private float timeAt10Left = 0f;
+    [Header("=== WIND SETTINGS ===")]
+    [Tooltip("Your scene WindZone (for trees)")]
+    public WindZone sceneWindZone;
+    [Tooltip("Your scene Terrain (for grass)")]
+    public Terrain sceneTerrain;
+    [SerializeField] private float calmWindSpeed = 0.3f;
+    [SerializeField] private float maxWindSpeed = 4f;
     
-    [Tooltip("Time at 5 RIGHT rings (morning). 9 = 9AM")]
-    [SerializeField] private float timeAt5Right = 9f;
-    
-    [Tooltip("Time at 10 RIGHT rings (bright noon). 11 = 11AM")]
-    [SerializeField] private float timeAt10Right = 11f;
-    
-    [Header("=== ECLIPSE ===")]
-    [SerializeField, Range(0f, 1f)] private float eclipseIntensity = 1f;
-    [SerializeField] private bool showPartialEclipse = true;
-    
-    [Header("=== SMOOTH TRANSITION ===")]
-    [Tooltip("Use coroutine for smooth time change")]
-    [SerializeField] private bool useSmoothTransition = true;
-    [SerializeField] private float transitionDuration = 2f;
+    [Header("=== POLYART SHADER WIND ===")]
+    [Tooltip("Enable Polyart shader wind control")]
+    public bool usePolyartWind = true;
+    [Tooltip("List of materials using Polyart foliage shaders")]
+    public List<Material> polyartFoliageMaterials = new List<Material>();
     
     [Header("=== DEBUG ===")]
-    [SerializeField] private bool showDebugInfo = true;
+    [SerializeField] private bool logChanges = true;
     
-    #endregion
-    
-    #region Private
-    
+    // COZY References
     private CozyWeather cozy;
-    private EclipseModule eclipseModule;
-    private Coroutine timeTransitionCoroutine;
-    private Coroutine eclipseTransitionCoroutine;
+    private CozyWeatherModule weatherModule;
     
-    #endregion
+    // Eclipse - via reflection
+    private object eclipseModule;
+    private System.Reflection.FieldInfo eclipseRatioField;
+    private bool eclipseReady = false;
     
-    #region Unity Lifecycle
+    // State tracking
+    private int lastLeft = -1;
+    private int lastRight = -1;
     
-    private void Start()
+    void Start()
     {
-        // Find COZY
+        InitializeCozy();
+        AutoFindComponents();
+        
+        if (WorldStateManager.Instance != null)
+        {
+            WorldStateManager.Instance.OnRingsChanged.AddListener(OnRingsChanged);
+            ApplyFullState(WorldStateManager.Instance.LeftRings, WorldStateManager.Instance.RightRings);
+        }
+        else
+        {
+            ApplyFullState(0, 0);
+        }
+        
+        LogStatus();
+    }
+    
+    void OnDestroy()
+    {
+        if (WorldStateManager.Instance != null)
+            WorldStateManager.Instance.OnRingsChanged.RemoveListener(OnRingsChanged);
+    }
+    
+    void InitializeCozy()
+    {
         cozy = CozyWeather.instance;
         if (cozy == null)
         {
-            Debug.LogError("[YoruCozy] CozyWeather not found!");
+            Debug.LogError("[YORU] CozyWeather not found!");
             enabled = false;
             return;
         }
         
-        // Find Eclipse
-        eclipseModule = cozy.GetModule<EclipseModule>();
-        if (eclipseModule == null)
-        {
-            Debug.LogWarning("[YoruCozy] Eclipse module not found.");
-        }
-        
-        // Subscribe to ring changes
-        if (WorldStateManager.Instance != null)
-        {
-            WorldStateManager.Instance.OnRingsChanged.AddListener(OnRingsChanged);
-            // Apply initial state
-            OnRingsChanged(WorldStateManager.Instance.LeftRings, WorldStateManager.Instance.RightRings);
-        }
-        
-        Log("Initialized. Make sure COZY 'Pause Time' is CHECKED!");
+        weatherModule = cozy.weatherModule;
+        FindEclipseModule();
     }
     
-    private void OnDestroy()
+    void AutoFindComponents()
     {
-        if (WorldStateManager.Instance != null)
+        if (sceneTerrain == null)
+            sceneTerrain = Terrain.activeTerrain;
+        
+        if (sceneWindZone == null)
+            sceneWindZone = FindObjectOfType<WindZone>();
+        
+        // Auto-find Polyart materials if list is empty
+        if (polyartFoliageMaterials.Count == 0)
         {
-            WorldStateManager.Instance.OnRingsChanged.RemoveListener(OnRingsChanged);
+            FindPolyartMaterials();
         }
     }
     
-    #endregion
-    
-    #region Ring Handler
-    
-    private void OnRingsChanged(int leftRings, int rightRings)
+    void FindPolyartMaterials()
     {
-        Log($"Rings changed: {leftRings}L / {rightRings}R");
+        // Find all renderers in scene with Polyart shaders
+        var renderers = FindObjectsOfType<Renderer>();
+        HashSet<Material> found = new HashSet<Material>();
         
-        // Calculate target time
-        float targetTime = CalculateTime(leftRings, rightRings);
-        Log($"Target time: {targetTime:F1}h ({FormatTime(targetTime)})");
-        
-        // Calculate eclipse
-        float targetEclipse = CalculateEclipse(leftRings, rightRings);
-        Log($"Target eclipse: {targetEclipse:F2}");
-        
-        // Apply
-        if (useSmoothTransition)
+        foreach (var renderer in renderers)
         {
-            StartTimeTransition(targetTime);
-            StartEclipseTransition(targetEclipse);
-        }
-        else
-        {
-            SetTimeImmediate(targetTime);
-            SetEclipseImmediate(targetEclipse);
-        }
-    }
-    
-    #endregion
-    
-    #region Time Calculation
-    
-    private float CalculateTime(int leftRings, int rightRings)
-    {
-        int total = leftRings + rightRings;
-        
-        // No rings = neutral
-        if (total == 0)
-        {
-            return timeAt0Rings;
-        }
-        
-        // Eclipse (5+5) = noon
-        if (leftRings == 5 && rightRings == 5)
-        {
-            return timeAt0Rings;
-        }
-        
-        // Calculate dark path time (left rings)
-        float darkTime = CalculateDarkTime(leftRings);
-        
-        // Calculate light path time (right rings)
-        float lightTime = CalculateLightTime(rightRings);
-        
-        // Weighted average
-        float leftWeight = (float)leftRings / total;
-        float rightWeight = (float)rightRings / total;
-        
-        // Simple weighted blend
-        float result = (darkTime * leftWeight) + (lightTime * rightWeight);
-        
-        return result;
-    }
-    
-    private float CalculateDarkTime(int leftRings)
-    {
-        if (leftRings == 0) return timeAt0Rings;
-        
-        if (leftRings <= 5)
-        {
-            // 0-5: Noon → Sunset
-            float t = leftRings / 5f;
-            return Mathf.Lerp(timeAt0Rings, timeAt5Left, t);
-        }
-        else
-        {
-            // 5-10: Sunset → Midnight
-            float t = (leftRings - 5) / 5f;
-            
-            // Handle midnight wraparound
-            float target = timeAt10Left;
-            if (target < timeAt5Left)
+            foreach (var mat in renderer.sharedMaterials)
             {
-                target = 24f; // Treat 0 as 24 for lerp
+                if (mat != null && mat.shader != null)
+                {
+                    string shaderName = mat.shader.name.ToLower();
+                    if (shaderName.Contains("polyart") || 
+                        shaderName.Contains("dreamscape") ||
+                        shaderName.Contains("pa_") ||
+                        shaderName.Contains("foliage") ||
+                        shaderName.Contains("tree"))
+                    {
+                        found.Add(mat);
+                    }
+                }
+            }
+        }
+        
+        polyartFoliageMaterials.AddRange(found);
+        
+        if (logChanges)
+            Debug.Log($"[YORU] Auto-found {found.Count} Polyart/foliage materials");
+    }
+    
+    void FindEclipseModule()
+    {
+        try
+        {
+            System.Type eclipseType = null;
+            foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                eclipseType = assembly.GetType("DistantLands.Cozy.EclipseModule");
+                if (eclipseType != null) break;
             }
             
-            float result = Mathf.Lerp(timeAt5Left, target, t);
-            if (result >= 24f) result = 0f;
+            if (eclipseType == null)
+            {
+                Debug.LogWarning("[YORU] Eclipse module type not found");
+                return;
+            }
             
-            return result;
+            var getModuleMethod = typeof(CozyWeather).GetMethod("GetModule");
+            var genericMethod = getModuleMethod.MakeGenericMethod(eclipseType);
+            eclipseModule = genericMethod.Invoke(cozy, null);
+            
+            if (eclipseModule == null)
+            {
+                Debug.LogWarning("[YORU] Eclipse module not active in COZY");
+                return;
+            }
+            
+            eclipseRatioField = eclipseType.GetField("eclipseRatio", 
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            
+            if (eclipseRatioField != null)
+            {
+                eclipseReady = true;
+                Debug.Log("[YORU] Eclipse module ready!");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[YORU] Eclipse setup error: {e.Message}");
         }
     }
     
-    private float CalculateLightTime(int rightRings)
+    void LogStatus()
     {
-        if (rightRings == 0) return timeAt0Rings;
+        Debug.Log("[YORU] ===== STATUS =====");
+        Debug.Log($"  Weather Module: {(weatherModule != null ? "✓" : "✗")}");
+        Debug.Log($"  Eclipse Module: {(eclipseReady ? "✓" : "✗")}");
+        Debug.Log($"  WindZone: {(sceneWindZone != null ? "✓" : "○")}");
+        Debug.Log($"  Terrain: {(sceneTerrain != null ? "✓" : "○")}");
+        Debug.Log($"  Polyart Materials: {polyartFoliageMaterials.Count}");
+        Debug.Log("========================");
+    }
+    
+    void OnRingsChanged(int left, int right)
+    {
+        if (left == lastLeft && right == lastRight) return;
+        lastLeft = left;
+        lastRight = right;
+        ApplyFullState(left, right);
+    }
+    
+    void ApplyFullState(int left, int right)
+    {
+        // Check for eclipse condition FIRST
+        bool isEclipse = (left == 5 && right == 5);
         
-        if (rightRings <= 5)
+        // Set time
+        int hour;
+        if (isEclipse)
         {
-            // 0-5: Noon → Morning (going backward in time)
-            float t = rightRings / 5f;
-            return Mathf.Lerp(timeAt0Rings, timeAt5Right, t);
+            hour = eclipseHour; // 5 PM for eclipse visibility
         }
         else
         {
-            // 5-10: Morning → Late morning
-            float t = (rightRings - 5) / 5f;
-            return Mathf.Lerp(timeAt5Right, timeAt10Right, t);
+            hour = CalculateHour(left, right);
+        }
+        SetTime(hour);
+        
+        // Set weather
+        WeatherProfile weather = SelectWeather(left, right);
+        SetWeather(weather);
+        
+        // Set eclipse - ONLY at 5L/5R with full intensity
+        if (isEclipse)
+        {
+            SetEclipse(1.0f); // Full eclipse
+        }
+        else
+        {
+            SetEclipse(0f); // No eclipse
+        }
+        
+        // Set wind
+        float wind = CalculateWind(left, right);
+        SetAllWind(wind);
+        
+        if (logChanges)
+        {
+            string eclipseStr = isEclipse ? " [ECLIPSE ACTIVE]" : "";
+            Debug.Log($"[YORU] {left}L/{right}R → {FormatHour(hour)}, {weather?.name}, wind:{wind:F2}{eclipseStr}");
         }
     }
     
+    #region TIME
+    int CalculateHour(int left, int right)
+    {
+        int total = left + right;
+        if (total == 0) return neutralHour;
+        
+        // Calculate based on dominant side
+        float darkHour, lightHour;
+        
+        if (left <= 5)
+            darkHour = Mathf.Lerp(neutralHour, sunset5LeftHour, left / 5f);
+        else
+            darkHour = Mathf.Lerp(sunset5LeftHour, midnight10LeftHour < sunset5LeftHour ? 24f : midnight10LeftHour, (left - 5) / 5f);
+        
+        if (right <= 5)
+            lightHour = Mathf.Lerp(neutralHour, morning5RightHour, right / 5f);
+        else
+            lightHour = Mathf.Lerp(morning5RightHour, lateMorning10RightHour, (right - 5) / 5f);
+        
+        float leftWeight = (float)left / total;
+        float rightWeight = (float)right / total;
+        int hour = Mathf.RoundToInt((darkHour * leftWeight) + (lightHour * rightWeight));
+        
+        while (hour >= 24) hour -= 24;
+        while (hour < 0) hour += 24;
+        
+        return hour;
+    }
+    
+    void SetTime(int hours)
+    {
+        if (cozy?.timeModule == null) return;
+        cozy.timeModule.currentTime = new MeridiemTime(hours, 0);
+    }
     #endregion
     
-    #region Eclipse Calculation
-    
-    private float CalculateEclipse(int leftRings, int rightRings)
+    #region WEATHER
+    WeatherProfile SelectWeather(int left, int right)
     {
-        // Perfect balance
-        if (leftRings == 5 && rightRings == 5)
-        {
-            return eclipseIntensity;
-        }
+        // Eclipse = clear sky so you can see it
+        if (left == 5 && right == 5) return clearWeather;
         
-        if (!showPartialEclipse) return 0f;
-        if (leftRings == 0 || rightRings == 0) return 0f;
+        // Light path = clear/mostly clear
+        if (left == 0 && right > 0)
+            return right <= 3 ? clearWeather : (mostlyClearWeather ?? clearWeather);
         
-        // Partial eclipse when close to balance
-        int smaller = Mathf.Min(leftRings, rightRings);
-        int larger = Mathf.Max(leftRings, rightRings);
+        // Dark path = increasingly stormy
+        if (right == 0 && left > 0)
+            return GetDarkPathWeather(left);
         
-        float balance = (float)smaller / larger;
-        float leftDist = Mathf.Abs(leftRings - 5) / 5f;
-        float rightDist = Mathf.Abs(rightRings - 5) / 5f;
-        float center = 1f - Mathf.Max(leftDist, rightDist);
+        // Mixed = based on net darkness
+        if (left > right)
+            return GetDarkPathWeather(left - right);
         
-        float eclipse = balance * center * eclipseIntensity;
-        return eclipse > 0.15f ? eclipse : 0f;
+        return mostlyClearWeather ?? clearWeather;
     }
     
+    WeatherProfile GetDarkPathWeather(int darkness)
+    {
+        if (darkness <= 2) return partlyCloudyWeather ?? clearWeather;
+        if (darkness <= 5) return overcastWeather ?? partlyCloudyWeather ?? clearWeather;
+        if (darkness <= 7) return lightRainWeather ?? overcastWeather ?? clearWeather;
+        if (darkness <= 9) return heavyRainWeather ?? lightRainWeather ?? clearWeather;
+        return thunderStormWeather ?? heavyRainWeather ?? clearWeather;
+    }
+    
+    void SetWeather(WeatherProfile profile)
+    {
+        if (weatherModule?.ecosystem == null || profile == null) return;
+        weatherModule.ecosystem.SetWeather(profile);
+    }
     #endregion
     
-    #region Apply to COZY
-    
-    private void SetTimeImmediate(float hours)
+    #region ECLIPSE
+    void SetEclipse(float intensity)
     {
-        if (cozy?.timeModule != null)
+        if (!eclipseReady || eclipseModule == null || eclipseRatioField == null)
         {
-            cozy.timeModule.currentTime = hours;
-            Log($"Time set to: {FormatTime(hours)}");
+            if (intensity > 0 && logChanges)
+                Debug.LogWarning("[YORU] Eclipse module not ready - assign Eclipse Profile in COZY!");
+            return;
+        }
+        
+        try
+        {
+            eclipseRatioField.SetValue(eclipseModule, intensity);
+            if (intensity > 0 && logChanges)
+                Debug.Log($"[YORU] Eclipse ratio set to {intensity:F2}");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[YORU] Eclipse error: {e.Message}");
         }
     }
-    
-    private void SetEclipseImmediate(float intensity)
-    {
-        if (eclipseModule != null)
-        {
-            eclipseModule.eclipseRatio = intensity;
-        }
-    }
-    
     #endregion
     
-    #region Smooth Transitions (Coroutines)
-    
-    private void StartTimeTransition(float targetTime)
+    #region WIND
+    float CalculateWind(int left, int right)
     {
-        if (timeTransitionCoroutine != null)
-        {
-            StopCoroutine(timeTransitionCoroutine);
-        }
-        timeTransitionCoroutine = StartCoroutine(TimeTransitionRoutine(targetTime));
+        // No wind at neutral or eclipse
+        if (left == 0 || (left == 5 && right == 5)) return 0f;
+        
+        // Wind increases with darkness
+        int effective = Mathf.Max(0, left - right);
+        if (effective <= 5)
+            return Mathf.Lerp(0f, 0.3f, effective / 5f);
+        return Mathf.Lerp(0.3f, 1f, (effective - 5) / 5f);
     }
     
-    private System.Collections.IEnumerator TimeTransitionRoutine(float targetTime)
+    void SetAllWind(float normalized)
     {
-        if (cozy?.timeModule == null) yield break;
+        // 1. Unity WindZone (affects SpeedTree and some tree shaders)
+        SetWindZone(normalized);
         
-        float startTime = cozy.timeModule.currentTime;
-        float elapsed = 0f;
+        // 2. Terrain grass wind
+        SetTerrainGrassWind(normalized);
         
-        // Handle wraparound (e.g., going from 22 to 2)
-        float diff = targetTime - startTime;
-        if (diff > 12f) 
-        {
-            startTime += 24f;
-        }
-        else if (diff < -12f)
-        {
-            targetTime += 24f;
-        }
+        // 3. Polyart shader wind
+        SetPolyartWind(normalized);
         
-        while (elapsed < transitionDuration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / transitionDuration;
-            t = t * t * (3f - 2f * t); // Smoothstep
-            
-            float current = Mathf.Lerp(startTime, targetTime, t);
-            
-            // Normalize to 0-24
-            while (current >= 24f) current -= 24f;
-            while (current < 0f) current += 24f;
-            
-            cozy.timeModule.currentTime = current;
-            
-            yield return null;
-        }
-        
-        // Ensure we hit exact target
-        float final = targetTime;
-        while (final >= 24f) final -= 24f;
-        cozy.timeModule.currentTime = final;
-        
-        timeTransitionCoroutine = null;
+        // 4. COZY global shader properties
+        SetCozyWindGlobals(normalized);
     }
     
-    private void StartEclipseTransition(float targetEclipse)
+    void SetWindZone(float normalized)
     {
-        if (eclipseTransitionCoroutine != null)
-        {
-            StopCoroutine(eclipseTransitionCoroutine);
-        }
-        eclipseTransitionCoroutine = StartCoroutine(EclipseTransitionRoutine(targetEclipse));
+        if (sceneWindZone == null) return;
+        
+        float speed = Mathf.Lerp(calmWindSpeed, maxWindSpeed, normalized);
+        sceneWindZone.windMain = speed;
+        sceneWindZone.windTurbulence = speed * 0.3f;
+        sceneWindZone.windPulseMagnitude = speed * 0.2f;
     }
     
-    private System.Collections.IEnumerator EclipseTransitionRoutine(float targetEclipse)
+    void SetTerrainGrassWind(float normalized)
     {
-        if (eclipseModule == null) yield break;
+        if (sceneTerrain == null) return;
         
-        float startEclipse = eclipseModule.eclipseRatio;
-        float elapsed = 0f;
+        TerrainData td = sceneTerrain.terrainData;
+        if (td == null) return;
         
-        while (elapsed < transitionDuration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / transitionDuration;
-            t = t * t * (3f - 2f * t); // Smoothstep
-            
-            eclipseModule.eclipseRatio = Mathf.Lerp(startEclipse, targetEclipse, t);
-            
-            yield return null;
-        }
-        
-        eclipseModule.eclipseRatio = targetEclipse;
-        eclipseTransitionCoroutine = null;
+        td.wavingGrassSpeed = Mathf.Lerp(0.3f, 1.5f, normalized);
+        td.wavingGrassStrength = Mathf.Lerp(0.3f, 1f, normalized);
+        td.wavingGrassAmount = Mathf.Lerp(0.3f, 1f, normalized);
     }
     
+    void SetPolyartWind(float normalized)
+    {
+        if (!usePolyartWind) return;
+        
+        float speed = Mathf.Lerp(calmWindSpeed, maxWindSpeed, normalized);
+        
+        // Polyart WindSway shader properties (common names)
+        // These are SET GLOBALLY so they affect ALL materials using these properties
+        Shader.SetGlobalFloat("_WindSpeed", speed);
+        Shader.SetGlobalFloat("_WindStrength", normalized);
+        Shader.SetGlobalFloat("_SwayAmount", normalized);
+        Shader.SetGlobalFloat("_SwaySpeed", speed);
+        Shader.SetGlobalFloat("_Sway", normalized);
+        
+        // Also try per-material if we have specific materials
+        foreach (var mat in polyartFoliageMaterials)
+        {
+            if (mat == null) continue;
+            
+            if (mat.HasProperty("_WindSpeed"))
+                mat.SetFloat("_WindSpeed", speed);
+            if (mat.HasProperty("_WindStrength"))
+                mat.SetFloat("_WindStrength", normalized);
+            if (mat.HasProperty("_SwayAmount"))
+                mat.SetFloat("_SwayAmount", normalized);
+            if (mat.HasProperty("_SwaySpeed"))
+                mat.SetFloat("_SwaySpeed", speed);
+            if (mat.HasProperty("_Sway"))
+                mat.SetFloat("_Sway", normalized);
+        }
+    }
+    
+    void SetCozyWindGlobals(float normalized)
+    {
+        float speed = Mathf.Lerp(calmWindSpeed, maxWindSpeed, normalized);
+        
+        // COZY's standard global shader properties
+        Shader.SetGlobalFloat("CZY_WindSpeed", speed);
+        Shader.SetGlobalFloat("CZY_WindMultiplier", normalized);
+        Shader.SetGlobalFloat("CZY_WindDirection", 0f); // You can make this dynamic if needed
+    }
     #endregion
     
-    #region Helpers
-    
-    private void Log(string msg)
+    #region UTILITY
+    string FormatHour(int hour)
     {
-        if (showDebugInfo)
+        string ampm = hour >= 12 ? "PM" : "AM";
+        int display = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+        return $"{display}:00 {ampm}";
+    }
+    #endregion
+    
+    #region CONTEXT MENU
+    
+    [ContextMenu("Test: Eclipse (5L/5R at 5PM)")]
+    public void TestEclipse()
+    {
+        SetTime(eclipseHour);
+        SetWeather(clearWeather);
+        SetEclipse(1.0f);
+        SetAllWind(0f);
+        Debug.Log($"[TEST] Eclipse at {eclipseHour}:00 - LOOK AT THE SUN!");
+    }
+    
+    [ContextMenu("Test: No Eclipse (noon)")]
+    public void TestNoEclipse()
+    {
+        SetTime(12);
+        SetWeather(clearWeather);
+        SetEclipse(0f);
+    }
+    
+    [ContextMenu("Test: Max Wind")]
+    public void TestMaxWind()
+    {
+        SetAllWind(1f);
+        Debug.Log("[TEST] Max wind applied to all systems");
+    }
+    
+    [ContextMenu("Test: No Wind")]
+    public void TestNoWind()
+    {
+        SetAllWind(0f);
+        Debug.Log("[TEST] Wind disabled");
+    }
+    
+    [ContextMenu("Find Polyart Materials")]
+    public void ContextFindMaterials()
+    {
+        polyartFoliageMaterials.Clear();
+        FindPolyartMaterials();
+    }
+    
+    [ContextMenu("Print Shader Properties (First Material)")]
+    public void PrintShaderProperties()
+    {
+        if (polyartFoliageMaterials.Count == 0)
         {
-            Debug.Log($"[YoruCozy] {msg}");
+            Debug.LogWarning("No Polyart materials found");
+            return;
+        }
+        
+        var mat = polyartFoliageMaterials[0];
+        if (mat == null || mat.shader == null)
+        {
+            Debug.LogWarning("Material or shader is null");
+            return;
+        }
+        
+        Debug.Log($"=== SHADER: {mat.shader.name} ===");
+        Debug.Log($"Material: {mat.name}");
+        
+        // List all properties
+        int count = mat.shader.GetPropertyCount();
+        for (int i = 0; i < count; i++)
+        {
+            string propName = mat.shader.GetPropertyName(i);
+            var propType = mat.shader.GetPropertyType(i);
+            Debug.Log($"  [{i}] {propName} ({propType})");
         }
     }
     
-    private string FormatTime(float hours)
+    [ContextMenu("Print All Foliage Shader Names")]
+    public void PrintAllShaderNames()
     {
-        int h = Mathf.FloorToInt(hours);
-        int m = Mathf.FloorToInt((hours - h) * 60f);
-        string ampm = h >= 12 ? "PM" : "AM";
-        int display = h > 12 ? h - 12 : (h == 0 ? 12 : h);
-        return $"{display}:{m:D2} {ampm}";
+        var renderers = FindObjectsOfType<Renderer>();
+        HashSet<string> shaderNames = new HashSet<string>();
+        
+        foreach (var renderer in renderers)
+        {
+            foreach (var mat in renderer.sharedMaterials)
+            {
+                if (mat != null && mat.shader != null)
+                {
+                    string shaderName = mat.shader.name.ToLower();
+                    if (shaderName.Contains("foliage") || 
+                        shaderName.Contains("tree") || 
+                        shaderName.Contains("grass") ||
+                        shaderName.Contains("leaf") ||
+                        shaderName.Contains("polyart") ||
+                        shaderName.Contains("dreamscape") ||
+                        shaderName.Contains("pa_"))
+                    {
+                        shaderNames.Add($"{mat.shader.name} (Material: {mat.name})");
+                    }
+                }
+            }
+        }
+        
+        Debug.Log($"=== FOLIAGE SHADERS IN SCENE ({shaderNames.Count}) ===");
+        foreach (var name in shaderNames)
+        {
+            Debug.Log($"  {name}");
+        }
     }
     
-    #endregion
-    
-    #region Public API
-    
-    /// <summary>
-    /// Immediately snap to current ring state (no transition).
-    /// </summary>
-    public void SnapToCurrentState()
+    [ContextMenu("Print Status")]
+    public void PrintStatus()
     {
-        if (WorldStateManager.Instance == null) return;
+        LogStatus();
         
-        int left = WorldStateManager.Instance.LeftRings;
-        int right = WorldStateManager.Instance.RightRings;
+        if (eclipseReady && eclipseRatioField != null && eclipseModule != null)
+        {
+            try
+            {
+                var val = eclipseRatioField.GetValue(eclipseModule);
+                Debug.Log($"Current Eclipse Ratio: {val}");
+            }
+            catch { }
+        }
         
-        SetTimeImmediate(CalculateTime(left, right));
-        SetEclipseImmediate(CalculateEclipse(left, right));
+        if (sceneTerrain != null)
+        {
+            var td = sceneTerrain.terrainData;
+            Debug.Log($"Terrain Grass Wind: speed={td.wavingGrassSpeed:F2}, strength={td.wavingGrassStrength:F2}");
+        }
     }
     
     #endregion
