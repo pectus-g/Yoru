@@ -2,19 +2,15 @@ using UnityEngine;
 using DistantLands.Cozy;
 using DistantLands.Cozy.Data;
 using System.Collections.Generic;
+using System.Reflection;
 
 /// <summary>
-/// YORU: Complete COZY 3 Integration
+/// YORU: Complete COZY 3 Integration - V6
 /// 
-/// ECLIPSE:
-/// - ONLY triggers at exactly 5L/5R (balance)
-/// - eclipseRatio = 1.0 (full eclipse)
-/// - Time = 5:00 PM (17:00) so sun is visible lower in sky
-/// 
-/// WIND:
-/// - Uses Polyart WindSway shader properties
-/// - Also updates COZY's CZY_ global properties
-/// - Also updates terrain grass wind
+/// Changes:
+/// - Eclipse at 3PM (15:00) - sun higher in sky
+/// - Proper grass detection from terrain detail prefabs
+/// - Excludes rock shaders that just have "grass" in name
 /// </summary>
 public class YoruCozyIntegration : MonoBehaviour
 {
@@ -28,34 +24,35 @@ public class YoruCozyIntegration : MonoBehaviour
     public WeatherProfile thunderStormWeather;
     
     [Header("=== TIME SETTINGS ===")]
-    [Tooltip("Time for 0 rings (neutral noon)")]
     [SerializeField] private int neutralHour = 12;
-    [Tooltip("Time for 5 left rings (sunset)")]
     [SerializeField] private int sunset5LeftHour = 18;
-    [Tooltip("Time for 10 left rings (midnight)")]
     [SerializeField] private int midnight10LeftHour = 0;
-    [Tooltip("Time for 5 right rings (morning)")]
     [SerializeField] private int morning5RightHour = 9;
-    [Tooltip("Time for 10 right rings (late morning)")]
     [SerializeField] private int lateMorning10RightHour = 11;
     
     [Header("=== ECLIPSE SETTINGS ===")]
-    [Tooltip("Hour when eclipse appears (5L/5R only)")]
-    [SerializeField] private int eclipseHour = 17; // 5 PM - lower in sky
+    [Tooltip("Eclipse hour - 15.5 = 3:30 PM (sweet spot)")]
+    [SerializeField] private float eclipseHour = 15.5f;
+    
+    // Force eclipse hour in case Inspector has old cached value
+    private const float FORCED_ECLIPSE_HOUR = 15.5f;
     
     [Header("=== WIND SETTINGS ===")]
-    [Tooltip("Your scene WindZone (for trees)")]
     public WindZone sceneWindZone;
-    [Tooltip("Your scene Terrain (for grass)")]
     public Terrain sceneTerrain;
-    [SerializeField] private float calmWindSpeed = 0.3f;
-    [SerializeField] private float maxWindSpeed = 4f;
+    [SerializeField] private float calmWindSpeed = 0.5f;
+    [SerializeField] private float stormWindSpeed = 3f;
+    [SerializeField] private float maxStormWindSpeed = 6f;
     
-    [Header("=== POLYART SHADER WIND ===")]
-    [Tooltip("Enable Polyart shader wind control")]
-    public bool usePolyartWind = true;
-    [Tooltip("List of materials using Polyart foliage shaders")]
-    public List<Material> polyartFoliageMaterials = new List<Material>();
+    [Header("=== MATERIALS (Auto-Found) ===")]
+    [Tooltip("Tree/plant foliage materials")]
+    public List<Material> foliageMaterials = new List<Material>();
+    [Tooltip("Grass/plant materials from terrain details")]
+    public List<Material> grassMaterials = new List<Material>();
+    
+    [Header("=== MANUAL GRASS MATERIALS ===")]
+    [Tooltip("Drag grass materials here if auto-detection doesn't find them (e.g. M_Eastlands_Grass_Medium_01)")]
+    public List<Material> manualGrassMaterials = new List<Material>();
     
     [Header("=== DEBUG ===")]
     [SerializeField] private bool logChanges = true;
@@ -64,19 +61,28 @@ public class YoruCozyIntegration : MonoBehaviour
     private CozyWeather cozy;
     private CozyWeatherModule weatherModule;
     
-    // Eclipse - via reflection
-    private object eclipseModule;
-    private System.Reflection.FieldInfo eclipseRatioField;
+    // Eclipse - DIRECT component reference
+    private Component eclipseComponent;
+    private FieldInfo eclipseRatioField;
     private bool eclipseReady = false;
     
-    // State tracking
+    // State
     private int lastLeft = -1;
     private int lastRight = -1;
     
     void Start()
     {
         InitializeCozy();
+        
+        if (cozy == null)
+        {
+            Debug.LogError("[YORU] COZY not found!");
+            enabled = false;
+            return;
+        }
+        
         AutoFindComponents();
+        FindEclipseComponentDirect();
         
         if (WorldStateManager.Instance != null)
         {
@@ -100,15 +106,10 @@ public class YoruCozyIntegration : MonoBehaviour
     void InitializeCozy()
     {
         cozy = CozyWeather.instance;
-        if (cozy == null)
+        if (cozy != null)
         {
-            Debug.LogError("[YORU] CozyWeather not found!");
-            enabled = false;
-            return;
+            weatherModule = cozy.weatherModule;
         }
-        
-        weatherModule = cozy.weatherModule;
-        FindEclipseModule();
     }
     
     void AutoFindComponents()
@@ -119,16 +120,18 @@ public class YoruCozyIntegration : MonoBehaviour
         if (sceneWindZone == null)
             sceneWindZone = FindObjectOfType<WindZone>();
         
-        // Auto-find Polyart materials if list is empty
-        if (polyartFoliageMaterials.Count == 0)
-        {
-            FindPolyartMaterials();
-        }
+        if (foliageMaterials.Count == 0)
+            FindFoliageMaterials();
+        
+        if (grassMaterials.Count == 0)
+            FindGrassMaterialsFromTerrain();
     }
     
-    void FindPolyartMaterials()
+    /// <summary>
+    /// Find tree/plant foliage materials from scene renderers
+    /// </summary>
+    void FindFoliageMaterials()
     {
-        // Find all renderers in scene with Polyart shaders
         var renderers = FindObjectsOfType<Renderer>();
         HashSet<Material> found = new HashSet<Material>();
         
@@ -136,14 +139,17 @@ public class YoruCozyIntegration : MonoBehaviour
         {
             foreach (var mat in renderer.sharedMaterials)
             {
-                if (mat != null && mat.shader != null)
+                if (mat == null || mat.shader == null) continue;
+                
+                string shaderName = mat.shader.name.ToLower();
+                
+                // Only actual foliage shaders (trees, plants) - NOT rocks
+                if ((shaderName.Contains("foliage") || 
+                     shaderName.Contains("trunk") ||
+                     shaderName.Contains("leaves")) &&
+                    !shaderName.Contains("rock"))
                 {
-                    string shaderName = mat.shader.name.ToLower();
-                    if (shaderName.Contains("polyart") || 
-                        shaderName.Contains("dreamscape") ||
-                        shaderName.Contains("pa_") ||
-                        shaderName.Contains("foliage") ||
-                        shaderName.Contains("tree"))
+                    if (HasWindProperty(mat))
                     {
                         found.Add(mat);
                     }
@@ -151,62 +157,250 @@ public class YoruCozyIntegration : MonoBehaviour
             }
         }
         
-        polyartFoliageMaterials.AddRange(found);
+        foliageMaterials.AddRange(found);
         
         if (logChanges)
-            Debug.Log($"[YORU] Auto-found {found.Count} Polyart/foliage materials");
+            Debug.Log($"[YORU] Found {found.Count} foliage materials");
     }
     
-    void FindEclipseModule()
+    /// <summary>
+    /// Find grass materials from terrain detail prototypes.
+    /// These are the actual grass mesh prefabs placed on terrain.
+    /// Also searches scene for grass materials with Builtin/Grass shader.
+    /// Also searches terrain layers for grass textures.
+    /// </summary>
+    void FindGrassMaterialsFromTerrain()
     {
+        HashSet<Material> found = new HashSet<Material>();
+        
+        // FIRST: Search terrain detail prototypes
+        if (sceneTerrain != null && sceneTerrain.terrainData != null)
+        {
+            var td = sceneTerrain.terrainData;
+            
+            // Search detail prototypes (mesh grass)
+            foreach (var proto in td.detailPrototypes)
+            {
+                if (proto.prototype == null) continue;
+                
+                var renderers = proto.prototype.GetComponentsInChildren<Renderer>(true);
+                foreach (var renderer in renderers)
+                {
+                    foreach (var mat in renderer.sharedMaterials)
+                    {
+                        if (mat == null || mat.shader == null) continue;
+                        
+                        string shaderName = mat.shader.name.ToLower();
+                        string matName = mat.name.ToLower();
+                        
+                        // Dreamscape Foliage OR Builtin/Grass shader OR material name contains grass
+                        bool isGrassShader = shaderName.Contains("foliage") || 
+                                            shaderName.Contains("grass") ||
+                                            shaderName.Contains("dreamscape");
+                        bool isGrassMat = matName.Contains("grass");
+                        bool isRock = shaderName.Contains("rock");
+                        
+                        if ((isGrassShader || isGrassMat) && !isRock)
+                        {
+                            // Add regardless of wind properties - we'll try to animate it anyway
+                            found.Add(mat);
+                            if (logChanges)
+                            {
+                                bool hasWind = HasWindProperty(mat);
+                                Debug.Log($"[YORU] Found grass (terrain detail): {mat.name} ({mat.shader.name}) Wind:{hasWind}");
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Check terrain detail prototypes for prototype render mode materials
+            // (GPU instanced grass uses different rendering)
+            for (int i = 0; i < td.detailPrototypes.Length; i++)
+            {
+                var proto = td.detailPrototypes[i];
+                
+                // Log the detail prototype info for debugging
+                if (logChanges && proto.prototype != null)
+                {
+                    Debug.Log($"[YORU] Detail prototype {i}: {proto.prototype.name}, RenderMode: {proto.renderMode}");
+                }
+            }
+        }
+        
+        // SECOND: Search ALL scene renderers for grass materials
+        // This catches grass that isn't in terrain details
+        var sceneRenderers = FindObjectsOfType<Renderer>();
+        foreach (var renderer in sceneRenderers)
+        {
+            foreach (var mat in renderer.sharedMaterials)
+            {
+                if (mat == null || mat.shader == null) continue;
+                
+                // Use the new IsGrassMaterial check - more inclusive
+                if (IsGrassMaterial(mat) && !found.Contains(mat))
+                {
+                    found.Add(mat);
+                    if (logChanges)
+                    {
+                        bool hasWind = HasWindProperty(mat);
+                        Debug.Log($"[YORU] Found grass (scene): {mat.name} ({mat.shader.name}) Wind:{hasWind}");
+                    }
+                }
+            }
+        }
+        
+        // THIRD: Add any manually assigned grass materials
+        foreach (var mat in manualGrassMaterials)
+        {
+            if (mat != null && !found.Contains(mat))
+            {
+                found.Add(mat);
+                if (logChanges)
+                    Debug.Log($"[YORU] Found grass (manual): {mat.name} ({mat.shader.name})");
+            }
+        }
+        
+        grassMaterials.AddRange(found);
+        
+        if (logChanges)
+            Debug.Log($"[YORU] Found {found.Count} total grass materials");
+        
+        // If no grass found with wind properties, warn user
+        if (found.Count == 0)
+        {
+            Debug.LogWarning("[YORU] No grass materials with wind properties found! " +
+                "Drag your grass materials into 'Manual Grass Materials' in the Inspector.");
+        }
+    }
+    
+    bool HasWindProperty(Material mat)
+    {
+        // Check all known wind property variants
+        return mat.HasProperty("_Wind_Intensity") ||
+               mat.HasProperty("_Sway_Wind_Intensity") ||
+               mat.HasProperty("_WindIntensity") ||
+               mat.HasProperty("_Wind_Large_Intensity") ||
+               mat.HasProperty("_WindSpeed") ||
+               mat.HasProperty("_Wind_Speed") ||
+               // Additional grass-specific properties
+               mat.HasProperty("_WaveSpeed") ||
+               mat.HasProperty("_WaveStrength") ||
+               mat.HasProperty("_SwaySpeed") ||
+               mat.HasProperty("_SwayAmount") ||
+               mat.HasProperty("_Sway") ||
+               mat.HasProperty("_WindDirection") ||
+               mat.HasProperty("_WindStrength");
+    }
+    
+    /// <summary>
+    /// Check if material is likely a grass material by name/shader
+    /// </summary>
+    bool IsGrassMaterial(Material mat)
+    {
+        if (mat == null || mat.shader == null) return false;
+        
+        string shaderName = mat.shader.name.ToLower();
+        string matName = mat.name.ToLower();
+        
+        // EXCLUDE rock shaders entirely (even if material name contains "grass")
+        if (shaderName.Contains("rock") || shaderName.Contains("m_rocks"))
+            return false;
+        
+        // Is it a grass shader?
+        if (shaderName.Contains("grass") || shaderName.Contains("builtin/grass"))
+            return true;
+        
+        // Is it a foliage shader AND named like grass?
+        if (shaderName.Contains("foliage") && matName.Contains("grass"))
+            return true;
+        
+        return false;
+    }
+    
+    #region ECLIPSE - DIRECT COMPONENT ACCESS
+    
+    void FindEclipseComponentDirect()
+    {
+        if (cozy == null) return;
+        
+        Component[] allComponents = cozy.gameObject.GetComponents<Component>();
+        
+        foreach (var comp in allComponents)
+        {
+            if (comp == null) continue;
+            
+            System.Type compType = comp.GetType();
+            if (compType.Name == "EclipseModule")
+            {
+                eclipseComponent = comp;
+                eclipseRatioField = compType.GetField("eclipseRatio", 
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                
+                if (eclipseRatioField != null)
+                {
+                    eclipseReady = true;
+                    Debug.Log($"[YORU] ✓ Eclipse Module found! (FORCED to {FormatHourFloat(FORCED_ECLIPSE_HOUR)})");
+                }
+                return;
+            }
+        }
+        
+        // Check children
+        Component[] childComponents = cozy.gameObject.GetComponentsInChildren<Component>(true);
+        foreach (var comp in childComponents)
+        {
+            if (comp == null) continue;
+            
+            System.Type compType = comp.GetType();
+            if (compType.Name == "EclipseModule")
+            {
+                eclipseComponent = comp;
+                eclipseRatioField = compType.GetField("eclipseRatio", 
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                
+                if (eclipseRatioField != null)
+                {
+                    eclipseReady = true;
+                    Debug.Log($"[YORU] ✓ Eclipse Module found in children! (FORCED to {FormatHourFloat(FORCED_ECLIPSE_HOUR)})");
+                }
+                return;
+            }
+        }
+        
+        Debug.LogWarning("[YORU] Eclipse Module not found");
+    }
+    
+    void SetEclipse(float intensity)
+    {
+        if (!eclipseReady || eclipseComponent == null || eclipseRatioField == null)
+            return;
+        
         try
         {
-            System.Type eclipseType = null;
-            foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
-            {
-                eclipseType = assembly.GetType("DistantLands.Cozy.EclipseModule");
-                if (eclipseType != null) break;
-            }
+            float currentValue = (float)eclipseRatioField.GetValue(eclipseComponent);
+            eclipseRatioField.SetValue(eclipseComponent, intensity);
             
-            if (eclipseType == null)
-            {
-                Debug.LogWarning("[YORU] Eclipse module type not found");
-                return;
-            }
-            
-            var getModuleMethod = typeof(CozyWeather).GetMethod("GetModule");
-            var genericMethod = getModuleMethod.MakeGenericMethod(eclipseType);
-            eclipseModule = genericMethod.Invoke(cozy, null);
-            
-            if (eclipseModule == null)
-            {
-                Debug.LogWarning("[YORU] Eclipse module not active in COZY");
-                return;
-            }
-            
-            eclipseRatioField = eclipseType.GetField("eclipseRatio", 
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-            
-            if (eclipseRatioField != null)
-            {
-                eclipseReady = true;
-                Debug.Log("[YORU] Eclipse module ready!");
-            }
+            if (logChanges && Mathf.Abs(currentValue - intensity) > 0.01f)
+                Debug.Log($"[YORU] Eclipse: {currentValue:F2} → {intensity:F2}");
         }
         catch (System.Exception e)
         {
-            Debug.LogWarning($"[YORU] Eclipse setup error: {e.Message}");
+            Debug.LogError($"[YORU] Eclipse error: {e.Message}");
         }
     }
+    
+    #endregion
     
     void LogStatus()
     {
         Debug.Log("[YORU] ===== STATUS =====");
         Debug.Log($"  Weather Module: {(weatherModule != null ? "✓" : "✗")}");
-        Debug.Log($"  Eclipse Module: {(eclipseReady ? "✓" : "✗")}");
+        Debug.Log($"  Eclipse Module: {(eclipseReady ? "✓" : "✗")} (FORCED to {FormatHourFloat(FORCED_ECLIPSE_HOUR)})");
         Debug.Log($"  WindZone: {(sceneWindZone != null ? "✓" : "○")}");
         Debug.Log($"  Terrain: {(sceneTerrain != null ? "✓" : "○")}");
-        Debug.Log($"  Polyart Materials: {polyartFoliageMaterials.Count}");
+        Debug.Log($"  Foliage Materials: {foliageMaterials.Count}");
+        Debug.Log($"  Grass Materials: {grassMaterials.Count}");
         Debug.Log("========================");
     }
     
@@ -220,53 +414,37 @@ public class YoruCozyIntegration : MonoBehaviour
     
     void ApplyFullState(int left, int right)
     {
-        // Check for eclipse condition FIRST
         bool isEclipse = (left == 5 && right == 5);
         
-        // Set time
-        int hour;
-        if (isEclipse)
-        {
-            hour = eclipseHour; // 5 PM for eclipse visibility
-        }
-        else
-        {
-            hour = CalculateHour(left, right);
-        }
+        // TIME - Eclipse at 3:30 PM (use forced constant to override any cached Inspector value)
+        float hour = isEclipse ? FORCED_ECLIPSE_HOUR : (float)CalculateHour(left, right);
         SetTime(hour);
         
-        // Set weather
+        // WEATHER
         WeatherProfile weather = SelectWeather(left, right);
         SetWeather(weather);
         
-        // Set eclipse - ONLY at 5L/5R with full intensity
-        if (isEclipse)
-        {
-            SetEclipse(1.0f); // Full eclipse
-        }
-        else
-        {
-            SetEclipse(0f); // No eclipse
-        }
+        // ECLIPSE - ONLY at 5L/5R
+        SetEclipse(isEclipse ? 1.0f : 0f);
         
-        // Set wind
-        float wind = CalculateWind(left, right);
-        SetAllWind(wind);
+        // WIND
+        float windIntensity = CalculateWindIntensity(left, right);
+        ApplyWind(windIntensity);
         
         if (logChanges)
         {
-            string eclipseStr = isEclipse ? " [ECLIPSE ACTIVE]" : "";
-            Debug.Log($"[YORU] {left}L/{right}R → {FormatHour(hour)}, {weather?.name}, wind:{wind:F2}{eclipseStr}");
+            string eclipseStr = isEclipse ? " [ECLIPSE]" : "";
+            Debug.Log($"[YORU] {left}L/{right}R → {FormatHourFloat(hour)}, {weather?.name}, wind:{windIntensity:F2}{eclipseStr}");
         }
     }
     
     #region TIME
+    
     int CalculateHour(int left, int right)
     {
         int total = left + right;
         if (total == 0) return neutralHour;
         
-        // Calculate based on dominant side
         float darkHour, lightHour;
         
         if (left <= 5)
@@ -289,31 +467,27 @@ public class YoruCozyIntegration : MonoBehaviour
         return hour;
     }
     
-    void SetTime(int hours)
+    void SetTime(float hours)
     {
         if (cozy?.timeModule == null) return;
-        cozy.timeModule.currentTime = new MeridiemTime(hours, 0);
+        int h = Mathf.FloorToInt(hours);
+        int m = Mathf.RoundToInt((hours - h) * 60f);
+        cozy.timeModule.currentTime = new MeridiemTime(h, m);
     }
+    
     #endregion
     
     #region WEATHER
+    
     WeatherProfile SelectWeather(int left, int right)
     {
-        // Eclipse = clear sky so you can see it
         if (left == 5 && right == 5) return clearWeather;
-        
-        // Light path = clear/mostly clear
         if (left == 0 && right > 0)
             return right <= 3 ? clearWeather : (mostlyClearWeather ?? clearWeather);
-        
-        // Dark path = increasingly stormy
         if (right == 0 && left > 0)
             return GetDarkPathWeather(left);
-        
-        // Mixed = based on net darkness
         if (left > right)
             return GetDarkPathWeather(left - right);
-        
         return mostlyClearWeather ?? clearWeather;
     }
     
@@ -331,235 +505,179 @@ public class YoruCozyIntegration : MonoBehaviour
         if (weatherModule?.ecosystem == null || profile == null) return;
         weatherModule.ecosystem.SetWeather(profile);
     }
-    #endregion
     
-    #region ECLIPSE
-    void SetEclipse(float intensity)
-    {
-        if (!eclipseReady || eclipseModule == null || eclipseRatioField == null)
-        {
-            if (intensity > 0 && logChanges)
-                Debug.LogWarning("[YORU] Eclipse module not ready - assign Eclipse Profile in COZY!");
-            return;
-        }
-        
-        try
-        {
-            eclipseRatioField.SetValue(eclipseModule, intensity);
-            if (intensity > 0 && logChanges)
-                Debug.Log($"[YORU] Eclipse ratio set to {intensity:F2}");
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning($"[YORU] Eclipse error: {e.Message}");
-        }
-    }
     #endregion
     
     #region WIND
-    float CalculateWind(int left, int right)
+    
+    float CalculateWindIntensity(int left, int right)
     {
-        // No wind at neutral or eclipse
-        if (left == 0 || (left == 5 && right == 5)) return 0f;
+        if (left == 5 && right == 5) return 0.1f;
+        if (left == 0) return 0.2f;
         
-        // Wind increases with darkness
         int effective = Mathf.Max(0, left - right);
+        
         if (effective <= 5)
-            return Mathf.Lerp(0f, 0.3f, effective / 5f);
-        return Mathf.Lerp(0.3f, 1f, (effective - 5) / 5f);
+            return Mathf.Lerp(0.2f, 0.5f, effective / 5f);
+        else if (effective <= 7)
+            return Mathf.Lerp(0.5f, 0.8f, (effective - 5) / 2f);
+        else
+            return Mathf.Lerp(0.8f, 1.0f, (effective - 7) / 3f);
     }
     
-    void SetAllWind(float normalized)
+    void ApplyWind(float intensity)
     {
-        // 1. Unity WindZone (affects SpeedTree and some tree shaders)
-        SetWindZone(normalized);
-        
-        // 2. Terrain grass wind
-        SetTerrainGrassWind(normalized);
-        
-        // 3. Polyart shader wind
-        SetPolyartWind(normalized);
-        
-        // 4. COZY global shader properties
-        SetCozyWindGlobals(normalized);
+        ApplyWindZone(intensity);
+        ApplyMaterialWind(foliageMaterials, intensity);
+        ApplyMaterialWind(grassMaterials, intensity);
+        ApplyTerrainGrassWind(intensity);
     }
     
-    void SetWindZone(float normalized)
-    {
-        if (sceneWindZone == null) return;
-        
-        float speed = Mathf.Lerp(calmWindSpeed, maxWindSpeed, normalized);
-        sceneWindZone.windMain = speed;
-        sceneWindZone.windTurbulence = speed * 0.3f;
-        sceneWindZone.windPulseMagnitude = speed * 0.2f;
-    }
-    
-    void SetTerrainGrassWind(float normalized)
+    void ApplyTerrainGrassWind(float intensity)
     {
         if (sceneTerrain == null) return;
         
-        TerrainData td = sceneTerrain.terrainData;
-        if (td == null) return;
+        // Unity terrain built-in grass wind (for billboard/texture grass)
+        float speed = Mathf.Lerp(0.5f, 3f, intensity);
+        float strength = Mathf.Lerp(0.3f, 1.5f, intensity);
+        float amount = Mathf.Lerp(0.3f, 1f, intensity);
         
-        td.wavingGrassSpeed = Mathf.Lerp(0.3f, 1.5f, normalized);
-        td.wavingGrassStrength = Mathf.Lerp(0.3f, 1f, normalized);
-        td.wavingGrassAmount = Mathf.Lerp(0.3f, 1f, normalized);
+        sceneTerrain.terrainData.wavingGrassSpeed = speed;
+        sceneTerrain.terrainData.wavingGrassStrength = strength;
+        sceneTerrain.terrainData.wavingGrassAmount = amount;
     }
     
-    void SetPolyartWind(float normalized)
+    void ApplyWindZone(float intensity)
     {
-        if (!usePolyartWind) return;
+        if (sceneWindZone == null) return;
         
-        float speed = Mathf.Lerp(calmWindSpeed, maxWindSpeed, normalized);
+        float speed = Mathf.Lerp(calmWindSpeed, maxStormWindSpeed, intensity);
+        sceneWindZone.windMain = speed;
+        sceneWindZone.windTurbulence = Mathf.Lerp(0.1f, 0.8f, intensity);
+        sceneWindZone.windPulseMagnitude = Mathf.Lerp(0.1f, 0.5f, intensity);
+        sceneWindZone.windPulseFrequency = Mathf.Lerp(0.1f, 0.3f, intensity);
+    }
+    
+    void ApplyMaterialWind(List<Material> materials, float intensity)
+    {
+        float speed = Mathf.Lerp(calmWindSpeed, stormWindSpeed, intensity);
+        float stormMultiplier = intensity > 0.7f ? Mathf.Lerp(1f, 2f, (intensity - 0.7f) / 0.3f) : 1f;
         
-        // Polyart WindSway shader properties (common names)
-        // These are SET GLOBALLY so they affect ALL materials using these properties
-        Shader.SetGlobalFloat("_WindSpeed", speed);
-        Shader.SetGlobalFloat("_WindStrength", normalized);
-        Shader.SetGlobalFloat("_SwayAmount", normalized);
-        Shader.SetGlobalFloat("_SwaySpeed", speed);
-        Shader.SetGlobalFloat("_Sway", normalized);
-        
-        // Also try per-material if we have specific materials
-        foreach (var mat in polyartFoliageMaterials)
+        foreach (var mat in materials)
         {
             if (mat == null) continue;
             
+            // Polyart Dreamscape Foliage shader properties
+            if (mat.HasProperty("_Sway_Wind_Intensity"))
+                mat.SetFloat("_Sway_Wind_Intensity", intensity * stormMultiplier);
+            if (mat.HasProperty("_Sway_Wind_Speed"))
+                mat.SetFloat("_Sway_Wind_Speed", speed);
+            if (mat.HasProperty("_Wiggle_Wind_Intensity"))
+                mat.SetFloat("_Wiggle_Wind_Intensity", intensity * 0.5f * stormMultiplier);
+            if (mat.HasProperty("_Wiggle_Wind_Speed_Small"))
+                mat.SetFloat("_Wiggle_Wind_Speed_Small", speed * 0.5f);
+            if (mat.HasProperty("_Wiggle_Wind_Speed_Large"))
+                mat.SetFloat("_Wiggle_Wind_Speed_Large", speed * 0.8f);
+            
+            // Trunk shader
+            if (mat.HasProperty("_Wind_Intensity"))
+                mat.SetFloat("_Wind_Intensity", intensity * stormMultiplier);
+            if (mat.HasProperty("_Wind_Speed"))
+                mat.SetFloat("_Wind_Speed", speed);
+            
+            // Plants/Foliage shader
             if (mat.HasProperty("_WindSpeed"))
                 mat.SetFloat("_WindSpeed", speed);
-            if (mat.HasProperty("_WindStrength"))
-                mat.SetFloat("_WindStrength", normalized);
-            if (mat.HasProperty("_SwayAmount"))
-                mat.SetFloat("_SwayAmount", normalized);
+            if (mat.HasProperty("_WindIntensity"))
+                mat.SetFloat("_WindIntensity", intensity * stormMultiplier);
+            if (mat.HasProperty("_WindScale"))
+                mat.SetFloat("_WindScale", Mathf.Lerp(0.5f, 2f, intensity));
+            
+            // Large/Small intensity
+            if (mat.HasProperty("_Wind_Large_Intensity"))
+                mat.SetFloat("_Wind_Large_Intensity", intensity * stormMultiplier);
+            if (mat.HasProperty("_Wind_Small_Intensity"))
+                mat.SetFloat("_Wind_Small_Intensity", intensity * 0.5f * stormMultiplier);
+            
+            // Builtin/Grass shader properties (Polyart Dreamscape)
+            if (mat.HasProperty("_WaveSpeed"))
+                mat.SetFloat("_WaveSpeed", speed);
+            if (mat.HasProperty("_WaveStrength"))
+                mat.SetFloat("_WaveStrength", intensity * stormMultiplier);
             if (mat.HasProperty("_SwaySpeed"))
                 mat.SetFloat("_SwaySpeed", speed);
+            if (mat.HasProperty("_SwayAmount"))
+                mat.SetFloat("_SwayAmount", intensity * stormMultiplier);
             if (mat.HasProperty("_Sway"))
-                mat.SetFloat("_Sway", normalized);
+                mat.SetFloat("_Sway", intensity * stormMultiplier);
+            if (mat.HasProperty("_WindStrength"))
+                mat.SetFloat("_WindStrength", intensity * stormMultiplier);
+            
+            // Additional common grass wind properties
+            if (mat.HasProperty("_Frequency"))
+                mat.SetFloat("_Frequency", Mathf.Lerp(1f, 3f, intensity));
+            if (mat.HasProperty("_Amplitude"))
+                mat.SetFloat("_Amplitude", intensity * stormMultiplier);
         }
     }
     
-    void SetCozyWindGlobals(float normalized)
-    {
-        float speed = Mathf.Lerp(calmWindSpeed, maxWindSpeed, normalized);
-        
-        // COZY's standard global shader properties
-        Shader.SetGlobalFloat("CZY_WindSpeed", speed);
-        Shader.SetGlobalFloat("CZY_WindMultiplier", normalized);
-        Shader.SetGlobalFloat("CZY_WindDirection", 0f); // You can make this dynamic if needed
-    }
     #endregion
     
     #region UTILITY
+    
     string FormatHour(int hour)
     {
         string ampm = hour >= 12 ? "PM" : "AM";
         int display = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
         return $"{display}:00 {ampm}";
     }
+    
+    string FormatHourFloat(float hour)
+    {
+        int h = Mathf.FloorToInt(hour);
+        int m = Mathf.RoundToInt((hour - h) * 60f);
+        string ampm = h >= 12 ? "PM" : "AM";
+        int display = h > 12 ? h - 12 : (h == 0 ? 12 : h);
+        return $"{display}:{m:D2} {ampm}";
+    }
+    
     #endregion
     
     #region CONTEXT MENU
     
-    [ContextMenu("Test: Eclipse (5L/5R at 5PM)")]
-    public void TestEclipse()
+    [ContextMenu("Test: Force Eclipse NOW")]
+    public void ForceEclipseNow()
     {
-        SetTime(eclipseHour);
-        SetWeather(clearWeather);
-        SetEclipse(1.0f);
-        SetAllWind(0f);
-        Debug.Log($"[TEST] Eclipse at {eclipseHour}:00 - LOOK AT THE SUN!");
-    }
-    
-    [ContextMenu("Test: No Eclipse (noon)")]
-    public void TestNoEclipse()
-    {
-        SetTime(12);
-        SetWeather(clearWeather);
-        SetEclipse(0f);
-    }
-    
-    [ContextMenu("Test: Max Wind")]
-    public void TestMaxWind()
-    {
-        SetAllWind(1f);
-        Debug.Log("[TEST] Max wind applied to all systems");
-    }
-    
-    [ContextMenu("Test: No Wind")]
-    public void TestNoWind()
-    {
-        SetAllWind(0f);
-        Debug.Log("[TEST] Wind disabled");
-    }
-    
-    [ContextMenu("Find Polyart Materials")]
-    public void ContextFindMaterials()
-    {
-        polyartFoliageMaterials.Clear();
-        FindPolyartMaterials();
-    }
-    
-    [ContextMenu("Print Shader Properties (First Material)")]
-    public void PrintShaderProperties()
-    {
-        if (polyartFoliageMaterials.Count == 0)
+        if (!eclipseReady)
         {
-            Debug.LogWarning("No Polyart materials found");
+            Debug.LogError("[TEST] Eclipse not ready");
             return;
         }
         
-        var mat = polyartFoliageMaterials[0];
-        if (mat == null || mat.shader == null)
-        {
-            Debug.LogWarning("Material or shader is null");
-            return;
-        }
+        SetTime(FORCED_ECLIPSE_HOUR);
         
-        Debug.Log($"=== SHADER: {mat.shader.name} ===");
-        Debug.Log($"Material: {mat.name}");
+        if (clearWeather != null && weatherModule?.ecosystem != null)
+            weatherModule.ecosystem.SetWeather(clearWeather);
         
-        // List all properties
-        int count = mat.shader.GetPropertyCount();
-        for (int i = 0; i < count; i++)
-        {
-            string propName = mat.shader.GetPropertyName(i);
-            var propType = mat.shader.GetPropertyType(i);
-            Debug.Log($"  [{i}] {propName} ({propType})");
-        }
+        eclipseRatioField.SetValue(eclipseComponent, 1.0f);
+        
+        Debug.Log($"[TEST] Eclipse at {FormatHourFloat(FORCED_ECLIPSE_HOUR)} - LOOK AT THE SUN!");
     }
     
-    [ContextMenu("Print All Foliage Shader Names")]
-    public void PrintAllShaderNames()
+    [ContextMenu("Test: Severe Storm Wind")]
+    public void TestStormWind()
     {
-        var renderers = FindObjectsOfType<Renderer>();
-        HashSet<string> shaderNames = new HashSet<string>();
-        
-        foreach (var renderer in renderers)
-        {
-            foreach (var mat in renderer.sharedMaterials)
-            {
-                if (mat != null && mat.shader != null)
-                {
-                    string shaderName = mat.shader.name.ToLower();
-                    if (shaderName.Contains("foliage") || 
-                        shaderName.Contains("tree") || 
-                        shaderName.Contains("grass") ||
-                        shaderName.Contains("leaf") ||
-                        shaderName.Contains("polyart") ||
-                        shaderName.Contains("dreamscape") ||
-                        shaderName.Contains("pa_"))
-                    {
-                        shaderNames.Add($"{mat.shader.name} (Material: {mat.name})");
-                    }
-                }
-            }
-        }
-        
-        Debug.Log($"=== FOLIAGE SHADERS IN SCENE ({shaderNames.Count}) ===");
-        foreach (var name in shaderNames)
-        {
-            Debug.Log($"  {name}");
-        }
+        ApplyWind(1.0f);
+        Debug.Log("[TEST] SEVERE STORM wind applied!");
+    }
+    
+    [ContextMenu("Refresh All Materials")]
+    public void RefreshMaterials()
+    {
+        foliageMaterials.Clear();
+        grassMaterials.Clear();
+        FindFoliageMaterials();
+        FindGrassMaterialsFromTerrain();
     }
     
     [ContextMenu("Print Status")]
@@ -567,21 +685,57 @@ public class YoruCozyIntegration : MonoBehaviour
     {
         LogStatus();
         
-        if (eclipseReady && eclipseRatioField != null && eclipseModule != null)
+        Debug.Log("=== GRASS MATERIALS ===");
+        foreach (var mat in grassMaterials)
         {
-            try
+            if (mat != null)
+                Debug.Log($"  {mat.name} ({mat.shader.name})");
+        }
+    }
+    
+    [ContextMenu("Debug: Dump Grass Shader Properties")]
+    public void DumpGrassShaderProperties()
+    {
+        Debug.Log("=== GRASS SHADER PROPERTY DUMP ===");
+        
+        // Find all grass materials in scene
+        var renderers = FindObjectsOfType<Renderer>();
+        HashSet<Material> checkedMats = new HashSet<Material>();
+        
+        foreach (var renderer in renderers)
+        {
+            foreach (var mat in renderer.sharedMaterials)
             {
-                var val = eclipseRatioField.GetValue(eclipseModule);
-                Debug.Log($"Current Eclipse Ratio: {val}");
+                if (mat == null || checkedMats.Contains(mat)) continue;
+                checkedMats.Add(mat);
+                
+                if (!IsGrassMaterial(mat)) continue;
+                
+                Debug.Log($"\n--- {mat.name} ({mat.shader.name}) ---");
+                
+                // List all float properties we check for
+                string[] propNames = new string[] {
+                    "_Wind_Intensity", "_Sway_Wind_Intensity", "_WindIntensity",
+                    "_Wind_Large_Intensity", "_WindSpeed", "_Wind_Speed",
+                    "_WaveSpeed", "_WaveStrength", "_SwaySpeed", "_SwayAmount",
+                    "_Sway", "_WindDirection", "_WindStrength", "_Frequency",
+                    "_Amplitude", "_Wiggle_Wind_Intensity", "_Wiggle_Wind_Speed_Small",
+                    "_Wiggle_Wind_Speed_Large", "_WindScale", "_Wind_Small_Intensity",
+                    "_Sway_Wind_Speed"
+                };
+                
+                foreach (var prop in propNames)
+                {
+                    if (mat.HasProperty(prop))
+                    {
+                        float val = mat.GetFloat(prop);
+                        Debug.Log($"  ✓ {prop} = {val}");
+                    }
+                }
             }
-            catch { }
         }
         
-        if (sceneTerrain != null)
-        {
-            var td = sceneTerrain.terrainData;
-            Debug.Log($"Terrain Grass Wind: speed={td.wavingGrassSpeed:F2}, strength={td.wavingGrassStrength:F2}");
-        }
+        Debug.Log("=== END DUMP ===");
     }
     
     #endregion

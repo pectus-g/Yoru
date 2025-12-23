@@ -2,14 +2,15 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU: Ring Mesh Controller
+/// YORU: Ring Mesh Controller - V6 WITH VFX SUPPORT
 /// 
-/// FIXED BEHAVIOR:
-/// 1. Activate NEW mesh first
-/// 2. Wait 2-3 seconds (mesh transition delay)
-/// 3. THEN deactivate the OLD mesh
+/// VFX System for Tail Transitions:
+/// - Spawns VFX prefab when ring count changes
+/// - VFX covers the entire tail, then fades
+/// - Left tail: Fire effect (dark choices)
+/// - Right tail: Light/sparkle effect (light choices)
 /// 
-/// This prevents bone visibility during transitions.
+/// See TailVFXSetupGuide.txt for how to create the VFX prefabs.
 /// </summary>
 public class RingMeshController : MonoBehaviour
 {
@@ -40,29 +41,53 @@ public class RingMeshController : MonoBehaviour
     public GameObject rightTail_10Rings;
     
     [Header("=== TRANSITION SETTINGS ===")]
-    [Tooltip("Seconds to wait before deactivating old mesh")]
-    [Range(1f, 5f)]
-    public float transitionDelay = 2.5f;
+    [Tooltip("Seconds before old mesh is deactivated")]
+    [Range(0.5f, 5f)]
+    public float transitionDelay = 2f;
     
-    [Header("=== AUTO-FIND SETTINGS ===")]
+    [Header("=== LEFT TAIL VFX (Fire) ===")]
+    [Tooltip("Fire VFX prefab - covers entire left tail during transition")]
+    public GameObject leftTailVFXPrefab;
+    [Tooltip("Spawn point - assign the LEFT TAIL ROOT BONE")]
+    public Transform leftTailVFXSpawnPoint;
+    
+    [Header("=== RIGHT TAIL VFX (Light) ===")]
+    [Tooltip("Light VFX prefab - covers entire right tail during transition")]
+    public GameObject rightTailVFXPrefab;
+    [Tooltip("Spawn point - assign the RIGHT TAIL ROOT BONE")]
+    public Transform rightTailVFXSpawnPoint;
+    
+    [Header("=== VFX TIMING ===")]
+    [Tooltip("Delay before mesh swap (VFX covers during this time)")]
+    public float vfxCoverDelay = 0.5f;
+    [Tooltip("Total VFX duration (auto-destroys after)")]
+    public float vfxDuration = 2.5f;
+    [Tooltip("Parent VFX to tail (follows movement)")]
+    public bool parentVFXToTail = true;
+    
+    [Header("=== AUTO-FIND ===")]
     public bool autoFindMeshes = true;
     public Transform searchRoot;
     
     [Header("=== DEBUG ===")]
     public bool logChanges = true;
     
+    // Internal arrays
     private GameObject[] leftTailMeshes;
     private GameObject[] rightTailMeshes;
     
-    private int currentLeftRings = -1;
-    private int currentRightRings = -1;
+    // Current state
+    private int currentLeftRings = 0;
+    private int currentRightRings = 0;
     
-    private Coroutine leftTransitionCoroutine;
-    private Coroutine rightTransitionCoroutine;
+    // Active coroutines
+    private Coroutine leftTransition;
+    private Coroutine rightTransition;
     
     void Awake()
     {
         BuildMeshArrays();
+        
         if (autoFindMeshes)
         {
             AutoFindMeshes();
@@ -72,15 +97,15 @@ public class RingMeshController : MonoBehaviour
     
     void Start()
     {
-        // Initialize - deactivate all except 0 rings
         InitializeMeshes();
         
         if (WorldStateManager.Instance != null)
         {
             WorldStateManager.Instance.OnRingsChanged.AddListener(OnRingsChanged);
-            // Apply initial state
-            UpdateMeshes(WorldStateManager.Instance.LeftRings, WorldStateManager.Instance.RightRings);
+            ApplyMeshesInstant(WorldStateManager.Instance.LeftRings, WorldStateManager.Instance.RightRings);
         }
+        
+        LogVFXStatus();
     }
     
     void OnDestroy()
@@ -105,17 +130,14 @@ public class RingMeshController : MonoBehaviour
     
     void InitializeMeshes()
     {
-        // Start with all meshes OFF except 0 rings
         for (int i = 0; i < leftTailMeshes.Length; i++)
-        {
             if (leftTailMeshes[i] != null)
                 leftTailMeshes[i].SetActive(i == 0);
-        }
+        
         for (int i = 0; i < rightTailMeshes.Length; i++)
-        {
             if (rightTailMeshes[i] != null)
                 rightTailMeshes[i].SetActive(i == 0);
-        }
+        
         currentLeftRings = 0;
         currentRightRings = 0;
     }
@@ -124,63 +146,92 @@ public class RingMeshController : MonoBehaviour
     {
         Transform root = searchRoot != null ? searchRoot : transform;
         
-        leftTail_NoRings = FindChildByName(root, "LeftTail_NoRings");
-        leftTail_1Ring = FindChildByName(root, "LeftTail_1_Ring");
-        leftTail_2Rings = FindChildByName(root, "LeftTail_2_Rings");
-        leftTail_3Rings = FindChildByName(root, "LeftTail_3_Rings");
-        leftTail_4Rings = FindChildByName(root, "LeftTail_4_Rings");
-        leftTail_5Rings = FindChildByName(root, "LeftTail_5_Rings");
-        leftTail_6Rings = FindChildByName(root, "LeftTail_6_Rings");
-        leftTail_7Rings = FindChildByName(root, "LeftTail_7_Rings");
-        leftTail_8Rings = FindChildByName(root, "LeftTail_8_Rings");
-        leftTail_9Rings = FindChildByName(root, "LeftTail_9_Rings");
-        leftTail_10Rings = FindChildByName(root, "LeftTail_10_Rings");
+        // LEFT TAIL
+        leftTail_NoRings = FindChild(root, "LeftTail_NoRings");
+        leftTail_1Ring = FindChild(root, "LeftTail_1_Ring");
+        leftTail_2Rings = FindChild(root, "LeftTail_2_Rings");
+        leftTail_3Rings = FindChild(root, "LeftTail_3_Rings");
+        leftTail_4Rings = FindChild(root, "LeftTail_4_Rings");
+        leftTail_5Rings = FindChild(root, "LeftTail_5_Rings");
+        leftTail_6Rings = FindChild(root, "LeftTail_6_Rings");
+        leftTail_7Rings = FindChild(root, "LeftTail_7_Rings");
+        leftTail_8Rings = FindChild(root, "LeftTail_8_Rings");
+        leftTail_9Rings = FindChild(root, "LeftTail_9_Rings");
+        leftTail_10Rings = FindChild(root, "LeftTail_10_Rings");
         
-        rightTail_NoRings = FindChildByName(root, "RightTail_NoRings");
-        rightTail_1Ring = FindChildByName(root, "RightTail_1_Ring");
-        rightTail_2Rings = FindChildByName(root, "RightTail_2_Rings");
-        rightTail_3Rings = FindChildByName(root, "RightTail_3_Rings");
-        rightTail_4Rings = FindChildByName(root, "RightTail_4_Rings");
-        rightTail_5Rings = FindChildByName(root, "RightTail_5_Rings");
-        rightTail_6Rings = FindChildByName(root, "RightTail_6_Rings");
-        rightTail_7Rings = FindChildByName(root, "RightTail_7_Rings");
-        rightTail_8Rings = FindChildByName(root, "RightTail_8_Rings");
-        rightTail_9Rings = FindChildByName(root, "RightTail_9_Rings");
-        rightTail_10Rings = FindChildByName(root, "RightTail_10_Rings");
+        // RIGHT TAIL
+        rightTail_NoRings = FindChild(root, "RightTail_NoRings");
+        rightTail_1Ring = FindChild(root, "RightTail_1_Ring");
+        rightTail_2Rings = FindChild(root, "RightTail_2_Rings");
+        rightTail_3Rings = FindChild(root, "RightTail_3_Rings");
+        rightTail_4Rings = FindChild(root, "RightTail_4_Rings");
+        rightTail_5Rings = FindChild(root, "RightTail_5_Rings");
+        rightTail_6Rings = FindChild(root, "RightTail_6_Rings");
+        rightTail_7Rings = FindChild(root, "RightTail_7_Rings");
+        rightTail_8Rings = FindChild(root, "RightTail_8_Rings");
+        rightTail_9Rings = FindChild(root, "RightTail_9_Rings");
+        rightTail_10Rings = FindChild(root, "RightTail_10_Rings");
+        
+        // Try to find VFX spawn points (tail root bones)
+        if (leftTailVFXSpawnPoint == null)
+            leftTailVFXSpawnPoint = FindTransformByNames(root, "L_Tail_01", "LeftTailRoot", "LeftTail01");
+        if (rightTailVFXSpawnPoint == null)
+            rightTailVFXSpawnPoint = FindTransformByNames(root, "R_Tail_01", "RightTailRoot", "RightTail01");
         
         if (logChanges)
         {
-            int leftFound = CountNonNull(leftTail_NoRings, leftTail_1Ring, leftTail_2Rings, leftTail_3Rings, 
-                leftTail_4Rings, leftTail_5Rings, leftTail_6Rings, leftTail_7Rings, 
-                leftTail_8Rings, leftTail_9Rings, leftTail_10Rings);
-            int rightFound = CountNonNull(rightTail_NoRings, rightTail_1Ring, rightTail_2Rings, rightTail_3Rings,
-                rightTail_4Rings, rightTail_5Rings, rightTail_6Rings, rightTail_7Rings,
-                rightTail_8Rings, rightTail_9Rings, rightTail_10Rings);
-            Debug.Log($"[RingMesh] Auto-found {leftFound}/11 left, {rightFound}/11 right meshes");
+            int leftCount = CountNonNull(leftTailMeshes);
+            int rightCount = CountNonNull(rightTailMeshes);
+            Debug.Log($"[RingMesh] Auto-found {leftCount}/11 left, {rightCount}/11 right meshes");
         }
     }
     
-    GameObject FindChildByName(Transform root, string name)
+    void LogVFXStatus()
     {
-        Transform found = FindChildRecursive(root, name);
-        return found != null ? found.gameObject : null;
+        if (logChanges)
+        {
+            string leftVFX = leftTailVFXPrefab != null ? "✓" : "○ (assign prefab)";
+            string rightVFX = rightTailVFXPrefab != null ? "✓" : "○ (assign prefab)";
+            string leftSpawn = leftTailVFXSpawnPoint != null ? leftTailVFXSpawnPoint.name : "○ (assign bone)";
+            string rightSpawn = rightTailVFXSpawnPoint != null ? rightTailVFXSpawnPoint.name : "○ (assign bone)";
+            
+            Debug.Log($"[RingMesh] VFX Status:");
+            Debug.Log($"  Left: Prefab={leftVFX}, Spawn={leftSpawn}");
+            Debug.Log($"  Right: Prefab={rightVFX}, Spawn={rightSpawn}");
+        }
     }
     
-    Transform FindChildRecursive(Transform parent, string name)
+    GameObject FindChild(Transform root, string name)
+    {
+        Transform t = FindTransformRecursive(root, name);
+        return t != null ? t.gameObject : null;
+    }
+    
+    Transform FindTransformByNames(Transform root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            Transform t = FindTransformRecursive(root, name);
+            if (t != null) return t;
+        }
+        return null;
+    }
+    
+    Transform FindTransformRecursive(Transform parent, string name)
     {
         foreach (Transform child in parent)
         {
             if (child.name == name) return child;
-            Transform found = FindChildRecursive(child, name);
+            Transform found = FindTransformRecursive(child, name);
             if (found != null) return found;
         }
         return null;
     }
     
-    int CountNonNull(params GameObject[] objects)
+    int CountNonNull(GameObject[] arr)
     {
         int count = 0;
-        foreach (var obj in objects)
+        foreach (var obj in arr)
             if (obj != null) count++;
         return count;
     }
@@ -190,10 +241,23 @@ public class RingMeshController : MonoBehaviour
         UpdateMeshes(left, right);
     }
     
-    /// <summary>
-    /// Update meshes with transition delay.
-    /// Activates NEW mesh immediately, waits, then deactivates OLD mesh.
-    /// </summary>
+    void ApplyMeshesInstant(int left, int right)
+    {
+        left = Mathf.Clamp(left, 0, 10);
+        right = Mathf.Clamp(right, 0, 10);
+        
+        for (int i = 0; i < leftTailMeshes.Length; i++)
+            if (leftTailMeshes[i] != null)
+                leftTailMeshes[i].SetActive(i == left);
+        
+        for (int i = 0; i < rightTailMeshes.Length; i++)
+            if (rightTailMeshes[i] != null)
+                rightTailMeshes[i].SetActive(i == right);
+        
+        currentLeftRings = left;
+        currentRightRings = right;
+    }
+    
     public void UpdateMeshes(int leftRings, int rightRings)
     {
         leftRings = Mathf.Clamp(leftRings, 0, 10);
@@ -202,36 +266,68 @@ public class RingMeshController : MonoBehaviour
         // LEFT TAIL
         if (leftRings != currentLeftRings)
         {
-            if (leftTransitionCoroutine != null)
-                StopCoroutine(leftTransitionCoroutine);
-            leftTransitionCoroutine = StartCoroutine(TransitionMesh(leftTailMeshes, currentLeftRings, leftRings, true));
+            int oldLeft = currentLeftRings;
             currentLeftRings = leftRings;
+            
+            if (leftTransition != null)
+                StopCoroutine(leftTransition);
+            
+            leftTransition = StartCoroutine(TransitionWithVFX(
+                leftTailMeshes, oldLeft, leftRings, "LEFT",
+                leftTailVFXPrefab, leftTailVFXSpawnPoint));
         }
         
         // RIGHT TAIL
         if (rightRings != currentRightRings)
         {
-            if (rightTransitionCoroutine != null)
-                StopCoroutine(rightTransitionCoroutine);
-            rightTransitionCoroutine = StartCoroutine(TransitionMesh(rightTailMeshes, currentRightRings, rightRings, false));
+            int oldRight = currentRightRings;
             currentRightRings = rightRings;
+            
+            if (rightTransition != null)
+                StopCoroutine(rightTransition);
+            
+            rightTransition = StartCoroutine(TransitionWithVFX(
+                rightTailMeshes, oldRight, rightRings, "RIGHT",
+                rightTailVFXPrefab, rightTailVFXSpawnPoint));
         }
         
         if (logChanges)
-            Debug.Log($"[RingMesh] Transitioning to {leftRings}L / {rightRings}R (delay: {transitionDelay}s)");
+            Debug.Log($"[RingMesh] Transitioning to {leftRings}L / {rightRings}R");
     }
     
     /// <summary>
-    /// Coroutine that handles mesh transition:
-    /// 1. Activate NEW mesh immediately
-    /// 2. Wait transitionDelay seconds
-    /// 3. Deactivate OLD mesh
+    /// Transition with VFX:
+    /// 1. Spawn VFX (fire/light bursts up covering tail)
+    /// 2. Wait for VFX to cover
+    /// 3. Activate new mesh (hidden by VFX)
+    /// 4. Wait for transition
+    /// 5. Deactivate old mesh
+    /// 6. VFX fades and auto-destroys
     /// </summary>
-    private IEnumerator TransitionMesh(GameObject[] meshes, int oldIndex, int newIndex, bool isLeft)
+    IEnumerator TransitionWithVFX(GameObject[] meshes, int oldIndex, int newIndex, 
+        string side, GameObject vfxPrefab, Transform spawnPoint)
     {
-        string side = isLeft ? "LEFT" : "RIGHT";
+        // STEP 1: Spawn VFX (if assigned)
+        GameObject vfxInstance = null;
+        if (vfxPrefab != null && spawnPoint != null)
+        {
+            vfxInstance = Instantiate(vfxPrefab, spawnPoint.position, spawnPoint.rotation);
+            
+            if (parentVFXToTail)
+                vfxInstance.transform.SetParent(spawnPoint);
+            
+            // Auto-destroy after duration
+            Destroy(vfxInstance, vfxDuration);
+            
+            if (logChanges)
+                Debug.Log($"[RingMesh] {side}: 🔥 VFX spawned!");
+        }
         
-        // STEP 1: Activate NEW mesh IMMEDIATELY
+        // STEP 2: Wait for VFX to cover the tail
+        if (vfxPrefab != null)
+            yield return new WaitForSeconds(vfxCoverDelay);
+        
+        // STEP 3: Activate new mesh (hidden by VFX flames)
         if (newIndex >= 0 && newIndex < meshes.Length && meshes[newIndex] != null)
         {
             meshes[newIndex].SetActive(true);
@@ -239,19 +335,80 @@ public class RingMeshController : MonoBehaviour
                 Debug.Log($"[RingMesh] {side}: Activated mesh [{newIndex}]");
         }
         
-        // STEP 2: Wait for transition delay
+        // STEP 4: Wait for full transition
         yield return new WaitForSeconds(transitionDelay);
         
-        // STEP 3: Deactivate OLD mesh
+        // STEP 5: Deactivate old mesh
         if (oldIndex >= 0 && oldIndex < meshes.Length && oldIndex != newIndex && meshes[oldIndex] != null)
         {
             meshes[oldIndex].SetActive(false);
             if (logChanges)
                 Debug.Log($"[RingMesh] {side}: Deactivated mesh [{oldIndex}]");
         }
+        
+        // STEP 6: Clean up orphaned meshes
+        int currentTarget = (side == "LEFT") ? currentLeftRings : currentRightRings;
+        for (int i = 0; i < meshes.Length; i++)
+        {
+            if (i != currentTarget && meshes[i] != null && meshes[i].activeSelf)
+            {
+                meshes[i].SetActive(false);
+                if (logChanges)
+                    Debug.Log($"[RingMesh] {side}: Cleaned up orphan [{i}]");
+            }
+        }
     }
     
-    #region CONTEXT MENU
+    [ContextMenu("Force Cleanup Now")]
+    public void ForceCleanup()
+    {
+        if (leftTransition != null) StopCoroutine(leftTransition);
+        if (rightTransition != null) StopCoroutine(rightTransition);
+        
+        for (int i = 0; i < leftTailMeshes.Length; i++)
+            if (leftTailMeshes[i] != null)
+                leftTailMeshes[i].SetActive(i == currentLeftRings);
+        
+        for (int i = 0; i < rightTailMeshes.Length; i++)
+            if (rightTailMeshes[i] != null)
+                rightTailMeshes[i].SetActive(i == currentRightRings);
+        
+        Debug.Log($"[RingMesh] Force cleanup: {currentLeftRings}L / {currentRightRings}R");
+    }
+    
+    #region CONTEXT MENU TESTS
+    
+    [ContextMenu("Test: Spawn Left VFX")]
+    public void TestLeftVFX()
+    {
+        if (leftTailVFXPrefab != null && leftTailVFXSpawnPoint != null)
+        {
+            var vfx = Instantiate(leftTailVFXPrefab, leftTailVFXSpawnPoint.position, leftTailVFXSpawnPoint.rotation);
+            if (parentVFXToTail) vfx.transform.SetParent(leftTailVFXSpawnPoint);
+            Destroy(vfx, vfxDuration);
+            Debug.Log("[RingMesh] Left VFX spawned for testing!");
+        }
+        else
+        {
+            Debug.LogWarning("[RingMesh] Assign leftTailVFXPrefab and leftTailVFXSpawnPoint first!");
+        }
+    }
+    
+    [ContextMenu("Test: Spawn Right VFX")]
+    public void TestRightVFX()
+    {
+        if (rightTailVFXPrefab != null && rightTailVFXSpawnPoint != null)
+        {
+            var vfx = Instantiate(rightTailVFXPrefab, rightTailVFXSpawnPoint.position, rightTailVFXSpawnPoint.rotation);
+            if (parentVFXToTail) vfx.transform.SetParent(rightTailVFXSpawnPoint);
+            Destroy(vfx, vfxDuration);
+            Debug.Log("[RingMesh] Right VFX spawned for testing!");
+        }
+        else
+        {
+            Debug.LogWarning("[RingMesh] Assign rightTailVFXPrefab and rightTailVFXSpawnPoint first!");
+        }
+    }
     
     [ContextMenu("Auto-Find Meshes")]
     public void ContextAutoFind()
@@ -260,51 +417,21 @@ public class RingMeshController : MonoBehaviour
         BuildMeshArrays();
     }
     
-    [ContextMenu("Test: 0/0")]
-    public void Test00() => UpdateMeshes(0, 0);
-    
-    [ContextMenu("Test: 1L/0R")]
-    public void Test10() => UpdateMeshes(1, 0);
-    
-    [ContextMenu("Test: 3L/0R")]
-    public void Test30() => UpdateMeshes(3, 0);
+    [ContextMenu("Test: 0L/0R")]
+    public void Test00() { UpdateMeshes(0, 0); }
     
     [ContextMenu("Test: 5L/0R")]
-    public void Test50() => UpdateMeshes(5, 0);
+    public void Test50() { UpdateMeshes(5, 0); }
     
-    [ContextMenu("Test: 0L/5R")]
-    public void Test05() => UpdateMeshes(0, 5);
-    
-    [ContextMenu("Test: 5L/5R Eclipse")]
-    public void Test55() => UpdateMeshes(5, 5);
-    
-    [ContextMenu("Test: 10L/0R")]
-    public void Test100() => UpdateMeshes(10, 0);
+    [ContextMenu("Test: 5L/5R (Eclipse)")]
+    public void Test55() { UpdateMeshes(5, 5); }
     
     [ContextMenu("Print Status")]
     public void PrintStatus()
     {
         Debug.Log($"=== RING MESH STATUS ===");
         Debug.Log($"Current: {currentLeftRings}L / {currentRightRings}R");
-        Debug.Log($"Transition Delay: {transitionDelay}s");
-        
-        Debug.Log("LEFT MESHES:");
-        for (int i = 0; i < leftTailMeshes.Length; i++)
-        {
-            if (leftTailMeshes[i] != null)
-                Debug.Log($"  [{i}] {leftTailMeshes[i].name}: {(leftTailMeshes[i].activeSelf ? "ACTIVE" : "inactive")}");
-            else
-                Debug.Log($"  [{i}] NULL");
-        }
-        
-        Debug.Log("RIGHT MESHES:");
-        for (int i = 0; i < rightTailMeshes.Length; i++)
-        {
-            if (rightTailMeshes[i] != null)
-                Debug.Log($"  [{i}] {rightTailMeshes[i].name}: {(rightTailMeshes[i].activeSelf ? "ACTIVE" : "inactive")}");
-            else
-                Debug.Log($"  [{i}] NULL");
-        }
+        LogVFXStatus();
     }
     
     #endregion
