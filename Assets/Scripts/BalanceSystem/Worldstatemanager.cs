@@ -2,293 +2,422 @@ using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// YORU: World State Manager
-/// Tracks karma rings on Yoru's tails.
+/// YORU: World State Manager - V2 (Balance System)
+/// Tracks karma rings on Yoru's tails with balance calculation helpers.
 /// 
 /// IMPORTANT: Maximum 10 TOTAL rings (left + right combined)
 /// Example: If you have 7 left rings, you can only have 3 right rings max.
 /// 
+/// NEW IN V2:
+/// - Balance calculation (Right - Left, ranges -10 to +10)
+/// - ClampedBalance for atmosphere (capped at ±5)
+/// - WeatherStage for escalation beyond cap
+/// - AtmosphereState enum for easy state identification
+/// 
 /// Debug Controls (Shift + Key):
-/// - Shift + 1-0: Add left rings (1-10)
-/// - Shift + Q,W,E,R,T,Y,U,I,O,P: Add right rings (1-10)
+/// - Shift + 1-0: Set left rings (1-10)
+/// - Shift + Q,W,E,R,T,Y,U,I,O,P: Set right rings (1-10)
 /// - Shift + F1: Set Eclipse state (5L + 5R)
-/// - Shift + R: Reset to 0 rings
+/// - Shift + Backspace: Reset to 0 rings
 /// </summary>
 public class WorldStateManager : MonoBehaviour
 {
     public static WorldStateManager Instance { get; private set; }
     
-    [Header("=== RING STATE ===")]
-    [SerializeField, Range(0, 10)] private int leftRings = 0;
-    [SerializeField, Range(0, 10)] private int rightRings = 0;
+    #region Enums
     
-    [Header("=== LIMITS ===")]
-    [Tooltip("Maximum TOTAL rings (left + right combined)")]
-    [SerializeField] private int maxTotalRings = 10;
+    /// <summary>
+    /// Atmosphere states based on balance.
+    /// Used by controllers to determine visual settings.
+    /// </summary>
+    public enum AtmosphereState
+    {
+        Eclipse,        // Special: 5L + 5R exactly
+        Dark5,          // Balance -5 or less (midnight, eerie)
+        Dark4,          // Balance -4
+        Dark3,          // Balance -3
+        Dark2,          // Balance -2
+        Dark1,          // Balance -1
+        Neutral,        // Balance 0
+        Light1,         // Balance +1
+        Light2,         // Balance +2
+        Light3,         // Balance +3
+        Light4,         // Balance +4
+        Light5          // Balance +5 or more (heavenly)
+    }
+    
+    #endregion
+    
+    #region Serialized Fields
+    
+    [Header("=== RING STATE ===")]
+    [SerializeField, Range(0, 10)]
+    private int leftRings = 0;
+    
+    [SerializeField, Range(0, 10)]
+    private int rightRings = 0;
+    
+    [Header("=== CALCULATED VALUES (Read-Only) ===")]
+    [SerializeField, Tooltip("Right - Left (ranges -10 to +10)")]
+    private int currentBalance = 0;
+    
+    [SerializeField, Tooltip("Balance capped at ±5 for atmosphere")]
+    private int clampedBalance = 0;
+    
+    [SerializeField, Tooltip("Total rings on both tails")]
+    private int totalRings = 0;
+    
+    [SerializeField, Tooltip("Weather escalation stage (0-5)")]
+    private int weatherStage = 0;
+    
+    [SerializeField]
+    private AtmosphereState currentState = AtmosphereState.Neutral;
     
     [Header("=== EVENTS ===")]
     public UnityEvent<int, int> OnRingsChanged;
-    public UnityEvent OnEclipseAchieved;
-    public UnityEvent<int, int> OnGameEndReached;  // Fires when total rings = 10
+    public UnityEvent<AtmosphereState> OnStateChanged;
+    public UnityEvent<int> OnWeatherStageChanged;
+    public UnityEvent OnEclipseTriggered;
+    public UnityEvent<int, int> OnGameEndReached;  // Fired when total rings = 10 (for endings)
     
-    [Header("=== DEBUG ===")]
-    [SerializeField] private bool enableDebugKeys = true;
-    [SerializeField] private bool logChanges = true;
+    #endregion
     
-    // Properties
+    #region Properties
+    
+    /// <summary>Left tail rings (dark/chaos path)</summary>
     public int LeftRings => leftRings;
+    
+    /// <summary>Right tail rings (light/order path)</summary>
     public int RightRings => rightRings;
-    public int TotalRings => leftRings + rightRings;
-    public int RemainingSlots => maxTotalRings - TotalRings;
+    
+    /// <summary>Total rings on both tails (max 10)</summary>
+    public int TotalRings => totalRings;
+    
+    /// <summary>
+    /// Balance score: Right - Left
+    /// Negative = Dark leaning, Positive = Light leaning
+    /// Range: -10 to +10
+    /// </summary>
+    public int Balance => currentBalance;
+    
+    /// <summary>
+    /// Balance capped at ±5 for atmosphere layer.
+    /// Beyond ±5, weather escalation kicks in instead.
+    /// </summary>
+    public int ClampedBalance => clampedBalance;
+    
+    /// <summary>
+    /// Weather escalation stage (0-5).
+    /// Only active when |Balance| >= 5 AND TotalRings > 5.
+    /// </summary>
+    public int WeatherStage => weatherStage;
+    
+    /// <summary>Current atmosphere state</summary>
+    public AtmosphereState CurrentState => currentState;
+    
+    /// <summary>True if in Eclipse state (exactly 5L + 5R)</summary>
     public bool IsEclipse => leftRings == 5 && rightRings == 5;
-    public bool CanAddRing => TotalRings < maxTotalRings;
     
-    // Track if eclipse was already triggered this session
-    private bool eclipseTriggered = false;
+    /// <summary>True if in any Dark state (balance negative)</summary>
+    public bool IsDarkPath => currentBalance < 0;
     
-    void Awake()
+    /// <summary>True if in any Light state (balance positive)</summary>
+    public bool IsLightPath => currentBalance > 0;
+    
+    /// <summary>Normalized balance for lerping (-1 to +1)</summary>
+    public float NormalizedBalance => currentBalance / 10f;
+    
+    /// <summary>Normalized clamped balance for atmosphere lerping (-1 to +1)</summary>
+    public float NormalizedClampedBalance => clampedBalance / 5f;
+    
+    #endregion
+    
+    #region Unity Lifecycle
+    
+    private void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
         
-        if (OnRingsChanged == null)
-            OnRingsChanged = new UnityEvent<int, int>();
-        if (OnEclipseAchieved == null)
-            OnEclipseAchieved = new UnityEvent();
-        if (OnGameEndReached == null)
-            OnGameEndReached = new UnityEvent<int, int>();
+        // Initialize events if null
+        OnRingsChanged ??= new UnityEvent<int, int>();
+        OnStateChanged ??= new UnityEvent<AtmosphereState>();
+        OnWeatherStageChanged ??= new UnityEvent<int>();
+        OnEclipseTriggered ??= new UnityEvent();
+        OnGameEndReached ??= new UnityEvent<int, int>();
     }
     
-    void Start()
+    private void Start()
     {
-        // Validate initial state
-        ClampRings();
-        NotifyRingsChanged();
-        
-        if (logChanges)
-        {
-            Debug.Log($"[WorldStateManager] Initialized: {leftRings}L/{rightRings}R (Max {maxTotalRings} total)");
-        }
+        // Calculate initial state
+        RecalculateState();
     }
     
-    void Update()
+    private void Update()
     {
-        if (enableDebugKeys)
-        {
-            HandleDebugInput();
-        }
+        HandleDebugInput();
     }
     
-    #region PUBLIC API
+    #endregion
+    
+    #region Public Methods
     
     /// <summary>
-    /// Add a left (dark) ring. Returns false if at max capacity.
+    /// Set left rings directly (enforces max 10 total).
     /// </summary>
-    public bool AddLeftRing()
+    public void SetLeftRings(int count)
     {
-        if (!CanAddRing)
-        {
-            if (logChanges) Debug.LogWarning("[WorldStateManager] Cannot add ring - at max capacity!");
-            return false;
-        }
-        
-        leftRings++;
-        ClampRings();
-        NotifyRingsChanged();
-        return true;
+        int maxAllowed = 10 - rightRings;
+        leftRings = Mathf.Clamp(count, 0, maxAllowed);
+        RecalculateState();
     }
     
     /// <summary>
-    /// Add a right (light) ring. Returns false if at max capacity.
+    /// Set right rings directly (enforces max 10 total).
     /// </summary>
-    public bool AddRightRing()
+    public void SetRightRings(int count)
     {
-        if (!CanAddRing)
-        {
-            if (logChanges) Debug.LogWarning("[WorldStateManager] Cannot add ring - at max capacity!");
-            return false;
-        }
-        
-        rightRings++;
-        ClampRings();
-        NotifyRingsChanged();
-        return true;
+        int maxAllowed = 10 - leftRings;
+        rightRings = Mathf.Clamp(count, 0, maxAllowed);
+        RecalculateState();
     }
     
     /// <summary>
-    /// Set rings directly. Will clamp to max total.
+    /// Set both ring counts at once (enforces max 10 total).
     /// </summary>
     public void SetRings(int left, int right)
     {
-        leftRings = left;
-        rightRings = right;
-        ClampRings();
-        NotifyRingsChanged();
+        // Clamp total to 10
+        int total = left + right;
+        if (total > 10)
+        {
+            float ratio = 10f / total;
+            left = Mathf.RoundToInt(left * ratio);
+            right = 10 - left;
+        }
+        
+        leftRings = Mathf.Clamp(left, 0, 10);
+        rightRings = Mathf.Clamp(right, 0, 10 - leftRings);
+        RecalculateState();
     }
     
     /// <summary>
-    /// Reset all rings to zero.
+    /// Add one left ring (dark choice made).
     /// </summary>
-    public void ResetRings()
+    public void AddLeftRing()
+    {
+        if (totalRings < 10)
+        {
+            leftRings++;
+            RecalculateState();
+        }
+    }
+    
+    /// <summary>
+    /// Add one right ring (light choice made).
+    /// </summary>
+    public void AddRightRing()
+    {
+        if (totalRings < 10)
+        {
+            rightRings++;
+            RecalculateState();
+        }
+    }
+    
+    /// <summary>
+    /// Reset to neutral state (0 rings).
+    /// </summary>
+    public void Reset()
     {
         leftRings = 0;
         rightRings = 0;
-        eclipseTriggered = false;
-        NotifyRingsChanged();
-        
-        if (logChanges) Debug.Log("[WorldStateManager] Rings reset to 0/0");
+        RecalculateState();
     }
     
     /// <summary>
-    /// Set to eclipse state (5L + 5R).
+    /// Set Eclipse state (5L + 5R).
     /// </summary>
-    public void SetEclipseState()
+    public void SetEclipse()
     {
         leftRings = 5;
         rightRings = 5;
-        NotifyRingsChanged();
-        
-        if (logChanges) Debug.Log("[WorldStateManager] Eclipse state set (5L + 5R)");
+        RecalculateState();
     }
-    
-    #endregion
-    
-    #region INTERNAL
     
     /// <summary>
-    /// Ensure rings don't exceed limits.
-    /// If total exceeds max, proportionally reduce both.
+    /// Get atmosphere state for a hypothetical balance value.
+    /// Useful for previewing without changing actual state.
     /// </summary>
-    void ClampRings()
+    public static AtmosphereState GetStateForBalance(int balance, bool isEclipse)
     {
-        // Clamp individual values
-        leftRings = Mathf.Clamp(leftRings, 0, maxTotalRings);
-        rightRings = Mathf.Clamp(rightRings, 0, maxTotalRings);
+        if (isEclipse) return AtmosphereState.Eclipse;
         
-        // Clamp total
-        int total = leftRings + rightRings;
-        if (total > maxTotalRings)
+        // Clamp to atmosphere range
+        int clamped = Mathf.Clamp(balance, -5, 5);
+        
+        return clamped switch
         {
-            // Reduce the most recently added (or proportionally)
-            // For simplicity, cap each to available space
-            float ratio = (float)maxTotalRings / total;
-            leftRings = Mathf.FloorToInt(leftRings * ratio);
-            rightRings = maxTotalRings - leftRings;
-            
-            if (logChanges)
-            {
-                Debug.LogWarning($"[WorldStateManager] Rings clamped to max {maxTotalRings}: {leftRings}L/{rightRings}R");
-            }
-        }
+            -5 => AtmosphereState.Dark5,
+            -4 => AtmosphereState.Dark4,
+            -3 => AtmosphereState.Dark3,
+            -2 => AtmosphereState.Dark2,
+            -1 => AtmosphereState.Dark1,
+            0 => AtmosphereState.Neutral,
+            1 => AtmosphereState.Light1,
+            2 => AtmosphereState.Light2,
+            3 => AtmosphereState.Light3,
+            4 => AtmosphereState.Light4,
+            5 => AtmosphereState.Light5,
+            _ => AtmosphereState.Neutral
+        };
     }
     
-    void NotifyRingsChanged()
+    /// <summary>
+    /// Get the COZY time of day (0-1) for current atmosphere state.
+    /// 0 = Midnight, 0.5 = Noon, 1 = Midnight
+    /// </summary>
+    public float GetTimeOfDay()
     {
-        if (logChanges)
+        if (IsEclipse) return 0.625f; // 3 PM for eclipse
+        
+        // Map atmosphere states to time of day
+        return currentState switch
         {
-            string status = $"[WorldStateManager] Rings: {leftRings}L/{rightRings}R (Total: {TotalRings}/{maxTotalRings})";
-            if (IsEclipse) status += " - ECLIPSE!";
-            Debug.Log(status);
+            AtmosphereState.Dark5 => 0f,        // Midnight (0:00)
+            AtmosphereState.Dark4 => 0.04f,     // 1 AM
+            AtmosphereState.Dark3 => 0.125f,    // 3 AM
+            AtmosphereState.Dark2 => 0.25f,     // 6 AM (dawn)
+            AtmosphereState.Dark1 => 0.3125f,   // 7:30 AM
+            AtmosphereState.Neutral => 0.5f,    // Noon (12:00)
+            AtmosphereState.Light1 => 0.5625f,  // 1:30 PM
+            AtmosphereState.Light2 => 0.625f,   // 3 PM
+            AtmosphereState.Light3 => 0.6875f,  // 4:30 PM
+            AtmosphereState.Light4 => 0.75f,    // 6 PM (sunset)
+            AtmosphereState.Light5 => 0.8125f,  // 7:30 PM (golden hour)
+            _ => 0.5f
+        };
+    }
+    
+    #endregion
+    
+    #region Private Methods
+    
+    private void RecalculateState()
+    {
+        // Calculate totals
+        totalRings = leftRings + rightRings;
+        currentBalance = rightRings - leftRings;
+        clampedBalance = Mathf.Clamp(currentBalance, -5, 5);
+        
+        // Calculate weather stage (only when at atmosphere cap)
+        int oldWeatherStage = weatherStage;
+        if (Mathf.Abs(currentBalance) >= 5 && totalRings > 5)
+        {
+            weatherStage = Mathf.Min(totalRings - 5, 5);
+        }
+        else
+        {
+            weatherStage = 0;
         }
         
+        // Determine atmosphere state
+        AtmosphereState oldState = currentState;
+        currentState = GetStateForBalance(currentBalance, IsEclipse);
+        
+        // Fire events
         OnRingsChanged?.Invoke(leftRings, rightRings);
         
-        // Check for eclipse
-        if (IsEclipse && !eclipseTriggered)
+        if (currentState != oldState)
         {
-            eclipseTriggered = true;
-            OnEclipseAchieved?.Invoke();
-            Debug.Log("[WorldStateManager] PERFECT BALANCE ACHIEVED! Eclipse chapter unlocked.");
+            OnStateChanged?.Invoke(currentState);
+            
+            if (currentState == AtmosphereState.Eclipse)
+            {
+                OnEclipseTriggered?.Invoke();
+            }
         }
         
-        // Check for game end (10 total rings)
-        if (TotalRings >= maxTotalRings)
+        if (weatherStage != oldWeatherStage)
+        {
+            OnWeatherStageChanged?.Invoke(weatherStage);
+        }
+        
+        // Fire game end event when 10 total rings reached (for endings)
+        if (totalRings == 10 && !IsEclipse)
         {
             OnGameEndReached?.Invoke(leftRings, rightRings);
-            Debug.Log($"[WorldStateManager] GAME END REACHED! Final state: {leftRings}L/{rightRings}R");
         }
+        
+        Debug.Log($"[WorldStateManager] L:{leftRings} R:{rightRings} | Balance:{currentBalance} | State:{currentState} | Weather Stage:{weatherStage}");
+    }
+    
+    private void HandleDebugInput()
+    {
+        if (!Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
+            return;
+        
+        // Left rings: Shift + 1-0 (number row)
+        if (Input.GetKeyDown(KeyCode.Alpha1)) SetLeftRings(1);
+        else if (Input.GetKeyDown(KeyCode.Alpha2)) SetLeftRings(2);
+        else if (Input.GetKeyDown(KeyCode.Alpha3)) SetLeftRings(3);
+        else if (Input.GetKeyDown(KeyCode.Alpha4)) SetLeftRings(4);
+        else if (Input.GetKeyDown(KeyCode.Alpha5)) SetLeftRings(5);
+        else if (Input.GetKeyDown(KeyCode.Alpha6)) SetLeftRings(6);
+        else if (Input.GetKeyDown(KeyCode.Alpha7)) SetLeftRings(7);
+        else if (Input.GetKeyDown(KeyCode.Alpha8)) SetLeftRings(8);
+        else if (Input.GetKeyDown(KeyCode.Alpha9)) SetLeftRings(9);
+        else if (Input.GetKeyDown(KeyCode.Alpha0)) SetLeftRings(10);
+        
+        // Right rings: Shift + Q,W,E,R,T,Y,U,I,O,P
+        else if (Input.GetKeyDown(KeyCode.Q)) SetRightRings(1);
+        else if (Input.GetKeyDown(KeyCode.W)) SetRightRings(2);
+        else if (Input.GetKeyDown(KeyCode.E)) SetRightRings(3);
+        else if (Input.GetKeyDown(KeyCode.R)) SetRightRings(4);
+        else if (Input.GetKeyDown(KeyCode.T)) SetRightRings(5);
+        else if (Input.GetKeyDown(KeyCode.Y)) SetRightRings(6);
+        else if (Input.GetKeyDown(KeyCode.U)) SetRightRings(7);
+        else if (Input.GetKeyDown(KeyCode.I)) SetRightRings(8);
+        else if (Input.GetKeyDown(KeyCode.O)) SetRightRings(9);
+        else if (Input.GetKeyDown(KeyCode.P)) SetRightRings(10);
+        
+        // Special commands
+        else if (Input.GetKeyDown(KeyCode.F1)) SetEclipse();
+        else if (Input.GetKeyDown(KeyCode.Backspace)) Reset();
     }
     
     #endregion
     
-    #region DEBUG INPUT
+    #region Editor Validation
     
-    void HandleDebugInput()
+    private void OnValidate()
     {
-        bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-        if (!shift) return;
+        // Enforce max 10 total in editor
+        if (leftRings + rightRings > 10)
+        {
+            rightRings = 10 - leftRings;
+        }
         
-        // Left rings: Shift + 1-0 (SETS left rings, KEEPS right rings)
-        if (Input.GetKeyDown(KeyCode.Alpha1)) SetRings(1, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha2)) SetRings(2, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha3)) SetRings(3, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha4)) SetRings(4, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha5)) SetRings(5, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha6)) SetRings(6, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha7)) SetRings(7, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha8)) SetRings(8, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha9)) SetRings(9, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha0)) SetRings(10, rightRings);
+        // Recalculate display values
+        totalRings = leftRings + rightRings;
+        currentBalance = rightRings - leftRings;
+        clampedBalance = Mathf.Clamp(currentBalance, -5, 5);
         
-        // Right rings: Shift + Q,W,E,R,T,Y,U,I,O,P (SETS right rings, KEEPS left rings)
-        if (Input.GetKeyDown(KeyCode.Q)) SetRings(leftRings, 1);
-        if (Input.GetKeyDown(KeyCode.W)) SetRings(leftRings, 2);
-        if (Input.GetKeyDown(KeyCode.E)) SetRings(leftRings, 3);
-        if (Input.GetKeyDown(KeyCode.R) && !Input.GetKey(KeyCode.LeftControl)) SetRings(leftRings, 4);
-        if (Input.GetKeyDown(KeyCode.T)) SetRings(leftRings, 5);
-        if (Input.GetKeyDown(KeyCode.Y)) SetRings(leftRings, 6);
-        if (Input.GetKeyDown(KeyCode.U)) SetRings(leftRings, 7);
-        if (Input.GetKeyDown(KeyCode.I)) SetRings(leftRings, 8);
-        if (Input.GetKeyDown(KeyCode.O)) SetRings(leftRings, 9);
-        if (Input.GetKeyDown(KeyCode.P)) SetRings(leftRings, 10);
+        if (Mathf.Abs(currentBalance) >= 5 && totalRings > 5)
+        {
+            weatherStage = Mathf.Min(totalRings - 5, 5);
+        }
+        else
+        {
+            weatherStage = 0;
+        }
         
-        // Mixed states for testing
-        if (Input.GetKeyDown(KeyCode.F1)) SetEclipseState(); // 5+5 Eclipse
-        if (Input.GetKeyDown(KeyCode.F2)) SetRings(3, 2);    // 3L+2R = 5 total
-        if (Input.GetKeyDown(KeyCode.F3)) SetRings(7, 3);    // 7L+3R = 10 total (max)
-        if (Input.GetKeyDown(KeyCode.F4)) SetRings(4, 4);    // 4L+4R = 8 total (near eclipse)
-        
-        // Reset
-        if (Input.GetKeyDown(KeyCode.Backspace)) ResetRings();
-    }
-    
-    #endregion
-    
-    #region CONTEXT MENU
-    
-    [ContextMenu("Set Eclipse (5+5)")]
-    public void ContextSetEclipse() => SetEclipseState();
-    
-    [ContextMenu("Reset Rings")]
-    public void ContextReset() => ResetRings();
-    
-    [ContextMenu("Test: Max Dark (10L)")]
-    public void ContextMaxDark() => SetRings(10, 0);
-    
-    [ContextMenu("Test: Max Light (10R)")]
-    public void ContextMaxLight() => SetRings(0, 10);
-    
-    [ContextMenu("Test: Mixed (7L + 3R)")]
-    public void ContextMixed() => SetRings(7, 3);
-    
-    [ContextMenu("Print Status")]
-    public void PrintStatus()
-    {
-        Debug.Log("=== WORLD STATE ===");
-        Debug.Log($"Left Rings: {leftRings}");
-        Debug.Log($"Right Rings: {rightRings}");
-        Debug.Log($"Total: {TotalRings}/{maxTotalRings}");
-        Debug.Log($"Remaining Slots: {RemainingSlots}");
-        Debug.Log($"Is Eclipse: {IsEclipse}");
-        Debug.Log($"Can Add Ring: {CanAddRing}");
-        Debug.Log("===================");
+        currentState = GetStateForBalance(currentBalance, leftRings == 5 && rightRings == 5);
     }
     
     #endregion

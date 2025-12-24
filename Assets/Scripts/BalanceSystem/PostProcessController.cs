@@ -2,22 +2,26 @@ using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
 
 /// <summary>
-/// Controls Post-Processing effects based on karma balance.
+/// YORU: Post-Process Controller - V2 (Balance System)
+/// Controls Post-Processing effects based on karma BALANCE (not individual ring counts).
 /// 
-/// Atmosphere Scaling (0-10 rings per tail):
+/// TWO-LAYER SYSTEM:
+/// Layer 1 (Atmosphere): Balance-based, caps at ±5
+/// Layer 2 (Weather): Handled by WeatherIntensityController
 /// 
-/// DARK PATH:
-/// - 0L = Neutral
-/// - 5L = Sunset mood (warm contrast, soft vignette)
-/// - 10L = Maximum eerie (desaturated, high contrast, strong vignette)
-/// 
-/// LIGHT PATH:
-/// - 0R = Neutral
-/// - 5R = Sunrise mood (warm bloom, soft)
-/// - 10R = Maximum heavenly (bright, ethereal bloom)
-/// 
-/// ECLIPSE (5L + 5R):
-/// - Dramatic purple grading, intense vignette, corona bloom
+/// BALANCE STATES:
+/// -5 or less = Dark5 (Midnight, maximum eerie)
+/// -4 = Dark4
+/// -3 = Dark3
+/// -2 = Dark2
+/// -1 = Dark1
+/// 0 = Neutral
+/// +1 = Light1
+/// +2 = Light2
+/// +3 = Light3
+/// +4 = Light4
+/// +5 or more = Light5 (Maximum heavenly)
+/// Eclipse (5L+5R) = Special dramatic effect
 /// 
 /// Requires: Post Processing Stack v2 (Built-in Pipeline)
 /// </summary>
@@ -26,384 +30,456 @@ public class PostProcessController : MonoBehaviour
 {
     #region Serialized Fields
     
-    [Header("Transition")]
-    [SerializeField, Range(0.1f, 2f)] private float transitionSpeed = 0.5f;
+    [Header("=== REFERENCES ===")]
+    [SerializeField] private PostProcessVolume volume;
     
-    [Header("=== NEUTRAL (0 rings, Game Start) ===")]
-    [SerializeField] private Color neutralColorFilter = Color.white;
-    [SerializeField, Range(-100, 100)] private float neutralSaturation = 0f;
-    [SerializeField, Range(-100, 100)] private float neutralContrast = 0f;
-    [SerializeField, Range(0, 1)] private float neutralVignette = 0.25f;
-    [SerializeField, Range(0, 10)] private float neutralBloom = 1f;
-    [SerializeField, Range(-3, 3)] private float neutralExposure = 0f;
+    [Header("=== TRANSITION ===")]
+    [SerializeField, Range(0.5f, 5f)] 
+    private float transitionDuration = 2f;
     
-    [Header("=== DARK PATH: 5 Left Rings (Sunset Mood) ===")]
-    [SerializeField] private Color dark5ColorFilter = new Color(1f, 0.85f, 0.7f);  // Warm orange
-    [SerializeField, Range(-100, 100)] private float dark5Saturation = 5f;
-    [SerializeField, Range(-100, 100)] private float dark5Contrast = 10f;
-    [SerializeField, Range(0, 1)] private float dark5Vignette = 0.3f;
-    [SerializeField, Range(0, 10)] private float dark5Bloom = 1.5f;
-    [SerializeField, Range(-3, 3)] private float dark5Exposure = -0.1f;
+    [Header("=== CURRENT STATE (Debug) ===")]
+    [SerializeField] private WorldStateManager.AtmosphereState currentState;
+    [SerializeField] private float transitionProgress = 1f;
     
-    [Header("=== DARK PATH: 10 Left Rings (Maximum Eerie) ===")]
-    [SerializeField] private Color dark10ColorFilter = new Color(0.7f, 0.75f, 0.9f);  // Cold blue
-    [SerializeField, Range(-100, 100)] private float dark10Saturation = -40f;
-    [SerializeField, Range(-100, 100)] private float dark10Contrast = 30f;
-    [SerializeField, Range(0, 1)] private float dark10Vignette = 0.5f;
-    [SerializeField, Range(0, 10)] private float dark10Bloom = 0.5f;
-    [SerializeField, Range(-3, 3)] private float dark10Exposure = -0.5f;
+    [Header("=== DARK 5 (Midnight Eerie) ===")]
+    [SerializeField] private PostProcessSettings dark5 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = -30f,
+        tint = 10f,
+        saturation = -40f,
+        contrast = 30f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.5f,
+        vignetteSmoothness = 0.4f,
+        vignetteColor = new Color(0.05f, 0f, 0.1f),
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.3f,
+        bloomThreshold = 1.2f
+    };
     
-    [Header("=== LIGHT PATH: 5 Right Rings (Sunrise Mood) ===")]
-    [SerializeField] private Color light5ColorFilter = new Color(1f, 0.95f, 0.85f);  // Warm golden
-    [SerializeField, Range(-100, 100)] private float light5Saturation = 10f;
-    [SerializeField, Range(-100, 100)] private float light5Contrast = -5f;
-    [SerializeField, Range(0, 1)] private float light5Vignette = 0.2f;
-    [SerializeField, Range(0, 10)] private float light5Bloom = 2f;
-    [SerializeField, Range(-3, 3)] private float light5Exposure = 0.1f;
+    [Header("=== DARK 4 ===")]
+    [SerializeField] private PostProcessSettings dark4 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = -25f,
+        tint = 8f,
+        saturation = -30f,
+        contrast = 25f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.4f,
+        vignetteSmoothness = 0.35f,
+        vignetteColor = new Color(0.08f, 0.02f, 0.12f),
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.25f,
+        bloomThreshold = 1.1f
+    };
     
-    [Header("=== LIGHT PATH: 10 Right Rings (Maximum Heavenly) ===")]
-    [SerializeField] private Color light10ColorFilter = new Color(1f, 1f, 0.95f);  // Bright white-gold
-    [SerializeField, Range(-100, 100)] private float light10Saturation = 15f;
-    [SerializeField, Range(-100, 100)] private float light10Contrast = -10f;
-    [SerializeField, Range(0, 1)] private float light10Vignette = 0.1f;
-    [SerializeField, Range(0, 10)] private float light10Bloom = 3.5f;
-    [SerializeField, Range(-3, 3)] private float light10Exposure = 0.3f;
+    [Header("=== DARK 3 ===")]
+    [SerializeField] private PostProcessSettings dark3 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = -20f,
+        tint = 5f,
+        saturation = -20f,
+        contrast = 20f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.35f,
+        vignetteSmoothness = 0.3f,
+        vignetteColor = new Color(0.1f, 0.05f, 0.15f),
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.2f,
+        bloomThreshold = 1.0f
+    };
     
-    [Header("=== ECLIPSE (5L + 5R Perfect Balance) ===")]
-    [SerializeField] private Color eclipseColorFilter = new Color(0.9f, 0.7f, 1f);  // Purple
-    [SerializeField, Range(-100, 100)] private float eclipseSaturation = -15f;
-    [SerializeField, Range(-100, 100)] private float eclipseContrast = 35f;
-    [SerializeField, Range(0, 1)] private float eclipseVignette = 0.55f;
-    [SerializeField, Range(0, 10)] private float eclipseBloom = 4f;
-    [SerializeField, Range(-3, 3)] private float eclipseExposure = -0.4f;
+    [Header("=== DARK 2 ===")]
+    [SerializeField] private PostProcessSettings dark2 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = -12f,
+        tint = 3f,
+        saturation = -10f,
+        contrast = 12f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.25f,
+        vignetteSmoothness = 0.25f,
+        vignetteColor = new Color(0.15f, 0.1f, 0.2f),
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.15f,
+        bloomThreshold = 0.95f
+    };
+    
+    [Header("=== DARK 1 ===")]
+    [SerializeField] private PostProcessSettings dark1 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = -5f,
+        tint = 2f,
+        saturation = -5f,
+        contrast = 5f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.15f,
+        vignetteSmoothness = 0.2f,
+        vignetteColor = new Color(0.2f, 0.15f, 0.25f),
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.1f,
+        bloomThreshold = 0.9f
+    };
+    
+    [Header("=== NEUTRAL ===")]
+    [SerializeField] private PostProcessSettings neutral = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = 0f,
+        tint = 0f,
+        saturation = 0f,
+        contrast = 0f,
+        
+        vignetteEnabled = false,
+        vignetteIntensity = 0f,
+        vignetteSmoothness = 0.2f,
+        vignetteColor = Color.black,
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.1f,
+        bloomThreshold = 0.9f
+    };
+    
+    [Header("=== LIGHT 1 ===")]
+    [SerializeField] private PostProcessSettings light1 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = 5f,
+        tint = -2f,
+        saturation = 5f,
+        contrast = 3f,
+        
+        vignetteEnabled = false,
+        vignetteIntensity = 0f,
+        vignetteSmoothness = 0.2f,
+        vignetteColor = Color.black,
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.15f,
+        bloomThreshold = 0.85f
+    };
+    
+    [Header("=== LIGHT 2 ===")]
+    [SerializeField] private PostProcessSettings light2 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = 10f,
+        tint = -3f,
+        saturation = 10f,
+        contrast = 5f,
+        
+        vignetteEnabled = false,
+        vignetteIntensity = 0f,
+        vignetteSmoothness = 0.2f,
+        vignetteColor = Color.black,
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.2f,
+        bloomThreshold = 0.8f
+    };
+    
+    [Header("=== LIGHT 3 ===")]
+    [SerializeField] private PostProcessSettings light3 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = 15f,
+        tint = -5f,
+        saturation = 15f,
+        contrast = 8f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.1f,
+        vignetteSmoothness = 0.5f,
+        vignetteColor = new Color(1f, 0.95f, 0.8f),
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.3f,
+        bloomThreshold = 0.75f
+    };
+    
+    [Header("=== LIGHT 4 ===")]
+    [SerializeField] private PostProcessSettings light4 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = 20f,
+        tint = -8f,
+        saturation = 20f,
+        contrast = 10f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.15f,
+        vignetteSmoothness = 0.6f,
+        vignetteColor = new Color(1f, 0.9f, 0.7f),
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.4f,
+        bloomThreshold = 0.7f
+    };
+    
+    [Header("=== LIGHT 5 (Heavenly) ===")]
+    [SerializeField] private PostProcessSettings light5 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = 25f,
+        tint = -10f,
+        saturation = 25f,
+        contrast = 12f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.2f,
+        vignetteSmoothness = 0.7f,
+        vignetteColor = new Color(1f, 0.95f, 0.85f),
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.6f,
+        bloomThreshold = 0.6f
+    };
+    
+    [Header("=== ECLIPSE (Special) ===")]
+    [SerializeField] private PostProcessSettings eclipse = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = -10f,
+        tint = 20f,
+        saturation = -15f,
+        contrast = 35f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.55f,
+        vignetteSmoothness = 0.3f,
+        vignetteColor = new Color(0.3f, 0.1f, 0.4f),
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.8f,
+        bloomThreshold = 0.5f
+    };
     
     #endregion
     
-    #region Private State
+    #region Private Fields
     
-    private struct PostProcessState
-    {
-        public Color colorFilter;
-        public float saturation;
-        public float contrast;
-        public float vignette;
-        public float bloom;
-        public float exposure;
-        
-        public static PostProcessState Lerp(PostProcessState a, PostProcessState b, float t)
-        {
-            return new PostProcessState
-            {
-                colorFilter = Color.Lerp(a.colorFilter, b.colorFilter, t),
-                saturation = Mathf.Lerp(a.saturation, b.saturation, t),
-                contrast = Mathf.Lerp(a.contrast, b.contrast, t),
-                vignette = Mathf.Lerp(a.vignette, b.vignette, t),
-                bloom = Mathf.Lerp(a.bloom, b.bloom, t),
-                exposure = Mathf.Lerp(a.exposure, b.exposure, t)
-            };
-        }
-        
-        public bool ApproximatelyEquals(PostProcessState other, float tolerance = 0.001f)
-        {
-            return Mathf.Abs(saturation - other.saturation) < tolerance &&
-                   Mathf.Abs(contrast - other.contrast) < tolerance &&
-                   Mathf.Abs(vignette - other.vignette) < tolerance &&
-                   Mathf.Abs(bloom - other.bloom) < tolerance &&
-                   Mathf.Abs(exposure - other.exposure) < tolerance;
-        }
-    }
-    
-    private PostProcessState currentState;
-    private PostProcessState targetState;
-    private bool isTransitioning;
-    
-    private PostProcessVolume volume;
     private ColorGrading colorGrading;
     private Vignette vignette;
     private Bloom bloom;
+    
+    private PostProcessSettings currentSettings;
+    private PostProcessSettings targetSettings;
+    private PostProcessSettings previousSettings;
     
     #endregion
     
     #region Unity Lifecycle
     
-    private void Start()
+    private void Awake()
     {
-        if (!SetupPostProcessing())
+        if (volume == null)
+            volume = GetComponent<PostProcessVolume>();
+        
+        // Get post-process effects
+        if (volume.profile != null)
         {
-            enabled = false;
-            return;
+            volume.profile.TryGetSettings(out colorGrading);
+            volume.profile.TryGetSettings(out vignette);
+            volume.profile.TryGetSettings(out bloom);
         }
         
-        InitializeState();
-        SubscribeToEvents();
+        currentSettings = neutral;
+        targetSettings = neutral;
+        previousSettings = neutral;
     }
     
-    private void OnDestroy()
+    private void OnEnable()
     {
         if (WorldStateManager.Instance != null)
-            WorldStateManager.Instance.OnRingsChanged.RemoveListener(OnRingsChanged);
+        {
+            WorldStateManager.Instance.OnStateChanged.AddListener(OnStateChanged);
+            // Apply initial state
+            OnStateChanged(WorldStateManager.Instance.CurrentState);
+        }
+    }
+    
+    private void OnDisable()
+    {
+        if (WorldStateManager.Instance != null)
+        {
+            WorldStateManager.Instance.OnStateChanged.RemoveListener(OnStateChanged);
+        }
     }
     
     private void Update()
     {
-        if (!isTransitioning) return;
-        
-        float t = transitionSpeed * Time.deltaTime;
-        currentState = PostProcessState.Lerp(currentState, targetState, t);
-        ApplyState(currentState);
-        
-        if (currentState.ApproximatelyEquals(targetState))
+        // Handle smooth transition
+        if (transitionProgress < 1f)
         {
-            currentState = targetState;
-            ApplyState(currentState);
-            isTransitioning = false;
+            transitionProgress += Time.deltaTime / transitionDuration;
+            transitionProgress = Mathf.Clamp01(transitionProgress);
+            
+            // Lerp all settings
+            currentSettings = LerpSettings(previousSettings, targetSettings, transitionProgress);
+            ApplySettings(currentSettings);
         }
     }
     
     #endregion
     
-    #region Setup
+    #region Event Handlers
     
-    private bool SetupPostProcessing()
+    private void OnStateChanged(WorldStateManager.AtmosphereState newState)
     {
-        volume = GetComponent<PostProcessVolume>();
-        if (volume == null || volume.profile == null)
-        {
-            Debug.LogError("[PostProcessController] PostProcessVolume with profile required!");
-            return false;
-        }
+        currentState = newState;
         
-        var profile = volume.profile;
+        // Store previous for lerping
+        previousSettings = currentSettings;
         
-        if (!profile.TryGetSettings(out colorGrading))
-            colorGrading = profile.AddSettings<ColorGrading>();
+        // Get target settings for new state
+        targetSettings = GetSettingsForState(newState);
         
-        if (!profile.TryGetSettings(out vignette))
-            vignette = profile.AddSettings<Vignette>();
+        // Start transition
+        transitionProgress = 0f;
         
-        if (!profile.TryGetSettings(out bloom))
-            bloom = profile.AddSettings<Bloom>();
-        
-        colorGrading.enabled.Override(true);
-        colorGrading.colorFilter.Override(Color.white);
-        colorGrading.saturation.Override(0f);
-        colorGrading.contrast.Override(0f);
-        colorGrading.postExposure.Override(0f);
-        
-        vignette.enabled.Override(true);
-        vignette.intensity.Override(0.25f);
-        
-        bloom.enabled.Override(true);
-        bloom.intensity.Override(1f);
-        
-        return true;
+        Debug.Log($"[PostProcessController] Transitioning to {newState}");
     }
     
-    private void InitializeState()
+    #endregion
+    
+    #region Settings Methods
+    
+    private PostProcessSettings GetSettingsForState(WorldStateManager.AtmosphereState state)
     {
-        currentState = new PostProcessState
+        return state switch
         {
-            colorFilter = neutralColorFilter,
-            saturation = neutralSaturation,
-            contrast = neutralContrast,
-            vignette = neutralVignette,
-            bloom = neutralBloom,
-            exposure = neutralExposure
+            WorldStateManager.AtmosphereState.Eclipse => eclipse,
+            WorldStateManager.AtmosphereState.Dark5 => dark5,
+            WorldStateManager.AtmosphereState.Dark4 => dark4,
+            WorldStateManager.AtmosphereState.Dark3 => dark3,
+            WorldStateManager.AtmosphereState.Dark2 => dark2,
+            WorldStateManager.AtmosphereState.Dark1 => dark1,
+            WorldStateManager.AtmosphereState.Neutral => neutral,
+            WorldStateManager.AtmosphereState.Light1 => light1,
+            WorldStateManager.AtmosphereState.Light2 => light2,
+            WorldStateManager.AtmosphereState.Light3 => light3,
+            WorldStateManager.AtmosphereState.Light4 => light4,
+            WorldStateManager.AtmosphereState.Light5 => light5,
+            _ => neutral
         };
-        targetState = currentState;
-        ApplyState(currentState);
     }
     
-    private void SubscribeToEvents()
+    private PostProcessSettings LerpSettings(PostProcessSettings from, PostProcessSettings to, float t)
     {
-        if (WorldStateManager.Instance != null)
+        return new PostProcessSettings
         {
-            WorldStateManager.Instance.OnRingsChanged.AddListener(OnRingsChanged);
-            OnRingsChanged(WorldStateManager.Instance.LeftRings, WorldStateManager.Instance.RightRings);
-        }
+            // Color Grading
+            colorGradingEnabled = t < 0.5f ? from.colorGradingEnabled : to.colorGradingEnabled,
+            temperature = Mathf.Lerp(from.temperature, to.temperature, t),
+            tint = Mathf.Lerp(from.tint, to.tint, t),
+            saturation = Mathf.Lerp(from.saturation, to.saturation, t),
+            contrast = Mathf.Lerp(from.contrast, to.contrast, t),
+            
+            // Vignette
+            vignetteEnabled = t < 0.5f ? from.vignetteEnabled : to.vignetteEnabled,
+            vignetteIntensity = Mathf.Lerp(from.vignetteIntensity, to.vignetteIntensity, t),
+            vignetteSmoothness = Mathf.Lerp(from.vignetteSmoothness, to.vignetteSmoothness, t),
+            vignetteColor = Color.Lerp(from.vignetteColor, to.vignetteColor, t),
+            
+            // Bloom
+            bloomEnabled = t < 0.5f ? from.bloomEnabled : to.bloomEnabled,
+            bloomIntensity = Mathf.Lerp(from.bloomIntensity, to.bloomIntensity, t),
+            bloomThreshold = Mathf.Lerp(from.bloomThreshold, to.bloomThreshold, t)
+        };
     }
     
-    #endregion
-    
-    #region Event Handler
-    
-    private void OnRingsChanged(int left, int right)
-    {
-        targetState = CalculateTargetState(left, right);
-        isTransitioning = true;
-    }
-    
-    #endregion
-    
-    #region State Calculation
-    
-    private PostProcessState CalculateTargetState(int left, int right)
-    {
-        // Eclipse - Perfect Balance
-        if (left == 5 && right == 5)
-        {
-            return new PostProcessState
-            {
-                colorFilter = eclipseColorFilter,
-                saturation = eclipseSaturation,
-                contrast = eclipseContrast,
-                vignette = eclipseVignette,
-                bloom = eclipseBloom,
-                exposure = eclipseExposure
-            };
-        }
-        
-        // Calculate dark contribution
-        PostProcessState darkState = CalculateDarkState(left);
-        
-        // Calculate light contribution
-        PostProcessState lightState = CalculateLightState(right);
-        
-        // Blend based on ring counts
-        int total = left + right;
-        if (total == 0)
-        {
-            return new PostProcessState
-            {
-                colorFilter = neutralColorFilter,
-                saturation = neutralSaturation,
-                contrast = neutralContrast,
-                vignette = neutralVignette,
-                bloom = neutralBloom,
-                exposure = neutralExposure
-            };
-        }
-        
-        float leftWeight = (float)left / total;
-        return PostProcessState.Lerp(lightState, darkState, leftWeight);
-    }
-    
-    private PostProcessState CalculateDarkState(int leftRings)
-    {
-        if (leftRings <= 0)
-        {
-            return new PostProcessState
-            {
-                colorFilter = neutralColorFilter,
-                saturation = neutralSaturation,
-                contrast = neutralContrast,
-                vignette = neutralVignette,
-                bloom = neutralBloom,
-                exposure = neutralExposure
-            };
-        }
-        
-        if (leftRings <= 5)
-        {
-            // Phase 1: Neutral → Sunset (0-5)
-            float t = leftRings / 5f;
-            return new PostProcessState
-            {
-                colorFilter = Color.Lerp(neutralColorFilter, dark5ColorFilter, t),
-                saturation = Mathf.Lerp(neutralSaturation, dark5Saturation, t),
-                contrast = Mathf.Lerp(neutralContrast, dark5Contrast, t),
-                vignette = Mathf.Lerp(neutralVignette, dark5Vignette, t),
-                bloom = Mathf.Lerp(neutralBloom, dark5Bloom, t),
-                exposure = Mathf.Lerp(neutralExposure, dark5Exposure, t)
-            };
-        }
-        else
-        {
-            // Phase 2: Sunset → Maximum Eerie (5-10)
-            float t = (leftRings - 5) / 5f;
-            return new PostProcessState
-            {
-                colorFilter = Color.Lerp(dark5ColorFilter, dark10ColorFilter, t),
-                saturation = Mathf.Lerp(dark5Saturation, dark10Saturation, t),
-                contrast = Mathf.Lerp(dark5Contrast, dark10Contrast, t),
-                vignette = Mathf.Lerp(dark5Vignette, dark10Vignette, t),
-                bloom = Mathf.Lerp(dark5Bloom, dark10Bloom, t),
-                exposure = Mathf.Lerp(dark5Exposure, dark10Exposure, t)
-            };
-        }
-    }
-    
-    private PostProcessState CalculateLightState(int rightRings)
-    {
-        if (rightRings <= 0)
-        {
-            return new PostProcessState
-            {
-                colorFilter = neutralColorFilter,
-                saturation = neutralSaturation,
-                contrast = neutralContrast,
-                vignette = neutralVignette,
-                bloom = neutralBloom,
-                exposure = neutralExposure
-            };
-        }
-        
-        if (rightRings <= 5)
-        {
-            // Phase 1: Neutral → Sunrise (0-5)
-            float t = rightRings / 5f;
-            return new PostProcessState
-            {
-                colorFilter = Color.Lerp(neutralColorFilter, light5ColorFilter, t),
-                saturation = Mathf.Lerp(neutralSaturation, light5Saturation, t),
-                contrast = Mathf.Lerp(neutralContrast, light5Contrast, t),
-                vignette = Mathf.Lerp(neutralVignette, light5Vignette, t),
-                bloom = Mathf.Lerp(neutralBloom, light5Bloom, t),
-                exposure = Mathf.Lerp(neutralExposure, light5Exposure, t)
-            };
-        }
-        else
-        {
-            // Phase 2: Sunrise → Maximum Heavenly (5-10)
-            float t = (rightRings - 5) / 5f;
-            return new PostProcessState
-            {
-                colorFilter = Color.Lerp(light5ColorFilter, light10ColorFilter, t),
-                saturation = Mathf.Lerp(light5Saturation, light10Saturation, t),
-                contrast = Mathf.Lerp(light5Contrast, light10Contrast, t),
-                vignette = Mathf.Lerp(light5Vignette, light10Vignette, t),
-                bloom = Mathf.Lerp(light5Bloom, light10Bloom, t),
-                exposure = Mathf.Lerp(light5Exposure, light10Exposure, t)
-            };
-        }
-    }
-    
-    #endregion
-    
-    #region Apply State
-    
-    private void ApplyState(PostProcessState state)
+    private void ApplySettings(PostProcessSettings settings)
     {
         if (colorGrading != null)
         {
-            colorGrading.colorFilter.value = state.colorFilter;
-            colorGrading.saturation.value = state.saturation;
-            colorGrading.contrast.value = state.contrast;
-            colorGrading.postExposure.value = state.exposure;
+            colorGrading.active = settings.colorGradingEnabled;
+            colorGrading.temperature.value = settings.temperature;
+            colorGrading.tint.value = settings.tint;
+            colorGrading.saturation.value = settings.saturation;
+            colorGrading.contrast.value = settings.contrast;
         }
         
         if (vignette != null)
-            vignette.intensity.value = state.vignette;
+        {
+            vignette.active = settings.vignetteEnabled;
+            vignette.intensity.value = settings.vignetteIntensity;
+            vignette.smoothness.value = settings.vignetteSmoothness;
+            vignette.color.value = settings.vignetteColor;
+        }
         
         if (bloom != null)
-            bloom.intensity.value = state.bloom;
+        {
+            bloom.active = settings.bloomEnabled;
+            bloom.intensity.value = settings.bloomIntensity;
+            bloom.threshold.value = settings.bloomThreshold;
+        }
     }
     
     #endregion
     
-    #region Public API
+    #region Public Methods
     
-    public void SnapToCurrentState()
+    /// <summary>
+    /// Force immediate state change without transition.
+    /// </summary>
+    public void SetStateImmediate(WorldStateManager.AtmosphereState state)
     {
-        if (WorldStateManager.Instance == null) return;
+        currentState = state;
+        currentSettings = GetSettingsForState(state);
+        targetSettings = currentSettings;
+        previousSettings = currentSettings;
+        transitionProgress = 1f;
+        ApplySettings(currentSettings);
+    }
+    
+    /// <summary>
+    /// Preview a state without WorldStateManager (for testing in editor).
+    /// </summary>
+    [ContextMenu("Preview Current State")]
+    public void PreviewCurrentState()
+    {
+        SetStateImmediate(currentState);
+    }
+    
+    #endregion
+    
+    #region Nested Types
+    
+    [System.Serializable]
+    public struct PostProcessSettings
+    {
+        [Header("Color Grading")]
+        public bool colorGradingEnabled;
+        [Range(-100f, 100f)] public float temperature;
+        [Range(-100f, 100f)] public float tint;
+        [Range(-100f, 100f)] public float saturation;
+        [Range(-100f, 100f)] public float contrast;
         
-        targetState = CalculateTargetState(
-            WorldStateManager.Instance.LeftRings,
-            WorldStateManager.Instance.RightRings
-        );
-        currentState = targetState;
-        ApplyState(currentState);
-        isTransitioning = false;
+        [Header("Vignette")]
+        public bool vignetteEnabled;
+        [Range(0f, 1f)] public float vignetteIntensity;
+        [Range(0f, 1f)] public float vignetteSmoothness;
+        public Color vignetteColor;
+        
+        [Header("Bloom")]
+        public bool bloomEnabled;
+        [Range(0f, 10f)] public float bloomIntensity;
+        [Range(0f, 2f)] public float bloomThreshold;
     }
     
     #endregion
