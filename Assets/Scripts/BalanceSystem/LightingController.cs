@@ -1,75 +1,116 @@
 using UnityEngine;
 
 /// <summary>
-/// Controls Directional Light based on karma balance.
+/// YORU Lighting Controller V2 - Balance-Based
 /// 
-/// Atmosphere Scaling (0-10 rings per tail):
+/// Works with the two-layer balance system.
+/// Ensures you can SEE at night (dark path) while maintaining atmosphere.
 /// 
-/// DARK PATH:
-/// - 0L = Neutral daylight
-/// - 5L = Sunset lighting (warm, low angle, long shadows)
-/// - 10L = Night/eerie (moonlight blue, very dim)
-/// 
-/// LIGHT PATH:
-/// - 0R = Neutral daylight
-/// - 5R = Sunrise lighting (warm golden, low angle)
-/// - 10R = Heavenly (bright white-gold, soft shadows)
-/// 
-/// ECLIPSE (5L + 5R):
-/// - Dramatic rim lighting, orange corona glow
+/// KEY CHANGES from V1:
+/// - Uses AtmosphereState instead of raw ring counts
+/// - Better minimum ambient light for dark states (so you can see!)
+/// - Cleaner organization
 /// </summary>
 public class LightingController : MonoBehaviour
 {
     #region Serialized Fields
     
-    [Header("Light Reference")]
+    [Header("=== REFERENCES ===")]
     [SerializeField] private Light directionalLight;
     [SerializeField] private bool autoFindLight = true;
     
-    [Header("Transition")]
-    [SerializeField, Range(0.1f, 2f)] private float transitionSpeed = 0.5f;
+    [Header("=== TRANSITION ===")]
+    [SerializeField, Range(0.1f, 3f)] private float transitionSpeed = 1f;
     
-    [Header("=== NEUTRAL (0 rings, Game Start) ===")]
+    [Header("=== NEUTRAL (Balance 0, Noon) ===")]
     [SerializeField] private Color neutralLightColor = new Color(1f, 0.98f, 0.95f);
     [SerializeField, Range(0, 3)] private float neutralIntensity = 1f;
-    [SerializeField, Range(0, 90)] private float neutralAngle = 45f;
-    [SerializeField] private Color neutralAmbientColor = new Color(0.22f, 0.22f, 0.25f);
-    [SerializeField, Range(0, 1)] private float neutralShadowStrength = 0.75f;
+    [SerializeField, Range(0, 90)] private float neutralAngle = 50f;
+    [SerializeField] private Color neutralAmbientColor = new Color(0.25f, 0.25f, 0.28f);
+    [SerializeField, Range(0, 1)] private float neutralShadowStrength = 0.7f;
     
-    [Header("=== DARK PATH: 5 Left Rings (Sunset) ===")]
-    [SerializeField] private Color dark5LightColor = new Color(1f, 0.6f, 0.3f);        // Orange sunset
-    [SerializeField, Range(0, 3)] private float dark5Intensity = 0.9f;
-    [SerializeField, Range(0, 90)] private float dark5Angle = 15f;                      // Very low (sunset)
-    [SerializeField] private Color dark5AmbientColor = new Color(0.3f, 0.2f, 0.25f);   // Warm purple
-    [SerializeField, Range(0, 1)] private float dark5ShadowStrength = 0.8f;
+    [Header("=== DARK 1 (Balance -1, Late Afternoon) ===")]
+    [SerializeField] private Color dark1LightColor = new Color(1f, 0.9f, 0.7f);
+    [SerializeField, Range(0, 3)] private float dark1Intensity = 0.95f;
+    [SerializeField, Range(0, 90)] private float dark1Angle = 35f;
+    [SerializeField] private Color dark1AmbientColor = new Color(0.25f, 0.22f, 0.25f);
+    [SerializeField, Range(0, 1)] private float dark1ShadowStrength = 0.72f;
     
-    [Header("=== DARK PATH: 10 Left Rings (Maximum Eerie Night) ===")]
-    [SerializeField] private Color dark10LightColor = new Color(0.5f, 0.6f, 0.9f);     // Cold moonlight
-    [SerializeField, Range(0, 3)] private float dark10Intensity = 0.3f;
-    [SerializeField, Range(0, 90)] private float dark10Angle = 70f;                     // High moon
-    [SerializeField] private Color dark10AmbientColor = new Color(0.08f, 0.08f, 0.15f); // Very dark blue
-    [SerializeField, Range(0, 1)] private float dark10ShadowStrength = 0.95f;
+    [Header("=== DARK 2 (Balance -2, Sunset) ===")]
+    [SerializeField] private Color dark2LightColor = new Color(1f, 0.7f, 0.4f);
+    [SerializeField, Range(0, 3)] private float dark2Intensity = 0.85f;
+    [SerializeField, Range(0, 90)] private float dark2Angle = 20f;
+    [SerializeField] private Color dark2AmbientColor = new Color(0.28f, 0.2f, 0.25f);
+    [SerializeField, Range(0, 1)] private float dark2ShadowStrength = 0.75f;
     
-    [Header("=== LIGHT PATH: 5 Right Rings (Sunrise) ===")]
-    [SerializeField] private Color light5LightColor = new Color(1f, 0.9f, 0.7f);       // Golden sunrise
-    [SerializeField, Range(0, 3)] private float light5Intensity = 1.1f;
-    [SerializeField, Range(0, 90)] private float light5Angle = 20f;                     // Low golden hour
-    [SerializeField] private Color light5AmbientColor = new Color(0.35f, 0.3f, 0.25f); // Warm
-    [SerializeField, Range(0, 1)] private float light5ShadowStrength = 0.65f;
+    [Header("=== DARK 3 (Balance -3, Dusk) ===")]
+    [SerializeField] private Color dark3LightColor = new Color(0.8f, 0.7f, 0.9f);
+    [SerializeField, Range(0, 3)] private float dark3Intensity = 0.6f;
+    [SerializeField, Range(0, 90)] private float dark3Angle = 15f;
+    [SerializeField] private Color dark3AmbientColor = new Color(0.18f, 0.16f, 0.22f);
+    [SerializeField, Range(0, 1)] private float dark3ShadowStrength = 0.8f;
     
-    [Header("=== LIGHT PATH: 10 Right Rings (Maximum Heavenly) ===")]
-    [SerializeField] private Color light10LightColor = new Color(1f, 1f, 0.95f);       // Bright white
-    [SerializeField, Range(0, 3)] private float light10Intensity = 1.5f;
-    [SerializeField, Range(0, 90)] private float light10Angle = 50f;                    // High noon-ish
-    [SerializeField] private Color light10AmbientColor = new Color(0.5f, 0.48f, 0.45f); // Bright ambient
-    [SerializeField, Range(0, 1)] private float light10ShadowStrength = 0.4f;           // Soft shadows
+    [Header("=== DARK 4 (Balance -4, Night) ===")]
+    [SerializeField] private Color dark4LightColor = new Color(0.6f, 0.7f, 0.95f);
+    [SerializeField, Range(0, 3)] private float dark4Intensity = 0.4f;
+    [SerializeField, Range(0, 90)] private float dark4Angle = 60f;
+    [SerializeField] private Color dark4AmbientColor = new Color(0.12f, 0.12f, 0.18f);
+    [SerializeField, Range(0, 1)] private float dark4ShadowStrength = 0.85f;
     
-    [Header("=== ECLIPSE (5L + 5R Perfect Balance) ===")]
-    [SerializeField] private Color eclipseLightColor = new Color(1f, 0.4f, 0.2f);      // Corona orange
-    [SerializeField, Range(0, 3)] private float eclipseIntensity = 0.25f;
+    [Header("=== DARK 5 (Balance -5, Midnight) - VISIBLE! ===")]
+    [Tooltip("Moonlight color - enough to see!")]
+    [SerializeField] private Color dark5LightColor = new Color(0.5f, 0.6f, 0.9f);
+    [Tooltip("Keep above 0.25 so player can see!")]
+    [SerializeField, Range(0, 3)] private float dark5Intensity = 0.35f;
+    [SerializeField, Range(0, 90)] private float dark5Angle = 70f;
+    [Tooltip("Minimum ambient - CRITICAL for visibility!")]
+    [SerializeField] private Color dark5AmbientColor = new Color(0.1f, 0.1f, 0.15f);
+    [SerializeField, Range(0, 1)] private float dark5ShadowStrength = 0.9f;
+    
+    [Header("=== LIGHT 1 (Balance +1, Golden Hour) ===")]
+    [SerializeField] private Color light1LightColor = new Color(1f, 0.85f, 0.6f);  // Warm golden
+    [SerializeField, Range(0, 3)] private float light1Intensity = 1.0f;
+    [SerializeField, Range(0, 90)] private float light1Angle = 30f;  // Low sun = golden
+    [SerializeField] private Color light1AmbientColor = new Color(0.3f, 0.27f, 0.22f);  // Warm
+    [SerializeField, Range(0, 1)] private float light1ShadowStrength = 0.6f;
+    
+    [Header("=== LIGHT 2 (Balance +2, Warm Afternoon) ===")]
+    [SerializeField] private Color light2LightColor = new Color(1f, 0.9f, 0.7f);  // Less golden
+    [SerializeField, Range(0, 3)] private float light2Intensity = 1.1f;
+    [SerializeField, Range(0, 90)] private float light2Angle = 38f;
+    [SerializeField] private Color light2AmbientColor = new Color(0.32f, 0.3f, 0.25f);
+    [SerializeField, Range(0, 1)] private float light2ShadowStrength = 0.55f;
+    
+    [Header("=== LIGHT 3 (Balance +3, Getting Brighter) ===")]
+    [SerializeField] private Color light3LightColor = new Color(1f, 0.95f, 0.8f);
+    [SerializeField, Range(0, 3)] private float light3Intensity = 1.2f;
+    [SerializeField, Range(0, 90)] private float light3Angle = 45f;
+    [SerializeField] private Color light3AmbientColor = new Color(0.35f, 0.34f, 0.3f);
+    [SerializeField, Range(0, 1)] private float light3ShadowStrength = 0.5f;
+    
+    [Header("=== LIGHT 4 (Balance +4, Bright) ===")]
+    [SerializeField] private Color light4LightColor = new Color(1f, 0.98f, 0.9f);
+    [SerializeField, Range(0, 3)] private float light4Intensity = 1.3f;
+    [SerializeField, Range(0, 90)] private float light4Angle = 55f;
+    [SerializeField] private Color light4AmbientColor = new Color(0.4f, 0.38f, 0.35f);
+    [SerializeField, Range(0, 1)] private float light4ShadowStrength = 0.45f;
+    
+    [Header("=== LIGHT 5 (Balance +5, HEAVENLY - Maximum Brightness!) ===")]
+    [SerializeField] private Color light5LightColor = new Color(1f, 1f, 0.95f);  // Pure bright
+    [SerializeField, Range(0, 3)] private float light5Intensity = 1.4f;  // Maximum!
+    [SerializeField, Range(0, 90)] private float light5Angle = 65f;  // High sun
+    [SerializeField] private Color light5AmbientColor = new Color(0.45f, 0.43f, 0.4f);  // Bright ambient
+    [SerializeField, Range(0, 1)] private float light5ShadowStrength = 0.35f;  // Soft shadows
+    
+    [Header("=== ECLIPSE ===")]
+    [SerializeField] private Color eclipseLightColor = new Color(1f, 0.4f, 0.2f);
+    [SerializeField, Range(0, 3)] private float eclipseIntensity = 0.2f;
     [SerializeField, Range(0, 90)] private float eclipseAngle = 45f;
-    [SerializeField] private Color eclipseAmbientColor = new Color(0.12f, 0.08f, 0.18f); // Dark purple
-    [SerializeField, Range(0, 1)] private float eclipseShadowStrength = 0.98f;
+    [SerializeField] private Color eclipseAmbientColor = new Color(0.1f, 0.08f, 0.15f);
+    [SerializeField, Range(0, 1)] private float eclipseShadowStrength = 0.95f;
+    
+    [Header("=== DEBUG ===")]
+    [SerializeField] private bool logChanges = true;
     
     #endregion
     
@@ -95,11 +136,10 @@ public class LightingController : MonoBehaviour
             };
         }
         
-        public bool ApproximatelyEquals(LightState other, float tolerance = 0.001f)
+        public bool ApproximatelyEquals(LightState other)
         {
-            return Mathf.Abs(intensity - other.intensity) < tolerance &&
-                   Mathf.Abs(angle - other.angle) < 0.5f &&
-                   Mathf.Abs(shadowStrength - other.shadowStrength) < tolerance;
+            return Mathf.Abs(intensity - other.intensity) < 0.001f &&
+                   Mathf.Abs(angle - other.angle) < 0.5f;
         }
     }
     
@@ -112,7 +152,7 @@ public class LightingController : MonoBehaviour
     
     #region Unity Lifecycle
     
-    private void Start()
+    void Start()
     {
         if (!SetupLight())
         {
@@ -121,17 +161,27 @@ public class LightingController : MonoBehaviour
         }
         
         originalRotation = directionalLight.transform.eulerAngles;
-        InitializeState();
-        SubscribeToEvents();
+        
+        // Initialize to neutral
+        currentState = GetStateForAtmosphere(WorldStateManager.AtmosphereState.Neutral);
+        targetState = currentState;
+        ApplyState(currentState);
+        
+        // Subscribe to events
+        if (WorldStateManager.Instance != null)
+        {
+            WorldStateManager.Instance.OnStateChanged.AddListener(OnStateChanged);
+            OnStateChanged(WorldStateManager.Instance.CurrentState);
+        }
     }
     
-    private void OnDestroy()
+    void OnDestroy()
     {
         if (WorldStateManager.Instance != null)
-            WorldStateManager.Instance.OnRingsChanged.RemoveListener(OnRingsChanged);
+            WorldStateManager.Instance.OnStateChanged.RemoveListener(OnStateChanged);
     }
     
-    private void Update()
+    void Update()
     {
         if (!isTransitioning) return;
         
@@ -151,7 +201,7 @@ public class LightingController : MonoBehaviour
     
     #region Setup
     
-    private bool SetupLight()
+    bool SetupLight()
     {
         if (directionalLight == null && autoFindLight)
         {
@@ -175,149 +225,65 @@ public class LightingController : MonoBehaviour
         return true;
     }
     
-    private void InitializeState()
-    {
-        currentState = new LightState
-        {
-            lightColor = neutralLightColor,
-            intensity = neutralIntensity,
-            angle = neutralAngle,
-            ambientColor = neutralAmbientColor,
-            shadowStrength = neutralShadowStrength
-        };
-        targetState = currentState;
-        ApplyState(currentState);
-    }
-    
-    private void SubscribeToEvents()
-    {
-        if (WorldStateManager.Instance != null)
-        {
-            WorldStateManager.Instance.OnRingsChanged.AddListener(OnRingsChanged);
-            OnRingsChanged(WorldStateManager.Instance.LeftRings, WorldStateManager.Instance.RightRings);
-        }
-    }
-    
     #endregion
     
     #region Event Handler
     
-    private void OnRingsChanged(int left, int right)
+    void OnStateChanged(WorldStateManager.AtmosphereState newState)
     {
-        targetState = CalculateTargetState(left, right);
+        targetState = GetStateForAtmosphere(newState);
         isTransitioning = true;
+        
+        if (logChanges)
+            Debug.Log($"[LightingController] → {newState}");
     }
     
     #endregion
     
-    #region State Calculation
+    #region State Mapping
     
-    private LightState CalculateTargetState(int left, int right)
+    LightState GetStateForAtmosphere(WorldStateManager.AtmosphereState state)
     {
-        // Eclipse
-        if (left == 5 && right == 5)
+        switch (state)
         {
-            return new LightState
-            {
-                lightColor = eclipseLightColor,
-                intensity = eclipseIntensity,
-                angle = eclipseAngle,
-                ambientColor = eclipseAmbientColor,
-                shadowStrength = eclipseShadowStrength
-            };
-        }
-        
-        LightState darkState = CalculateDarkState(left);
-        LightState lightState = CalculateLightState(right);
-        
-        int total = left + right;
-        if (total == 0)
-        {
-            return new LightState
-            {
-                lightColor = neutralLightColor,
-                intensity = neutralIntensity,
-                angle = neutralAngle,
-                ambientColor = neutralAmbientColor,
-                shadowStrength = neutralShadowStrength
-            };
-        }
-        
-        float leftWeight = (float)left / total;
-        return LightState.Lerp(lightState, darkState, leftWeight);
-    }
-    
-    private LightState CalculateDarkState(int leftRings)
-    {
-        if (leftRings <= 0)
-            return GetNeutralState();
-        
-        if (leftRings <= 5)
-        {
-            float t = leftRings / 5f;
-            return LerpStates(GetNeutralState(), GetDark5State(), t);
-        }
-        else
-        {
-            float t = (leftRings - 5) / 5f;
-            return LerpStates(GetDark5State(), GetDark10State(), t);
+            case WorldStateManager.AtmosphereState.Dark5:
+                return new LightState { lightColor = dark5LightColor, intensity = dark5Intensity, angle = dark5Angle, ambientColor = dark5AmbientColor, shadowStrength = dark5ShadowStrength };
+            case WorldStateManager.AtmosphereState.Dark4:
+                return new LightState { lightColor = dark4LightColor, intensity = dark4Intensity, angle = dark4Angle, ambientColor = dark4AmbientColor, shadowStrength = dark4ShadowStrength };
+            case WorldStateManager.AtmosphereState.Dark3:
+                return new LightState { lightColor = dark3LightColor, intensity = dark3Intensity, angle = dark3Angle, ambientColor = dark3AmbientColor, shadowStrength = dark3ShadowStrength };
+            case WorldStateManager.AtmosphereState.Dark2:
+                return new LightState { lightColor = dark2LightColor, intensity = dark2Intensity, angle = dark2Angle, ambientColor = dark2AmbientColor, shadowStrength = dark2ShadowStrength };
+            case WorldStateManager.AtmosphereState.Dark1:
+                return new LightState { lightColor = dark1LightColor, intensity = dark1Intensity, angle = dark1Angle, ambientColor = dark1AmbientColor, shadowStrength = dark1ShadowStrength };
+            
+            case WorldStateManager.AtmosphereState.Neutral:
+                return new LightState { lightColor = neutralLightColor, intensity = neutralIntensity, angle = neutralAngle, ambientColor = neutralAmbientColor, shadowStrength = neutralShadowStrength };
+            
+            case WorldStateManager.AtmosphereState.Light1:
+                return new LightState { lightColor = light1LightColor, intensity = light1Intensity, angle = light1Angle, ambientColor = light1AmbientColor, shadowStrength = light1ShadowStrength };
+            case WorldStateManager.AtmosphereState.Light2:
+                return new LightState { lightColor = light2LightColor, intensity = light2Intensity, angle = light2Angle, ambientColor = light2AmbientColor, shadowStrength = light2ShadowStrength };
+            case WorldStateManager.AtmosphereState.Light3:
+                return new LightState { lightColor = light3LightColor, intensity = light3Intensity, angle = light3Angle, ambientColor = light3AmbientColor, shadowStrength = light3ShadowStrength };
+            case WorldStateManager.AtmosphereState.Light4:
+                return new LightState { lightColor = light4LightColor, intensity = light4Intensity, angle = light4Angle, ambientColor = light4AmbientColor, shadowStrength = light4ShadowStrength };
+            case WorldStateManager.AtmosphereState.Light5:
+                return new LightState { lightColor = light5LightColor, intensity = light5Intensity, angle = light5Angle, ambientColor = light5AmbientColor, shadowStrength = light5ShadowStrength };
+            
+            case WorldStateManager.AtmosphereState.Eclipse:
+                return new LightState { lightColor = eclipseLightColor, intensity = eclipseIntensity, angle = eclipseAngle, ambientColor = eclipseAmbientColor, shadowStrength = eclipseShadowStrength };
+            
+            default:
+                return new LightState { lightColor = neutralLightColor, intensity = neutralIntensity, angle = neutralAngle, ambientColor = neutralAmbientColor, shadowStrength = neutralShadowStrength };
         }
     }
-    
-    private LightState CalculateLightState(int rightRings)
-    {
-        if (rightRings <= 0)
-            return GetNeutralState();
-        
-        if (rightRings <= 5)
-        {
-            float t = rightRings / 5f;
-            return LerpStates(GetNeutralState(), GetLight5State(), t);
-        }
-        else
-        {
-            float t = (rightRings - 5) / 5f;
-            return LerpStates(GetLight5State(), GetLight10State(), t);
-        }
-    }
-    
-    private LightState GetNeutralState() => new LightState
-    {
-        lightColor = neutralLightColor, intensity = neutralIntensity, angle = neutralAngle,
-        ambientColor = neutralAmbientColor, shadowStrength = neutralShadowStrength
-    };
-    
-    private LightState GetDark5State() => new LightState
-    {
-        lightColor = dark5LightColor, intensity = dark5Intensity, angle = dark5Angle,
-        ambientColor = dark5AmbientColor, shadowStrength = dark5ShadowStrength
-    };
-    
-    private LightState GetDark10State() => new LightState
-    {
-        lightColor = dark10LightColor, intensity = dark10Intensity, angle = dark10Angle,
-        ambientColor = dark10AmbientColor, shadowStrength = dark10ShadowStrength
-    };
-    
-    private LightState GetLight5State() => new LightState
-    {
-        lightColor = light5LightColor, intensity = light5Intensity, angle = light5Angle,
-        ambientColor = light5AmbientColor, shadowStrength = light5ShadowStrength
-    };
-    
-    private LightState GetLight10State() => new LightState
-    {
-        lightColor = light10LightColor, intensity = light10Intensity, angle = light10Angle,
-        ambientColor = light10AmbientColor, shadowStrength = light10ShadowStrength
-    };
-    
-    private LightState LerpStates(LightState a, LightState b, float t) => LightState.Lerp(a, b, t);
     
     #endregion
     
     #region Apply State
     
-    private void ApplyState(LightState state)
+    void ApplyState(LightState state)
     {
         if (directionalLight == null) return;
         
@@ -334,19 +300,34 @@ public class LightingController : MonoBehaviour
     
     #endregion
     
-    #region Public API
+    #region Context Menu
     
-    public void SnapToCurrentState()
+    [ContextMenu("Preview: Neutral")]
+    public void PreviewNeutral()
     {
-        if (WorldStateManager.Instance == null) return;
-        
-        targetState = CalculateTargetState(
-            WorldStateManager.Instance.LeftRings,
-            WorldStateManager.Instance.RightRings
-        );
-        currentState = targetState;
+        currentState = GetStateForAtmosphere(WorldStateManager.AtmosphereState.Neutral);
         ApplyState(currentState);
-        isTransitioning = false;
+    }
+    
+    [ContextMenu("Preview: Dark5 (Midnight)")]
+    public void PreviewDark5()
+    {
+        currentState = GetStateForAtmosphere(WorldStateManager.AtmosphereState.Dark5);
+        ApplyState(currentState);
+    }
+    
+    [ContextMenu("Preview: Light5 (Heavenly)")]
+    public void PreviewLight5()
+    {
+        currentState = GetStateForAtmosphere(WorldStateManager.AtmosphereState.Light5);
+        ApplyState(currentState);
+    }
+    
+    [ContextMenu("Preview: Eclipse")]
+    public void PreviewEclipse()
+    {
+        currentState = GetStateForAtmosphere(WorldStateManager.AtmosphereState.Eclipse);
+        ApplyState(currentState);
     }
     
     #endregion

@@ -45,57 +45,57 @@ public class PostProcessController : MonoBehaviour
     [SerializeField] private PostProcessSettings dark5 = new PostProcessSettings
     {
         colorGradingEnabled = true,
-        temperature = -30f,
+        temperature = -20f,      // Less extreme cold
         tint = 10f,
-        saturation = -40f,
-        contrast = 30f,
+        saturation = -20f,       // Not so desaturated
+        contrast = 15f,          // Less contrast so shadows aren't black
         
         vignetteEnabled = true,
-        vignetteIntensity = 0.5f,
-        vignetteSmoothness = 0.4f,
-        vignetteColor = new Color(0.05f, 0f, 0.1f),
+        vignetteIntensity = 0.35f, // Less heavy
+        vignetteSmoothness = 0.5f,
+        vignetteColor = new Color(0.1f, 0.05f, 0.15f),
         
         bloomEnabled = true,
-        bloomIntensity = 0.3f,
-        bloomThreshold = 1.2f
+        bloomIntensity = 0.4f,   // More bloom so lights visible
+        bloomThreshold = 0.7f    // Lower threshold = more glow
     };
     
     [Header("=== DARK 4 ===")]
     [SerializeField] private PostProcessSettings dark4 = new PostProcessSettings
     {
         colorGradingEnabled = true,
-        temperature = -25f,
+        temperature = -18f,
         tint = 8f,
-        saturation = -30f,
-        contrast = 25f,
+        saturation = -18f,
+        contrast = 12f,
         
         vignetteEnabled = true,
-        vignetteIntensity = 0.4f,
-        vignetteSmoothness = 0.35f,
-        vignetteColor = new Color(0.08f, 0.02f, 0.12f),
+        vignetteIntensity = 0.3f,
+        vignetteSmoothness = 0.45f,
+        vignetteColor = new Color(0.1f, 0.05f, 0.15f),
         
         bloomEnabled = true,
-        bloomIntensity = 0.25f,
-        bloomThreshold = 1.1f
+        bloomIntensity = 0.35f,
+        bloomThreshold = 0.8f
     };
     
     [Header("=== DARK 3 ===")]
     [SerializeField] private PostProcessSettings dark3 = new PostProcessSettings
     {
         colorGradingEnabled = true,
-        temperature = -20f,
+        temperature = -15f,
         tint = 5f,
-        saturation = -20f,
-        contrast = 20f,
+        saturation = -15f,
+        contrast = 10f,
         
         vignetteEnabled = true,
-        vignetteIntensity = 0.35f,
-        vignetteSmoothness = 0.3f,
+        vignetteIntensity = 0.25f,
+        vignetteSmoothness = 0.4f,
         vignetteColor = new Color(0.1f, 0.05f, 0.15f),
         
         bloomEnabled = true,
-        bloomIntensity = 0.2f,
-        bloomThreshold = 1.0f
+        bloomIntensity = 0.3f,
+        bloomThreshold = 0.85f
     };
     
     [Header("=== DARK 2 ===")]
@@ -155,99 +155,99 @@ public class PostProcessController : MonoBehaviour
         bloomThreshold = 0.9f
     };
     
-    [Header("=== LIGHT 1 ===")]
+    [Header("=== LIGHT 1 (Golden Hour - Warm!) ===")]
     [SerializeField] private PostProcessSettings light1 = new PostProcessSettings
     {
         colorGradingEnabled = true,
-        temperature = 5f,
-        tint = -2f,
-        saturation = 5f,
-        contrast = 3f,
-        
-        vignetteEnabled = false,
-        vignetteIntensity = 0f,
-        vignetteSmoothness = 0.2f,
-        vignetteColor = Color.black,
-        
-        bloomEnabled = true,
-        bloomIntensity = 0.15f,
-        bloomThreshold = 0.85f
-    };
-    
-    [Header("=== LIGHT 2 ===")]
-    [SerializeField] private PostProcessSettings light2 = new PostProcessSettings
-    {
-        colorGradingEnabled = true,
-        temperature = 10f,
-        tint = -3f,
-        saturation = 10f,
-        contrast = 5f,
-        
-        vignetteEnabled = false,
-        vignetteIntensity = 0f,
-        vignetteSmoothness = 0.2f,
-        vignetteColor = Color.black,
-        
-        bloomEnabled = true,
-        bloomIntensity = 0.2f,
-        bloomThreshold = 0.8f
-    };
-    
-    [Header("=== LIGHT 3 ===")]
-    [SerializeField] private PostProcessSettings light3 = new PostProcessSettings
-    {
-        colorGradingEnabled = true,
-        temperature = 15f,
+        temperature = 20f,      // WARM golden
         tint = -5f,
-        saturation = 15f,
+        saturation = 12f,
         contrast = 8f,
         
         vignetteEnabled = true,
         vignetteIntensity = 0.1f,
         vignetteSmoothness = 0.5f,
-        vignetteColor = new Color(1f, 0.95f, 0.8f),
+        vignetteColor = new Color(1f, 0.9f, 0.6f),  // Golden vignette
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.25f,
+        bloomThreshold = 0.8f
+    };
+    
+    [Header("=== LIGHT 2 (Warm Afternoon) ===")]
+    [SerializeField] private PostProcessSettings light2 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = 15f,      // Still warm but less golden
+        tint = -3f,
+        saturation = 10f,
+        contrast = 6f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.08f,
+        vignetteSmoothness = 0.5f,
+        vignetteColor = new Color(1f, 0.95f, 0.7f),
         
         bloomEnabled = true,
         bloomIntensity = 0.3f,
         bloomThreshold = 0.75f
     };
     
-    [Header("=== LIGHT 4 ===")]
-    [SerializeField] private PostProcessSettings light4 = new PostProcessSettings
+    [Header("=== LIGHT 3 (Getting Brighter) ===")]
+    [SerializeField] private PostProcessSettings light3 = new PostProcessSettings
     {
         colorGradingEnabled = true,
-        temperature = 20f,
-        tint = -8f,
-        saturation = 20f,
-        contrast = 10f,
+        temperature = 10f,      // Less warm, more neutral bright
+        tint = -2f,
+        saturation = 8f,
+        contrast = 5f,
         
         vignetteEnabled = true,
-        vignetteIntensity = 0.15f,
-        vignetteSmoothness = 0.6f,
-        vignetteColor = new Color(1f, 0.9f, 0.7f),
+        vignetteIntensity = 0.05f,
+        vignetteSmoothness = 0.5f,
+        vignetteColor = new Color(1f, 1f, 0.9f),
         
         bloomEnabled = true,
         bloomIntensity = 0.4f,
         bloomThreshold = 0.7f
     };
     
-    [Header("=== LIGHT 5 (Heavenly) ===")]
+    [Header("=== LIGHT 4 (Bright) ===")]
+    [SerializeField] private PostProcessSettings light4 = new PostProcessSettings
+    {
+        colorGradingEnabled = true,
+        temperature = 5f,       // Nearly neutral, bright
+        tint = 0f,
+        saturation = 5f,
+        contrast = 3f,
+        
+        vignetteEnabled = true,
+        vignetteIntensity = 0.05f,
+        vignetteSmoothness = 0.6f,
+        vignetteColor = new Color(1f, 1f, 0.95f),
+        
+        bloomEnabled = true,
+        bloomIntensity = 0.5f,
+        bloomThreshold = 0.65f
+    };
+    
+    [Header("=== LIGHT 5 (HEAVENLY - Maximum Brightness!) ===")]
     [SerializeField] private PostProcessSettings light5 = new PostProcessSettings
     {
         colorGradingEnabled = true,
-        temperature = 25f,
-        tint = -10f,
-        saturation = 25f,
-        contrast = 12f,
+        temperature = 5f,       // Neutral-warm, pure light
+        tint = 0f,
+        saturation = 3f,        // Slightly vivid
+        contrast = 0f,          // Soft, no harsh shadows
         
         vignetteEnabled = true,
-        vignetteIntensity = 0.2f,
-        vignetteSmoothness = 0.7f,
-        vignetteColor = new Color(1f, 0.95f, 0.85f),
+        vignetteIntensity = 0.1f,
+        vignetteSmoothness = 0.8f,
+        vignetteColor = new Color(1f, 1f, 0.95f),  // Bright white-gold
         
         bloomEnabled = true,
-        bloomIntensity = 0.6f,
-        bloomThreshold = 0.6f
+        bloomIntensity = 0.7f,  // HIGH bloom = heavenly glow!
+        bloomThreshold = 0.5f   // More things glow
     };
     
     [Header("=== ECLIPSE (Special) ===")]
