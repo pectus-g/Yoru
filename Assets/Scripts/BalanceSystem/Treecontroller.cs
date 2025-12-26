@@ -1,138 +1,344 @@
 using UnityEngine;
+using System;
 
 /// <summary>
-/// Controls the Ancient Tree's appearance based on karma balance.
+/// YORU: Tree Controller V3 - COMPLETE 22-STATE SYSTEM
 /// 
-/// Dark (more LEFT rings): Bare branches, dark bark, red/purple glow
-/// Light (more RIGHT rings): Full foliage, golden bark, white/gold glow
-/// Eclipse (5L + 5R): Mystical appearance, both light and dark elements
+/// Controls tree appearance and movement for ALL 22 unique states.
+/// Similar structure to FoliageController but with tree-specific settings.
 /// 
-/// Requires: Tree with separate mesh renderers or material property blocks
+/// Features:
+/// - Wind intensity and speed control
+/// - Leaf color tinting
+/// - Trunk sway amount
+/// - Per-state tweakable presets in Inspector
 /// </summary>
 public class TreeController : MonoBehaviour
 {
-    #region Serialized Fields
+    #region Preset Class
     
-    [Header("Tree References")]
-    [SerializeField] private Renderer treeBarkRenderer;
-    [SerializeField] private Renderer treeLeavesRenderer;
-    [SerializeField] private Light treeGlowLight;
-    [SerializeField] private ParticleSystem treeParticles;
-    
-    [Header("Transition")]
-    [SerializeField, Range(0.1f, 2f)] private float transitionSpeed = 0.4f;
-    
-    [Header("Dark Settings (More LEFT rings)")]
-    [SerializeField] private Color darkBarkColor = new Color(0.2f, 0.15f, 0.2f);      // Dark purple-grey
-    [SerializeField] private Color darkLeafColor = new Color(0.3f, 0.1f, 0.15f);      // Dead red-brown
-    [SerializeField, Range(0, 1)] private float darkLeafDensity = 0.2f;                // Sparse leaves
-    [SerializeField] private Color darkGlowColor = new Color(0.8f, 0.2f, 0.3f);       // Red glow
-    [SerializeField, Range(0, 5)] private float darkGlowIntensity = 2f;
-    
-    [Header("Light Settings (More RIGHT rings)")]
-    [SerializeField] private Color lightBarkColor = new Color(0.6f, 0.5f, 0.35f);     // Warm golden brown
-    [SerializeField] private Color lightLeafColor = new Color(0.4f, 0.7f, 0.3f);      // Vibrant green
-    [SerializeField, Range(0, 1)] private float lightLeafDensity = 1f;                 // Full foliage
-    [SerializeField] private Color lightGlowColor = new Color(1f, 0.95f, 0.7f);       // Golden white
-    [SerializeField, Range(0, 5)] private float lightGlowIntensity = 3f;
-    
-    [Header("Neutral Settings (Game Start)")]
-    [SerializeField] private Color neutralBarkColor = new Color(0.4f, 0.35f, 0.3f);   // Natural brown
-    [SerializeField] private Color neutralLeafColor = new Color(0.3f, 0.5f, 0.25f);   // Normal green
-    [SerializeField, Range(0, 1)] private float neutralLeafDensity = 0.7f;
-    [SerializeField] private Color neutralGlowColor = new Color(0.8f, 0.85f, 1f);     // Soft white-blue
-    [SerializeField, Range(0, 5)] private float neutralGlowIntensity = 1.5f;
-    
-    [Header("Eclipse Settings (Perfect Balance 5L + 5R)")]
-    [SerializeField] private Color eclipseBarkColor = new Color(0.35f, 0.3f, 0.4f);   // Mystical purple-grey
-    [SerializeField] private Color eclipseLeafColor = new Color(0.5f, 0.4f, 0.6f);    // Purple-tinted
-    [SerializeField, Range(0, 1)] private float eclipseLeafDensity = 0.85f;
-    [SerializeField] private Color eclipseGlowColor = new Color(0.9f, 0.6f, 1f);      // Bright purple
-    [SerializeField, Range(0, 5)] private float eclipseGlowIntensity = 4f;
-    
-    [Header("Material Properties")]
-    [SerializeField] private string colorPropertyName = "_BaseColor";
-    [SerializeField] private string emissionPropertyName = "_EmissionColor";
-    
-    #endregion
-    
-    #region Private State
-    
-    private struct TreeState
+    [Serializable]
+    public class TreePreset
     {
-        public Color barkColor;
-        public Color leafColor;
-        public float leafDensity;
-        public Color glowColor;
-        public float glowIntensity;
+        [Header("State Info")]
+        public string stateName = "Unnamed";
         
-        public static TreeState Lerp(TreeState a, TreeState b, float t)
+        [Header("Wind Settings")]
+        [Range(0, 2)] public float windIntensity = 0.5f;
+        [Range(0.1f, 3f)] public float windSpeed = 1f;
+        [Range(0, 1)] public float turbulence = 0.3f;
+        
+        [Header("Trunk Movement")]
+        [Range(0, 2)] public float trunkSwayAmount = 1f;
+        [Range(0, 2)] public float branchSwayAmount = 1f;
+        
+        [Header("Leaf Color")]
+        public Color leafTint = Color.white;
+        [Range(0, 2)] public float leafSaturation = 1f;
+        
+        [Header("Bark Color")]
+        public Color barkTint = Color.white;
+        
+        public static TreePreset Lerp(TreePreset a, TreePreset b, float t)
         {
-            return new TreeState
+            return new TreePreset
             {
-                barkColor = Color.Lerp(a.barkColor, b.barkColor, t),
-                leafColor = Color.Lerp(a.leafColor, b.leafColor, t),
-                leafDensity = Mathf.Lerp(a.leafDensity, b.leafDensity, t),
-                glowColor = Color.Lerp(a.glowColor, b.glowColor, t),
-                glowIntensity = Mathf.Lerp(a.glowIntensity, b.glowIntensity, t)
+                stateName = b.stateName,
+                windIntensity = Mathf.Lerp(a.windIntensity, b.windIntensity, t),
+                windSpeed = Mathf.Lerp(a.windSpeed, b.windSpeed, t),
+                turbulence = Mathf.Lerp(a.turbulence, b.turbulence, t),
+                trunkSwayAmount = Mathf.Lerp(a.trunkSwayAmount, b.trunkSwayAmount, t),
+                branchSwayAmount = Mathf.Lerp(a.branchSwayAmount, b.branchSwayAmount, t),
+                leafTint = Color.Lerp(a.leafTint, b.leafTint, t),
+                leafSaturation = Mathf.Lerp(a.leafSaturation, b.leafSaturation, t),
+                barkTint = Color.Lerp(a.barkTint, b.barkTint, t)
             };
-        }
-        
-        public bool ApproximatelyEquals(TreeState other, float tolerance = 0.001f)
-        {
-            return Mathf.Abs(leafDensity - other.leafDensity) < tolerance &&
-                   Mathf.Abs(glowIntensity - other.glowIntensity) < tolerance &&
-                   ColorApprox(barkColor, other.barkColor, tolerance) &&
-                   ColorApprox(leafColor, other.leafColor, tolerance) &&
-                   ColorApprox(glowColor, other.glowColor, tolerance);
-        }
-        
-        private static bool ColorApprox(Color a, Color b, float t)
-        {
-            return Mathf.Abs(a.r - b.r) < t && Mathf.Abs(a.g - b.g) < t && Mathf.Abs(a.b - b.b) < t;
         }
     }
     
-    private TreeState currentState;
-    private TreeState targetState;
-    private bool isTransitioning;
+    #endregion
     
-    // Material property blocks (avoid creating new materials)
-    private MaterialPropertyBlock barkPropertyBlock;
-    private MaterialPropertyBlock leafPropertyBlock;
+    #region Serialized Fields
+    
+    [Header("=== REFERENCES ===")]
+    [SerializeField] private WindZone windZone;
+    [SerializeField] private bool autoFindWindZone = true;
+    
+    [Header("=== SHADER PROPERTIES ===")]
+    [Tooltip("Global shader property for tree leaf tint")]
+    [SerializeField] private string leafTintProperty = "_TreeLeafTint";
+    [SerializeField] private string leafSaturationProperty = "_TreeLeafSaturation";
+    [SerializeField] private string barkTintProperty = "_TreeBarkTint";
+    [SerializeField] private string windIntensityProperty = "_TreeWindIntensity";
+    
+    [Header("=== TRANSITION ===")]
+    [SerializeField, Range(0.5f, 5f)] private float transitionDuration = 2f;
+    
+    [Header("=== NEUTRAL ===")]
+    [SerializeField] private TreePreset neutralPreset = new TreePreset
+    {
+        stateName = "Neutral",
+        windIntensity = 0.4f,
+        windSpeed = 1f,
+        turbulence = 0.2f,
+        trunkSwayAmount = 0.8f,
+        branchSwayAmount = 1f,
+        leafTint = Color.white,
+        leafSaturation = 1f,
+        barkTint = Color.white
+    };
+    
+    [Header("=== LIGHT PATH (Balance +1 to +5) ===")]
+    [SerializeField] private TreePreset light1Preset = new TreePreset
+    {
+        stateName = "Light1 (Golden Hour)",
+        windIntensity = 0.35f,
+        windSpeed = 0.9f,
+        leafTint = new Color(1f, 1f, 0.95f),
+        leafSaturation = 1.1f
+    };
+    
+    [SerializeField] private TreePreset light2Preset = new TreePreset
+    {
+        stateName = "Light2 (Warm)",
+        windIntensity = 0.3f,
+        windSpeed = 0.85f,
+        leafTint = new Color(1f, 1f, 0.9f),
+        leafSaturation = 1.15f
+    };
+    
+    [SerializeField] private TreePreset light3Preset = new TreePreset
+    {
+        stateName = "Light3 (Bright)",
+        windIntensity = 0.25f,
+        windSpeed = 0.8f,
+        leafTint = new Color(0.95f, 1f, 0.85f),
+        leafSaturation = 1.2f
+    };
+    
+    [SerializeField] private TreePreset light4Preset = new TreePreset
+    {
+        stateName = "Light4 (Brighter)",
+        windIntensity = 0.2f,
+        windSpeed = 0.75f,
+        leafTint = new Color(0.9f, 1f, 0.8f),
+        leafSaturation = 1.25f
+    };
+    
+    [SerializeField] private TreePreset light5Preset = new TreePreset
+    {
+        stateName = "Light5 (Heavenly)",
+        windIntensity = 0.15f,
+        windSpeed = 0.7f,
+        leafTint = new Color(0.85f, 1f, 0.75f),
+        leafSaturation = 1.3f
+    };
+    
+    [Header("=== LIGHT PATH ESCALATION (Stage 1-5, Divine) ===")]
+    [SerializeField] private TreePreset lightStage1Preset = new TreePreset
+    {
+        stateName = "Light5+Stage1",
+        windIntensity = 0.12f,
+        windSpeed = 0.65f,
+        leafTint = new Color(0.82f, 1f, 0.72f),
+        leafSaturation = 1.32f
+    };
+    
+    [SerializeField] private TreePreset lightStage2Preset = new TreePreset
+    {
+        stateName = "Light5+Stage2",
+        windIntensity = 0.1f,
+        windSpeed = 0.6f,
+        leafTint = new Color(0.8f, 1f, 0.7f),
+        leafSaturation = 1.35f
+    };
+    
+    [SerializeField] private TreePreset lightStage3Preset = new TreePreset
+    {
+        stateName = "Light5+Stage3",
+        windIntensity = 0.08f,
+        windSpeed = 0.55f,
+        leafTint = new Color(0.78f, 1f, 0.68f),
+        leafSaturation = 1.38f
+    };
+    
+    [SerializeField] private TreePreset lightStage4Preset = new TreePreset
+    {
+        stateName = "Light5+Stage4",
+        windIntensity = 0.06f,
+        windSpeed = 0.5f,
+        leafTint = new Color(0.75f, 1f, 0.65f),
+        leafSaturation = 1.4f
+    };
+    
+    [SerializeField] private TreePreset lightStage5Preset = new TreePreset
+    {
+        stateName = "Light5+Stage5 (DIVINE)",
+        windIntensity = 0.05f,
+        windSpeed = 0.45f,
+        leafTint = new Color(0.72f, 1f, 0.62f),
+        leafSaturation = 1.45f
+    };
+    
+    [Header("=== DARK PATH (Balance -1 to -5) ===")]
+    [SerializeField] private TreePreset dark1Preset = new TreePreset
+    {
+        stateName = "Dark1 (Late Afternoon)",
+        windIntensity = 0.45f,
+        windSpeed = 1.05f,
+        leafTint = new Color(0.95f, 0.92f, 0.85f),
+        leafSaturation = 0.95f
+    };
+    
+    [SerializeField] private TreePreset dark2Preset = new TreePreset
+    {
+        stateName = "Dark2 (Sunset)",
+        windIntensity = 0.5f,
+        windSpeed = 1.1f,
+        leafTint = new Color(0.9f, 0.85f, 0.75f),
+        leafSaturation = 0.9f
+    };
+    
+    [SerializeField] private TreePreset dark3Preset = new TreePreset
+    {
+        stateName = "Dark3 (Dusk)",
+        windIntensity = 0.55f,
+        windSpeed = 1.15f,
+        leafTint = new Color(0.85f, 0.8f, 0.7f),
+        leafSaturation = 0.85f
+    };
+    
+    [SerializeField] private TreePreset dark4Preset = new TreePreset
+    {
+        stateName = "Dark4 (Night)",
+        windIntensity = 0.6f,
+        windSpeed = 1.2f,
+        leafTint = new Color(0.75f, 0.72f, 0.65f),
+        leafSaturation = 0.75f
+    };
+    
+    [SerializeField] private TreePreset dark5Preset = new TreePreset
+    {
+        stateName = "Dark5 (Midnight)",
+        windIntensity = 0.65f,
+        windSpeed = 1.25f,
+        leafTint = new Color(0.65f, 0.62f, 0.55f),
+        leafSaturation = 0.65f
+    };
+    
+    [Header("=== DARK PATH ESCALATION (Stage 1-5, Stormy) ===")]
+    [SerializeField] private TreePreset darkStage1Preset = new TreePreset
+    {
+        stateName = "Dark5+Stage1 (Partly Cloudy)",
+        windIntensity = 0.75f,
+        windSpeed = 1.35f,
+        turbulence = 0.35f,
+        leafTint = new Color(0.6f, 0.58f, 0.52f),
+        leafSaturation = 0.6f
+    };
+    
+    [SerializeField] private TreePreset darkStage2Preset = new TreePreset
+    {
+        stateName = "Dark5+Stage2 (Overcast)",
+        windIntensity = 0.85f,
+        windSpeed = 1.45f,
+        turbulence = 0.4f,
+        leafTint = new Color(0.55f, 0.53f, 0.48f),
+        leafSaturation = 0.55f
+    };
+    
+    [SerializeField] private TreePreset darkStage3Preset = new TreePreset
+    {
+        stateName = "Dark5+Stage3 (Light Rain)",
+        windIntensity = 0.95f,
+        windSpeed = 1.55f,
+        turbulence = 0.5f,
+        leafTint = new Color(0.5f, 0.48f, 0.45f),
+        leafSaturation = 0.52f
+    };
+    
+    [SerializeField] private TreePreset darkStage4Preset = new TreePreset
+    {
+        stateName = "Dark5+Stage4 (Heavy Rain)",
+        windIntensity = 1.1f,
+        windSpeed = 1.7f,
+        turbulence = 0.6f,
+        leafTint = new Color(0.45f, 0.43f, 0.4f),
+        leafSaturation = 0.5f
+    };
+    
+    [SerializeField] private TreePreset darkStage5Preset = new TreePreset
+    {
+        stateName = "Dark5+Stage5 (THUNDERSTORM)",
+        windIntensity = 1.3f,
+        windSpeed = 1.9f,
+        turbulence = 0.75f,
+        trunkSwayAmount = 1.5f,
+        branchSwayAmount = 1.8f,
+        leafTint = new Color(0.4f, 0.38f, 0.35f),
+        leafSaturation = 0.45f
+    };
+    
+    [Header("=== ECLIPSE ===")]
+    [SerializeField] private TreePreset eclipsePreset = new TreePreset
+    {
+        stateName = "Eclipse",
+        windIntensity = 0.7f,
+        windSpeed = 1.3f,
+        turbulence = 0.4f,
+        leafTint = new Color(0.7f, 0.6f, 0.8f), // Purple tint
+        leafSaturation = 0.8f,
+        barkTint = new Color(0.85f, 0.8f, 0.9f)
+    };
+    
+    [Header("=== DEBUG ===")]
+    [SerializeField] private bool logChanges = true;
+    
+    #endregion
+    
+    #region Private Fields
+    
+    private TreePreset currentPreset;
+    private TreePreset targetPreset;
+    private float transitionProgress = 1f;
+    private bool isTransitioning;
+    private WorldStateManager.AtmosphereState currentAtmosphere;
+    private int currentWeatherStage;
     
     #endregion
     
     #region Unity Lifecycle
     
-    private void Start()
+    void Start()
     {
-        barkPropertyBlock = new MaterialPropertyBlock();
-        leafPropertyBlock = new MaterialPropertyBlock();
-        
+        FindReferences();
         InitializeState();
         SubscribeToEvents();
     }
     
-    private void OnDestroy()
+    void OnDestroy()
     {
         if (WorldStateManager.Instance != null)
-            WorldStateManager.Instance.OnRingsChanged.RemoveListener(OnRingsChanged);
+        {
+            WorldStateManager.Instance.OnStateChanged.RemoveListener(OnAtmosphereChanged);
+            WorldStateManager.Instance.OnWeatherStageChanged.RemoveListener(OnWeatherStageChanged);
+        }
     }
     
-    private void Update()
+    void Update()
     {
-        if (!isTransitioning) return;
-        
-        float t = transitionSpeed * Time.deltaTime;
-        currentState = TreeState.Lerp(currentState, targetState, t);
-        ApplyState(currentState);
-        
-        if (currentState.ApproximatelyEquals(targetState))
+        if (isTransitioning)
         {
-            currentState = targetState;
-            ApplyState(currentState);
-            isTransitioning = false;
+            transitionProgress += Time.deltaTime / transitionDuration;
+            if (transitionProgress >= 1f)
+            {
+                transitionProgress = 1f;
+                currentPreset = targetPreset;
+                isTransitioning = false;
+            }
+            
+            var lerped = TreePreset.Lerp(currentPreset, targetPreset, transitionProgress);
+            ApplyPreset(lerped);
         }
     }
     
@@ -140,147 +346,143 @@ public class TreeController : MonoBehaviour
     
     #region Setup
     
-    private void InitializeState()
+    void FindReferences()
     {
-        currentState = new TreeState
+        if (windZone == null && autoFindWindZone)
         {
-            barkColor = neutralBarkColor,
-            leafColor = neutralLeafColor,
-            leafDensity = neutralLeafDensity,
-            glowColor = neutralGlowColor,
-            glowIntensity = neutralGlowIntensity
-        };
-        targetState = currentState;
-        ApplyState(currentState);
+            windZone = FindObjectOfType<WindZone>();
+        }
     }
     
-    private void SubscribeToEvents()
+    void InitializeState()
+    {
+        currentPreset = neutralPreset;
+        targetPreset = neutralPreset;
+        ApplyPreset(currentPreset);
+    }
+    
+    void SubscribeToEvents()
     {
         if (WorldStateManager.Instance != null)
         {
-            WorldStateManager.Instance.OnRingsChanged.AddListener(OnRingsChanged);
-            OnRingsChanged(WorldStateManager.Instance.LeftRings, WorldStateManager.Instance.RightRings);
+            WorldStateManager.Instance.OnStateChanged.AddListener(OnAtmosphereChanged);
+            WorldStateManager.Instance.OnWeatherStageChanged.AddListener(OnWeatherStageChanged);
+            OnAtmosphereChanged(WorldStateManager.Instance.CurrentState);
         }
     }
     
     #endregion
     
-    #region Event Handler
+    #region Event Handlers
     
-    private void OnRingsChanged(int left, int right)
+    void OnAtmosphereChanged(WorldStateManager.AtmosphereState state)
     {
-        targetState = CalculateTargetState(left, right);
+        currentAtmosphere = state;
+        UpdateTargetPreset();
+    }
+    
+    void OnWeatherStageChanged(int stage)
+    {
+        currentWeatherStage = stage;
+        UpdateTargetPreset();
+    }
+    
+    void UpdateTargetPreset()
+    {
+        targetPreset = GetPresetForState(currentAtmosphere, currentWeatherStage);
+        transitionProgress = 0f;
         isTransitioning = true;
+        
+        if (logChanges)
+            Debug.Log($"[TreeController] Transitioning to: {targetPreset.stateName}");
     }
     
     #endregion
     
-    #region State Calculation
+    #region State Resolution
     
-    private TreeState CalculateTargetState(int left, int right)
+    TreePreset GetPresetForState(WorldStateManager.AtmosphereState atmosphere, int weatherStage)
     {
-        // Perfect Balance - Eclipse
-        if (left == 5 && right == 5)
+        if (atmosphere == WorldStateManager.AtmosphereState.Eclipse)
+            return eclipsePreset;
+        
+        if (weatherStage > 0)
         {
-            return new TreeState
+            if (atmosphere == WorldStateManager.AtmosphereState.Dark5)
             {
-                barkColor = eclipseBarkColor,
-                leafColor = eclipseLeafColor,
-                leafDensity = eclipseLeafDensity,
-                glowColor = eclipseGlowColor,
-                glowIntensity = eclipseGlowIntensity
-            };
-        }
-        
-        float balance = (right - left) / 5f;
-        TreeState state;
-        
-        if (balance >= 0)
-        {
-            state = new TreeState
+                switch (weatherStage)
+                {
+                    case 1: return darkStage1Preset;
+                    case 2: return darkStage2Preset;
+                    case 3: return darkStage3Preset;
+                    case 4: return darkStage4Preset;
+                    default: return darkStage5Preset;
+                }
+            }
+            else if (atmosphere == WorldStateManager.AtmosphereState.Light5)
             {
-                barkColor = Color.Lerp(neutralBarkColor, lightBarkColor, balance),
-                leafColor = Color.Lerp(neutralLeafColor, lightLeafColor, balance),
-                leafDensity = Mathf.Lerp(neutralLeafDensity, lightLeafDensity, balance),
-                glowColor = Color.Lerp(neutralGlowColor, lightGlowColor, balance),
-                glowIntensity = Mathf.Lerp(neutralGlowIntensity, lightGlowIntensity, balance)
-            };
-        }
-        else
-        {
-            float darkAmount = -balance;
-            state = new TreeState
-            {
-                barkColor = Color.Lerp(neutralBarkColor, darkBarkColor, darkAmount),
-                leafColor = Color.Lerp(neutralLeafColor, darkLeafColor, darkAmount),
-                leafDensity = Mathf.Lerp(neutralLeafDensity, darkLeafDensity, darkAmount),
-                glowColor = Color.Lerp(neutralGlowColor, darkGlowColor, darkAmount),
-                glowIntensity = Mathf.Lerp(neutralGlowIntensity, darkGlowIntensity, darkAmount)
-            };
+                switch (weatherStage)
+                {
+                    case 1: return lightStage1Preset;
+                    case 2: return lightStage2Preset;
+                    case 3: return lightStage3Preset;
+                    case 4: return lightStage4Preset;
+                    default: return lightStage5Preset;
+                }
+            }
         }
         
-        return state;
-    }
-    
-    #endregion
-    
-    #region Apply State
-    
-    private void ApplyState(TreeState state)
-    {
-        // Bark
-        if (treeBarkRenderer != null)
+        switch (atmosphere)
         {
-            treeBarkRenderer.GetPropertyBlock(barkPropertyBlock);
-            barkPropertyBlock.SetColor(colorPropertyName, state.barkColor);
-            treeBarkRenderer.SetPropertyBlock(barkPropertyBlock);
-        }
-        
-        // Leaves
-        if (treeLeavesRenderer != null)
-        {
-            treeLeavesRenderer.GetPropertyBlock(leafPropertyBlock);
-            leafPropertyBlock.SetColor(colorPropertyName, state.leafColor);
-            treeLeavesRenderer.SetPropertyBlock(leafPropertyBlock);
-            
-            // Leaf density via alpha or scale
-            Color leafWithAlpha = state.leafColor;
-            leafWithAlpha.a = state.leafDensity;
-            leafPropertyBlock.SetColor(colorPropertyName, leafWithAlpha);
-            treeLeavesRenderer.SetPropertyBlock(leafPropertyBlock);
-        }
-        
-        // Glow light
-        if (treeGlowLight != null)
-        {
-            treeGlowLight.color = state.glowColor;
-            treeGlowLight.intensity = state.glowIntensity;
-        }
-        
-        // Particles
-        if (treeParticles != null)
-        {
-            var main = treeParticles.main;
-            main.startColor = state.glowColor;
+            case WorldStateManager.AtmosphereState.Dark5: return dark5Preset;
+            case WorldStateManager.AtmosphereState.Dark4: return dark4Preset;
+            case WorldStateManager.AtmosphereState.Dark3: return dark3Preset;
+            case WorldStateManager.AtmosphereState.Dark2: return dark2Preset;
+            case WorldStateManager.AtmosphereState.Dark1: return dark1Preset;
+            case WorldStateManager.AtmosphereState.Light1: return light1Preset;
+            case WorldStateManager.AtmosphereState.Light2: return light2Preset;
+            case WorldStateManager.AtmosphereState.Light3: return light3Preset;
+            case WorldStateManager.AtmosphereState.Light4: return light4Preset;
+            case WorldStateManager.AtmosphereState.Light5: return light5Preset;
+            default: return neutralPreset;
         }
     }
     
     #endregion
     
-    #region Public API
+    #region Apply Preset
     
-    public void SnapToCurrentState()
+    void ApplyPreset(TreePreset preset)
     {
-        if (WorldStateManager.Instance == null) return;
+        // Wind Zone
+        if (windZone != null)
+        {
+            windZone.windMain = preset.windIntensity;
+            windZone.windTurbulence = preset.turbulence;
+        }
         
-        targetState = CalculateTargetState(
-            WorldStateManager.Instance.LeftRings,
-            WorldStateManager.Instance.RightRings
-        );
-        currentState = targetState;
-        ApplyState(currentState);
-        isTransitioning = false;
+        // Global shader properties
+        Shader.SetGlobalColor(leafTintProperty, preset.leafTint);
+        Shader.SetGlobalFloat(leafSaturationProperty, preset.leafSaturation);
+        Shader.SetGlobalColor(barkTintProperty, preset.barkTint);
+        Shader.SetGlobalFloat(windIntensityProperty, preset.windIntensity);
     }
+    
+    #endregion
+    
+    #region Context Menu
+    
+    [ContextMenu("Preview: Neutral")]
+    void PreviewNeutral() { targetPreset = neutralPreset; currentPreset = neutralPreset; ApplyPreset(neutralPreset); }
+    
+    [ContextMenu("Preview: Light5+Stage5")]
+    void PreviewLightMax() { targetPreset = lightStage5Preset; currentPreset = lightStage5Preset; ApplyPreset(lightStage5Preset); }
+    
+    [ContextMenu("Preview: Dark5+Stage5")]
+    void PreviewDarkMax() { targetPreset = darkStage5Preset; currentPreset = darkStage5Preset; ApplyPreset(darkStage5Preset); }
+    
+    [ContextMenu("Preview: Eclipse")]
+    void PreviewEclipse() { targetPreset = eclipsePreset; currentPreset = eclipsePreset; ApplyPreset(eclipsePreset); }
     
     #endregion
 }

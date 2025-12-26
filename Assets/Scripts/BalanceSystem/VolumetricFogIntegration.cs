@@ -1,317 +1,315 @@
 using UnityEngine;
-using VolumetricFogAndMist;
+using System;
 
 /// <summary>
-/// YORU: Volumetric Fog Integration (Built-in Pipeline)
-/// Controls Volumetric Fog & Mist based on WorldStateManager balance.
+/// YORU: Volumetric Fog Controller V3 - COMPLETE 22-STATE SYSTEM
 /// 
-/// SETUP:
-/// 1. Add this script to your Main Camera (same object as VolumetricFog component)
-/// 2. It will auto-find the VolumetricFog component
-/// 3. Tweak presets in Inspector for each state
+/// Controls Kronnect's Volumetric Fog & Mist 2 for ALL 22 unique states.
+/// 
+/// Features:
+/// - Fog density, height, and color control
+/// - God rays / light scattering for light path
+/// - Per-state tweakable presets in Inspector
+/// - Smooth transitions between states
+/// 
+/// REQUIRES: Volumetric Fog & Mist 2 by Kronnect (Built-in Pipeline version)
 /// </summary>
-public class VolumetricFogIntegration : MonoBehaviour
+public class VolumetricFogController : MonoBehaviour
 {
     #region Preset Class
     
-    [System.Serializable]
+    [Serializable]
     public class FogPreset
     {
-        [Header("=== FOG DENSITY & SHAPE ===")]
-        [Range(0f, 1f)]
-        [Tooltip("Fog density (0 = none, 1 = thick)")]
-        public float density = 0.3f;
+        [Header("State Info")]
+        public string stateName = "Unnamed";
         
-        [Tooltip("Fog height")]
-        public float height = 6f;
+        [Header("Fog Settings")]
+        [Range(0, 1)] public float density = 0.3f;
+        [Range(0, 100)] public float height = 6f;
+        [Range(0, 100)] public float baseHeight = 0f;
+        public Color fogColor = Color.gray;
         
-        [Tooltip("Base height for fog (negative = ground fog)")]
-        public float baselineHeight = 0f;
+        [Header("God Rays / Light Scattering")]
+        public bool enableGodRays = true;
+        [Range(0, 0.2f)] public float godRayIntensity = 0.03f;
         
-        [Range(0f, 1f)]
-        [Tooltip("Fog transparency")]
-        public float alpha = 1f;
+        [Header("Sky Haze")]
+        [Range(0, 50)] public float skyHaze = 15f;
         
-        [Header("=== FOG COLOR ===")]
-        [Tooltip("Main fog color")]
-        public Color color = new Color(0.89f, 0.89f, 0.89f, 1f);
-        
-        [Tooltip("Specular highlight color")]
-        public Color specularColor = new Color(1f, 1f, 0.8f, 1f);
-        
-        [Header("=== LIGHT SCATTERING (God Rays) ===")]
-        [Tooltip("Enable god rays for this state")]
-        public bool lightScatteringEnabled = true;
-        
-        [Range(0f, 1f)]
-        [Tooltip("God ray exposure/intensity")]
-        public float lightScatteringExposure = 0.03f;
-        
-        [Range(0f, 1f)]
-        [Tooltip("Light diffusion amount")]
-        public float lightScatteringDiffusion = 0.5f;
-        
-        [Range(0f, 1f)]
-        [Tooltip("Light spread")]
-        public float lightScatteringSpread = 0.686f;
-        
-        [Tooltip("Tint color for god rays")]
-        public Color lightScatteringTint = Color.white;
-        
-        [Header("=== SKY HAZE ===")]
-        [Tooltip("Sky haze distance")]
-        public float skyHaze = 15f;
-        
-        [Tooltip("Sky haze color")]
-        public Color skyColor = new Color(0.81f, 0.81f, 0.81f, 0.8f);
-        
-        [Range(0f, 1f)]
-        [Tooltip("Sky haze transparency")]
-        public float skyAlpha = 0.8f;
+        public static FogPreset Lerp(FogPreset a, FogPreset b, float t)
+        {
+            return new FogPreset
+            {
+                stateName = b.stateName,
+                density = Mathf.Lerp(a.density, b.density, t),
+                height = Mathf.Lerp(a.height, b.height, t),
+                baseHeight = Mathf.Lerp(a.baseHeight, b.baseHeight, t),
+                fogColor = Color.Lerp(a.fogColor, b.fogColor, t),
+                enableGodRays = t > 0.5f ? b.enableGodRays : a.enableGodRays,
+                godRayIntensity = Mathf.Lerp(a.godRayIntensity, b.godRayIntensity, t),
+                skyHaze = Mathf.Lerp(a.skyHaze, b.skyHaze, t)
+            };
+        }
     }
     
     #endregion
     
     #region Serialized Fields
     
-    [Header("=== REFERENCES ===")]
-    [Tooltip("Auto-found if on same GameObject")]
-    [SerializeField] private VolumetricFog volumetricFog;
+    [Header("=== VOLUMETRIC FOG REFERENCE ===")]
+    [Tooltip("Reference to the VolumetricFog component. Will auto-find if null.")]
+    [SerializeField] private MonoBehaviour volumetricFog;
+    [SerializeField] private bool autoFind = true;
     
     [Header("=== TRANSITION ===")]
-    [Range(0.5f, 5f)]
-    [Tooltip("How long fog transitions take")]
-    [SerializeField] private float transitionDuration = 2f;
+    [SerializeField, Range(0.5f, 5f)] private float transitionDuration = 2f;
     
-    [Header("=== ECLIPSE PRESET ===")]
-    [SerializeField] private FogPreset eclipsePreset = new FogPreset
-    {
-        density = 0.35f,
-        height = 80f,
-        baselineHeight = -5f,
-        alpha = 1f,
-        color = new Color(0.5f, 0.4f, 0.6f, 1f),
-        specularColor = new Color(0.6f, 0.4f, 0.8f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.04f,
-        lightScatteringDiffusion = 0.6f,
-        lightScatteringSpread = 0.7f,
-        lightScatteringTint = new Color(0.6f, 0.4f, 0.8f, 1f),
-        skyHaze = 20f,
-        skyColor = new Color(0.4f, 0.3f, 0.5f, 0.9f),
-        skyAlpha = 0.9f
-    };
-    
-    [Header("=== NEUTRAL PRESET ===")]
+    [Header("=== NEUTRAL ===")]
     [SerializeField] private FogPreset neutralPreset = new FogPreset
     {
+        stateName = "Neutral",
         density = 0.3f,
         height = 6f,
-        baselineHeight = 0f,
-        alpha = 1f,
-        color = new Color(0.89f, 0.89f, 0.89f, 1f),
-        specularColor = new Color(1f, 1f, 0.8f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.03f,
-        lightScatteringDiffusion = 0.5f,
-        lightScatteringSpread = 0.686f,
-        lightScatteringTint = Color.white,
-        skyHaze = 15f,
-        skyColor = new Color(0.81f, 0.81f, 0.81f, 0.8f),
-        skyAlpha = 0.8f
+        fogColor = new Color(0.89f, 0.89f, 0.89f),
+        enableGodRays = true,
+        godRayIntensity = 0.03f,
+        skyHaze = 15f
     };
     
-    [Header("=== LIGHT PATH PRESETS ===")]
-    [Tooltip("Light +1 to +2")]
+    [Header("=== LIGHT PATH (Balance +1 to +5) ===")]
     [SerializeField] private FogPreset light1Preset = new FogPreset
     {
+        stateName = "Light1",
         density = 0.25f,
         height = 8f,
-        baselineHeight = 2f,
-        alpha = 0.95f,
-        color = new Color(0.95f, 0.92f, 0.85f, 1f),
-        specularColor = new Color(1f, 0.98f, 0.85f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.035f,
-        lightScatteringDiffusion = 0.55f,
-        lightScatteringSpread = 0.7f,
-        lightScatteringTint = new Color(1f, 0.95f, 0.85f, 1f),
-        skyHaze = 12f,
-        skyColor = new Color(0.9f, 0.88f, 0.82f, 0.75f),
-        skyAlpha = 0.75f
+        fogColor = new Color(0.95f, 0.92f, 0.85f),
+        enableGodRays = true,
+        godRayIntensity = 0.035f,
+        skyHaze = 12f
     };
     
-    [Tooltip("Light +3 to +4")]
+    [SerializeField] private FogPreset light2Preset = new FogPreset
+    {
+        stateName = "Light2",
+        density = 0.22f,
+        height = 10f,
+        fogColor = new Color(0.97f, 0.94f, 0.86f),
+        enableGodRays = true,
+        godRayIntensity = 0.04f,
+        skyHaze = 10f
+    };
+    
     [SerializeField] private FogPreset light3Preset = new FogPreset
     {
+        stateName = "Light3",
         density = 0.2f,
         height = 12f,
-        baselineHeight = 5f,
-        alpha = 0.9f,
-        color = new Color(1f, 0.95f, 0.8f, 1f),
-        specularColor = new Color(1f, 0.95f, 0.7f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.045f,
-        lightScatteringDiffusion = 0.6f,
-        lightScatteringSpread = 0.75f,
-        lightScatteringTint = new Color(1f, 0.9f, 0.7f, 1f),
-        skyHaze = 10f,
-        skyColor = new Color(0.95f, 0.9f, 0.75f, 0.7f),
-        skyAlpha = 0.7f
+        fogColor = new Color(0.99f, 0.96f, 0.87f),
+        enableGodRays = true,
+        godRayIntensity = 0.045f,
+        skyHaze = 9f
     };
     
-    [Tooltip("Light +5")]
+    [SerializeField] private FogPreset light4Preset = new FogPreset
+    {
+        stateName = "Light4",
+        density = 0.18f,
+        height = 16f,
+        fogColor = new Color(1f, 0.97f, 0.88f),
+        enableGodRays = true,
+        godRayIntensity = 0.05f,
+        skyHaze = 8f
+    };
+    
     [SerializeField] private FogPreset light5Preset = new FogPreset
     {
+        stateName = "Light5 (Heavenly)",
         density = 0.15f,
         height = 20f,
-        baselineHeight = 10f,
-        alpha = 0.85f,
-        color = new Color(1f, 0.97f, 0.85f, 1f),
-        specularColor = new Color(1f, 0.95f, 0.65f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.055f,
-        lightScatteringDiffusion = 0.65f,
-        lightScatteringSpread = 0.8f,
-        lightScatteringTint = new Color(1f, 0.92f, 0.75f, 1f),
-        skyHaze = 8f,
-        skyColor = new Color(1f, 0.95f, 0.8f, 0.65f),
-        skyAlpha = 0.65f
+        fogColor = new Color(1f, 0.98f, 0.9f),
+        enableGodRays = true,
+        godRayIntensity = 0.055f,
+        skyHaze = 7f
     };
     
-    [Tooltip("Light +6 to +7 - Divine Escalation")]
-    [SerializeField] private FogPreset light6Preset = new FogPreset
+    [Header("=== LIGHT PATH ESCALATION (Stage 1-5, Divine God Rays) ===")]
+    [SerializeField] private FogPreset lightStage1Preset = new FogPreset
     {
+        stateName = "Light5+Stage1",
+        density = 0.18f,
+        height = 25f,
+        fogColor = new Color(1f, 0.96f, 0.8f),
+        enableGodRays = true,
+        godRayIntensity = 0.07f,
+        skyHaze = 10f
+    };
+    
+    [SerializeField] private FogPreset lightStage2Preset = new FogPreset
+    {
+        stateName = "Light5+Stage2",
         density = 0.2f,
         height = 30f,
-        baselineHeight = 15f,
-        alpha = 0.9f,
-        color = new Color(1f, 0.95f, 0.75f, 1f),
-        specularColor = new Color(1f, 0.9f, 0.6f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.07f,
-        lightScatteringDiffusion = 0.7f,
-        lightScatteringSpread = 0.85f,
-        lightScatteringTint = new Color(1f, 0.88f, 0.65f, 1f),
-        skyHaze = 12f,
-        skyColor = new Color(1f, 0.93f, 0.7f, 0.75f),
-        skyAlpha = 0.75f
+        fogColor = new Color(1f, 0.94f, 0.7f),
+        enableGodRays = true,
+        godRayIntensity = 0.08f,
+        skyHaze = 12f
     };
     
-    [Tooltip("Light +8 to +10 - Maximum Divine")]
-    [SerializeField] private FogPreset light8Preset = new FogPreset
+    [SerializeField] private FogPreset lightStage3Preset = new FogPreset
     {
+        stateName = "Light5+Stage3",
+        density = 0.22f,
+        height = 40f,
+        fogColor = new Color(1f, 0.91f, 0.6f),
+        enableGodRays = true,
+        godRayIntensity = 0.09f,
+        skyHaze = 14f
+    };
+    
+    [SerializeField] private FogPreset lightStage4Preset = new FogPreset
+    {
+        stateName = "Light5+Stage4",
         density = 0.25f,
         height = 50f,
-        baselineHeight = 20f,
-        alpha = 0.95f,
-        color = new Color(1f, 0.93f, 0.7f, 1f),
-        specularColor = new Color(1f, 0.85f, 0.55f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.09f,
-        lightScatteringDiffusion = 0.75f,
-        lightScatteringSpread = 0.9f,
-        lightScatteringTint = new Color(1f, 0.85f, 0.55f, 1f),
-        skyHaze = 15f,
-        skyColor = new Color(1f, 0.9f, 0.6f, 0.85f),
-        skyAlpha = 0.85f
+        fogColor = new Color(1f, 0.88f, 0.5f),
+        enableGodRays = true,
+        godRayIntensity = 0.1f,
+        skyHaze = 16f
     };
     
-    [Header("=== DARK PATH PRESETS ===")]
-    [Tooltip("Dark -1 to -2")]
+    [SerializeField] private FogPreset lightStage5Preset = new FogPreset
+    {
+        stateName = "Light5+Stage5 (DIVINE)",
+        density = 0.28f,
+        height = 60f,
+        fogColor = new Color(1f, 0.86f, 0.4f),
+        enableGodRays = true,
+        godRayIntensity = 0.12f,
+        skyHaze = 18f
+    };
+    
+    [Header("=== DARK PATH (Balance -1 to -5) ===")]
     [SerializeField] private FogPreset dark1Preset = new FogPreset
     {
+        stateName = "Dark1",
         density = 0.35f,
         height = 5f,
-        baselineHeight = -2f,
-        alpha = 1f,
-        color = new Color(0.75f, 0.78f, 0.85f, 1f),
-        specularColor = new Color(0.8f, 0.85f, 0.95f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.02f,
-        lightScatteringDiffusion = 0.45f,
-        lightScatteringSpread = 0.6f,
-        lightScatteringTint = new Color(0.85f, 0.85f, 0.9f, 1f),
-        skyHaze = 18f,
-        skyColor = new Color(0.7f, 0.72f, 0.8f, 0.85f),
-        skyAlpha = 0.85f
+        fogColor = new Color(0.75f, 0.78f, 0.85f),
+        enableGodRays = true,
+        godRayIntensity = 0.02f,
+        skyHaze = 18f
     };
     
-    [Tooltip("Dark -3 to -4")]
+    [SerializeField] private FogPreset dark2Preset = new FogPreset
+    {
+        stateName = "Dark2",
+        density = 0.4f,
+        height = 4f,
+        fogColor = new Color(0.65f, 0.69f, 0.78f),
+        enableGodRays = true,
+        godRayIntensity = 0.015f,
+        skyHaze = 20f
+    };
+    
     [SerializeField] private FogPreset dark3Preset = new FogPreset
     {
+        stateName = "Dark3",
         density = 0.45f,
         height = 4f,
-        baselineHeight = -5f,
-        alpha = 1f,
-        color = new Color(0.6f, 0.55f, 0.7f, 1f),
-        specularColor = new Color(0.7f, 0.65f, 0.8f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.015f,
-        lightScatteringDiffusion = 0.4f,
-        lightScatteringSpread = 0.5f,
-        lightScatteringTint = new Color(0.7f, 0.65f, 0.8f, 1f),
-        skyHaze = 22f,
-        skyColor = new Color(0.5f, 0.5f, 0.6f, 0.9f),
-        skyAlpha = 0.9f
+        fogColor = new Color(0.55f, 0.6f, 0.7f),
+        enableGodRays = true,
+        godRayIntensity = 0.01f,
+        skyHaze = 22f
     };
     
-    [Tooltip("Dark -5")]
+    [SerializeField] private FogPreset dark4Preset = new FogPreset
+    {
+        stateName = "Dark4",
+        density = 0.5f,
+        height = 3f,
+        fogColor = new Color(0.45f, 0.51f, 0.62f),
+        enableGodRays = true,
+        godRayIntensity = 0.005f,
+        skyHaze = 24f
+    };
+    
     [SerializeField] private FogPreset dark5Preset = new FogPreset
     {
+        stateName = "Dark5 (Midnight)",
         density = 0.55f,
         height = 3f,
-        baselineHeight = -10f,
-        alpha = 1f,
-        color = new Color(0.5f, 0.45f, 0.6f, 1f),
-        specularColor = new Color(0.6f, 0.5f, 0.7f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.01f,
-        lightScatteringDiffusion = 0.35f,
-        lightScatteringSpread = 0.4f,
-        lightScatteringTint = new Color(0.6f, 0.5f, 0.7f, 1f),
-        skyHaze = 25f,
-        skyColor = new Color(0.4f, 0.4f, 0.5f, 0.95f),
-        skyAlpha = 0.95f
+        fogColor = new Color(0.35f, 0.42f, 0.55f),
+        enableGodRays = true,
+        godRayIntensity = 0.003f,
+        skyHaze = 26f
     };
     
-    [Tooltip("Dark -6 to -7 - Creeping Dread Escalation")]
-    [SerializeField] private FogPreset dark6Preset = new FogPreset
+    [Header("=== DARK PATH ESCALATION (Stage 1-5, Stormy) ===")]
+    [SerializeField] private FogPreset darkStage1Preset = new FogPreset
     {
-        density = 0.65f,
-        height = 2.5f,
-        baselineHeight = -15f,
-        alpha = 1f,
-        color = new Color(0.4f, 0.35f, 0.5f, 1f),
-        specularColor = new Color(0.5f, 0.4f, 0.6f, 1f),
-        lightScatteringEnabled = true,
-        lightScatteringExposure = 0.005f,
-        lightScatteringDiffusion = 0.3f,
-        lightScatteringSpread = 0.3f,
-        lightScatteringTint = new Color(0.5f, 0.4f, 0.6f, 1f),
-        skyHaze = 30f,
-        skyColor = new Color(0.3f, 0.3f, 0.4f, 1f),
-        skyAlpha = 1f
+        stateName = "Dark5+Stage1 (Partly Cloudy)",
+        density = 0.58f,
+        height = 3f,
+        fogColor = new Color(0.31f, 0.37f, 0.5f),
+        enableGodRays = false,
+        skyHaze = 28f
     };
     
-    [Tooltip("Dark -8 to -10 - Nightmare (NO god rays)")]
-    [SerializeField] private FogPreset dark8Preset = new FogPreset
+    [SerializeField] private FogPreset darkStage2Preset = new FogPreset
     {
+        stateName = "Dark5+Stage2 (Overcast)",
+        density = 0.62f,
+        height = 2f,
+        fogColor = new Color(0.27f, 0.33f, 0.45f),
+        enableGodRays = false,
+        skyHaze = 30f
+    };
+    
+    [SerializeField] private FogPreset darkStage3Preset = new FogPreset
+    {
+        stateName = "Dark5+Stage3 (Light Rain)",
+        density = 0.68f,
+        height = 2f,
+        fogColor = new Color(0.23f, 0.28f, 0.4f),
+        enableGodRays = false,
+        skyHaze = 32f
+    };
+    
+    [SerializeField] private FogPreset darkStage4Preset = new FogPreset
+    {
+        stateName = "Dark5+Stage4 (Heavy Rain)",
         density = 0.75f,
         height = 2f,
-        baselineHeight = -20f,
-        alpha = 1f,
-        color = new Color(0.3f, 0.25f, 0.4f, 1f),
-        specularColor = new Color(0.4f, 0.3f, 0.5f, 1f),
-        lightScatteringEnabled = false, // NO god rays in nightmare!
-        lightScatteringExposure = 0f,
-        lightScatteringDiffusion = 0.2f,
-        lightScatteringSpread = 0.2f,
-        lightScatteringTint = new Color(0.4f, 0.3f, 0.5f, 1f),
-        skyHaze = 40f,
-        skyColor = new Color(0.2f, 0.2f, 0.25f, 1f),
-        skyAlpha = 1f
+        fogColor = new Color(0.2f, 0.23f, 0.35f),
+        enableGodRays = false,
+        skyHaze = 35f
     };
+    
+    [SerializeField] private FogPreset darkStage5Preset = new FogPreset
+    {
+        stateName = "Dark5+Stage5 (THUNDERSTORM)",
+        density = 0.82f,
+        height = 1f,
+        fogColor = new Color(0.16f, 0.18f, 0.3f),
+        enableGodRays = false,
+        skyHaze = 40f
+    };
+    
+    [Header("=== ECLIPSE ===")]
+    [SerializeField] private FogPreset eclipsePreset = new FogPreset
+    {
+        stateName = "Eclipse",
+        density = 0.35f,
+        height = 80f,
+        fogColor = new Color(0.5f, 0.4f, 0.6f),
+        enableGodRays = true,
+        godRayIntensity = 0.04f,
+        skyHaze = 20f
+    };
+    
+    [Header("=== DEBUG ===")]
+    [SerializeField] private bool logChanges = true;
     
     #endregion
     
@@ -320,71 +318,114 @@ public class VolumetricFogIntegration : MonoBehaviour
     private FogPreset currentPreset;
     private FogPreset targetPreset;
     private float transitionProgress = 1f;
-    private bool isTransitioning = false;
+    private bool isTransitioning;
+    private WorldStateManager.AtmosphereState currentAtmosphere;
+    private int currentWeatherStage;
+    
+    // Cached reflection info for Kronnect fog
+    private System.Type fogType;
+    private System.Reflection.PropertyInfo densityProperty;
+    private System.Reflection.PropertyInfo heightProperty;
+    private System.Reflection.PropertyInfo colorProperty;
+    private System.Reflection.PropertyInfo sunLightScatteringProperty;
+    private System.Reflection.PropertyInfo skyHazeProperty;
+    private bool reflectionInitialized;
     
     #endregion
     
     #region Unity Lifecycle
     
-    private void Awake()
+    void Start()
     {
-        if (volumetricFog == null)
-        {
-            volumetricFog = GetComponent<VolumetricFog>();
-        }
-        
-        if (volumetricFog == null)
-        {
-            Debug.LogError("[VolumetricFogIntegration] No VolumetricFog component found!");
-            enabled = false;
-            return;
-        }
-        
-        currentPreset = ClonePreset(neutralPreset);
-        targetPreset = ClonePreset(neutralPreset);
+        FindVolumetricFog();
+        InitializeReflection();
+        InitializeState();
+        SubscribeToEvents();
     }
     
-    private void Start()
+    void OnDestroy()
     {
         if (WorldStateManager.Instance != null)
         {
-            WorldStateManager.Instance.OnStateChanged.AddListener(OnStateChanged);
-            WorldStateManager.Instance.OnEclipseTriggered.AddListener(OnEclipseTriggered);
-            
-            OnStateChanged(WorldStateManager.Instance.CurrentState);
-            Debug.Log("[VolumetricFogIntegration] Subscribed to WorldStateManager");
-        }
-        else
-        {
-            Debug.LogWarning("[VolumetricFogIntegration] WorldStateManager not found.");
-        }
-        
-        ApplyPreset(currentPreset);
-    }
-    
-    private void OnDestroy()
-    {
-        if (WorldStateManager.Instance != null)
-        {
-            WorldStateManager.Instance.OnStateChanged.RemoveListener(OnStateChanged);
-            WorldStateManager.Instance.OnEclipseTriggered.RemoveListener(OnEclipseTriggered);
+            WorldStateManager.Instance.OnStateChanged.RemoveListener(OnAtmosphereChanged);
+            WorldStateManager.Instance.OnWeatherStageChanged.RemoveListener(OnWeatherStageChanged);
         }
     }
     
-    private void Update()
+    void Update()
     {
         if (isTransitioning)
         {
             transitionProgress += Time.deltaTime / transitionDuration;
-            
             if (transitionProgress >= 1f)
             {
                 transitionProgress = 1f;
+                currentPreset = targetPreset;
                 isTransitioning = false;
-                currentPreset = ClonePreset(targetPreset);
             }
             
-            ApplyBlendedPreset(currentPreset, targetPreset, transitionProgress);
+            var lerped = FogPreset.Lerp(currentPreset, targetPreset, transitionProgress);
+            ApplyPreset(lerped);
+        }
+    }
+    
+    #endregion
+    
+    #region Setup
+    
+    void FindVolumetricFog()
+    {
+        if (volumetricFog == null && autoFind)
+        {
+            // Try to find Kronnect's VolumetricFog component
+            var fogComponents = FindObjectsOfType<MonoBehaviour>();
+            foreach (var comp in fogComponents)
+            {
+                if (comp.GetType().Name == "VolumetricFog")
+                {
+                    volumetricFog = comp;
+                    if (logChanges) Debug.Log("[VolumetricFogController] Found VolumetricFog component");
+                    break;
+                }
+            }
+        }
+    }
+    
+    void InitializeReflection()
+    {
+        if (volumetricFog == null) return;
+        
+        fogType = volumetricFog.GetType();
+        
+        // Get properties via reflection (for Kronnect Volumetric Fog & Mist 2)
+        densityProperty = fogType.GetProperty("density");
+        heightProperty = fogType.GetProperty("height");
+        colorProperty = fogType.GetProperty("color") ?? fogType.GetProperty("albedo");
+        sunLightScatteringProperty = fogType.GetProperty("sunLightScattering") ?? fogType.GetProperty("lightScattering");
+        skyHazeProperty = fogType.GetProperty("skyHaze");
+        
+        reflectionInitialized = (densityProperty != null);
+        
+        if (logChanges)
+        {
+            Debug.Log($"[VolumetricFogController] Reflection init: density={densityProperty != null}, height={heightProperty != null}");
+        }
+    }
+    
+    void InitializeState()
+    {
+        currentPreset = neutralPreset;
+        targetPreset = neutralPreset;
+        ApplyPreset(currentPreset);
+    }
+    
+    void SubscribeToEvents()
+    {
+        if (WorldStateManager.Instance != null)
+        {
+            WorldStateManager.Instance.OnStateChanged.AddListener(OnAtmosphereChanged);
+            WorldStateManager.Instance.OnWeatherStageChanged.AddListener(OnWeatherStageChanged);
+            OnAtmosphereChanged(WorldStateManager.Instance.CurrentState);
         }
     }
     
@@ -392,227 +433,123 @@ public class VolumetricFogIntegration : MonoBehaviour
     
     #region Event Handlers
     
-    private void OnStateChanged(WorldStateManager.AtmosphereState newState)
+    void OnAtmosphereChanged(WorldStateManager.AtmosphereState state)
     {
-        FogPreset newPreset = GetPresetForState(newState);
-        StartTransition(newPreset);
-        Debug.Log($"[VolumetricFogIntegration] State changed to {newState}");
+        currentAtmosphere = state;
+        UpdateTargetPreset();
     }
     
-    private void OnEclipseTriggered()
+    void OnWeatherStageChanged(int stage)
     {
-        StartTransition(eclipsePreset);
-        Debug.Log("[VolumetricFogIntegration] Eclipse triggered!");
+        currentWeatherStage = stage;
+        UpdateTargetPreset();
     }
     
-    #endregion
-    
-    #region Preset Selection
-    
-    private FogPreset GetPresetForState(WorldStateManager.AtmosphereState state)
+    void UpdateTargetPreset()
     {
-        switch (state)
-        {
-            case WorldStateManager.AtmosphereState.Eclipse:
-                return eclipsePreset;
-                
-            case WorldStateManager.AtmosphereState.Light1:
-            case WorldStateManager.AtmosphereState.Light2:
-                return light1Preset;
-                
-            case WorldStateManager.AtmosphereState.Light3:
-            case WorldStateManager.AtmosphereState.Light4:
-                return light3Preset;
-                
-            case WorldStateManager.AtmosphereState.Light5:
-                return light5Preset;
-                
-            case WorldStateManager.AtmosphereState.Dark1:
-            case WorldStateManager.AtmosphereState.Dark2:
-                return dark1Preset;
-                
-            case WorldStateManager.AtmosphereState.Dark3:
-            case WorldStateManager.AtmosphereState.Dark4:
-                return dark3Preset;
-                
-            case WorldStateManager.AtmosphereState.Dark5:
-                return dark5Preset;
-                
-            case WorldStateManager.AtmosphereState.Neutral:
-            default:
-                return neutralPreset;
-        }
-    }
-    
-    /// <summary>
-    /// Get preset for escalation states (|balance| >= 6)
-    /// Call this from WorldStateManager when balance exceeds ±5
-    /// </summary>
-    public FogPreset GetPresetForEscalation(int balance)
-    {
-        if (balance >= 8) return light8Preset;
-        if (balance >= 6) return light6Preset;
-        if (balance <= -8) return dark8Preset;
-        if (balance <= -6) return dark6Preset;
-        
-        return GetPresetForState(WorldStateManager.Instance.CurrentState);
-    }
-    
-    #endregion
-    
-    #region Transition System
-    
-    private void StartTransition(FogPreset newPreset)
-    {
-        if (!isTransitioning)
-        {
-            currentPreset = ClonePreset(currentPreset);
-        }
-        
-        targetPreset = newPreset;
+        targetPreset = GetPresetForState(currentAtmosphere, currentWeatherStage);
         transitionProgress = 0f;
         isTransitioning = true;
-    }
-    
-    private void ApplyPreset(FogPreset preset)
-    {
-        if (volumetricFog == null) return;
         
-        // Fog density & shape
-        volumetricFog.density = preset.density;
-        volumetricFog.height = preset.height;
-        volumetricFog.baselineHeight = preset.baselineHeight;
-        volumetricFog.alpha = preset.alpha;
-        
-        // Fog colors
-        volumetricFog.color = preset.color;
-        volumetricFog.specularColor = preset.specularColor;
-        
-        // Light Scattering (God Rays)
-        volumetricFog.lightScatteringEnabled = preset.lightScatteringEnabled;
-        volumetricFog.lightScatteringExposure = preset.lightScatteringExposure;
-        volumetricFog.lightScatteringDiffusion = preset.lightScatteringDiffusion;
-        volumetricFog.lightScatteringSpread = preset.lightScatteringSpread;
-        volumetricFog.lightScatteringTint = preset.lightScatteringTint;
-        
-        // Sky Haze
-        volumetricFog.skyHaze = preset.skyHaze;
-        volumetricFog.skyColor = preset.skyColor;
-        volumetricFog.skyAlpha = preset.skyAlpha;
-    }
-    
-    private void ApplyBlendedPreset(FogPreset from, FogPreset to, float t)
-    {
-        if (volumetricFog == null) return;
-        
-        float smoothT = Mathf.SmoothStep(0f, 1f, t);
-        
-        // Fog density & shape
-        volumetricFog.density = Mathf.Lerp(from.density, to.density, smoothT);
-        volumetricFog.height = Mathf.Lerp(from.height, to.height, smoothT);
-        volumetricFog.baselineHeight = Mathf.Lerp(from.baselineHeight, to.baselineHeight, smoothT);
-        volumetricFog.alpha = Mathf.Lerp(from.alpha, to.alpha, smoothT);
-        
-        // Fog colors
-        volumetricFog.color = Color.Lerp(from.color, to.color, smoothT);
-        volumetricFog.specularColor = Color.Lerp(from.specularColor, to.specularColor, smoothT);
-        
-        // Light Scattering - handle enable/disable at midpoint
-        bool shouldEnable = smoothT < 0.5f ? from.lightScatteringEnabled : to.lightScatteringEnabled;
-        volumetricFog.lightScatteringEnabled = shouldEnable || from.lightScatteringEnabled || to.lightScatteringEnabled;
-        
-        float fromExposure = from.lightScatteringEnabled ? from.lightScatteringExposure : 0f;
-        float toExposure = to.lightScatteringEnabled ? to.lightScatteringExposure : 0f;
-        volumetricFog.lightScatteringExposure = Mathf.Lerp(fromExposure, toExposure, smoothT);
-        
-        volumetricFog.lightScatteringDiffusion = Mathf.Lerp(from.lightScatteringDiffusion, to.lightScatteringDiffusion, smoothT);
-        volumetricFog.lightScatteringSpread = Mathf.Lerp(from.lightScatteringSpread, to.lightScatteringSpread, smoothT);
-        volumetricFog.lightScatteringTint = Color.Lerp(from.lightScatteringTint, to.lightScatteringTint, smoothT);
-        
-        // Sky Haze
-        volumetricFog.skyHaze = Mathf.Lerp(from.skyHaze, to.skyHaze, smoothT);
-        volumetricFog.skyColor = Color.Lerp(from.skyColor, to.skyColor, smoothT);
-        volumetricFog.skyAlpha = Mathf.Lerp(from.skyAlpha, to.skyAlpha, smoothT);
+        if (logChanges)
+            Debug.Log($"[VolumetricFogController] Transitioning to: {targetPreset.stateName}");
     }
     
     #endregion
     
-    #region Utility
+    #region State Resolution
     
-    private FogPreset ClonePreset(FogPreset original)
+    FogPreset GetPresetForState(WorldStateManager.AtmosphereState atmosphere, int weatherStage)
     {
-        return new FogPreset
+        if (atmosphere == WorldStateManager.AtmosphereState.Eclipse)
+            return eclipsePreset;
+        
+        if (weatherStage > 0)
         {
-            density = original.density,
-            height = original.height,
-            baselineHeight = original.baselineHeight,
-            alpha = original.alpha,
-            color = original.color,
-            specularColor = original.specularColor,
-            lightScatteringEnabled = original.lightScatteringEnabled,
-            lightScatteringExposure = original.lightScatteringExposure,
-            lightScatteringDiffusion = original.lightScatteringDiffusion,
-            lightScatteringSpread = original.lightScatteringSpread,
-            lightScatteringTint = original.lightScatteringTint,
-            skyHaze = original.skyHaze,
-            skyColor = original.skyColor,
-            skyAlpha = original.skyAlpha
-        };
+            if (atmosphere == WorldStateManager.AtmosphereState.Dark5)
+            {
+                switch (weatherStage)
+                {
+                    case 1: return darkStage1Preset;
+                    case 2: return darkStage2Preset;
+                    case 3: return darkStage3Preset;
+                    case 4: return darkStage4Preset;
+                    default: return darkStage5Preset;
+                }
+            }
+            else if (atmosphere == WorldStateManager.AtmosphereState.Light5)
+            {
+                switch (weatherStage)
+                {
+                    case 1: return lightStage1Preset;
+                    case 2: return lightStage2Preset;
+                    case 3: return lightStage3Preset;
+                    case 4: return lightStage4Preset;
+                    default: return lightStage5Preset;
+                }
+            }
+        }
+        
+        switch (atmosphere)
+        {
+            case WorldStateManager.AtmosphereState.Dark5: return dark5Preset;
+            case WorldStateManager.AtmosphereState.Dark4: return dark4Preset;
+            case WorldStateManager.AtmosphereState.Dark3: return dark3Preset;
+            case WorldStateManager.AtmosphereState.Dark2: return dark2Preset;
+            case WorldStateManager.AtmosphereState.Dark1: return dark1Preset;
+            case WorldStateManager.AtmosphereState.Light1: return light1Preset;
+            case WorldStateManager.AtmosphereState.Light2: return light2Preset;
+            case WorldStateManager.AtmosphereState.Light3: return light3Preset;
+            case WorldStateManager.AtmosphereState.Light4: return light4Preset;
+            case WorldStateManager.AtmosphereState.Light5: return light5Preset;
+            default: return neutralPreset;
+        }
     }
     
     #endregion
     
-    #region Public API
+    #region Apply Preset
     
-    /// <summary>
-    /// Apply escalation preset based on balance value
-    /// Call this when balance exceeds ±5
-    /// </summary>
-    public void ApplyEscalation(int balance)
+    void ApplyPreset(FogPreset preset)
     {
-        FogPreset escalationPreset = GetPresetForEscalation(balance);
-        StartTransition(escalationPreset);
-        Debug.Log($"[VolumetricFogIntegration] Escalation applied for balance {balance}");
-    }
-    
-    /// <summary>
-    /// Apply a state immediately without transition
-    /// </summary>
-    public void ApplyImmediate(WorldStateManager.AtmosphereState state)
-    {
-        FogPreset preset = GetPresetForState(state);
-        currentPreset = ClonePreset(preset);
-        targetPreset = ClonePreset(preset);
-        transitionProgress = 1f;
-        isTransitioning = false;
-        ApplyPreset(preset);
-    }
-    
-    /// <summary>
-    /// Force a specific preset (for testing)
-    /// </summary>
-    public void ForcePreset(string presetName)
-    {
-        FogPreset preset = presetName.ToLower() switch
-        {
-            "eclipse" => eclipsePreset,
-            "neutral" => neutralPreset,
-            "light1" => light1Preset,
-            "light3" => light3Preset,
-            "light5" => light5Preset,
-            "light6" => light6Preset,
-            "light8" => light8Preset,
-            "dark1" => dark1Preset,
-            "dark3" => dark3Preset,
-            "dark5" => dark5Preset,
-            "dark6" => dark6Preset,
-            "dark8" => dark8Preset,
-            _ => neutralPreset
-        };
+        if (!reflectionInitialized || volumetricFog == null) return;
         
-        StartTransition(preset);
-        Debug.Log($"[VolumetricFogIntegration] Forced preset: {presetName}");
+        try
+        {
+            densityProperty?.SetValue(volumetricFog, preset.density);
+            heightProperty?.SetValue(volumetricFog, preset.height);
+            colorProperty?.SetValue(volumetricFog, preset.fogColor);
+            
+            if (sunLightScatteringProperty != null)
+            {
+                sunLightScatteringProperty.SetValue(volumetricFog, 
+                    preset.enableGodRays ? preset.godRayIntensity : 0f);
+            }
+            
+            skyHazeProperty?.SetValue(volumetricFog, preset.skyHaze);
+        }
+        catch (Exception e)
+        {
+            if (logChanges)
+                Debug.LogWarning($"[VolumetricFogController] Apply error: {e.Message}");
+        }
     }
+    
+    #endregion
+    
+    #region Context Menu
+    
+    [ContextMenu("Preview: Neutral")]
+    void PreviewNeutral() { currentPreset = targetPreset = neutralPreset; ApplyPreset(neutralPreset); }
+    
+    [ContextMenu("Preview: Light5+Stage5")]
+    void PreviewLightMax() { currentPreset = targetPreset = lightStage5Preset; ApplyPreset(lightStage5Preset); }
+    
+    [ContextMenu("Preview: Dark5+Stage5")]
+    void PreviewDarkMax() { currentPreset = targetPreset = darkStage5Preset; ApplyPreset(darkStage5Preset); }
+    
+    [ContextMenu("Preview: Eclipse")]
+    void PreviewEclipse() { currentPreset = targetPreset = eclipsePreset; ApplyPreset(eclipsePreset); }
     
     #endregion
 }
