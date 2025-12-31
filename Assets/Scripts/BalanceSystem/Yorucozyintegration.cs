@@ -5,22 +5,25 @@ using System.Collections.Generic;
 using System.Reflection;
 
 /// <summary>
-/// YORU: Complete COZY 3 Integration - V8 (FIXED LIGHT PATH)
+/// YORU: Complete COZY 3 Integration - V10 (FIXED SATELLITE MODULE)
 /// 
-/// KEY INSIGHT:
-/// - COZY time controls the SKY appearance
-/// - Dark path goes toward NIGHT (see stars/galaxy)
-/// - Light path goes from GOLDEN HOUR to BRIGHTEST (noon)
+/// FIXES IN V10:
+/// - Proper COZY module naming: CozySatelliteModule
+/// - Access satellite profiles array for moon phase control
+/// - Comprehensive reflection search for all possible moon offset fields
+/// - Better debug output for troubleshooting
 /// 
-/// DARK PATH: Time progresses toward night (see stars/galaxy)
-///   Balance -1: 4 PM → -2: 6 PM → -3: 8 PM → -4: 10 PM → -5: Midnight
+/// MOON PHASES (Dark Path):
+///   1L = Crescent moon
+///   2L = Quarter moon  
+///   3L = Gibbous moon
+///   4L = Nearly full
+///   5L = Full moon (but 6L+ has clouds covering it)
 ///   
-/// LIGHT PATH: Golden hour → Peak brightness (heavenly!)
-///   Balance +1: 2:30 PM (golden hour, warm)
-///   Balance +2: 2:00 PM (warm afternoon)
-///   Balance +3: 1:30 PM (getting brighter)
-///   Balance +4: 1:00 PM (bright)
-///   Balance +5: 12:15 PM (maximum brightness, divine!)
+/// GRADUAL ECLIPSE (when diff ≤ 1 and total ≥ threshold):
+///   3L/3R, 3L/4R, 4L/3R → Slight eclipse
+///   4L/4R, 4L/5R, 5L/4R → Strong eclipse  
+///   5L/5R → FULL eclipse
 /// </summary>
 public class YoruCozyIntegration : MonoBehaviour
 {
@@ -34,34 +37,70 @@ public class YoruCozyIntegration : MonoBehaviour
     public WeatherProfile thunderStormWeather;
     
     [Header("=== TIME SETTINGS (Dark Path) ===")]
-    [Tooltip("Balance 0 = Noon")]
-    [SerializeField] private float neutralHour = 12f;
+    [Tooltip("Balance 0 = 9 AM (neutral morning)")]
+    [SerializeField] private float neutralHour = 9f;
     [Tooltip("Balance -1")]
-    [SerializeField] private float dark1Hour = 16f;   // 4 PM - late afternoon
+    [SerializeField] private float dark1Hour = 16f;
     [Tooltip("Balance -2")]
-    [SerializeField] private float dark2Hour = 18f;   // 6 PM - sunset
+    [SerializeField] private float dark2Hour = 18f;
     [Tooltip("Balance -3")]
-    [SerializeField] private float dark3Hour = 20f;   // 8 PM - dusk, stars emerging
+    [SerializeField] private float dark3Hour = 20f;
     [Tooltip("Balance -4")]
-    [SerializeField] private float dark4Hour = 22f;   // 10 PM - night, galaxy visible
+    [SerializeField] private float dark4Hour = 22f;
     [Tooltip("Balance -5 or darker")]
-    [SerializeField] private float dark5Hour = 0f;    // Midnight - full stars!
+    [SerializeField] private float dark5Hour = 0f;
     
-    [Header("=== TIME SETTINGS (Light Path) - GOLDEN TO BRIGHTEST ===")]
-    [Tooltip("Balance +1 - Golden hour (warm, beautiful)")]
-    [SerializeField] private float light1Hour = 14.5f;  // 2:30 PM - golden hour, warm light
-    [Tooltip("Balance +2 - Warm afternoon")]
-    [SerializeField] private float light2Hour = 14f;    // 2:00 PM - warm afternoon
-    [Tooltip("Balance +3 - Getting brighter")]
-    [SerializeField] private float light3Hour = 13.5f;  // 1:30 PM - transitioning brighter
-    [Tooltip("Balance +4 - Bright")]
-    [SerializeField] private float light4Hour = 13f;    // 1:00 PM - bright
-    [Tooltip("Balance +5 - HEAVENLY (maximum brightness, sun overhead!)")]
-    [SerializeField] private float light5Hour = 12.25f; // 12:15 PM - peak brightness, divine!
+    [Header("=== TIME SETTINGS (Light Path) ===")]
+    [Tooltip("Balance +1")]
+    [SerializeField] private float light1Hour = 10f;
+    [Tooltip("Balance +2")]
+    [SerializeField] private float light2Hour = 11f;
+    [Tooltip("Balance +3")]
+    [SerializeField] private float light3Hour = 11.5f;
+    [Tooltip("Balance +4")]
+    [SerializeField] private float light4Hour = 12f;
+    [Tooltip("Balance +5")]
+    [SerializeField] private float light5Hour = 12.25f;
     
-    [Header("=== ECLIPSE SETTINGS ===")]
-    [SerializeField] private float eclipseHour = 15.5f;
-    private const float FORCED_ECLIPSE_HOUR = 15.5f;
+    [Header("=== MOON PHASE SETTINGS ===")]
+    [Tooltip("Moon cycle offset for each left ring count (0=new moon, 14=full moon in 28-day cycle)")]
+    [SerializeField] private float moonOffset0Rings = 0f;    // No left rings = new moon (invisible)
+    [SerializeField] private float moonOffset1Ring = 5f;     // Crescent
+    [SerializeField] private float moonOffset2Rings = 7f;    // Quarter
+    [SerializeField] private float moonOffset3Rings = 10f;   // Gibbous
+    [SerializeField] private float moonOffset4Rings = 12f;   // Nearly full
+    [SerializeField] private float moonOffset5PlusRings = 14f; // Full moon
+    
+    [Header("=== GRADUAL ECLIPSE SETTINGS ===")]
+    // Eclipse requires BOTH tails to have rings AND be close (diff ≤ 1)
+    
+    [Header("Eclipse Intensity by Combination")]
+    [Tooltip("3L/2R or 2L/3R (total=5, diff=1)")]
+    [SerializeField, Range(0f, 1f)] private float eclipse3L2R = 0.20f;
+    [Tooltip("3L/3R (total=6, diff=0)")]
+    [SerializeField, Range(0f, 1f)] private float eclipse3L3R = 0.40f;
+    [Tooltip("3L/4R or 4L/3R (total=7, diff=1)")]
+    [SerializeField, Range(0f, 1f)] private float eclipse4L3R = 0.50f;
+    [Tooltip("4L/4R (total=8, diff=0)")]
+    [SerializeField, Range(0f, 1f)] private float eclipse4L4R = 0.60f;
+    [Tooltip("5L/4R or 4L/5R (total=9, diff=1)")]
+    [SerializeField, Range(0f, 1f)] private float eclipse5L4R = 0.75f;
+    [Tooltip("5L/5R - FULL Eclipse")]
+    [SerializeField, Range(0f, 1f)] private float eclipseFull = 1.0f;
+    
+    [Header("=== NEW TIME SETTINGS ===")]
+    [Tooltip("Sunset hour (diff=2, dark winning, both have rings)")]
+    [SerializeField] private float sunsetHour = 18.5f;
+    [Tooltip("Sunrise hour (diff=2, light winning, both have rings)")]
+    [SerializeField] private float sunriseHour = 6.5f;
+    [Tooltip("Night hour (diff>2, dark winning)")]
+    [SerializeField] private float nightHour = 0f;
+    [Tooltip("Bright day hour (diff>2, light winning)")]
+    [SerializeField] private float brightDayHour = 12f;
+    
+    [Header("=== ECLIPSE TIME ===")]
+    [Tooltip("Time of day during full eclipse (5L/5R)")]
+    [SerializeField] private float eclipseHour = 16f;
     
     [Header("=== WIND SETTINGS ===")]
     public WindZone sceneWindZone;
@@ -84,10 +123,17 @@ public class YoruCozyIntegration : MonoBehaviour
     private CozyWeather cozy;
     private CozyWeatherModule weatherModule;
     
-    // Eclipse
+    // Eclipse via reflection
     private Component eclipseComponent;
     private FieldInfo eclipseRatioField;
     private bool eclipseReady = false;
+    
+    // Satellite (Moon) via reflection - V10: Correct COZY access path
+    // satellites is SatelliteProfile[] directly on CozySatelliteModule
+    private object satelliteModule;              // The CozySatelliteModule component
+    private object satelliteProfile;             // The SatelliteProfile (satellites[0])
+    private FieldInfo rotationPeriodOffsetField; // rotationPeriodOffset on SatelliteProfile
+    private bool satelliteReady = false;
     
     // State
     private int lastLeft = -1;
@@ -105,7 +151,8 @@ public class YoruCozyIntegration : MonoBehaviour
         }
         
         AutoFindComponents();
-        FindEclipseComponentDirect();
+        FindEclipseModule();
+        FindSatelliteModule();
         
         if (WorldStateManager.Instance != null)
         {
@@ -148,6 +195,8 @@ public class YoruCozyIntegration : MonoBehaviour
             FindGrassMaterialsFromTerrain();
     }
     
+    #region MATERIAL FINDING
+    
     void FindFoliageMaterials()
     {
         var renderers = FindObjectsOfType<Renderer>();
@@ -182,160 +231,121 @@ public class YoruCozyIntegration : MonoBehaviour
     {
         HashSet<Material> found = new HashSet<Material>();
         
-        if (sceneTerrain != null && sceneTerrain.terrainData != null)
+        // Manual materials
+        foreach (var mat in manualGrassMaterials)
+            if (mat != null) found.Add(mat);
+        
+        // From terrain detail prototypes
+        if (sceneTerrain != null)
         {
-            var td = sceneTerrain.terrainData;
-            
-            foreach (var proto in td.detailPrototypes)
+            var data = sceneTerrain.terrainData;
+            if (data != null && data.detailPrototypes != null)
             {
-                if (proto.prototype == null) continue;
-                
-                var renderers = proto.prototype.GetComponentsInChildren<Renderer>(true);
-                foreach (var renderer in renderers)
+                foreach (var proto in data.detailPrototypes)
                 {
-                    foreach (var mat in renderer.sharedMaterials)
+                    if (proto.prototype != null)
                     {
-                        if (mat == null || mat.shader == null) continue;
-                        
-                        string shaderName = mat.shader.name.ToLower();
-                        string matName = mat.name.ToLower();
-                        
-                        bool isGrassShader = shaderName.Contains("foliage") || 
-                                            shaderName.Contains("grass") ||
-                                            shaderName.Contains("dreamscape");
-                        bool isGrassMat = matName.Contains("grass");
-                        bool isRock = shaderName.Contains("rock");
-                        
-                        if ((isGrassShader || isGrassMat) && !isRock)
-                            found.Add(mat);
+                        var mr = proto.prototype.GetComponent<MeshRenderer>();
+                        if (mr != null && mr.sharedMaterial != null)
+                            found.Add(mr.sharedMaterial);
                     }
                 }
             }
         }
         
-        var sceneRenderers = FindObjectsOfType<Renderer>();
-        foreach (var renderer in sceneRenderers)
-        {
-            foreach (var mat in renderer.sharedMaterials)
-            {
-                if (mat == null || mat.shader == null) continue;
-                if (IsGrassMaterial(mat) && !found.Contains(mat))
-                    found.Add(mat);
-            }
-        }
-        
-        foreach (var mat in manualGrassMaterials)
-        {
-            if (mat != null && !found.Contains(mat))
-                found.Add(mat);
-        }
-        
         grassMaterials.AddRange(found);
         
         if (logChanges)
-            Debug.Log($"[YORU] Found {found.Count} total grass materials");
+            Debug.Log($"[YORU] Found {found.Count} grass materials");
     }
     
     bool HasWindProperty(Material mat)
     {
-        return mat.HasProperty("_Wind_Intensity") ||
-               mat.HasProperty("_Sway_Wind_Intensity") ||
-               mat.HasProperty("_WindIntensity") ||
-               mat.HasProperty("_Wind_Large_Intensity") ||
-               mat.HasProperty("_WindSpeed") ||
-               mat.HasProperty("_Wind_Speed") ||
-               mat.HasProperty("_WaveSpeed") ||
-               mat.HasProperty("_WaveStrength") ||
-               mat.HasProperty("_SwaySpeed") ||
-               mat.HasProperty("_SwayAmount") ||
-               mat.HasProperty("_Sway") ||
-               mat.HasProperty("_WindDirection") ||
-               mat.HasProperty("_WindStrength");
-    }
-    
-    bool IsGrassMaterial(Material mat)
-    {
-        if (mat == null || mat.shader == null) return false;
-        
-        string shaderName = mat.shader.name.ToLower();
-        string matName = mat.name.ToLower();
-        
-        if (shaderName.Contains("rock") || shaderName.Contains("m_rocks"))
-            return false;
-        
-        if (shaderName.Contains("grass") || shaderName.Contains("builtin/grass"))
-            return true;
-        
-        if (shaderName.Contains("foliage") && matName.Contains("grass"))
-            return true;
-        
+        string[] windProps = { "_Sway_Wind_Intensity", "_Wind_Intensity", "_WindIntensity", 
+                               "_WindSpeed", "_WaveSpeed", "_SwaySpeed", "_Sway" };
+        foreach (var prop in windProps)
+            if (mat.HasProperty(prop)) return true;
         return false;
     }
     
-    #region ECLIPSE
+    #endregion
     
-    void FindEclipseComponentDirect()
+    #region ECLIPSE MODULE
+    
+    void FindEclipseModule()
     {
         if (cozy == null) return;
         
+        // Search on COZY object for Eclipse module
         Component[] allComponents = cozy.gameObject.GetComponents<Component>();
-        
         foreach (var comp in allComponents)
         {
             if (comp == null) continue;
-            
             System.Type compType = comp.GetType();
-            if (compType.Name == "EclipseModule")
+            if (compType.Name.Contains("Eclipse"))
             {
-                eclipseComponent = comp;
-                eclipseRatioField = compType.GetField("eclipseRatio", 
-                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                
-                if (eclipseRatioField != null)
-                {
-                    eclipseReady = true;
-                    Debug.Log($"[YORU] ✓ Eclipse Module found!");
-                }
-                return;
+                SetupEclipseComponent(comp, compType);
+                if (eclipseReady) return;
             }
         }
         
+        // Search children
         Component[] childComponents = cozy.gameObject.GetComponentsInChildren<Component>(true);
         foreach (var comp in childComponents)
         {
             if (comp == null) continue;
-            
             System.Type compType = comp.GetType();
-            if (compType.Name == "EclipseModule")
+            if (compType.Name.Contains("Eclipse"))
             {
-                eclipseComponent = comp;
-                eclipseRatioField = compType.GetField("eclipseRatio", 
-                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                
-                if (eclipseRatioField != null)
-                {
-                    eclipseReady = true;
-                    Debug.Log($"[YORU] ✓ Eclipse Module found in children!");
-                }
-                return;
+                SetupEclipseComponent(comp, compType);
+                if (eclipseReady) return;
             }
         }
-        
-        Debug.LogWarning("[YORU] Eclipse Module not found");
     }
     
-    void SetEclipse(float intensity)
+    void SetupEclipseComponent(Component comp, System.Type compType)
+    {
+        eclipseComponent = comp;
+        
+        // Try different field names
+        string[] possibleFieldNames = { "eclipseRatio", "eclipseAmount", "eclipse", "ratio", "intensity" };
+        
+        foreach (string fieldName in possibleFieldNames)
+        {
+            eclipseRatioField = compType.GetField(fieldName, 
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            if (eclipseRatioField != null) break;
+        }
+        
+        if (eclipseRatioField != null)
+        {
+            eclipseReady = true;
+            Debug.Log($"[YORU] ✓ Eclipse Module ready (field: {eclipseRatioField.Name})");
+        }
+    }
+    
+    void SetEclipse(float ratio)
     {
         if (!eclipseReady || eclipseComponent == null || eclipseRatioField == null)
             return;
         
+        ratio = Mathf.Clamp01(ratio);
+        
         try
         {
-            float currentValue = (float)eclipseRatioField.GetValue(eclipseComponent);
-            eclipseRatioField.SetValue(eclipseComponent, intensity);
+            object currentValue = eclipseRatioField.GetValue(eclipseComponent);
+            float currentFloat = System.Convert.ToSingle(currentValue);
             
-            if (logChanges && Mathf.Abs(currentValue - intensity) > 0.01f)
-                Debug.Log($"[YORU] Eclipse: {currentValue:F2} → {intensity:F2}");
+            if (Mathf.Abs(currentFloat - ratio) > 0.01f)
+            {
+                if (logChanges)
+                    Debug.Log($"[YORU] Eclipse: {currentFloat:F2} → {ratio:F2}");
+                
+                if (eclipseRatioField.FieldType == typeof(float))
+                    eclipseRatioField.SetValue(eclipseComponent, ratio);
+                else if (eclipseRatioField.FieldType == typeof(double))
+                    eclipseRatioField.SetValue(eclipseComponent, (double)ratio);
+            }
         }
         catch (System.Exception e)
         {
@@ -343,90 +353,353 @@ public class YoruCozyIntegration : MonoBehaviour
         }
     }
     
+    float CalculateGradualEclipse(int leftRings, int rightRings)
+    {
+        // Eclipse requires BOTH tails to have rings AND be balanced (diff ≤ 1)
+        // Minimum: both need at least 2 rings (smallest combo is 3L/2R or 2L/3R)
+        
+        int minRings = Mathf.Min(leftRings, rightRings);
+        int maxRings = Mathf.Max(leftRings, rightRings);
+        int diff = maxRings - minRings;
+        
+        // Must have diff ≤ 1 for eclipse
+        if (diff > 1)
+            return 0f;
+        
+        // Check specific combinations (ordered by intensity)
+        // 5L/5R = 100% full eclipse
+        if (minRings == 5 && maxRings == 5)
+            return eclipseFull;
+        
+        // 5L/4R or 4L/5R = 75%
+        if (minRings == 4 && maxRings == 5)
+            return eclipse5L4R;
+        
+        // 4L/4R = 60%
+        if (minRings == 4 && maxRings == 4)
+            return eclipse4L4R;
+        
+        // 4L/3R or 3L/4R = 50%
+        if (minRings == 3 && maxRings == 4)
+            return eclipse4L3R;
+        
+        // 3L/3R = 40%
+        if (minRings == 3 && maxRings == 3)
+            return eclipse3L3R;
+        
+        // 3L/2R or 2L/3R = 20%
+        if (minRings == 2 && maxRings == 3)
+            return eclipse3L2R;
+        
+        // No eclipse for lower combinations
+        return 0f;
+    }
+    
     #endregion
     
-    void LogStatus()
-    {
-        Debug.Log("[YORU] ===== STATUS (V8) =====");
-        Debug.Log($"  Weather Module: {(weatherModule != null ? "✓" : "✗")}");
-        Debug.Log($"  Eclipse Module: {(eclipseReady ? "✓" : "✗")}");
-        Debug.Log($"  WindZone: {(sceneWindZone != null ? "✓" : "○")}");
-        Debug.Log($"  Terrain: {(sceneTerrain != null ? "✓" : "○")}");
-        Debug.Log($"  Foliage Materials: {foliageMaterials.Count}");
-        Debug.Log($"  Grass Materials: {grassMaterials.Count}");
-        Debug.Log("========================");
-    }
+    #region SATELLITE (MOON) MODULE - V10 FIXED
     
-    void OnRingsChanged(int left, int right)
-    {
-        if (left == lastLeft && right == lastRight) return;
-        lastLeft = left;
-        lastRight = right;
-        ApplyFullState(left, right);
-    }
+    // Based on COZY source (CozySatelliteModule.cs):
+    // public SatelliteProfile[] satellites = new SatelliteProfile[0];
+    // satellites[0] IS the SatelliteProfile directly (not an intermediate object)
+    // SatelliteProfile has: int rotationPeriodOffset (controls moon phase!)
+    // Moon phase formula: phase = Floor(((AbsoluteDay + rotationPeriodOffset + 1) % rotationPeriod) / (rotationPeriod / 8))
     
-    void ApplyFullState(int left, int right)
+    void FindSatelliteModule()
     {
-        bool isEclipse = (left == 5 && right == 5);
+        if (cozy == null) return;
         
-        // Get weather stage from WorldStateManager
-        int weatherStage = 0;
-        int balance = right - left;
+        Debug.Log("[YORU] Searching for Satellite Module (V10 - correct path)...");
         
-        if (WorldStateManager.Instance != null)
-            weatherStage = WorldStateManager.Instance.WeatherStage;
-        else if (Mathf.Abs(balance) >= 5 && (left + right) > 5)
-            weatherStage = Mathf.Min((left + right) - 5, 5);
+        // Step 1: Find CozySatelliteModule component - IT'S ON A CHILD OBJECT "Modules"!
+        Component[] allComponents = cozy.gameObject.GetComponentsInChildren<Component>(true);
+        Component satModule = null;
         
-        // TIME - Based on balance
-        float hour = isEclipse ? FORCED_ECLIPSE_HOUR : GetHourForBalance(balance);
-        SetTime(hour);
-        
-        // WEATHER - Two-layer system
-        WeatherProfile weather = SelectWeatherTwoLayer(balance, weatherStage, isEclipse);
-        SetWeather(weather);
-        
-        // ECLIPSE
-        SetEclipse(isEclipse ? 1.0f : 0f);
-        
-        // WIND
-        float windIntensity = CalculateWindIntensity(balance, weatherStage);
-        ApplyWind(windIntensity);
-        
-        if (logChanges)
+        foreach (var comp in allComponents)
         {
-            string stageStr = weatherStage > 0 ? $" [Stage {weatherStage}]" : "";
-            string eclipseStr = isEclipse ? " [ECLIPSE]" : "";
-            Debug.Log($"[YORU] {left}L/{right}R → {FormatHour(hour)}, {weather?.name}, wind:{windIntensity:F2}{stageStr}{eclipseStr}");
+            if (comp == null) continue;
+            if (comp.GetType().Name == "CozySatelliteModule")
+            {
+                satModule = comp;
+                Debug.Log($"[YORU] Found CozySatelliteModule on: {comp.gameObject.name}");
+                break;
+            }
+        }
+        
+        if (satModule == null)
+        {
+            Debug.LogWarning("[YORU] CozySatelliteModule not found on COZY Weather Sphere");
+            return;
+        }
+        
+        satelliteModule = satModule;
+        System.Type moduleType = satModule.GetType();
+        
+        // Step 2: Get 'satellites' array (SatelliteProfile[])
+        FieldInfo satellitesField = moduleType.GetField("satellites", 
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        
+        if (satellitesField == null)
+        {
+            Debug.LogWarning("[YORU] 'satellites' field not found on CozySatelliteModule");
+            PrintTypeMembers(moduleType);
+            return;
+        }
+        
+        object satellitesArray = satellitesField.GetValue(satModule);
+        if (satellitesArray == null)
+        {
+            Debug.LogWarning("[YORU] satellites array is null");
+            return;
+        }
+        
+        // Step 3: Get first satellite profile (main moon) - satellites IS the SatelliteProfile array!
+        if (satellitesArray is System.Array arr)
+        {
+            if (arr.Length == 0)
+            {
+                Debug.LogWarning("[YORU] satellites array is empty - no moon configured in COZY Satellite Module");
+                return;
+            }
+            
+            satelliteProfile = arr.GetValue(0);
+            Debug.Log($"[YORU] Found main moon profile: {satelliteProfile.GetType().Name}");
+        }
+        else if (satellitesArray is System.Collections.IList list)
+        {
+            if (list.Count == 0)
+            {
+                Debug.LogWarning("[YORU] satellites list is empty - no moon configured in COZY Satellite Module");
+                return;
+            }
+            
+            satelliteProfile = list[0];
+            Debug.Log($"[YORU] Found main moon profile: {satelliteProfile.GetType().Name}");
+        }
+        else
+        {
+            Debug.LogWarning($"[YORU] satellites is unexpected type: {satellitesArray.GetType().Name}");
+            return;
+        }
+        
+        if (satelliteProfile == null)
+        {
+            Debug.LogWarning("[YORU] First satellite profile is null");
+            return;
+        }
+        
+        // Step 4: Get rotationPeriodOffset field from SatelliteProfile
+        System.Type profileType = satelliteProfile.GetType();
+        rotationPeriodOffsetField = profileType.GetField("rotationPeriodOffset", 
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        
+        if (rotationPeriodOffsetField == null)
+        {
+            Debug.LogWarning("[YORU] 'rotationPeriodOffset' field not found on SatelliteProfile");
+            PrintTypeMembers(profileType);
+            return;
+        }
+        
+        satelliteReady = true;
+        Debug.Log($"[YORU] ✓ Satellite Module ready! rotationPeriodOffset field found (type: {rotationPeriodOffsetField.FieldType.Name})");
+        
+        // Log current value
+        object currentVal = rotationPeriodOffsetField.GetValue(satelliteProfile);
+        Debug.Log($"[YORU] Current rotationPeriodOffset: {currentVal}");
+    }
+    
+    void PrintTypeMembers(System.Type type)
+    {
+        Debug.Log($"  Fields on {type.Name}:");
+        foreach (var f in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+        {
+            Debug.Log($"    {f.Name} ({f.FieldType.Name})");
         }
     }
     
+    void SetMoonPhase(int leftRings)
+    {
+        if (!satelliteReady || satelliteProfile == null || rotationPeriodOffsetField == null)
+            return;
+        
+        // Calculate rotationPeriodOffset based on left rings
+        // With rotationPeriod = 28 and 8 phases:
+        // Phase 0 = new moon (offset ~0)
+        // Phase 4 = full moon (offset ~14)
+        int offset = GetRotationPeriodOffsetForLeftRings(leftRings);
+        
+        try
+        {
+            object currentValue = rotationPeriodOffsetField.GetValue(satelliteProfile);
+            int currentInt = System.Convert.ToInt32(currentValue);
+            
+            if (currentInt != offset)
+            {
+                rotationPeriodOffsetField.SetValue(satelliteProfile, offset);
+                
+                if (logChanges)
+                    Debug.Log($"[YORU] Moon rotationPeriodOffset: {currentInt} → {offset} (for {leftRings}L)");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[YORU] Moon phase error: {e.Message}");
+        }
+    }
+    
+    int GetRotationPeriodOffsetForLeftRings(int leftRings)
+    {
+        // Moon phase formula: phase = Floor(((AbsoluteDay + rotationPeriodOffset + 1) % 28) / 3.5)
+        // We want to control phase based on left rings
+        // Assuming AbsoluteDay can be any value, we offset to get desired phase
+        // 
+        // For simplicity, we set offset to directly map to phase * 3.5
+        // 0L = new moon (phase 0) → offset makes result ~0
+        // 1L = waxing crescent (phase 1) → offset for ~3.5
+        // 2L = first quarter (phase 2) → offset for ~7
+        // 3L = waxing gibbous (phase 3) → offset for ~10.5
+        // 4L = nearly full (phase 3-4) → offset for ~12
+        // 5L = full moon (phase 4) → offset for ~14
+        
+        switch (leftRings)
+        {
+            case 0: return Mathf.RoundToInt(moonOffset0Rings);     // new moon
+            case 1: return Mathf.RoundToInt(moonOffset1Ring);      // crescent
+            case 2: return Mathf.RoundToInt(moonOffset2Rings);     // quarter
+            case 3: return Mathf.RoundToInt(moonOffset3Rings);     // gibbous
+            case 4: return Mathf.RoundToInt(moonOffset4Rings);     // nearly full
+            default: return Mathf.RoundToInt(moonOffset5PlusRings); // full moon (5+)
+        }
+    }
+    
+    #endregion
+    
+    #region STATE APPLICATION
+    
+    void OnRingsChanged(int left, int right)
+    {
+        ApplyFullState(left, right);
+    }
+    
+    void ApplyFullState(int leftRings, int rightRings)
+    {
+        if (cozy == null) return;
+        
+        int balance = rightRings - leftRings;
+        int weatherStage = WorldStateManager.Instance?.WeatherStage ?? 0;
+        
+        // Eclipse (V10: Gradual based on both tails being high and balanced)
+        float eclipseIntensity = CalculateGradualEclipse(leftRings, rightRings);
+        bool hasEclipse = eclipseIntensity > 0f;
+        
+        // Time - NEW LOGIC based on difference and which side is winning
+        float hour = GetTimeForRings(leftRings, rightRings, eclipseIntensity);
+        SetTime(hour);
+        
+        // Weather
+        var weather = SelectWeatherTwoLayer(balance, weatherStage, hasEclipse);
+        SetWeather(weather);
+        
+        // Apply eclipse
+        SetEclipse(eclipseIntensity);
+        
+        // Moon phase (based on left rings)
+        SetMoonPhase(leftRings);
+        
+        // Wind
+        float windIntensity = CalculateWindIntensity(balance, weatherStage);
+        ApplyWind(windIntensity);
+        
+        // Log
+        if (logChanges)
+        {
+            string weatherName = weather?.name ?? "None";
+            string stageInfo = weatherStage > 0 ? $" [Stage {weatherStage}]" : "";
+            string eclipseInfo = eclipseIntensity > 0 ? $" [Eclipse: {Mathf.RoundToInt(eclipseIntensity * 100)}%]" : "";
+            Debug.Log($"[YORU] {leftRings}L/{rightRings}R → {FormatHour(hour)}, {weatherName}, wind:{windIntensity:F2}{stageInfo}{eclipseInfo}");
+        }
+        
+        lastLeft = leftRings;
+        lastRight = rightRings;
+    }
+    
+    void LogStatus()
+    {
+        Debug.Log("[YORU] ===== STATUS (V10) =====");
+        Debug.Log($"  Weather Module: {(weatherModule != null ? "✓" : "✗")}");
+        Debug.Log($"  Eclipse Module: {(eclipseReady ? "✓" : "✗")}");
+        Debug.Log($"  Satellite Module: {(satelliteReady ? "✓" : "✗")}");
+        Debug.Log($"  WindZone: {(sceneWindZone != null ? "✓" : "✗")}");
+        Debug.Log($"  Terrain: {(sceneTerrain != null ? "✓" : "✗")}");
+        Debug.Log($"  Foliage Materials: {foliageMaterials.Count}");
+        Debug.Log($"  Grass Materials: {grassMaterials.Count}");
+        Debug.Log("============================");
+    }
+    
+    #endregion
+    
     #region TIME
     
-    float GetHourForBalance(int balance)
+    float GetTimeForRings(int leftRings, int rightRings, float eclipseIntensity)
     {
-        int clamped = Mathf.Clamp(balance, -5, 5);
+        int diff = Mathf.Abs(leftRings - rightRings);
+        bool darkWinning = leftRings > rightRings;
+        bool lightWinning = rightRings > leftRings;
+        bool bothHaveRings = leftRings > 0 && rightRings > 0;
         
-        switch (clamped)
+        // 1. Eclipse time - when eclipse is happening
+        if (eclipseIntensity > 0f)
         {
-            // DARK PATH - progresses toward night
-            case -5: return dark5Hour;   // Midnight
-            case -4: return dark4Hour;   // 10 PM
-            case -3: return dark3Hour;   // 8 PM
-            case -2: return dark2Hour;   // 6 PM
-            case -1: return dark1Hour;   // 4 PM
-            
-            // NEUTRAL
-            case 0:  return neutralHour; // Noon
-            
-            // LIGHT PATH - stays bright!
-            case 1:  return light1Hour;  // 11:30 AM
-            case 2:  return light2Hour;  // 11 AM
-            case 3:  return light3Hour;  // 10:30 AM
-            case 4:  return light4Hour;  // 10 AM
-            case 5:  return light5Hour;  // 10 AM (stays bright!)
-            
-            default: return neutralHour;
+            return eclipseHour;
+        }
+        
+        // 2. Transitional (diff = 2, BOTH tails have rings)
+        //    Dark winning → SUNSET
+        //    Light winning → SUNRISE
+        if (diff == 2 && bothHaveRings)
+        {
+            return darkWinning ? sunsetHour : sunriseHour;
+        }
+        
+        // 3. Committed to path (diff > 2)
+        //    Dark winning → NIGHT with visible moon
+        //    Light winning → BRIGHT DAY
+        if (diff > 2)
+        {
+            return darkWinning ? nightHour : brightDayHour;
+        }
+        
+        // 4. Fallback: diff < 2 without eclipse, or one side = 0
+        //    Use neutral/gradual time based on balance
+        int balance = rightRings - leftRings;
+        return GetTimeForBalance(balance);
+    }
+    
+    float GetTimeForBalance(int balance)
+    {
+        if (balance == 0) return neutralHour;
+        
+        if (balance < 0)
+        {
+            switch (balance)
+            {
+                case -1: return dark1Hour;
+                case -2: return dark2Hour;
+                case -3: return dark3Hour;
+                case -4: return dark4Hour;
+                default: return dark5Hour;
+            }
+        }
+        else
+        {
+            switch (balance)
+            {
+                case 1: return light1Hour;
+                case 2: return light2Hour;
+                case 3: return light3Hour;
+                case 4: return light4Hour;
+                default: return light5Hour;
+            }
         }
     }
     
@@ -451,11 +724,9 @@ public class YoruCozyIntegration : MonoBehaviour
         if (isEclipse)
             return clearWeather;
         
-        // Layer 1: No weather escalation - CLEAR sky
         if (weatherStage == 0)
             return clearWeather;
         
-        // Layer 2: Weather escalation
         if (balance < 0)
             return GetDarkWeatherForStage(weatherStage);
         else
@@ -477,7 +748,6 @@ public class YoruCozyIntegration : MonoBehaviour
     
     WeatherProfile GetLightWeatherForStage(int stage)
     {
-        // Light path stays clear
         return clearWeather ?? mostlyClearWeather;
     }
     
@@ -493,21 +763,17 @@ public class YoruCozyIntegration : MonoBehaviour
     
     float CalculateWindIntensity(int balance, int weatherStage)
     {
-        // Eclipse - calm
         if (WorldStateManager.Instance?.IsEclipse == true)
             return 0.1f;
         
         float baseWind = 0.2f;
         
-        // Light path - gentle
         if (balance >= 0)
             return baseWind;
         
-        // Dark path without weather - gentle breeze
         if (weatherStage == 0)
             return Mathf.Lerp(baseWind, 0.35f, Mathf.Abs(balance) / 5f);
         
-        // Dark path with weather - escalates
         switch (weatherStage)
         {
             case 1: return 0.4f;
@@ -555,25 +821,18 @@ public class YoruCozyIntegration : MonoBehaviour
         {
             if (mat == null) continue;
             
-            // Polyart Dreamscape
             if (mat.HasProperty("_Sway_Wind_Intensity")) mat.SetFloat("_Sway_Wind_Intensity", intensity * mult);
             if (mat.HasProperty("_Sway_Wind_Speed")) mat.SetFloat("_Sway_Wind_Speed", speed);
             if (mat.HasProperty("_Wiggle_Wind_Intensity")) mat.SetFloat("_Wiggle_Wind_Intensity", intensity * 0.5f * mult);
             if (mat.HasProperty("_Wiggle_Wind_Speed_Small")) mat.SetFloat("_Wiggle_Wind_Speed_Small", speed * 0.5f);
             if (mat.HasProperty("_Wiggle_Wind_Speed_Large")) mat.SetFloat("_Wiggle_Wind_Speed_Large", speed * 0.8f);
-            
-            // Trunk
             if (mat.HasProperty("_Wind_Intensity")) mat.SetFloat("_Wind_Intensity", intensity * mult);
             if (mat.HasProperty("_Wind_Speed")) mat.SetFloat("_Wind_Speed", speed);
-            
-            // Generic
             if (mat.HasProperty("_WindSpeed")) mat.SetFloat("_WindSpeed", speed);
             if (mat.HasProperty("_WindIntensity")) mat.SetFloat("_WindIntensity", intensity * mult);
             if (mat.HasProperty("_WindScale")) mat.SetFloat("_WindScale", Mathf.Lerp(0.5f, 2f, intensity));
             if (mat.HasProperty("_Wind_Large_Intensity")) mat.SetFloat("_Wind_Large_Intensity", intensity * mult);
             if (mat.HasProperty("_Wind_Small_Intensity")) mat.SetFloat("_Wind_Small_Intensity", intensity * 0.5f * mult);
-            
-            // Grass
             if (mat.HasProperty("_WaveSpeed")) mat.SetFloat("_WaveSpeed", speed);
             if (mat.HasProperty("_WaveStrength")) mat.SetFloat("_WaveStrength", intensity * mult);
             if (mat.HasProperty("_SwaySpeed")) mat.SetFloat("_SwaySpeed", speed);
@@ -605,15 +864,29 @@ public class YoruCozyIntegration : MonoBehaviour
     
     #region CONTEXT MENU
     
-    [ContextMenu("Test: Force Eclipse")]
+    [ContextMenu("Test: Force Full Eclipse")]
     public void ForceEclipseNow()
     {
-        if (!eclipseReady) return;
-        SetTime(FORCED_ECLIPSE_HOUR);
+        SetTime(eclipseHour);
         if (clearWeather != null && weatherModule?.ecosystem != null)
             weatherModule.ecosystem.SetWeather(clearWeather);
-        eclipseRatioField.SetValue(eclipseComponent, 1.0f);
-        Debug.Log("[TEST] Eclipse!");
+        SetEclipse(1.0f);
+        Debug.Log("[TEST] Full Eclipse!");
+    }
+    
+    [ContextMenu("Test: Partial Eclipse (0.3)")]
+    public void TestPartialEclipse()
+    {
+        SetEclipse(0.3f);
+        Debug.Log("[TEST] Partial Eclipse 0.3");
+    }
+    
+    [ContextMenu("Test: Full Moon")]
+    public void TestFullMoon()
+    {
+        SetMoonPhase(5);
+        SetTime(0f); // Midnight to see the moon
+        Debug.Log("[TEST] Full Moon at midnight");
     }
     
     [ContextMenu("Refresh Materials")]
@@ -623,6 +896,70 @@ public class YoruCozyIntegration : MonoBehaviour
         grassMaterials.Clear();
         FindFoliageMaterials();
         FindGrassMaterialsFromTerrain();
+    }
+    
+    [ContextMenu("Print All COZY Modules")]
+    public void PrintAllCozyModules()
+    {
+        if (cozy == null)
+        {
+            Debug.Log("[YORU] COZY not found");
+            return;
+        }
+        
+        Debug.Log("[YORU] === ALL COZY COMPONENTS ===");
+        
+        Component[] components = cozy.gameObject.GetComponents<Component>();
+        foreach (var comp in components)
+        {
+            if (comp == null) continue;
+            var type = comp.GetType();
+            Debug.Log($"Component: {type.Name} ({type.Namespace})");
+        }
+        
+        Debug.Log("[YORU] === CHILD COMPONENTS ===");
+        Component[] childComponents = cozy.gameObject.GetComponentsInChildren<Component>(true);
+        foreach (var comp in childComponents)
+        {
+            if (comp == null) continue;
+            var type = comp.GetType();
+            if (type.Namespace != null && type.Namespace.Contains("Cozy"))
+                Debug.Log($"Child: {comp.gameObject.name} → {type.Name}");
+        }
+        
+        Debug.Log("============================");
+    }
+    
+    [ContextMenu("Print Satellite Module Details")]
+    public void PrintSatelliteDetails()
+    {
+        if (satelliteModule == null)
+        {
+            Debug.Log("[YORU] Satellite module not found");
+            return;
+        }
+        
+        Debug.Log($"[YORU] === SATELLITE MODULE ===");
+        Debug.Log($"  Module: {satelliteModule.GetType().Name}");
+            
+        if (satelliteProfile != null)
+        {
+            Debug.Log($"  SatelliteProfile: {satelliteProfile.GetType().Name}");
+            if (rotationPeriodOffsetField != null)
+            {
+                object val = rotationPeriodOffsetField.GetValue(satelliteProfile);
+                Debug.Log($"  rotationPeriodOffset: {val}");
+            }
+            
+            // Print all fields on the profile for debugging
+            PrintTypeMembers(satelliteProfile.GetType());
+        }
+        else
+        {
+            Debug.Log($"  SatelliteProfile: null (no moon in satellites array)");
+        }
+        
+        Debug.Log($"  satelliteReady: {satelliteReady}");
     }
     
     #endregion
