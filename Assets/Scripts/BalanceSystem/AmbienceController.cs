@@ -2,26 +2,22 @@ using UnityEngine;
 using DistantLands.Cozy;
 using DistantLands.Cozy.Data;
 using System;
+using System.Collections.Generic;
 
 /// <summary>
-/// YORU: Ambience Controller V3 - COMPLETE 22-STATE SYSTEM
+/// YORU: Ambience Controller - PARTICLE FX + AUDIO
 /// 
-/// Manages COZY Ambience profiles for ALL 22 unique balance states.
+/// Controls COZY Particle FX prefabs and Ambience audio profiles.
+/// Listens to OnRingsChanged for 29-state system.
 /// 
-/// COZY Ambience Profiles Available (from your package):
-/// - Fireflies      (dark path, mystical nights)
-/// - Wisps          (dark escalation, eerie)
-/// - Owl Sounds     (night ambience)
-/// - Butterflies    (light path, heavenly)
-/// - Day Bugs       (bright day)
-/// - Birdsong       (peaceful light)
-/// - Light Wind     (calm)
-/// - Blustery       (storm approaching)
-/// - Swirling       (heavy storm)
-/// - Quiet          (neutral/eclipse)
+/// PARTICLE FX (from COZY):
+/// - Fireflies, Wisps (dark nights)
+/// - Butterflies, Day Bugs, Birds (light path)
+/// - Autumn Leaves (sunset)
+/// - Aurora, Meteor (eclipse)
+/// - Dust Storm, Thunder, Rain (dark storms)
 /// 
-/// Each state can have PRIMARY and SECONDARY ambiance profiles
-/// that blend together for richer atmosphere.
+/// Multiple particles can be active simultaneously.
 /// </summary>
 public class AmbienceController : MonoBehaviour
 {
@@ -33,15 +29,12 @@ public class AmbienceController : MonoBehaviour
         [Header("State Info")]
         public string stateName = "Unnamed";
         
-        [Header("Primary Ambience")]
-        public AmbienceProfile primaryProfile;
-        [Range(0, 1)] public float primaryWeight = 1f;
+        [Header("Particle FX (assign COZY prefabs)")]
+        public List<GameObject> particlePrefabs = new List<GameObject>();
         
-        [Header("Secondary Ambience (Optional)")]
-        public AmbienceProfile secondaryProfile;
-        [Range(0, 1)] public float secondaryWeight = 0f;
-        
-        [Header("Overall Volume")]
+        [Header("Audio Profile")]
+        public AmbienceProfile audioProfile;
+        [Range(0, 1)] public float audioWeight = 1f;
         [Range(0, 2)] public float masterVolume = 1f;
     }
     
@@ -53,184 +46,124 @@ public class AmbienceController : MonoBehaviour
     [SerializeField] private CozyWeather cozyWeather;
     [SerializeField] private bool autoFindCozy = true;
     
+    [Header("=== PARTICLE SPAWN SETTINGS ===")]
+    [Tooltip("Parent for spawned particles (leave empty to use this transform)")]
+    [SerializeField] private Transform particleParent;
+    [Tooltip("Offset from player for particle spawn")]
+    [SerializeField] private Vector3 particleOffset = new Vector3(0, 5, 0);
+    [Tooltip("Follow player?")]
+    [SerializeField] private bool followPlayer = true;
+    [SerializeField] private Transform playerTransform;
+    
     [Header("=== TRANSITION ===")]
     [SerializeField, Range(0.5f, 5f)] private float transitionDuration = 2f;
     
-    [Header("=== AVAILABLE PROFILES (Assign from COZY) ===")]
-    [Tooltip("Peaceful day/light")]
-    [SerializeField] private AmbienceProfile birdsongProfile;
-    [Tooltip("Light path heavenly")]
-    [SerializeField] private AmbienceProfile butterfliesProfile;
-    [Tooltip("Bright sunny day")]
-    [SerializeField] private AmbienceProfile dayBugsProfile;
-    [Tooltip("Night mystical")]
-    [SerializeField] private AmbienceProfile firefliesProfile;
-    [Tooltip("Dark eerie")]
-    [SerializeField] private AmbienceProfile wispsProfile;
-    [Tooltip("Night sounds")]
-    [SerializeField] private AmbienceProfile owlSoundsProfile;
-    [Tooltip("Calm breeze")]
-    [SerializeField] private AmbienceProfile lightWindProfile;
-    [Tooltip("Storm approaching")]
-    [SerializeField] private AmbienceProfile blusteryProfile;
-    [Tooltip("Heavy storm")]
-    [SerializeField] private AmbienceProfile swirlingProfile;
-    [Tooltip("Silence/minimal")]
-    [SerializeField] private AmbienceProfile quietProfile;
-    [Tooltip("Eclipse special")]
-    [SerializeField] private AmbienceProfile auroraProfile;
+    [Header("=== AVAILABLE PARTICLE PREFABS ===")]
+    [Tooltip("Drag COZY particle prefabs here from Packages/COZY 3/Content/Prefabs/Particle FX")]
+    public GameObject firefliesPrefab;
+    public GameObject wispsPrefab;
+    public GameObject butterfliesPrefab;
+    public GameObject dayBugsPrefab;
+    public GameObject birdsPrefab;
+    public GameObject autumnLeavesPrefab;
+    public GameObject auroraPrefab;
+    public GameObject auroraAltPrefab;
+    public GameObject meteorPrefab;
+    public GameObject dustStormPrefab;
+    public GameObject swirlingPrefab;
+    public GameObject blusteryPrefab;
+    public GameObject lightRainPrefab;
+    public GameObject heavyRainPrefab;
+    public GameObject thunderPrefab;
+    public GameObject thunderSnowPrefab;
+    
+    [Header("=== AVAILABLE AUDIO PROFILES ===")]
+    [Tooltip("Drag COZY ambience profiles here")]
+    public AmbienceProfile quietProfile;
+    public AmbienceProfile lightWindProfile;
+    public AmbienceProfile birdsongProfile;
+    public AmbienceProfile dayBugsAudioProfile;
+    public AmbienceProfile owlSoundsProfile;
+    public AmbienceProfile blusteryAudioProfile;
+    public AmbienceProfile swirlingAudioProfile;
     
     [Header("=== NEUTRAL ===")]
     [SerializeField] private AmbiencePreset neutralPreset = new AmbiencePreset
     {
         stateName = "Neutral",
+        audioWeight = 0.7f,
         masterVolume = 0.5f
     };
     
-    [Header("=== LIGHT PATH (Balance +1 to +5) ===")]
-    [SerializeField] private AmbiencePreset light1Preset = new AmbiencePreset
+    [Header("=== SUNSET ===")]
+    [SerializeField] private AmbiencePreset sunsetPreset = new AmbiencePreset
     {
-        stateName = "Light1 (Golden Hour)",
-        masterVolume = 0.55f
-    };
-    
-    [SerializeField] private AmbiencePreset light2Preset = new AmbiencePreset
-    {
-        stateName = "Light2 (Warm)",
+        stateName = "Sunset",
+        audioWeight = 0.6f,
         masterVolume = 0.6f
     };
     
-    [SerializeField] private AmbiencePreset light3Preset = new AmbiencePreset
+    [Header("=== SUNRISE ===")]
+    [SerializeField] private AmbiencePreset sunrisePreset = new AmbiencePreset
     {
-        stateName = "Light3 (Bright)",
-        masterVolume = 0.65f
-    };
-    
-    [SerializeField] private AmbiencePreset light4Preset = new AmbiencePreset
-    {
-        stateName = "Light4 (Brighter)",
-        masterVolume = 0.7f
-    };
-    
-    [SerializeField] private AmbiencePreset light5Preset = new AmbiencePreset
-    {
-        stateName = "Light5 (Heavenly)",
-        masterVolume = 0.8f
-    };
-    
-    [Header("=== LIGHT PATH ESCALATION (Stage 1-5, Divine) ===")]
-    [SerializeField] private AmbiencePreset lightStage1Preset = new AmbiencePreset
-    {
-        stateName = "Light5+Stage1 (Divine Beginning)",
-        masterVolume = 0.85f
-    };
-    
-    [SerializeField] private AmbiencePreset lightStage2Preset = new AmbiencePreset
-    {
-        stateName = "Light5+Stage2 (Radiant)",
-        masterVolume = 0.9f
-    };
-    
-    [SerializeField] private AmbiencePreset lightStage3Preset = new AmbiencePreset
-    {
-        stateName = "Light5+Stage3 (Glorious)",
-        masterVolume = 0.92f
-    };
-    
-    [SerializeField] private AmbiencePreset lightStage4Preset = new AmbiencePreset
-    {
-        stateName = "Light5+Stage4 (Transcendent)",
-        masterVolume = 0.95f
-    };
-    
-    [SerializeField] private AmbiencePreset lightStage5Preset = new AmbiencePreset
-    {
-        stateName = "Light5+Stage5 (MAXIMUM DIVINE)",
-        masterVolume = 1f
-    };
-    
-    [Header("=== DARK PATH (Balance -1 to -5) ===")]
-    [SerializeField] private AmbiencePreset dark1Preset = new AmbiencePreset
-    {
-        stateName = "Dark1 (Late Afternoon)",
-        masterVolume = 0.5f
-    };
-    
-    [SerializeField] private AmbiencePreset dark2Preset = new AmbiencePreset
-    {
-        stateName = "Dark2 (Sunset)",
+        stateName = "Sunrise",
+        audioWeight = 0.7f,
         masterVolume = 0.55f
     };
     
-    [SerializeField] private AmbiencePreset dark3Preset = new AmbiencePreset
-    {
-        stateName = "Dark3 (Dusk)",
-        masterVolume = 0.6f
-    };
+    [Header("=== DARK PATH ===")]
+    [SerializeField] private AmbiencePreset dark1Preset = new AmbiencePreset { stateName = "Dark1" };
+    [SerializeField] private AmbiencePreset dark2Preset = new AmbiencePreset { stateName = "Dark2" };
+    [SerializeField] private AmbiencePreset dark3Preset = new AmbiencePreset { stateName = "Dark3" };
+    [SerializeField] private AmbiencePreset dark4Preset = new AmbiencePreset { stateName = "Dark4" };
+    [SerializeField] private AmbiencePreset dark5Preset = new AmbiencePreset { stateName = "Dark5 (Midnight)" };
     
-    [SerializeField] private AmbiencePreset dark4Preset = new AmbiencePreset
-    {
-        stateName = "Dark4 (Night)",
-        masterVolume = 0.7f
-    };
+    [Header("=== DARK ESCALATION (Storms) ===")]
+    [SerializeField] private AmbiencePreset darkStage1Preset = new AmbiencePreset { stateName = "Dark+Stage1" };
+    [SerializeField] private AmbiencePreset darkStage2Preset = new AmbiencePreset { stateName = "Dark+Stage2" };
+    [SerializeField] private AmbiencePreset darkStage3Preset = new AmbiencePreset { stateName = "Dark+Stage3" };
+    [SerializeField] private AmbiencePreset darkStage4Preset = new AmbiencePreset { stateName = "Dark+Stage4" };
+    [SerializeField] private AmbiencePreset darkStage5Preset = new AmbiencePreset { stateName = "Dark+Stage5 (THUNDERSTORM)" };
     
-    [SerializeField] private AmbiencePreset dark5Preset = new AmbiencePreset
-    {
-        stateName = "Dark5 (Midnight)",
-        masterVolume = 0.75f
-    };
+    [Header("=== LIGHT PATH ===")]
+    [SerializeField] private AmbiencePreset light1Preset = new AmbiencePreset { stateName = "Light1" };
+    [SerializeField] private AmbiencePreset light2Preset = new AmbiencePreset { stateName = "Light2" };
+    [SerializeField] private AmbiencePreset light3Preset = new AmbiencePreset { stateName = "Light3" };
+    [SerializeField] private AmbiencePreset light4Preset = new AmbiencePreset { stateName = "Light4" };
+    [SerializeField] private AmbiencePreset light5Preset = new AmbiencePreset { stateName = "Light5 (Heavenly)" };
     
-    [Header("=== DARK PATH ESCALATION (Stage 1-5, Stormy) ===")]
-    [SerializeField] private AmbiencePreset darkStage1Preset = new AmbiencePreset
-    {
-        stateName = "Dark5+Stage1 (Partly Cloudy)",
-        masterVolume = 0.8f
-    };
+    [Header("=== LIGHT ESCALATION (Divine) ===")]
+    [SerializeField] private AmbiencePreset lightStage1Preset = new AmbiencePreset { stateName = "Light+Stage1" };
+    [SerializeField] private AmbiencePreset lightStage2Preset = new AmbiencePreset { stateName = "Light+Stage2" };
+    [SerializeField] private AmbiencePreset lightStage3Preset = new AmbiencePreset { stateName = "Light+Stage3" };
+    [SerializeField] private AmbiencePreset lightStage4Preset = new AmbiencePreset { stateName = "Light+Stage4" };
+    [SerializeField] private AmbiencePreset lightStage5Preset = new AmbiencePreset { stateName = "Light+Stage5 (DIVINE)" };
     
-    [SerializeField] private AmbiencePreset darkStage2Preset = new AmbiencePreset
-    {
-        stateName = "Dark5+Stage2 (Overcast)",
-        masterVolume = 0.85f
-    };
-    
-    [SerializeField] private AmbiencePreset darkStage3Preset = new AmbiencePreset
-    {
-        stateName = "Dark5+Stage3 (Light Rain)",
-        masterVolume = 0.9f
-    };
-    
-    [SerializeField] private AmbiencePreset darkStage4Preset = new AmbiencePreset
-    {
-        stateName = "Dark5+Stage4 (Heavy Rain)",
-        masterVolume = 0.95f
-    };
-    
-    [SerializeField] private AmbiencePreset darkStage5Preset = new AmbiencePreset
-    {
-        stateName = "Dark5+Stage5 (THUNDERSTORM)",
-        masterVolume = 1f
-    };
-    
-    [Header("=== ECLIPSE ===")]
-    [SerializeField] private AmbiencePreset eclipsePreset = new AmbiencePreset
-    {
-        stateName = "Eclipse (5L + 5R)",
-        masterVolume = 0.3f  // Quiet, awe-inspiring
-    };
+    [Header("=== ECLIPSE STATES ===")]
+    [SerializeField] private AmbiencePreset eclipse20Preset = new AmbiencePreset { stateName = "Eclipse 20%" };
+    [SerializeField] private AmbiencePreset eclipse40Preset = new AmbiencePreset { stateName = "Eclipse 40%" };
+    [SerializeField] private AmbiencePreset eclipse50Preset = new AmbiencePreset { stateName = "Eclipse 50%" };
+    [SerializeField] private AmbiencePreset eclipse60Preset = new AmbiencePreset { stateName = "Eclipse 60%" };
+    [SerializeField] private AmbiencePreset eclipse75Preset = new AmbiencePreset { stateName = "Eclipse 75%" };
+    [SerializeField] private AmbiencePreset eclipseFullPreset = new AmbiencePreset { stateName = "Eclipse FULL 100%" };
     
     [Header("=== DEBUG ===")]
     [SerializeField] private bool logChanges = true;
-    [SerializeField] private WorldStateManager.AtmosphereState currentAtmosphere;
-    [SerializeField] private int currentWeatherStage;
+    [SerializeField] private string currentPresetName = "None";
+    [SerializeField] private int debugLeftRings;
+    [SerializeField] private int debugRightRings;
+    [SerializeField] private int activeParticleCount;
     
     #endregion
     
     #region Private Fields
     
     private AmbiencePreset currentPreset;
-    private AmbiencePreset targetPreset;
-    private float transitionProgress = 1f;
-    private bool isTransitioning;
+    private List<GameObject> activeParticles = new List<GameObject>();
+    private int currentLeftRings;
+    private int currentRightRings;
+    
+    // COZY Ambience Module (via reflection)
     private object ambienceModule;
     private bool hasAmbienceModule;
     
@@ -241,32 +174,36 @@ public class AmbienceController : MonoBehaviour
     void Start()
     {
         FindCozy();
-        AssignDefaultProfiles();
-        InitializeState();
+        FindPlayer();
+        SetupDefaultPresets();
+        
+        if (particleParent == null)
+            particleParent = transform;
+        
         SubscribeToEvents();
+        
+        if (logChanges)
+            Debug.Log($"[AmbienceController] Initialized. COZY: {cozyWeather != null}, Player: {playerTransform != null}");
     }
     
     void OnDestroy()
     {
         if (WorldStateManager.Instance != null)
         {
-            WorldStateManager.Instance.OnStateChanged.RemoveListener(OnAtmosphereChanged);
-            WorldStateManager.Instance.OnWeatherStageChanged.RemoveListener(OnWeatherStageChanged);
+            WorldStateManager.Instance.OnRingsChanged.RemoveListener(OnRingsChanged);
         }
+        
+        // Clean up particles
+        ClearAllParticles();
     }
     
     void Update()
     {
-        if (isTransitioning)
+        // Follow player if enabled
+        if (followPlayer && playerTransform != null && activeParticles.Count > 0)
         {
-            transitionProgress += Time.deltaTime / transitionDuration;
-            if (transitionProgress >= 1f)
-            {
-                transitionProgress = 1f;
-                currentPreset = targetPreset;
-                isTransitioning = false;
-            }
-            ApplyPreset(currentPreset, targetPreset, transitionProgress);
+            Vector3 targetPos = playerTransform.position + particleOffset;
+            particleParent.position = targetPos;
         }
     }
     
@@ -278,350 +215,406 @@ public class AmbienceController : MonoBehaviour
     {
         if (cozyWeather == null && autoFindCozy)
         {
-            cozyWeather = FindObjectOfType<CozyWeather>();
+            cozyWeather = CozyWeather.instance;
         }
         
         if (cozyWeather != null)
         {
-            // Try to find Ambience Module via reflection
-            var moduleField = cozyWeather.GetType().GetField("ambienceModule") 
-                           ?? cozyWeather.GetType().GetField("ambience");
+            // Try to find Ambience Module
+            var moduleField = cozyWeather.GetType().GetField("ambienceModule",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             if (moduleField != null)
             {
                 ambienceModule = moduleField.GetValue(cozyWeather);
                 hasAmbienceModule = ambienceModule != null;
             }
-            
-            // Alternative: check for GetModule method
-            if (!hasAmbienceModule)
-            {
-                var getModuleMethod = cozyWeather.GetType().GetMethod("GetModule");
-                if (getModuleMethod != null)
-                {
-                    // Try to get ambience module by type
-                    try
-                    {
-                        var moduleType = Type.GetType("DistantLands.Cozy.CozyAmbienceModule, DistantLands.Cozy.Runtime");
-                        if (moduleType != null)
-                        {
-                            ambienceModule = getModuleMethod.MakeGenericMethod(moduleType).Invoke(cozyWeather, null);
-                            hasAmbienceModule = ambienceModule != null;
-                        }
-                    }
-                    catch { }
-                }
-            }
-        }
-        
-        if (logChanges)
-        {
-            Debug.Log($"[AmbienceController] COZY found: {cozyWeather != null}, Ambience Module: {hasAmbienceModule}");
         }
     }
     
-    void AssignDefaultProfiles()
+    void FindPlayer()
     {
-        // Assign profiles to presets if not already set
-        // NEUTRAL
-        if (neutralPreset.primaryProfile == null) neutralPreset.primaryProfile = quietProfile;
-        if (neutralPreset.secondaryProfile == null) neutralPreset.secondaryProfile = lightWindProfile;
-        neutralPreset.primaryWeight = 0.7f;
-        neutralPreset.secondaryWeight = 0.3f;
+        if (playerTransform == null)
+        {
+            var player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+                playerTransform = player.transform;
+        }
+    }
+    
+    void SetupDefaultPresets()
+    {
+        // NEUTRAL - Day bugs, light wind
+        neutralPreset.particlePrefabs = CreateList(dayBugsPrefab);
+        neutralPreset.audioProfile = lightWindProfile;
         
-        // LIGHT PATH
-        if (light1Preset.primaryProfile == null) light1Preset.primaryProfile = lightWindProfile;
-        if (light1Preset.secondaryProfile == null) light1Preset.secondaryProfile = birdsongProfile;
-        light1Preset.primaryWeight = 0.6f;
-        light1Preset.secondaryWeight = 0.4f;
+        // SUNSET - Autumn leaves
+        sunsetPreset.particlePrefabs = CreateList(autumnLeavesPrefab, birdsPrefab);
+        sunsetPreset.audioProfile = quietProfile;
         
-        if (light2Preset.primaryProfile == null) light2Preset.primaryProfile = birdsongProfile;
-        if (light2Preset.secondaryProfile == null) light2Preset.secondaryProfile = lightWindProfile;
-        light2Preset.primaryWeight = 0.7f;
-        light2Preset.secondaryWeight = 0.3f;
-        
-        if (light3Preset.primaryProfile == null) light3Preset.primaryProfile = dayBugsProfile;
-        if (light3Preset.secondaryProfile == null) light3Preset.secondaryProfile = birdsongProfile;
-        light3Preset.primaryWeight = 0.6f;
-        light3Preset.secondaryWeight = 0.4f;
-        
-        if (light4Preset.primaryProfile == null) light4Preset.primaryProfile = birdsongProfile;
-        if (light4Preset.secondaryProfile == null) light4Preset.secondaryProfile = dayBugsProfile;
-        light4Preset.primaryWeight = 0.5f;
-        light4Preset.secondaryWeight = 0.5f;
-        
-        if (light5Preset.primaryProfile == null) light5Preset.primaryProfile = butterfliesProfile;
-        if (light5Preset.secondaryProfile == null) light5Preset.secondaryProfile = birdsongProfile;
-        light5Preset.primaryWeight = 0.7f;
-        light5Preset.secondaryWeight = 0.3f;
-        
-        // LIGHT ESCALATION
-        if (lightStage1Preset.primaryProfile == null) lightStage1Preset.primaryProfile = butterfliesProfile;
-        if (lightStage1Preset.secondaryProfile == null) lightStage1Preset.secondaryProfile = dayBugsProfile;
-        lightStage1Preset.primaryWeight = 0.8f;
-        lightStage1Preset.secondaryWeight = 0.2f;
-        
-        if (lightStage2Preset.primaryProfile == null) lightStage2Preset.primaryProfile = butterfliesProfile;
-        if (lightStage2Preset.secondaryProfile == null) lightStage2Preset.secondaryProfile = birdsongProfile;
-        lightStage2Preset.primaryWeight = 0.85f;
-        lightStage2Preset.secondaryWeight = 0.15f;
-        
-        if (lightStage3Preset.primaryProfile == null) lightStage3Preset.primaryProfile = butterfliesProfile;
-        if (lightStage3Preset.secondaryProfile == null) lightStage3Preset.secondaryProfile = dayBugsProfile;
-        lightStage3Preset.primaryWeight = 0.9f;
-        lightStage3Preset.secondaryWeight = 0.1f;
-        
-        if (lightStage4Preset.primaryProfile == null) lightStage4Preset.primaryProfile = butterfliesProfile;
-        lightStage4Preset.primaryWeight = 1f;
-        lightStage4Preset.secondaryWeight = 0f;
-        
-        if (lightStage5Preset.primaryProfile == null) lightStage5Preset.primaryProfile = butterfliesProfile;
-        lightStage5Preset.primaryWeight = 1f;
-        lightStage5Preset.secondaryWeight = 0f;
+        // SUNRISE - Birds, light wind
+        sunrisePreset.particlePrefabs = CreateList(birdsPrefab, dayBugsPrefab);
+        sunrisePreset.audioProfile = birdsongProfile;
         
         // DARK PATH
-        if (dark1Preset.primaryProfile == null) dark1Preset.primaryProfile = quietProfile;
-        if (dark1Preset.secondaryProfile == null) dark1Preset.secondaryProfile = lightWindProfile;
-        dark1Preset.primaryWeight = 0.7f;
-        dark1Preset.secondaryWeight = 0.3f;
+        dark1Preset.particlePrefabs = CreateList(dayBugsPrefab);
+        dark1Preset.audioProfile = quietProfile;
         
-        if (dark2Preset.primaryProfile == null) dark2Preset.primaryProfile = quietProfile;
-        dark2Preset.primaryWeight = 1f;
-        dark2Preset.secondaryWeight = 0f;
+        dark2Preset.particlePrefabs = CreateList();
+        dark2Preset.audioProfile = quietProfile;
         
-        if (dark3Preset.primaryProfile == null) dark3Preset.primaryProfile = owlSoundsProfile;
-        if (dark3Preset.secondaryProfile == null) dark3Preset.secondaryProfile = quietProfile;
-        dark3Preset.primaryWeight = 0.6f;
-        dark3Preset.secondaryWeight = 0.4f;
+        dark3Preset.particlePrefabs = CreateList(firefliesPrefab);
+        dark3Preset.audioProfile = owlSoundsProfile;
         
-        if (dark4Preset.primaryProfile == null) dark4Preset.primaryProfile = owlSoundsProfile;
-        if (dark4Preset.secondaryProfile == null) dark4Preset.secondaryProfile = firefliesProfile;
-        dark4Preset.primaryWeight = 0.5f;
-        dark4Preset.secondaryWeight = 0.5f;
+        dark4Preset.particlePrefabs = CreateList(firefliesPrefab, wispsPrefab);
+        dark4Preset.audioProfile = owlSoundsProfile;
         
-        if (dark5Preset.primaryProfile == null) dark5Preset.primaryProfile = firefliesProfile;
-        if (dark5Preset.secondaryProfile == null) dark5Preset.secondaryProfile = wispsProfile;
-        dark5Preset.primaryWeight = 0.6f;
-        dark5Preset.secondaryWeight = 0.4f;
+        dark5Preset.particlePrefabs = CreateList(firefliesPrefab, wispsPrefab);
+        dark5Preset.audioProfile = owlSoundsProfile;
         
-        // DARK ESCALATION
-        if (darkStage1Preset.primaryProfile == null) darkStage1Preset.primaryProfile = wispsProfile;
-        if (darkStage1Preset.secondaryProfile == null) darkStage1Preset.secondaryProfile = quietProfile;
-        darkStage1Preset.primaryWeight = 0.7f;
-        darkStage1Preset.secondaryWeight = 0.3f;
+        // DARK ESCALATION (Storms)
+        darkStage1Preset.particlePrefabs = CreateList(wispsPrefab, blusteryPrefab);
+        darkStage1Preset.audioProfile = blusteryAudioProfile;
         
-        if (darkStage2Preset.primaryProfile == null) darkStage2Preset.primaryProfile = wispsProfile;
-        if (darkStage2Preset.secondaryProfile == null) darkStage2Preset.secondaryProfile = owlSoundsProfile;
-        darkStage2Preset.primaryWeight = 0.8f;
-        darkStage2Preset.secondaryWeight = 0.2f;
+        darkStage2Preset.particlePrefabs = CreateList(wispsPrefab, dustStormPrefab);
+        darkStage2Preset.audioProfile = blusteryAudioProfile;
         
-        if (darkStage3Preset.primaryProfile == null) darkStage3Preset.primaryProfile = blusteryProfile;
-        if (darkStage3Preset.secondaryProfile == null) darkStage3Preset.secondaryProfile = wispsProfile;
-        darkStage3Preset.primaryWeight = 0.7f;
-        darkStage3Preset.secondaryWeight = 0.3f;
+        darkStage3Preset.particlePrefabs = CreateList(lightRainPrefab, swirlingPrefab);
+        darkStage3Preset.audioProfile = swirlingAudioProfile;
         
-        if (darkStage4Preset.primaryProfile == null) darkStage4Preset.primaryProfile = swirlingProfile;
-        if (darkStage4Preset.secondaryProfile == null) darkStage4Preset.secondaryProfile = blusteryProfile;
-        darkStage4Preset.primaryWeight = 0.8f;
-        darkStage4Preset.secondaryWeight = 0.2f;
+        darkStage4Preset.particlePrefabs = CreateList(heavyRainPrefab, swirlingPrefab, dustStormPrefab);
+        darkStage4Preset.audioProfile = swirlingAudioProfile;
         
-        if (darkStage5Preset.primaryProfile == null) darkStage5Preset.primaryProfile = swirlingProfile;
-        darkStage5Preset.primaryWeight = 1f;
-        darkStage5Preset.secondaryWeight = 0f;
+        darkStage5Preset.particlePrefabs = CreateList(thunderPrefab, heavyRainPrefab, dustStormPrefab);
+        darkStage5Preset.audioProfile = swirlingAudioProfile;
+        darkStage5Preset.masterVolume = 1.2f;
+        
+        // LIGHT PATH
+        light1Preset.particlePrefabs = CreateList(dayBugsPrefab, birdsPrefab);
+        light1Preset.audioProfile = birdsongProfile;
+        
+        light2Preset.particlePrefabs = CreateList(dayBugsPrefab, birdsPrefab, butterfliesPrefab);
+        light2Preset.audioProfile = birdsongProfile;
+        
+        light3Preset.particlePrefabs = CreateList(butterfliesPrefab, birdsPrefab);
+        light3Preset.audioProfile = birdsongProfile;
+        
+        light4Preset.particlePrefabs = CreateList(butterfliesPrefab, birdsPrefab);
+        light4Preset.audioProfile = birdsongProfile;
+        
+        light5Preset.particlePrefabs = CreateList(butterfliesPrefab, butterfliesPrefab); // Double butterflies!
+        light5Preset.audioProfile = birdsongProfile;
+        
+        // LIGHT ESCALATION (Divine)
+        lightStage1Preset.particlePrefabs = CreateList(butterfliesPrefab, butterfliesPrefab, birdsPrefab);
+        lightStage1Preset.audioProfile = birdsongProfile;
+        
+        lightStage2Preset.particlePrefabs = CreateList(butterfliesPrefab, butterfliesPrefab);
+        lightStage2Preset.audioProfile = birdsongProfile;
+        
+        lightStage3Preset.particlePrefabs = CreateList(butterfliesPrefab, butterfliesPrefab);
+        lightStage3Preset.audioProfile = birdsongProfile;
+        
+        lightStage4Preset.particlePrefabs = CreateList(butterfliesPrefab, butterfliesPrefab);
+        lightStage4Preset.audioProfile = birdsongProfile;
+        
+        lightStage5Preset.particlePrefabs = CreateList(butterfliesPrefab, butterfliesPrefab, butterfliesPrefab);
+        lightStage5Preset.audioProfile = birdsongProfile;
+        lightStage5Preset.masterVolume = 1.2f;
         
         // ECLIPSE
-        if (eclipsePreset.primaryProfile == null) eclipsePreset.primaryProfile = auroraProfile ?? quietProfile;
-        eclipsePreset.primaryWeight = 1f;
-        eclipsePreset.secondaryWeight = 0f;
+        eclipse20Preset.particlePrefabs = CreateList(wispsPrefab);
+        eclipse20Preset.audioProfile = quietProfile;
+        eclipse20Preset.masterVolume = 0.4f;
+        
+        eclipse40Preset.particlePrefabs = CreateList(wispsPrefab, firefliesPrefab);
+        eclipse40Preset.audioProfile = quietProfile;
+        eclipse40Preset.masterVolume = 0.35f;
+        
+        eclipse50Preset.particlePrefabs = CreateList(wispsPrefab, auroraPrefab);
+        eclipse50Preset.audioProfile = quietProfile;
+        eclipse50Preset.masterVolume = 0.3f;
+        
+        eclipse60Preset.particlePrefabs = CreateList(auroraPrefab, wispsPrefab);
+        eclipse60Preset.audioProfile = quietProfile;
+        eclipse60Preset.masterVolume = 0.28f;
+        
+        eclipse75Preset.particlePrefabs = CreateList(auroraPrefab, auroraAltPrefab, wispsPrefab);
+        eclipse75Preset.audioProfile = quietProfile;
+        eclipse75Preset.masterVolume = 0.25f;
+        
+        eclipseFullPreset.particlePrefabs = CreateList(auroraPrefab, auroraAltPrefab, meteorPrefab, wispsPrefab);
+        eclipseFullPreset.audioProfile = quietProfile;
+        eclipseFullPreset.masterVolume = 0.2f; // Near silence for awe
     }
     
-    void InitializeState()
+    List<GameObject> CreateList(params GameObject[] prefabs)
     {
-        currentPreset = neutralPreset;
-        targetPreset = neutralPreset;
-        ApplyPreset(currentPreset, currentPreset, 1f);
+        var list = new List<GameObject>();
+        foreach (var p in prefabs)
+        {
+            if (p != null)
+                list.Add(p);
+        }
+        return list;
     }
     
     void SubscribeToEvents()
     {
         if (WorldStateManager.Instance != null)
         {
-            WorldStateManager.Instance.OnStateChanged.AddListener(OnAtmosphereChanged);
-            WorldStateManager.Instance.OnWeatherStageChanged.AddListener(OnWeatherStageChanged);
-            OnAtmosphereChanged(WorldStateManager.Instance.CurrentState);
+            WorldStateManager.Instance.OnRingsChanged.AddListener(OnRingsChanged);
+            
+            currentLeftRings = WorldStateManager.Instance.LeftRings;
+            currentRightRings = WorldStateManager.Instance.RightRings;
+            OnRingsChanged(currentLeftRings, currentRightRings);
+        }
+        else
+        {
+            Debug.LogWarning("[AmbienceController] WorldStateManager not found!");
         }
     }
     
     #endregion
     
-    #region Event Handlers
+    #region Event Handler
     
-    void OnAtmosphereChanged(WorldStateManager.AtmosphereState state)
+    void OnRingsChanged(int leftRings, int rightRings)
     {
-        currentAtmosphere = state;
-        UpdateTargetPreset();
-    }
-    
-    void OnWeatherStageChanged(int stage)
-    {
-        currentWeatherStage = stage;
-        UpdateTargetPreset();
-    }
-    
-    void UpdateTargetPreset()
-    {
-        targetPreset = GetPresetForState(currentAtmosphere, currentWeatherStage);
-        transitionProgress = 0f;
-        isTransitioning = true;
+        currentLeftRings = leftRings;
+        currentRightRings = rightRings;
+        debugLeftRings = leftRings;
+        debugRightRings = rightRings;
         
-        if (logChanges)
-            Debug.Log($"[AmbienceController] Transitioning to: {targetPreset.stateName}");
+        AmbiencePreset newPreset = GetPresetForRings(leftRings, rightRings);
+        
+        if (newPreset != currentPreset)
+        {
+            currentPreset = newPreset;
+            currentPresetName = newPreset.stateName;
+            
+            // Apply particles
+            ApplyParticles(newPreset);
+            
+            // Apply audio
+            ApplyAudio(newPreset);
+            
+            if (logChanges)
+                Debug.Log($"[AmbienceController] {leftRings}L/{rightRings}R → {newPreset.stateName} ({newPreset.particlePrefabs.Count} particles)");
+        }
     }
     
     #endregion
     
-    #region State Resolution
+    #region State Resolution (same logic as PostProcessController)
     
-    AmbiencePreset GetPresetForState(WorldStateManager.AtmosphereState atmosphere, int weatherStage)
+    AmbiencePreset GetPresetForRings(int L, int R)
     {
-        if (atmosphere == WorldStateManager.AtmosphereState.Eclipse)
-            return eclipsePreset;
+        int diff = L - R;
+        int absDiff = Mathf.Abs(diff);
+        int minRings = Mathf.Min(L, R);
         
-        if (weatherStage > 0)
+        // === ECLIPSE STATES ===
+        if (absDiff <= 1 && minRings >= 2)
         {
-            if (atmosphere == WorldStateManager.AtmosphereState.Dark5)
+            if (L == 5 && R == 5) return eclipseFullPreset;
+            if ((L == 5 && R == 4) || (L == 4 && R == 5)) return eclipse75Preset;
+            if (L == 4 && R == 4) return eclipse60Preset;
+            if ((L == 4 && R == 3) || (L == 3 && R == 4)) return eclipse50Preset;
+            if (L == 3 && R == 3) return eclipse40Preset;
+            if ((L == 3 && R == 2) || (L == 2 && R == 3)) return eclipse20Preset;
+        }
+        
+        // === SUNSET ===
+        if (L == 1 && R == 0) return sunsetPreset;
+        if (diff == 2 && L > 0 && R > 0) return sunsetPreset;
+        
+        // === SUNRISE ===
+        if (diff == -2 && L > 0 && R > 0) return sunrisePreset;
+        
+        // === DARK ESCALATION ===
+        if (L >= 6 && diff > 0)
+        {
+            int stage = L - 5;
+            switch (stage)
             {
-                switch (weatherStage)
+                case 1: return darkStage1Preset;
+                case 2: return darkStage2Preset;
+                case 3: return darkStage3Preset;
+                case 4: return darkStage4Preset;
+                default: return darkStage5Preset;
+            }
+        }
+        
+        // === LIGHT ESCALATION ===
+        if (R >= 6 && diff < 0)
+        {
+            int stage = R - 5;
+            switch (stage)
+            {
+                case 1: return lightStage1Preset;
+                case 2: return lightStage2Preset;
+                case 3: return lightStage3Preset;
+                case 4: return lightStage4Preset;
+                default: return lightStage5Preset;
+            }
+        }
+        
+        // === DARK PATH ===
+        if (diff > 2)
+        {
+            if (L >= 5) return dark5Preset;
+            if (L >= 4) return dark4Preset;
+            if (L >= 3) return dark3Preset;
+            if (L >= 2) return dark2Preset;
+            return dark1Preset;
+        }
+        
+        // === LIGHT PATH ===
+        if (diff < -2)
+        {
+            if (R >= 5) return light5Preset;
+            if (R >= 4) return light4Preset;
+            if (R >= 3) return light3Preset;
+            if (R >= 2) return light2Preset;
+            return light1Preset;
+        }
+        
+        // === MILD DARK ===
+        if (diff > 0 && diff <= 2 && minRings < 2)
+        {
+            return dark1Preset;
+        }
+        
+        // === MILD LIGHT ===
+        if (diff < 0 && absDiff <= 2 && minRings < 2)
+        {
+            return light1Preset;
+        }
+        
+        return neutralPreset;
+    }
+    
+    #endregion
+    
+    #region Particle Management
+    
+    void ApplyParticles(AmbiencePreset preset)
+    {
+        // Clear existing particles
+        ClearAllParticles();
+        
+        // Spawn new particles
+        foreach (var prefab in preset.particlePrefabs)
+        {
+            if (prefab != null)
+            {
+                SpawnParticle(prefab);
+            }
+        }
+        
+        activeParticleCount = activeParticles.Count;
+    }
+    
+    void SpawnParticle(GameObject prefab)
+    {
+        Vector3 spawnPos = particleParent.position;
+        if (playerTransform != null)
+            spawnPos = playerTransform.position + particleOffset;
+        
+        GameObject particle = Instantiate(prefab, spawnPos, Quaternion.identity, particleParent);
+        particle.name = $"YORU_Particle_{prefab.name}";
+        activeParticles.Add(particle);
+    }
+    
+    void ClearAllParticles()
+    {
+        foreach (var particle in activeParticles)
+        {
+            if (particle != null)
+            {
+                // Try to stop particle systems gracefully
+                var ps = particle.GetComponentInChildren<ParticleSystem>();
+                if (ps != null)
                 {
-                    case 1: return darkStage1Preset;
-                    case 2: return darkStage2Preset;
-                    case 3: return darkStage3Preset;
-                    case 4: return darkStage4Preset;
-                    default: return darkStage5Preset;
+                    ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                    Destroy(particle, 2f); // Delay to let particles fade
+                }
+                else
+                {
+                    Destroy(particle);
                 }
             }
-            else if (atmosphere == WorldStateManager.AtmosphereState.Light5)
-            {
-                switch (weatherStage)
-                {
-                    case 1: return lightStage1Preset;
-                    case 2: return lightStage2Preset;
-                    case 3: return lightStage3Preset;
-                    case 4: return lightStage4Preset;
-                    default: return lightStage5Preset;
-                }
-            }
         }
-        
-        switch (atmosphere)
-        {
-            case WorldStateManager.AtmosphereState.Dark5: return dark5Preset;
-            case WorldStateManager.AtmosphereState.Dark4: return dark4Preset;
-            case WorldStateManager.AtmosphereState.Dark3: return dark3Preset;
-            case WorldStateManager.AtmosphereState.Dark2: return dark2Preset;
-            case WorldStateManager.AtmosphereState.Dark1: return dark1Preset;
-            case WorldStateManager.AtmosphereState.Light1: return light1Preset;
-            case WorldStateManager.AtmosphereState.Light2: return light2Preset;
-            case WorldStateManager.AtmosphereState.Light3: return light3Preset;
-            case WorldStateManager.AtmosphereState.Light4: return light4Preset;
-            case WorldStateManager.AtmosphereState.Light5: return light5Preset;
-            default: return neutralPreset;
-        }
+        activeParticles.Clear();
     }
     
     #endregion
     
-    #region Apply Preset
+    #region Audio Management
     
-    void ApplyPreset(AmbiencePreset from, AmbiencePreset to, float t)
+    void ApplyAudio(AmbiencePreset preset)
     {
-        if (!hasAmbienceModule || ambienceModule == null) return;
+        if (!hasAmbienceModule || ambienceModule == null || preset.audioProfile == null)
+            return;
         
-        // Get the current blended weights
-        float masterVol = Mathf.Lerp(from.masterVolume, to.masterVolume, t);
-        
-        // Apply primary profile
-        AmbienceProfile targetPrimary = t > 0.5f ? to.primaryProfile : from.primaryProfile;
-        float primaryWeight = Mathf.Lerp(from.primaryWeight, to.primaryWeight, t) * masterVol;
-        
-        // Apply secondary profile
-        AmbienceProfile targetSecondary = t > 0.5f ? to.secondaryProfile : from.secondaryProfile;
-        float secondaryWeight = Mathf.Lerp(from.secondaryWeight, to.secondaryWeight, t) * masterVol;
-        
-        // Try to set ambiance via COZY API
         try
         {
-            // Method 1: Direct profile assignment
-            var setAmbienceMethod = ambienceModule.GetType().GetMethod("SetAmbience");
-            if (setAmbienceMethod != null)
+            // Try to set ambience via COZY
+            var setMethod = ambienceModule.GetType().GetMethod("SetAmbience");
+            if (setMethod != null)
             {
-                if (targetPrimary != null && primaryWeight > 0.01f)
-                {
-                    setAmbienceMethod.Invoke(ambienceModule, new object[] { targetPrimary, primaryWeight });
-                }
-            }
-            
-            // Method 2: Ambience list manipulation
-            var ambienceListField = ambienceModule.GetType().GetField("currentAmbience") 
-                                 ?? ambienceModule.GetType().GetField("ambienceProfiles");
-            if (ambienceListField != null)
-            {
-                // This would require more complex manipulation of the list
-                // For now, we rely on SetAmbience method
+                setMethod.Invoke(ambienceModule, new object[] { preset.audioProfile, preset.audioWeight });
             }
         }
         catch (Exception e)
         {
             if (logChanges)
-                Debug.LogWarning($"[AmbienceController] Could not apply ambience: {e.Message}");
+                Debug.LogWarning($"[AmbienceController] Audio error: {e.Message}");
         }
     }
     
     #endregion
     
-    #region Context Menu
+    #region Context Menu Tests
     
-    [ContextMenu("Preview: Neutral")]
-    void PreviewNeutral() => PreviewPreset(neutralPreset);
+    [ContextMenu("Test: Neutral")]
+    void TestNeutral() { OnRingsChanged(0, 0); }
     
-    [ContextMenu("Preview: Light5+Stage5")]
-    void PreviewLightMax() => PreviewPreset(lightStage5Preset);
+    [ContextMenu("Test: Sunset")]
+    void TestSunset() { OnRingsChanged(1, 0); }
     
-    [ContextMenu("Preview: Dark5+Stage5")]
-    void PreviewDarkMax() => PreviewPreset(darkStage5Preset);
+    [ContextMenu("Test: Dark5 (Fireflies)")]
+    void TestDark5() { OnRingsChanged(5, 0); }
     
-    [ContextMenu("Preview: Eclipse")]
-    void PreviewEclipse() => PreviewPreset(eclipsePreset);
+    [ContextMenu("Test: Dark+Stage5 (Thunderstorm)")]
+    void TestDarkStage5() { OnRingsChanged(10, 0); }
     
-    void PreviewPreset(AmbiencePreset preset)
-    {
-        currentPreset = preset;
-        targetPreset = preset;
-        isTransitioning = false;
-        ApplyPreset(preset, preset, 1f);
-        if (logChanges) Debug.Log($"[AmbienceController] Preview: {preset.stateName}");
-    }
+    [ContextMenu("Test: Light5 (Butterflies)")]
+    void TestLight5() { OnRingsChanged(0, 5); }
     
-    [ContextMenu("Log Current State")]
-    void LogCurrentState()
-    {
-        Debug.Log($"[AmbienceController] Current: {currentPreset?.stateName}, Target: {targetPreset?.stateName}");
-        Debug.Log($"[AmbienceController] Atmosphere: {currentAtmosphere}, Stage: {currentWeatherStage}");
-        Debug.Log($"[AmbienceController] Has Ambience Module: {hasAmbienceModule}");
-    }
+    [ContextMenu("Test: Light+Stage5 (Divine)")]
+    void TestLightStage5() { OnRingsChanged(0, 10); }
+    
+    [ContextMenu("Test: Eclipse FULL (Aurora + Meteor)")]
+    void TestEclipseFull() { OnRingsChanged(5, 5); }
+    
+    [ContextMenu("Clear All Particles")]
+    void TestClearParticles() { ClearAllParticles(); }
     
     #endregion
     
     #region Public API
     
-    public void ForceUpdateState()
+    public void ForceRefresh()
     {
         if (WorldStateManager.Instance != null)
         {
-            OnAtmosphereChanged(WorldStateManager.Instance.CurrentState);
+            OnRingsChanged(WorldStateManager.Instance.LeftRings, WorldStateManager.Instance.RightRings);
         }
     }
     
     public AmbiencePreset GetCurrentPreset() => currentPreset;
+    public int GetActiveParticleCount() => activeParticles.Count;
     
     #endregion
 }
