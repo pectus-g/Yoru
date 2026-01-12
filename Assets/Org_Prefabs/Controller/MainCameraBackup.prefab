@@ -1,0 +1,937 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7084431338534501704
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4072093279431392126}
+  - component: {fileID: 2436537516121091257}
+  - component: {fileID: 412310610617782546}
+  - component: {fileID: 8756110770757461367}
+  m_Layer: 0
+  m_Name: CM vcam_FollowYoru
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4072093279431392126
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7084431338534501704}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0, z: -0, w: 1}
+  m_LocalPosition: {x: 4.7770996, y: -1.3861284, z: -9.051297}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7590039961432035847}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2436537516121091257
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7084431338534501704}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9dfa5b682dcd46bda6128250e975f58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
+  Priority:
+    Enabled: 0
+    m_Value: 0
+  OutputChannel: 1
+  StandbyUpdate: 2
+  m_StreamingVersion: 20241001
+  m_LegacyPriority: 0
+  Target:
+    TrackingTarget: {fileID: 0}
+    LookAtTarget: {fileID: 0}
+    CustomLookAtTarget: 0
+  Lens:
+    FieldOfView: 60.000004
+    OrthographicSize: 10
+    NearClipPlane: 0.1
+    FarClipPlane: 5000
+    Dutch: 0
+    ModeOverride: 0
+    PhysicalProperties:
+      GateFit: 2
+      SensorSize: {x: 21.946, y: 16.002}
+      LensShift: {x: 0, y: 0}
+      FocusDistance: 10
+      Iso: 200
+      ShutterSpeed: 0.005
+      Aperture: 16
+      BladeCount: 5
+      Curvature: {x: 2, y: 11}
+      BarrelClipping: 0.25
+      Anamorphism: 0
+  BlendHint: 0
+--- !u!114 &412310610617782546
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7084431338534501704}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b617507da6d07e749b7efdb34e1173e1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineFollow
+  TrackerSettings:
+    BindingMode: 4
+    PositionDamping: {x: 1, y: 1, z: 1}
+    AngularDampingMode: 0
+    RotationDamping: {x: 1, y: 1, z: 1}
+    QuaternionDamping: 1
+  FollowOffset: {x: 0, y: 2.5, z: -5}
+--- !u!114 &8756110770757461367
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7084431338534501704}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e8b78ac948f05a46a6d8339a503172b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineHardLookAt
+  LookAtOffset: {x: 0, y: 1, z: 0}
+--- !u!1 &7147977017369790967
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7590039961432035847}
+  m_Layer: 9
+  m_Name: MainCameraBackup
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7590039961432035847
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7147977017369790967}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.14521109, y: 0, z: 0, w: 0.9894007}
+  m_LocalPosition: {x: 819, y: 103.5, z: 1054.7867}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 4072093279431392126}
+  - {fileID: 3243084095059244231}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 16.699, y: 0, z: 0}
+--- !u!1 &7750985688459682763
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3243084095059244231}
+  - component: {fileID: 2668442302551036339}
+  - component: {fileID: 8930957797506789113}
+  - component: {fileID: 1493013584008976220}
+  - component: {fileID: 5559030891519068191}
+  - component: {fileID: 3045168994836338682}
+  - component: {fileID: 5558039367731204579}
+  - component: {fileID: 5752751280094581192}
+  - component: {fileID: 1023166157257347678}
+  m_Layer: 9
+  m_Name: mainCamera (1)
+  m_TagString: MainCamera
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3243084095059244231
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7750985688459682763}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0, z: -0, w: 1}
+  m_LocalPosition: {x: 4.7770996, y: -1.3861284, z: -9.051297}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7590039961432035847}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!20 &2668442302551036339
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7750985688459682763}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 1
+  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.1
+  far clip plane: 5000
+  field of view: 60.000004
+  orthographic: 0
+  orthographic size: 10
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!114 &8930957797506789113
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7750985688459682763}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72ece51f2901e7445ab60da3685d6b5f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowDebugText: 0
+  ShowCameraFrustum: 1
+  IgnoreTimeScale: 0
+  WorldUpOverride: {fileID: 0}
+  ChannelMask: -1
+  UpdateMethod: 2
+  BlendUpdateMethod: 1
+  LensModeOverride:
+    Enabled: 0
+    DefaultMode: 2
+  DefaultBlend:
+    Style: 1
+    Time: 1
+    CustomCurve:
+      serializedVersion: 2
+      m_Curve: []
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+  CustomBlends: {fileID: 0}
+--- !u!114 &1493013584008976220
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7750985688459682763}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 948f4100a11a5c24981795d21301da5c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  volumeTrigger: {fileID: 3243084095059244231}
+  volumeLayer:
+    serializedVersion: 2
+    m_Bits: 512
+  stopNaNPropagation: 1
+  finalBlitToCameraTarget: 0
+  antialiasingMode: 0
+  temporalAntialiasing:
+    jitterSpread: 0.75
+    sharpness: 0.25
+    stationaryBlending: 0.95
+    motionBlending: 0.85
+  subpixelMorphologicalAntialiasing:
+    quality: 2
+  fastApproximateAntialiasing:
+    fastMode: 0
+    keepAlpha: 0
+  fog:
+    enabled: 1
+    excludeSkybox: 1
+  debugLayer:
+    lightMeter:
+      width: 512
+      height: 256
+      showCurves: 1
+    histogram:
+      width: 512
+      height: 256
+      channel: 3
+    waveform:
+      exposure: 0.12
+      height: 256
+    vectorscope:
+      size: 256
+      exposure: 0.12
+    overlaySettings:
+      linearDepth: 0
+      motionColorIntensity: 4
+      motionGridSize: 64
+      colorBlindnessType: 0
+      colorBlindnessStrength: 1
+  m_Resources: {fileID: 11400000, guid: d82512f9c8e5d4a4d938b575d47f88d4, type: 2}
+  m_ShowToolkit: 0
+  m_ShowCustomSorter: 0
+  breakBeforeColorGrading: 0
+  m_BeforeTransparentBundles: []
+  m_BeforeStackBundles: []
+  m_AfterStackBundles: []
+--- !u!114 &5559030891519068191
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7750985688459682763}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca341e7cb986d4ac998c0f9035492a77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ThirdPersonCamera
+  mouseSensitivity: 2
+  minVerticalAngle: -50
+  maxVerticalAngle: 50
+  cameraDistance: 6.5
+  cameraHeight: 3
+  playerTransform: {fileID: 0}
+  virtualCamera: {fileID: 2436537516121091257}
+--- !u!124 &3045168994836338682
+Behaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7750985688459682763}
+  m_Enabled: 1
+--- !u!114 &5558039367731204579
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7750985688459682763}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e3d446f7ff644b70a8daaa5525fcf56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VolumetricFogAndMist.VolumetricFog
+  isDirty: 0
+  _preset: 1000
+  _profile: {fileID: 0}
+  _profileSync: 0
+  _useFogVolumes: 1
+  _debugPass: 0
+  _showInSceneView: 1
+  _transparencyBlendMode: 0
+  _transparencyBlendPower: 1
+  _transparencyLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _visibilityScope: 0
+  _visibilityVolume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 500, y: 500, z: 500}
+  _lightingModel: 0
+  _enableMultipleCameras: 0
+  _computeDepth: 0
+  _computeDepthScope: 0
+  _transparencyCutOff: 0.1
+  _renderBeforeTransparent: 0
+  _sun: {fileID: 0}
+  _timeBetweenTextureUpdates: 0.2
+  _sunCopyColor: 1
+  _density: 0.3
+  _noiseStrength: 0.6
+  _noiseFinalMultiplier: 1
+  _noiseSparse: 0
+  _distance: 0
+  _maxFogLength: 1000
+  _maxFogLengthFallOff: 0.5
+  _distanceFallOff: 0
+  _height: 6
+  _heightFallOff: 0.6
+  _deepObscurance: 1
+  _baselineHeight: 0
+  _baselineRelativeToCamera: 0
+  _baselineRelativeToCameraDelay: 0
+  _noiseScale: 1
+  _alpha: 1
+  _color: {r: 0.89, g: 0.89, b: 0.89, a: 1}
+  _specularColor: {r: 1, g: 1, b: 0.8, a: 1}
+  _specularThreshold: 0.6
+  _specularIntensity: 0.1
+  _lightDirection: {x: -0.029551685, y: -0.9994177, z: 0.017061591}
+  _lightIntensity: 0.12
+  _lightColor: {r: 0.8652543, g: 0.8729552, b: 0.79496515, a: 0}
+  _updateTextureSpread: 1
+  _speed: 0.01
+  _windDirection: {x: -1, y: 0, z: 0}
+  _useRealTime: 0
+  _skyColor: {r: 0.81, g: 0.81, b: 0.81, a: 0.8}
+  _skyHaze: 15
+  _skyNoiseScale: 1
+  _skySpeed: 0.3
+  _skyNoiseStrength: 0.1
+  _skyAlpha: 0.8
+  _skyDepth: 0.999
+  _character: {fileID: 0}
+  _fogVoidTopology: 0
+  _fogVoidFallOff: 1
+  _fogVoidRadius: 0
+  _fogVoidPosition: {x: 0, y: 0, z: 0}
+  _fogVoidDepth: 0
+  _fogVoidHeight: 0
+  _fogVoidShowGizmos: 0
+  _fogAreaShowGizmos: 1
+  _fogAreaCenter: {fileID: 0}
+  _fogAreaFallOff: 1
+  _fogAreaFollowMode: 0
+  _fogAreaTopology: 1
+  _fogAreaRadius: 0
+  _fogAreaPosition: {x: 0, y: 0, z: 0}
+  _fogAreaDepth: 0
+  _fogAreaHeight: 0
+  _fogAreaSortingMode: 0
+  _fogAreaRenderOrder: 1
+  pointLightParams:
+  - light: {fileID: 0}
+    lightParams: {fileID: 0}
+    range: 0
+    rangeMultiplier: 1
+    intensity: 1
+    intensityMultiplier: 1
+    position: {x: 0, y: 0, z: 0}
+    color: {r: 1, g: 1, b: 0, a: 1}
+  - light: {fileID: 0}
+    lightParams: {fileID: 0}
+    range: 0
+    rangeMultiplier: 1
+    intensity: 1
+    intensityMultiplier: 1
+    position: {x: 0, y: 0, z: 0}
+    color: {r: 1, g: 1, b: 0, a: 1}
+  - light: {fileID: 0}
+    lightParams: {fileID: 0}
+    range: 0
+    rangeMultiplier: 1
+    intensity: 1
+    intensityMultiplier: 1
+    position: {x: 0, y: 0, z: 0}
+    color: {r: 1, g: 1, b: 0, a: 1}
+  - light: {fileID: 0}
+    lightParams: {fileID: 0}
+    range: 0
+    rangeMultiplier: 1
+    intensity: 1
+    intensityMultiplier: 1
+    position: {x: 0, y: 0, z: 0}
+    color: {r: 1, g: 1, b: 0, a: 1}
+  - light: {fileID: 0}
+    lightParams: {fileID: 0}
+    range: 0
+    rangeMultiplier: 1
+    intensity: 1
+    intensityMultiplier: 1
+    position: {x: 0, y: 0, z: 0}
+    color: {r: 1, g: 1, b: 0, a: 1}
+  - light: {fileID: 0}
+    lightParams: {fileID: 0}
+    range: 0
+    rangeMultiplier: 1
+    intensity: 1
+    intensityMultiplier: 1
+    position: {x: 0, y: 0, z: 0}
+    color: {r: 1, g: 1, b: 0, a: 1}
+  pointLightDataMigrated: 1
+  _pointLights:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  _pointLightRanges:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  _pointLightIntensities:
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  _pointLightIntensitiesMultiplier:
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  _pointLightPositions:
+  - {x: 0, y: 0, z: 0}
+  - {x: 0, y: 0, z: 0}
+  - {x: 0, y: 0, z: 0}
+  - {x: 0, y: 0, z: 0}
+  - {x: 0, y: 0, z: 0}
+  - {x: 0, y: 0, z: 0}
+  _pointLightColors:
+  - {r: 1, g: 1, b: 0, a: 1}
+  - {r: 1, g: 1, b: 0, a: 1}
+  - {r: 1, g: 1, b: 0, a: 1}
+  - {r: 1, g: 1, b: 0, a: 1}
+  - {r: 1, g: 1, b: 0, a: 1}
+  - {r: 1, g: 1, b: 0, a: 1}
+  _pointLightTrackingAuto: 0
+  _pointLightTrackingPivot: {fileID: 3243084095059244231}
+  _pointLightTrackingCount: 0
+  _pointLightTrackingCheckInterval: 1
+  _pointLightTrackingNewLightsCheckInterval: 3
+  _pointLightInscattering: 1
+  _pointLightIntensity: 1
+  _pointLightInsideAtten: 0
+  _downsampling: 1
+  _forceComposition: 0
+  _blurComposition: 0
+  _blurEdgeThreshold: 0.002
+  _edgeImprove: 0
+  _edgeThreshold: 0.0005
+  _stepping: 8
+  _steppingNear: 0
+  _dithering: 0
+  _ditherStrength: 0.75
+  _jitterStrength: 0.5
+  _lightScatteringEnabled: 1
+  _lightScatteringDiffusion: 0.5
+  _lightDiffusionSpread: 6
+  _lightScatteringSpread: 0.686
+  _lightScatteringTint: {r: 1, g: 1, b: 1, a: 0}
+  _lightScatteringSamples: 16
+  _lightScatteringWeight: 1.9
+  _lightScatteringIllumination: 18
+  _lightScatteringDecay: 0.986
+  _lightScatteringExposure: 0.03
+  _lightScatteringJittering: 0.5
+  _lightScatteringBlurDownscale: 1
+  _fogBlur: 0
+  _fogBlurDepth: 0.05
+  _sunShadows: 0
+  _sunShadowsLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _sunShadowsStrength: 0.5
+  _sunShadowsBias: 0.1
+  _sunShadowsJitterStrength: 0.1
+  _sunShadowsResolution: 2
+  _sunShadowsMaxDistance: 200
+  _sunShadowsBakeMode: 1
+  _sunShadowsRefreshInterval: 0
+  _sunShadowsCancellation: 0
+  _turbulenceStrength: 0
+  _useXYPlane: 0
+  _useSinglePassStereoRenderingMatrix: 0
+  _reduceFlickerBigWorlds: 0
+  _enableMask: 0
+  _maskLayer:
+    serializedVersion: 2
+    m_Bits: 8388608
+  _maskDownsampling: 1
+  isRendering: 1
+  fogRenderer: {fileID: 5558039367731204579}
+  _fogOfWarEnabled: 0
+  _fogOfWarCenter: {x: 0, y: 0, z: 0}
+  _fogOfWarSize: {x: 1024, y: 0, z: 1024}
+  _fogOfWarClearDuration: 1
+  _fogOfWarTextureSize: 256
+  _fogOfWarRestoreDelay: 0
+  _fogOfWarRestoreDuration: 2
+  _fogOfWarSmoothness: 1
+  _fogOfWarBlur: 0
+  _fogOfWarReuseOther: 0
+  _fogOfWarOther: {fileID: 0}
+  _maskEditorEnabled: 0
+  _maskBrushMode: 1
+  _maskBrushWidth: 20
+  _maskBrushFuzziness: 0.5
+  _maskBrushOpacity: 0.15
+  _fogOfWarTexture: {fileID: 0}
+  _terrainFit: 0
+  _terrainFitResolution: 128
+  _terrainLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _terrainFogHeight: 25
+  _terrainFogMinAltitude: 0
+  _terrainFogMaxAltitude: 150
+--- !u!114 &5752751280094581192
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7750985688459682763}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2838e0cbd5a124a0ab52bbe6b14c5ac0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VolumetricFogAndMist.VolumetricFogPosT
+--- !u!114 &1023166157257347678
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7750985688459682763}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79a1ad045013d48baa976719ce174e7b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VolumetricFogIntegration
+  volumetricFog: {fileID: 0}
+  autoFind: 1
+  transitionDuration: 2
+  neutralPreset:
+    stateName: Neutral
+    triggerCondition: 0L/0R, 1L/1R, 2L/2R
+    density: 0.3
+    height: 6
+    baseHeight: 0
+    fogColor: {r: 0.89, g: 0.89, b: 0.89, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.03
+    skyHaze: 15
+  sunsetPreset:
+    stateName: Sunset
+    triggerCondition: 1L/0R, 3L/1R, 4L/2R, 5L/3R, 6L/4R
+    density: 0.35
+    height: 8
+    baseHeight: 0
+    fogColor: {r: 0.9, g: 0.66, b: 0.43, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.06
+    skyHaze: 18
+  sunrisePreset:
+    stateName: Sunrise
+    triggerCondition: 0L/1R, 1L/3R, 2L/4R, 3L/5R, 4L/6R
+    density: 0.32
+    height: 10
+    baseHeight: 0
+    fogColor: {r: 0.9, g: 0.77, b: 0.66, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.05
+    skyHaze: 16
+  dark1Preset:
+    stateName: Dark1
+    triggerCondition: diff > 2, dark winning, L small
+    density: 0.35
+    height: 5
+    baseHeight: 0
+    fogColor: {r: 0.75, g: 0.78, b: 0.85, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.02
+    skyHaze: 18
+  dark2Preset:
+    stateName: Dark2
+    triggerCondition: diff > 2, L >= 2
+    density: 0.4
+    height: 4
+    baseHeight: 0
+    fogColor: {r: 0.65, g: 0.69, b: 0.78, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.015
+    skyHaze: 20
+  dark3Preset:
+    stateName: Dark3
+    triggerCondition: diff > 2, L >= 3
+    density: 0.45
+    height: 4
+    baseHeight: 0
+    fogColor: {r: 0.55, g: 0.6, b: 0.7, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.01
+    skyHaze: 22
+  dark4Preset:
+    stateName: Dark4
+    triggerCondition: diff > 2, L >= 4
+    density: 0.5
+    height: 3
+    baseHeight: 0
+    fogColor: {r: 0.45, g: 0.51, b: 0.62, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.005
+    skyHaze: 24
+  dark5Preset:
+    stateName: Dark5 (Midnight)
+    triggerCondition: diff > 2, L >= 5
+    density: 0.55
+    height: 3
+    baseHeight: 0
+    fogColor: {r: 0.35, g: 0.42, b: 0.55, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.003
+    skyHaze: 25
+  darkStage1Preset:
+    stateName: Dark5+Stage1 (Partly Cloudy)
+    triggerCondition: L >= 6, dark committed
+    density: 0.58
+    height: 3
+    baseHeight: 0
+    fogColor: {r: 0.31, g: 0.37, b: 0.5, a: 1}
+    enableGodRays: 0
+    godRayIntensity: 0.03
+    skyHaze: 28
+  darkStage2Preset:
+    stateName: Dark5+Stage2 (Overcast)
+    triggerCondition: L >= 7
+    density: 0.62
+    height: 2
+    baseHeight: 0
+    fogColor: {r: 0.27, g: 0.33, b: 0.45, a: 1}
+    enableGodRays: 0
+    godRayIntensity: 0.03
+    skyHaze: 30
+  darkStage3Preset:
+    stateName: Dark5+Stage3 (Light Rain)
+    triggerCondition: L >= 8
+    density: 0.68
+    height: 2
+    baseHeight: 0
+    fogColor: {r: 0.23, g: 0.28, b: 0.4, a: 1}
+    enableGodRays: 0
+    godRayIntensity: 0.03
+    skyHaze: 32
+  darkStage4Preset:
+    stateName: Dark5+Stage4 (Heavy Rain)
+    triggerCondition: L >= 9
+    density: 0.75
+    height: 2
+    baseHeight: 0
+    fogColor: {r: 0.2, g: 0.23, b: 0.35, a: 1}
+    enableGodRays: 0
+    godRayIntensity: 0.03
+    skyHaze: 35
+  darkStage5Preset:
+    stateName: Dark5+Stage5 (THUNDERSTORM)
+    triggerCondition: L = 10
+    density: 0.82
+    height: 1
+    baseHeight: 0
+    fogColor: {r: 0.16, g: 0.18, b: 0.3, a: 1}
+    enableGodRays: 0
+    godRayIntensity: 0.03
+    skyHaze: 40
+  light1Preset:
+    stateName: Light1
+    triggerCondition: diff < -2, light winning, R small
+    density: 0.25
+    height: 8
+    baseHeight: 0
+    fogColor: {r: 0.95, g: 0.92, b: 0.85, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.035
+    skyHaze: 12
+  light2Preset:
+    stateName: Light2
+    triggerCondition: diff < -2, R >= 2
+    density: 0.22
+    height: 10
+    baseHeight: 0
+    fogColor: {r: 0.97, g: 0.94, b: 0.86, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.04
+    skyHaze: 10
+  light3Preset:
+    stateName: Light3
+    triggerCondition: diff < -2, R >= 3
+    density: 0.2
+    height: 12
+    baseHeight: 0
+    fogColor: {r: 0.99, g: 0.96, b: 0.87, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.045
+    skyHaze: 10
+  light4Preset:
+    stateName: Light4
+    triggerCondition: diff < -2, R >= 4
+    density: 0.18
+    height: 16
+    baseHeight: 0
+    fogColor: {r: 1, g: 0.97, b: 0.88, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.05
+    skyHaze: 8
+  light5Preset:
+    stateName: Light5 (Heavenly)
+    triggerCondition: diff < -2, R >= 5
+    density: 0.15
+    height: 20
+    baseHeight: 0
+    fogColor: {r: 1, g: 0.98, b: 0.9, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.055
+    skyHaze: 8
+  lightStage1Preset:
+    stateName: Light5+Stage1
+    triggerCondition: R >= 6, light committed
+    density: 0.18
+    height: 25
+    baseHeight: 0
+    fogColor: {r: 1, g: 0.96, b: 0.8, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.07
+    skyHaze: 10
+  lightStage2Preset:
+    stateName: Light5+Stage2
+    triggerCondition: R >= 7
+    density: 0.2
+    height: 30
+    baseHeight: 0
+    fogColor: {r: 1, g: 0.94, b: 0.7, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.08
+    skyHaze: 12
+  lightStage3Preset:
+    stateName: Light5+Stage3
+    triggerCondition: R >= 8
+    density: 0.22
+    height: 40
+    baseHeight: 0
+    fogColor: {r: 1, g: 0.91, b: 0.6, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.09
+    skyHaze: 14
+  lightStage4Preset:
+    stateName: Light5+Stage4
+    triggerCondition: R >= 9
+    density: 0.25
+    height: 50
+    baseHeight: 0
+    fogColor: {r: 1, g: 0.88, b: 0.5, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.1
+    skyHaze: 16
+  lightStage5Preset:
+    stateName: Light5+Stage5 (DIVINE)
+    triggerCondition: R = 10
+    density: 0.28
+    height: 60
+    baseHeight: 0
+    fogColor: {r: 1, g: 0.86, b: 0.4, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.12
+    skyHaze: 18
+  eclipse20Preset:
+    stateName: Eclipse 20%
+    triggerCondition: 2L/3R or 3L/2R
+    density: 0.38
+    height: 12
+    baseHeight: 0
+    fogColor: {r: 0.66, g: 0.66, b: 0.77, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.02
+    skyHaze: 20
+  eclipse40Preset:
+    stateName: Eclipse 40%
+    triggerCondition: 3L/3R
+    density: 0.42
+    height: 15
+    baseHeight: 0
+    fogColor: {r: 0.58, g: 0.58, b: 0.72, a: 1}
+    enableGodRays: 1
+    godRayIntensity: 0.015
+    skyHaze: 22
+  eclipse50Preset:
+    stateName: Eclipse 50%
+    triggerCondition: 3L/4R or 4L/3R
+    density: 0.45
+    height: 18
+    baseHeight: 0
+    fogColor: {r: 0.5, g: 0.5, b: 0.68, a: 1}
+    enableGodRays: 0
+    godRayIntensity: 0.03
+    skyHaze: 25
+  eclipse60Preset:
+    stateName: Eclipse 60%
+    triggerCondition: 4L/4R
+    density: 0.48
+    height: 20
+    baseHeight: 0
+    fogColor: {r: 0.42, g: 0.42, b: 0.64, a: 1}
+    enableGodRays: 0
+    godRayIntensity: 0.03
+    skyHaze: 28
+  eclipse75Preset:
+    stateName: Eclipse 75%
+    triggerCondition: 4L/5R or 5L/4R
+    density: 0.52
+    height: 25
+    baseHeight: 0
+    fogColor: {r: 0.36, g: 0.36, b: 0.6, a: 1}
+    enableGodRays: 0
+    godRayIntensity: 0.03
+    skyHaze: 30
+  eclipseFullPreset:
+    stateName: Eclipse FULL (100%)
+    triggerCondition: 5L/5R (Perfect Balance)
+    density: 0.55
+    height: 30
+    baseHeight: 0
+    fogColor: {r: 0.3, g: 0.3, b: 0.56, a: 1}
+    enableGodRays: 0
+    godRayIntensity: 0.03
+    skyHaze: 32
+  logChanges: 1
+  currentPresetName: None
+  debugLeftRings: 0
+  debugRightRings: 0

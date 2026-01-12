@@ -1,0 +1,643 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7810637875663558390
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 459780840407064401}
+  - component: {fileID: 5332112563259904783}
+  - component: {fileID: 3363106806218416513}
+  - component: {fileID: 7806053248647222268}
+  m_Layer: 9
+  m_Name: PostProcessing_World
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &459780840407064401
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7810637875663558390}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 828.07635, y: 115.44669, z: 1061.5375}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &5332112563259904783
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7810637875663558390}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &3363106806218416513
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7810637875663558390}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b9a305e18de0c04dbd257a21cd47087, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Postprocessing.Runtime::UnityEngine.Rendering.PostProcessing.PostProcessVolume
+  sharedProfile: {fileID: 11400000, guid: 36efcc53932b0436ca90ac59a73b7bea, type: 2}
+  isGlobal: 1
+  blendDistance: 0
+  weight: 1
+  priority: 0
+--- !u!114 &7806053248647222268
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7810637875663558390}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ea671d11e07146e4a76c97522fa3035, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PostProcessController
+  volume: {fileID: 0}
+  transitionDuration: 2
+  neutralPreset:
+    stateName: Neutral (0L/0R, 1L/1R, 2L/2R)
+    colorGradingEnabled: 1
+    temperature: 20
+    tint: 5
+    saturation: 5
+    contrast: 5
+    bloomEnabled: 1
+    bloomIntensity: 0.3
+    bloomThreshold: 1
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.25
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0, g: 0, b: 0, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  sunsetPreset:
+    stateName: Sunset (1L/0R, 3L/1R, 4L/2R, 5L/3R, 6L/4R)
+    colorGradingEnabled: 1
+    temperature: 35
+    tint: 15
+    saturation: 10
+    contrast: 8
+    bloomEnabled: 1
+    bloomIntensity: 0.5
+    bloomThreshold: 0.8
+    bloomColor: {r: 1, g: 0.85, b: 0.6, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.3
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.3, g: 0.1, b: 0.05, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  sunrisePreset:
+    stateName: Sunrise (1L/3R, 2L/4R, 3L/5R, 4L/6R)
+    colorGradingEnabled: 1
+    temperature: 25
+    tint: -8
+    saturation: 12
+    contrast: 5
+    bloomEnabled: 1
+    bloomIntensity: 0.45
+    bloomThreshold: 0.85
+    bloomColor: {r: 1, g: 0.9, b: 0.8, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.22
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.2, g: 0.1, b: 0.15, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  eclipse20Preset:
+    stateName: Eclipse 20% (2L/3R, 3L/2R)
+    colorGradingEnabled: 1
+    temperature: 5
+    tint: -5
+    saturation: -2
+    contrast: 5
+    bloomEnabled: 1
+    bloomIntensity: 0.35
+    bloomThreshold: 0.9
+    bloomColor: {r: 0.9, g: 0.85, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.28
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.1, g: 0.05, b: 0.12, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  eclipse40Preset:
+    stateName: Eclipse 40% (3L/3R)
+    colorGradingEnabled: 1
+    temperature: 3
+    tint: -8
+    saturation: -5
+    contrast: 8
+    bloomEnabled: 1
+    bloomIntensity: 0.4
+    bloomThreshold: 0.8
+    bloomColor: {r: 0.85, g: 0.75, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.32
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.12, g: 0.05, b: 0.15, a: 1}
+    chromaticEnabled: 1
+    chromaticIntensity: 0.03
+    grainEnabled: 0
+    grainIntensity: 0
+  eclipse50Preset:
+    stateName: Eclipse 50% (3L/4R, 4L/3R)
+    colorGradingEnabled: 1
+    temperature: 0
+    tint: -10
+    saturation: -8
+    contrast: 12
+    bloomEnabled: 1
+    bloomIntensity: 0.45
+    bloomThreshold: 0.75
+    bloomColor: {r: 0.8, g: 0.65, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.36
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.12, g: 0.04, b: 0.16, a: 1}
+    chromaticEnabled: 1
+    chromaticIntensity: 0.05
+    grainEnabled: 0
+    grainIntensity: 0
+  eclipse60Preset:
+    stateName: Eclipse 60% (4L/4R)
+    colorGradingEnabled: 1
+    temperature: -2
+    tint: -12
+    saturation: -10
+    contrast: 15
+    bloomEnabled: 1
+    bloomIntensity: 0.5
+    bloomThreshold: 0.7
+    bloomColor: {r: 0.75, g: 0.55, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.4
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.12, g: 0.04, b: 0.18, a: 1}
+    chromaticEnabled: 1
+    chromaticIntensity: 0.06
+    grainEnabled: 0
+    grainIntensity: 0
+  eclipse75Preset:
+    stateName: Eclipse 75% (4L/5R, 5L/4R)
+    colorGradingEnabled: 1
+    temperature: 2
+    tint: -14
+    saturation: -10
+    contrast: 18
+    bloomEnabled: 1
+    bloomIntensity: 0.55
+    bloomThreshold: 0.65
+    bloomColor: {r: 0.78, g: 0.58, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.42
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.12, g: 0.04, b: 0.18, a: 1}
+    chromaticEnabled: 1
+    chromaticIntensity: 0.07
+    grainEnabled: 0
+    grainIntensity: 0
+  eclipseFullPreset:
+    stateName: Eclipse FULL 100% (5L/5R)
+    colorGradingEnabled: 1
+    temperature: 20
+    tint: 10
+    saturation: 10
+    contrast: 20
+    bloomEnabled: 1
+    bloomIntensity: 0.6
+    bloomThreshold: 0.6
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.45
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 1, g: 1, b: 1, a: 1}
+    chromaticEnabled: 1
+    chromaticIntensity: 0.08
+    grainEnabled: 0
+    grainIntensity: 0
+  light1Preset:
+    stateName: Light1 (0L/1R, 1L/2R)
+    colorGradingEnabled: 1
+    temperature: 8
+    tint: 0
+    saturation: 5
+    contrast: 2
+    bloomEnabled: 1
+    bloomIntensity: 0.35
+    bloomThreshold: 0.95
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.22
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0, g: 0, b: 0, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  light2Preset:
+    stateName: Light2 (0L/2R)
+    colorGradingEnabled: 1
+    temperature: 12
+    tint: 0
+    saturation: 8
+    contrast: 3
+    bloomEnabled: 1
+    bloomIntensity: 0.4
+    bloomThreshold: 0.9
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.2
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0, g: 0, b: 0, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  light3Preset:
+    stateName: Light3 (0L/3R, 1L/4R, 2L/5R, 3L/6R)
+    colorGradingEnabled: 1
+    temperature: 16
+    tint: 0
+    saturation: 10
+    contrast: 4
+    bloomEnabled: 1
+    bloomIntensity: 0.45
+    bloomThreshold: 0.85
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.18
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0, g: 0, b: 0, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  light4Preset:
+    stateName: Light4 (0L/4R, 1L/5R, 2L/6R, 3L/7R)
+    colorGradingEnabled: 1
+    temperature: 20
+    tint: 0
+    saturation: 12
+    contrast: 5
+    bloomEnabled: 1
+    bloomIntensity: 0.5
+    bloomThreshold: 0.8
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.15
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0, g: 0, b: 0, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  light5Preset:
+    stateName: Light5 (0L/5R, 1L/6R, 2L/7R)
+    colorGradingEnabled: 1
+    temperature: 25
+    tint: 2
+    saturation: 15
+    contrast: 6
+    bloomEnabled: 1
+    bloomIntensity: 0.6
+    bloomThreshold: 0.75
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.12
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 1, g: 0.9, b: 0.7, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  lightStage1Preset:
+    stateName: Light+Stage1 (0L/6R, 1L/7R, 2L/8R)
+    colorGradingEnabled: 1
+    temperature: 28
+    tint: 3
+    saturation: 16
+    contrast: 7
+    bloomEnabled: 1
+    bloomIntensity: 0.7
+    bloomThreshold: 0.7
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.1
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 1, g: 0.84, b: 0, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  lightStage2Preset:
+    stateName: Light+Stage2 (0L/7R, 1L/8R)
+    colorGradingEnabled: 1
+    temperature: 32
+    tint: 4
+    saturation: 18
+    contrast: 8
+    bloomEnabled: 1
+    bloomIntensity: 0.8
+    bloomThreshold: 0.65
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.08
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 1, g: 0.78, b: 0.14, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  lightStage3Preset:
+    stateName: Light+Stage3 (0L/8R, 1L/9R)
+    colorGradingEnabled: 1
+    temperature: 36
+    tint: 5
+    saturation: 20
+    contrast: 10
+    bloomEnabled: 1
+    bloomIntensity: 0.9
+    bloomThreshold: 0.6
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.06
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 1, g: 0.71, b: 0.28, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  lightStage4Preset:
+    stateName: Light+Stage4 (0L/9R)
+    colorGradingEnabled: 1
+    temperature: 42
+    tint: 6
+    saturation: 22
+    contrast: 12
+    bloomEnabled: 1
+    bloomIntensity: 1
+    bloomThreshold: 0.55
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.04
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 1, g: 0.66, b: 0.42, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  lightStage5Preset:
+    stateName: Light+Stage5 (0L/10R) MAXIMUM DIVINE
+    colorGradingEnabled: 1
+    temperature: 50
+    tint: 8
+    saturation: 25
+    contrast: 15
+    bloomEnabled: 1
+    bloomIntensity: 1.2
+    bloomThreshold: 0.5
+    bloomColor: {r: 1, g: 0.95, b: 0.85, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.02
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 1, g: 0.6, b: 0.56, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  dark1Preset:
+    stateName: Dark1 (2L/1R)
+    colorGradingEnabled: 1
+    temperature: -5
+    tint: 2
+    saturation: -3
+    contrast: 3
+    bloomEnabled: 1
+    bloomIntensity: 0.28
+    bloomThreshold: 1
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.28
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.1, g: 0.06, b: 0.12, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  dark2Preset:
+    stateName: Dark2 (2L/0R)
+    colorGradingEnabled: 1
+    temperature: -8
+    tint: 4
+    saturation: -6
+    contrast: 5
+    bloomEnabled: 1
+    bloomIntensity: 0.25
+    bloomThreshold: 1
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.32
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.15, g: 0.06, b: 0.17, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  dark3Preset:
+    stateName: Dark3 (3L/0R, 4L/1R)
+    colorGradingEnabled: 1
+    temperature: -12
+    tint: 6
+    saturation: -10
+    contrast: 8
+    bloomEnabled: 1
+    bloomIntensity: 0.3
+    bloomThreshold: 0.9
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.36
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.2, g: 0.06, b: 0.22, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  dark4Preset:
+    stateName: Dark4 (4L/0R, 5L/1R, 5L/2R, 6L/2R, 6L/3R)
+    colorGradingEnabled: 1
+    temperature: -16
+    tint: 8
+    saturation: -15
+    contrast: 10
+    bloomEnabled: 1
+    bloomIntensity: 0.35
+    bloomThreshold: 0.85
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.4
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.25, g: 0.06, b: 0.27, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  dark5Preset:
+    stateName: Dark5 (5L/0R, 6L/1R, 7L/2R, 7L/3R) - Midnight Visible
+    colorGradingEnabled: 1
+    temperature: -20
+    tint: 10
+    saturation: -20
+    contrast: 15
+    bloomEnabled: 1
+    bloomIntensity: 0.4
+    bloomThreshold: 0.7
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.35
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.05, g: 0.03, b: 0.09, a: 1}
+    chromaticEnabled: 0
+    chromaticIntensity: 0
+    grainEnabled: 0
+    grainIntensity: 0
+  darkStage1Preset:
+    stateName: Dark+Stage1 (6L/0R, 7L/1R, 8L/2R) Partly Cloudy
+    colorGradingEnabled: 1
+    temperature: -22
+    tint: 11
+    saturation: -22
+    contrast: 16
+    bloomEnabled: 1
+    bloomIntensity: 0.35
+    bloomThreshold: 0.75
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.38
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.05, g: 0.03, b: 0.09, a: 1}
+    chromaticEnabled: 1
+    chromaticIntensity: 0.05
+    grainEnabled: 0
+    grainIntensity: 0
+  darkStage2Preset:
+    stateName: Dark+Stage2 (7L/0R, 8L/1R, 9L/2R) Overcast
+    colorGradingEnabled: 1
+    temperature: -25
+    tint: 12
+    saturation: -25
+    contrast: 18
+    bloomEnabled: 1
+    bloomIntensity: 0.32
+    bloomThreshold: 0.8
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.42
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.04, g: 0.02, b: 0.08, a: 1}
+    chromaticEnabled: 1
+    chromaticIntensity: 0.1
+    grainEnabled: 0
+    grainIntensity: 0
+  darkStage3Preset:
+    stateName: Dark+Stage3 (8L/0R, 9L/1R) Light Rain
+    colorGradingEnabled: 1
+    temperature: -28
+    tint: 14
+    saturation: -28
+    contrast: 20
+    bloomEnabled: 1
+    bloomIntensity: 0.28
+    bloomThreshold: 0.85
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.45
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.04, g: 0.02, b: 0.07, a: 1}
+    chromaticEnabled: 1
+    chromaticIntensity: 0.15
+    grainEnabled: 1
+    grainIntensity: 0.1
+  darkStage4Preset:
+    stateName: Dark+Stage4 (9L/0R) Heavy Rain
+    colorGradingEnabled: 1
+    temperature: -32
+    tint: 16
+    saturation: -32
+    contrast: 24
+    bloomEnabled: 1
+    bloomIntensity: 0.25
+    bloomThreshold: 0.9
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.5
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.03, g: 0.02, b: 0.06, a: 1}
+    chromaticEnabled: 1
+    chromaticIntensity: 0.25
+    grainEnabled: 1
+    grainIntensity: 0.2
+  darkStage5Preset:
+    stateName: Dark+Stage5 (10L/0R) THUNDERSTORM
+    colorGradingEnabled: 1
+    temperature: -40
+    tint: 20
+    saturation: -40
+    contrast: 30
+    bloomEnabled: 1
+    bloomIntensity: 0.22
+    bloomThreshold: 0.95
+    bloomColor: {r: 1, g: 1, b: 1, a: 1}
+    vignetteEnabled: 1
+    vignetteIntensity: 0.55
+    vignetteSmoothness: 0.5
+    vignetteColor: {r: 0.02, g: 0.01, b: 0.05, a: 1}
+    chromaticEnabled: 1
+    chromaticIntensity: 0.4
+    grainEnabled: 1
+    grainIntensity: 0.3
+  logChanges: 1
+  currentLeftRings: 0
+  currentRightRings: 0
+  currentPresetName: 

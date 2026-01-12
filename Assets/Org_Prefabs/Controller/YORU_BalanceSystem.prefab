@@ -1,0 +1,351 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6344261302898362820
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9087141272142608780}
+  - component: {fileID: 6886057935746125482}
+  - component: {fileID: 8429880449148088592}
+  - component: {fileID: 4052374845328554432}
+  m_Layer: 0
+  m_Name: YORU_BalanceSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9087141272142608780
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6344261302898362820}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6886057935746125482
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6344261302898362820}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b1d9d6fc3e51467e97f486636413357, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldStateManager
+  OnStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  OnRingsChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  OnWeatherStageChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  OnEclipseChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  OnEclipseAmountChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  leftRings: 0
+  rightRings: 0
+  balance: 0
+  clampedBalance: 0
+  totalRings: 0
+  weatherStage: 0
+  currentState: 6
+  isEclipse: 0
+  eclipseAmount: 0
+  enableDebugKeys: 1
+  logStateChanges: 1
+--- !u!114 &8429880449148088592
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6344261302898362820}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f39a69a53c6674563af6f1048c1b1d25, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::YoruCozyIntegration
+  clearWeather: {fileID: 11400000, guid: 48908a08bbd076e4182bc3ca961b9c34, type: 2}
+  mostlyClearWeather: {fileID: 11400000, guid: 5a5650a48d2869048b392b88aab5df10, type: 2}
+  partlyCloudyWeather: {fileID: 11400000, guid: ae94c1a397a01e442a11e8b23ebb1cef, type: 2}
+  overcastWeather: {fileID: 11400000, guid: 56652bb77d1606b4396767fbb07e50ab, type: 2}
+  lightRainWeather: {fileID: 11400000, guid: 360273c9c779d1f42a10eee5f070a83a, type: 2}
+  heavyRainWeather: {fileID: 11400000, guid: 455ce7df2555ead47afd8bdb324c85ab, type: 2}
+  thunderStormWeather: {fileID: 11400000, guid: 3daad8702a5ccbf418a5370bac12e4c0, type: 2}
+  neutralHour: 9
+  dark1Hour: 16
+  dark2Hour: 18
+  dark3Hour: 20
+  dark4Hour: 22
+  dark5Hour: 0
+  light1Hour: 10
+  light2Hour: 11
+  light3Hour: 11.5
+  light4Hour: 12
+  light5Hour: 12.25
+  moonOffset0Rings: 0
+  moonOffset1Ring: 5
+  moonOffset2Rings: 7
+  moonOffset3Rings: 10
+  moonOffset4Rings: 12
+  moonOffset5PlusRings: 14
+  eclipse3L2R: 0.2
+  eclipse3L3R: 0.4
+  eclipse4L3R: 0.5
+  eclipse4L4R: 0.6
+  eclipse5L4R: 0.75
+  eclipseFull: 1
+  sunsetHour: 18.5
+  sunriseHour: 6.5
+  nightHour: 0
+  brightDayHour: 12
+  eclipseHour: 16
+  sceneWindZone: {fileID: 0}
+  sceneTerrain: {fileID: 0}
+  calmWindSpeed: 0.5
+  stormWindSpeed: 3
+  maxStormWindSpeed: 6
+  foliageMaterials: []
+  grassMaterials: []
+  manualGrassMaterials: []
+  logChanges: 1
+--- !u!114 &4052374845328554432
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6344261302898362820}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3b9ec7ebcabb44cdaf5c8605a2da8a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AmbienceController
+  cozyWeather: {fileID: 0}
+  autoFindCozy: 1
+  particleParent: {fileID: 0}
+  particleOffset: {x: 0, y: 5, z: 0}
+  followPlayer: 1
+  playerTransform: {fileID: 0}
+  transitionDuration: 2
+  firefliesPrefab: {fileID: 0}
+  wispsPrefab: {fileID: 0}
+  butterfliesPrefab: {fileID: 0}
+  dayBugsPrefab: {fileID: 0}
+  birdsPrefab: {fileID: 0}
+  autumnLeavesPrefab: {fileID: 0}
+  auroraPrefab: {fileID: 0}
+  auroraAltPrefab: {fileID: 0}
+  meteorPrefab: {fileID: 0}
+  dustStormPrefab: {fileID: 0}
+  swirlingPrefab: {fileID: 0}
+  blusteryPrefab: {fileID: 0}
+  lightRainPrefab: {fileID: 0}
+  heavyRainPrefab: {fileID: 0}
+  thunderPrefab: {fileID: 0}
+  thunderSnowPrefab: {fileID: 0}
+  quietProfile: {fileID: 0}
+  lightWindProfile: {fileID: 0}
+  birdsongProfile: {fileID: 0}
+  dayBugsAudioProfile: {fileID: 0}
+  owlSoundsProfile: {fileID: 0}
+  blusteryAudioProfile: {fileID: 0}
+  swirlingAudioProfile: {fileID: 0}
+  neutralPreset:
+    stateName: Neutral
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 0.7
+    masterVolume: 0.5
+  sunsetPreset:
+    stateName: Sunset
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 0.6
+    masterVolume: 0.6
+  sunrisePreset:
+    stateName: Sunrise
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 0.7
+    masterVolume: 0.55
+  dark1Preset:
+    stateName: Dark1
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  dark2Preset:
+    stateName: Dark2
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  dark3Preset:
+    stateName: Dark3
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  dark4Preset:
+    stateName: Dark4
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  dark5Preset:
+    stateName: Dark5 (Midnight)
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  darkStage1Preset:
+    stateName: Dark+Stage1
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  darkStage2Preset:
+    stateName: Dark+Stage2
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  darkStage3Preset:
+    stateName: Dark+Stage3
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  darkStage4Preset:
+    stateName: Dark+Stage4
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  darkStage5Preset:
+    stateName: Dark+Stage5 (THUNDERSTORM)
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  light1Preset:
+    stateName: Light1
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  light2Preset:
+    stateName: Light2
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  light3Preset:
+    stateName: Light3
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  light4Preset:
+    stateName: Light4
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  light5Preset:
+    stateName: Light5 (Heavenly)
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  lightStage1Preset:
+    stateName: Light+Stage1
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  lightStage2Preset:
+    stateName: Light+Stage2
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  lightStage3Preset:
+    stateName: Light+Stage3
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  lightStage4Preset:
+    stateName: Light+Stage4
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  lightStage5Preset:
+    stateName: Light+Stage5 (DIVINE)
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  eclipse20Preset:
+    stateName: Eclipse 20%
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  eclipse40Preset:
+    stateName: Eclipse 40%
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  eclipse50Preset:
+    stateName: Eclipse 50%
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  eclipse60Preset:
+    stateName: Eclipse 60%
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  eclipse75Preset:
+    stateName: Eclipse 75%
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  eclipseFullPreset:
+    stateName: Eclipse FULL 100%
+    particlePrefabs: []
+    audioProfile: {fileID: 0}
+    audioWeight: 1
+    masterVolume: 1
+  logChanges: 1
+  currentPresetName: None
+  debugLeftRings: 0
+  debugRightRings: 0
+  activeParticleCount: 0

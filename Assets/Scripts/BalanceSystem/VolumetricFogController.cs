@@ -56,6 +56,9 @@ public class VolumetricFogController : MonoBehaviour
         
         [Range(0, 1)] public float lightScatteringDiffusion = 0.5f;
         
+        [Tooltip("Shafts Intensity - controls god ray brightness")]
+        [Range(0, 0.2f)] public float lightScatteringExposure = 0.03f;
+        
         public static FogPreset Lerp(FogPreset a, FogPreset b, float t)
         {
             return new FogPreset
@@ -70,7 +73,8 @@ public class VolumetricFogController : MonoBehaviour
                 skyHaze = Mathf.Lerp(a.skyHaze, b.skyHaze, t),
                 skyAlpha = Mathf.Lerp(a.skyAlpha, b.skyAlpha, t),
                 enableLightScattering = t > 0.5f ? b.enableLightScattering : a.enableLightScattering,
-                lightScatteringDiffusion = Mathf.Lerp(a.lightScatteringDiffusion, b.lightScatteringDiffusion, t)
+                lightScatteringDiffusion = Mathf.Lerp(a.lightScatteringDiffusion, b.lightScatteringDiffusion, t),
+                lightScatteringExposure = Mathf.Lerp(a.lightScatteringExposure, b.lightScatteringExposure, t)
             };
         }
     }
@@ -104,15 +108,16 @@ public class VolumetricFogController : MonoBehaviour
         stateName = "Neutral",
         triggerCondition = "0L/0R, 1L/1R, 2L/2R",
         density = 0.15f,
-        height = 150f,           // Fog extends from 0 to 150
+        height = 150f,
         baselineHeight = 0f,
-        fogColor = new Color(0.85f, 0.88f, 0.92f),  // Light bluish-gray
+        fogColor = new Color(0.85f, 0.88f, 0.92f),
         alpha = 1f,
         noiseStrength = 0.4f,
         skyHaze = 20f,
         skyAlpha = 0.6f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.5f
+        lightScatteringDiffusion = 0.5f,
+        lightScatteringExposure = 0.05f
     };
     
     [Header("=== SUNSET ===")]
@@ -123,13 +128,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.20f,
         height = 180f,
         baselineHeight = 0f,
-        fogColor = new Color(0.95f, 0.70f, 0.50f),  // Warm orange
+        fogColor = new Color(0.95f, 0.70f, 0.50f),
         alpha = 1f,
         noiseStrength = 0.45f,
         skyHaze = 35f,
         skyAlpha = 0.7f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.6f
+        lightScatteringDiffusion = 0.6f,
+        lightScatteringExposure = 0.12f
     };
     
     [Header("=== SUNRISE ===")]
@@ -140,13 +146,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.18f,
         height = 180f,
         baselineHeight = 0f,
-        fogColor = new Color(0.95f, 0.80f, 0.70f),  // Soft peach
+        fogColor = new Color(0.95f, 0.80f, 0.70f),
         alpha = 1f,
         noiseStrength = 0.4f,
         skyHaze = 30f,
         skyAlpha = 0.65f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.55f
+        lightScatteringDiffusion = 0.55f,
+        lightScatteringExposure = 0.10f
     };
     
     [Header("=== DARK PATH (Increasingly ominous) ===")]
@@ -157,13 +164,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.22f,
         height = 160f,
         baselineHeight = 0f,
-        fogColor = new Color(0.65f, 0.65f, 0.70f),  // Cool gray
+        fogColor = new Color(0.65f, 0.65f, 0.70f),
         alpha = 1f,
         noiseStrength = 0.5f,
         skyHaze = 25f,
         skyAlpha = 0.7f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.45f
+        lightScatteringDiffusion = 0.45f,
+        lightScatteringExposure = 0.04f
     };
     
     [SerializeField] private FogPreset dark2Preset = new FogPreset
@@ -173,13 +181,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.28f,
         height = 170f,
         baselineHeight = 0f,
-        fogColor = new Color(0.55f, 0.55f, 0.62f),  // Darker gray
+        fogColor = new Color(0.55f, 0.55f, 0.62f),
         alpha = 1f,
         noiseStrength = 0.55f,
         skyHaze = 30f,
         skyAlpha = 0.75f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.4f
+        lightScatteringDiffusion = 0.4f,
+        lightScatteringExposure = 0.03f
     };
     
     [SerializeField] private FogPreset dark3Preset = new FogPreset
@@ -189,13 +198,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.35f,
         height = 180f,
         baselineHeight = 0f,
-        fogColor = new Color(0.45f, 0.45f, 0.52f),  // Deep gray
+        fogColor = new Color(0.45f, 0.45f, 0.52f),
         alpha = 1f,
         noiseStrength = 0.6f,
         skyHaze = 40f,
         skyAlpha = 0.8f,
         enableLightScattering = false,
-        lightScatteringDiffusion = 0.3f
+        lightScatteringDiffusion = 0.3f,
+        lightScatteringExposure = 0.02f
     };
     
     [SerializeField] private FogPreset dark4Preset = new FogPreset
@@ -205,13 +215,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.42f,
         height = 200f,
         baselineHeight = 0f,
-        fogColor = new Color(0.35f, 0.35f, 0.42f),  // Very dark
+        fogColor = new Color(0.35f, 0.35f, 0.42f),
         alpha = 1f,
         noiseStrength = 0.65f,
         skyHaze = 50f,
         skyAlpha = 0.85f,
         enableLightScattering = false,
-        lightScatteringDiffusion = 0.2f
+        lightScatteringDiffusion = 0.2f,
+        lightScatteringExposure = 0.01f
     };
     
     [SerializeField] private FogPreset dark5Preset = new FogPreset
@@ -221,13 +232,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.50f,
         height = 220f,
         baselineHeight = 0f,
-        fogColor = new Color(0.25f, 0.25f, 0.32f),  // Near black
+        fogColor = new Color(0.25f, 0.25f, 0.32f),
         alpha = 1f,
         noiseStrength = 0.7f,
         skyHaze = 60f,
         skyAlpha = 0.9f,
         enableLightScattering = false,
-        lightScatteringDiffusion = 0.1f
+        lightScatteringDiffusion = 0.1f,
+        lightScatteringExposure = 0.005f
     };
     
     [Header("=== DARK ESCALATION (Storms) ===")]
@@ -244,7 +256,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 65f,
         skyAlpha = 0.92f,
         enableLightScattering = false,
-        lightScatteringDiffusion = 0.1f
+        lightScatteringDiffusion = 0.1f,
+        lightScatteringExposure = 0.003f
     };
     
     [SerializeField] private FogPreset darkStage2Preset = new FogPreset
@@ -260,7 +273,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 70f,
         skyAlpha = 0.95f,
         enableLightScattering = false,
-        lightScatteringDiffusion = 0.05f
+        lightScatteringDiffusion = 0.05f,
+        lightScatteringExposure = 0f
     };
     
     [SerializeField] private FogPreset darkStage3Preset = new FogPreset
@@ -276,7 +290,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 75f,
         skyAlpha = 1f,
         enableLightScattering = false,
-        lightScatteringDiffusion = 0f
+        lightScatteringDiffusion = 0f,
+        lightScatteringExposure = 0f
     };
     
     [SerializeField] private FogPreset darkStage4Preset = new FogPreset
@@ -292,7 +307,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 85f,
         skyAlpha = 1f,
         enableLightScattering = false,
-        lightScatteringDiffusion = 0f
+        lightScatteringDiffusion = 0f,
+        lightScatteringExposure = 0f
     };
     
     [SerializeField] private FogPreset darkStage5Preset = new FogPreset
@@ -308,7 +324,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 100f,
         skyAlpha = 1f,
         enableLightScattering = false,
-        lightScatteringDiffusion = 0f
+        lightScatteringDiffusion = 0f,
+        lightScatteringExposure = 0f
     };
     
     [Header("=== LIGHT PATH (Increasingly ethereal) ===")]
@@ -319,13 +336,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.12f,
         height = 160f,
         baselineHeight = 0f,
-        fogColor = new Color(0.90f, 0.90f, 0.88f),  // Warm white
+        fogColor = new Color(0.90f, 0.90f, 0.88f),
         alpha = 1f,
         noiseStrength = 0.35f,
         skyHaze = 18f,
         skyAlpha = 0.55f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.55f
+        lightScatteringDiffusion = 0.55f,
+        lightScatteringExposure = 0.06f
     };
     
     [SerializeField] private FogPreset light2Preset = new FogPreset
@@ -341,7 +359,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 15f,
         skyAlpha = 0.5f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.6f
+        lightScatteringDiffusion = 0.6f,
+        lightScatteringExposure = 0.08f
     };
     
     [SerializeField] private FogPreset light3Preset = new FogPreset
@@ -357,7 +376,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 12f,
         skyAlpha = 0.45f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.65f
+        lightScatteringDiffusion = 0.65f,
+        lightScatteringExposure = 0.10f
     };
     
     [SerializeField] private FogPreset light4Preset = new FogPreset
@@ -367,13 +387,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.06f,
         height = 200f,
         baselineHeight = 0f,
-        fogColor = new Color(0.98f, 0.97f, 0.92f),  // Golden white
+        fogColor = new Color(0.98f, 0.97f, 0.92f),
         alpha = 1f,
         noiseStrength = 0.2f,
         skyHaze = 10f,
         skyAlpha = 0.4f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.7f
+        lightScatteringDiffusion = 0.7f,
+        lightScatteringExposure = 0.12f
     };
     
     [SerializeField] private FogPreset light5Preset = new FogPreset
@@ -383,13 +404,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.05f,
         height = 220f,
         baselineHeight = 0f,
-        fogColor = new Color(1f, 0.98f, 0.93f),  // Divine glow
+        fogColor = new Color(1f, 0.98f, 0.93f),
         alpha = 1f,
         noiseStrength = 0.15f,
         skyHaze = 8f,
         skyAlpha = 0.35f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.75f
+        lightScatteringDiffusion = 0.75f,
+        lightScatteringExposure = 0.14f
     };
     
     [Header("=== LIGHT ESCALATION (Divine) ===")]
@@ -406,7 +428,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 6f,
         skyAlpha = 0.3f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.78f
+        lightScatteringDiffusion = 0.78f,
+        lightScatteringExposure = 0.15f
     };
     
     [SerializeField] private FogPreset lightStage2Preset = new FogPreset
@@ -422,7 +445,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 5f,
         skyAlpha = 0.25f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.82f
+        lightScatteringDiffusion = 0.82f,
+        lightScatteringExposure = 0.16f
     };
     
     [SerializeField] private FogPreset lightStage3Preset = new FogPreset
@@ -438,7 +462,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 4f,
         skyAlpha = 0.2f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.85f
+        lightScatteringDiffusion = 0.85f,
+        lightScatteringExposure = 0.17f
     };
     
     [SerializeField] private FogPreset lightStage4Preset = new FogPreset
@@ -454,7 +479,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 3f,
         skyAlpha = 0.15f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.9f
+        lightScatteringDiffusion = 0.9f,
+        lightScatteringExposure = 0.18f
     };
     
     [SerializeField] private FogPreset lightStage5Preset = new FogPreset
@@ -464,13 +490,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.015f,
         height = 400f,
         baselineHeight = 0f,
-        fogColor = new Color(1f, 1f, 1f),  // Pure white
+        fogColor = new Color(1f, 1f, 1f),
         alpha = 1f,
         noiseStrength = 0.03f,
         skyHaze = 2f,
         skyAlpha = 0.1f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 1f
+        lightScatteringDiffusion = 1f,
+        lightScatteringExposure = 0.2f
     };
     
     [Header("=== ECLIPSE STATES (Mystical balance) ===")]
@@ -481,13 +508,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.25f,
         height = 200f,
         baselineHeight = 0f,
-        fogColor = new Color(0.60f, 0.55f, 0.65f),  // Purple tint
+        fogColor = new Color(0.60f, 0.55f, 0.65f),
         alpha = 1f,
         noiseStrength = 0.5f,
         skyHaze = 30f,
         skyAlpha = 0.7f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.5f
+        lightScatteringDiffusion = 0.5f,
+        lightScatteringExposure = 0.04f
     };
     
     [SerializeField] private FogPreset eclipse40Preset = new FogPreset
@@ -503,7 +531,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 40f,
         skyAlpha = 0.75f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.45f
+        lightScatteringDiffusion = 0.45f,
+        lightScatteringExposure = 0.035f
     };
     
     [SerializeField] private FogPreset eclipse50Preset = new FogPreset
@@ -519,7 +548,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 50f,
         skyAlpha = 0.8f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.4f
+        lightScatteringDiffusion = 0.4f,
+        lightScatteringExposure = 0.03f
     };
     
     [SerializeField] private FogPreset eclipse60Preset = new FogPreset
@@ -535,7 +565,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 60f,
         skyAlpha = 0.85f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.35f
+        lightScatteringDiffusion = 0.35f,
+        lightScatteringExposure = 0.025f
     };
     
     [SerializeField] private FogPreset eclipse75Preset = new FogPreset
@@ -551,7 +582,8 @@ public class VolumetricFogController : MonoBehaviour
         skyHaze = 75f,
         skyAlpha = 0.9f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.3f
+        lightScatteringDiffusion = 0.3f,
+        lightScatteringExposure = 0.02f
     };
     
     [SerializeField] private FogPreset eclipseFullPreset = new FogPreset
@@ -561,13 +593,14 @@ public class VolumetricFogController : MonoBehaviour
         density = 0.65f,
         height = 400f,
         baselineHeight = 0f,
-        fogColor = new Color(0.30f, 0.25f, 0.45f),  // Deep purple
+        fogColor = new Color(0.30f, 0.25f, 0.45f),
         alpha = 1f,
         noiseStrength = 0.8f,
         skyHaze = 90f,
         skyAlpha = 0.95f,
         enableLightScattering = true,
-        lightScatteringDiffusion = 0.25f
+        lightScatteringDiffusion = 0.25f,
+        lightScatteringExposure = 0.015f
     };
     
     #endregion
@@ -591,6 +624,7 @@ public class VolumetricFogController : MonoBehaviour
     private System.Reflection.PropertyInfo skyAlphaProperty;
     private System.Reflection.PropertyInfo lightScatteringEnabledProperty;
     private System.Reflection.PropertyInfo lightScatteringDiffusionProperty;
+    private System.Reflection.PropertyInfo lightScatteringExposureProperty;
     private bool reflectionInitialized = false;
     
     #endregion
@@ -692,6 +726,7 @@ public class VolumetricFogController : MonoBehaviour
         skyAlphaProperty = fogType.GetProperty("skyAlpha");
         lightScatteringEnabledProperty = fogType.GetProperty("lightScatteringEnabled");
         lightScatteringDiffusionProperty = fogType.GetProperty("lightScatteringDiffusion");
+        lightScatteringExposureProperty = fogType.GetProperty("lightScatteringExposure");
         
         reflectionInitialized = (densityProperty != null && heightProperty != null);
         
@@ -699,7 +734,8 @@ public class VolumetricFogController : MonoBehaviour
         {
             Debug.Log($"[VolumetricFogController] Reflection init: density={densityProperty != null}, " +
                       $"height={heightProperty != null}, baselineHeight={baseHeightProperty != null}, " +
-                      $"alpha={alphaProperty != null}, noiseStrength={noiseStrengthProperty != null}");
+                      $"alpha={alphaProperty != null}, noiseStrength={noiseStrengthProperty != null}, " +
+                      $"lightScatteringExposure={lightScatteringExposureProperty != null}");
         }
     }
     
@@ -876,6 +912,7 @@ public class VolumetricFogController : MonoBehaviour
             // Light scattering
             lightScatteringEnabledProperty?.SetValue(volumetricFog, preset.enableLightScattering);
             lightScatteringDiffusionProperty?.SetValue(volumetricFog, preset.lightScatteringDiffusion);
+            lightScatteringExposureProperty?.SetValue(volumetricFog, preset.lightScatteringExposure);
         }
         catch (Exception e)
         {
@@ -933,6 +970,7 @@ public class VolumetricFogController : MonoBehaviour
         Debug.Log($"  noiseStrength: {noiseStrengthProperty?.GetValue(volumetricFog)}");
         Debug.Log($"  skyHaze: {skyHazeProperty?.GetValue(volumetricFog)}");
         Debug.Log($"  skyAlpha: {skyAlphaProperty?.GetValue(volumetricFog)}");
+        Debug.Log($"  lightScatteringExposure: {lightScatteringExposureProperty?.GetValue(volumetricFog)}");
     }
     
     void TestPreset(FogPreset preset)
