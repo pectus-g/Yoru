@@ -1,0 +1,346 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7435842325078418927
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8711722757224704966}
+  - component: {fileID: 726245906212936253}
+  m_Layer: 0
+  m_Name: YORU_LightingController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8711722757224704966
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7435842325078418927}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &726245906212936253
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7435842325078418927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06a78b972c03540c0a87950812bfe64a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LightingController
+  sunLight: {fileID: 0}
+  moonLight: {fileID: 0}
+  darkPathLight: {fileID: 0}
+  divineGlowLight: {fileID: 0}
+  playerTransform: {fileID: 0}
+  autoFindLights: 1
+  autoCreateMoonAndGlow: 1
+  transitionDuration: 2
+  neutralPreset:
+    stateName: Neutral (Balance 0)
+    sunColor: {r: 1, g: 0.98, b: 0.95, a: 1}
+    sunIntensity: 1
+    sunAngle: 50
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0
+    darkPathIntensity: 0
+    ambientColor: {r: 0.25, g: 0.25, b: 0.28, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.7
+    divineGlowIntensity: 0
+  light1Preset:
+    stateName: Light1 (+1, Golden Hour)
+    sunColor: {r: 1, g: 0.85, b: 0.6, a: 1}
+    sunIntensity: 1
+    sunAngle: 30
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0.3
+    darkPathIntensity: 0
+    ambientColor: {r: 0.3, g: 0.27, b: 0.22, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.6
+    divineGlowIntensity: 0
+  light2Preset:
+    stateName: Light2 (+2, Warm Afternoon)
+    sunColor: {r: 1, g: 0.9, b: 0.7, a: 1}
+    sunIntensity: 1.1
+    sunAngle: 38
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0.3
+    darkPathIntensity: 0
+    ambientColor: {r: 0.32, g: 0.3, b: 0.25, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.55
+    divineGlowIntensity: 0
+  light3Preset:
+    stateName: Light3 (+3, Bright)
+    sunColor: {r: 1, g: 0.95, b: 0.8, a: 1}
+    sunIntensity: 0.92
+    sunAngle: 25.7
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0.3
+    darkPathIntensity: 0
+    ambientColor: {r: 0.35, g: 0.34, b: 0.3, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.5
+    divineGlowIntensity: 0
+  light4Preset:
+    stateName: Light4 (+4, Brighter)
+    sunColor: {r: 1, g: 0.98, b: 0.9, a: 1}
+    sunIntensity: 1.3
+    sunAngle: 55
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0.3
+    darkPathIntensity: 0
+    ambientColor: {r: 0.4, g: 0.38, b: 0.35, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.45
+    divineGlowIntensity: 0
+  light5Preset:
+    stateName: Light5 (+5, Heavenly)
+    sunColor: {r: 1, g: 1, b: 0.95, a: 1}
+    sunIntensity: 1.4
+    sunAngle: 65
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0.3
+    darkPathIntensity: 0
+    ambientColor: {r: 0.45, g: 0.43, b: 0.4, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.35
+    divineGlowIntensity: 0
+  lightStage1Preset:
+    stateName: Light5+Stage1 (+6, Divine Beginning)
+    sunColor: {r: 1, g: 1, b: 0.96, a: 1}
+    sunIntensity: 1.45
+    sunAngle: 68
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0.3
+    darkPathIntensity: 0
+    ambientColor: {r: 0.48, g: 0.46, b: 0.43, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.32
+    divineGlowIntensity: 0.1
+  lightStage2Preset:
+    stateName: Light5+Stage2 (+7, Radiant)
+    sunColor: {r: 1, g: 1, b: 0.97, a: 1}
+    sunIntensity: 1.5
+    sunAngle: 70
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0.3
+    darkPathIntensity: 0
+    ambientColor: {r: 0.5, g: 0.48, b: 0.45, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.3
+    divineGlowIntensity: 0.2
+  lightStage3Preset:
+    stateName: Light5+Stage3 (+8, Glorious)
+    sunColor: {r: 1, g: 1, b: 0.98, a: 1}
+    sunIntensity: 1.55
+    sunAngle: 72
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0.3
+    darkPathIntensity: 0
+    ambientColor: {r: 0.53, g: 0.51, b: 0.48, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.28
+    divineGlowIntensity: 0.35
+  lightStage4Preset:
+    stateName: Light5+Stage4 (+9, Transcendent)
+    sunColor: {r: 1, g: 1, b: 0.99, a: 1}
+    sunIntensity: 1.6
+    sunAngle: 74
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0.3
+    darkPathIntensity: 0
+    ambientColor: {r: 0.56, g: 0.54, b: 0.5, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.25
+    divineGlowIntensity: 0.5
+  lightStage5Preset:
+    stateName: Light5+Stage5 (+10, MAXIMUM DIVINE)
+    sunColor: {r: 1, g: 1, b: 1, a: 1}
+    sunIntensity: 1.65
+    sunAngle: 76
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0.3
+    darkPathIntensity: 0
+    ambientColor: {r: 0.6, g: 0.57, b: 0.53, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.22
+    divineGlowIntensity: 0.7
+  dark1Preset:
+    stateName: Dark1 (-1, Late Afternoon)
+    sunColor: {r: 1, g: 0.9, b: 0.7, a: 1}
+    sunIntensity: 0.95
+    sunAngle: 35
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0
+    darkPathIntensity: 0
+    ambientColor: {r: 0.4, g: 0.38, b: 0.4, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.72
+    divineGlowIntensity: 0
+  dark2Preset:
+    stateName: Dark2 (-2, Sunset)
+    sunColor: {r: 1, g: 0.7, b: 0.4, a: 1}
+    sunIntensity: 0.85
+    sunAngle: 20
+    moonEnabled: 0
+    moonColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    moonIntensity: 0
+    darkPathIntensity: 0.3
+    ambientColor: {r: 0.38, g: 0.34, b: 0.38, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.75
+    divineGlowIntensity: 0
+  dark3Preset:
+    stateName: Dark3 (-3, Dusk)
+    sunColor: {r: 0.8, g: 0.7, b: 0.9, a: 1}
+    sunIntensity: 0.6
+    sunAngle: 15
+    moonEnabled: 1
+    moonColor: {r: 0.7, g: 0.8, b: 1, a: 1}
+    moonIntensity: 1
+    darkPathIntensity: 0.8
+    ambientColor: {r: 0.35, g: 0.33, b: 0.4, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.8
+    divineGlowIntensity: 0
+  dark4Preset:
+    stateName: Dark4 (-4, Night)
+    sunColor: {r: 0.6, g: 0.7, b: 0.95, a: 1}
+    sunIntensity: 0.4
+    sunAngle: 60
+    moonEnabled: 1
+    moonColor: {r: 0.7, g: 0.8, b: 1, a: 1}
+    moonIntensity: 1.5
+    darkPathIntensity: 1.2
+    ambientColor: {r: 0.3, g: 0.28, b: 0.35, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.7
+    divineGlowIntensity: 0
+  dark5Preset:
+    stateName: Dark5 (-5, Midnight - VISIBLE!)
+    sunColor: {r: 0.5, g: 0.6, b: 0.9, a: 1}
+    sunIntensity: 0.3
+    sunAngle: 70
+    moonEnabled: 1
+    moonColor: {r: 0.7, g: 0.85, b: 1, a: 1}
+    moonIntensity: 2
+    darkPathIntensity: 1.5
+    ambientColor: {r: 0.25, g: 0.25, b: 0.32, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.6
+    divineGlowIntensity: 0
+  darkStage1Preset:
+    stateName: Dark5+Stage1 (-6, Partly Cloudy)
+    sunColor: {r: 0.48, g: 0.56, b: 0.85, a: 1}
+    sunIntensity: 0.25
+    sunAngle: 72
+    moonEnabled: 1
+    moonColor: {r: 0.65, g: 0.75, b: 0.95, a: 1}
+    moonIntensity: 1.8
+    darkPathIntensity: 2
+    ambientColor: {r: 0.22, g: 0.22, b: 0.3, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.55
+    divineGlowIntensity: 0
+  darkStage2Preset:
+    stateName: Dark5+Stage2 (-7, Overcast)
+    sunColor: {r: 0.45, g: 0.52, b: 0.8, a: 1}
+    sunIntensity: 0.2
+    sunAngle: 74
+    moonEnabled: 1
+    moonColor: {r: 0.6, g: 0.7, b: 0.9, a: 1}
+    moonIntensity: 1.5
+    darkPathIntensity: 3
+    ambientColor: {r: 0.2, g: 0.2, b: 0.28, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.5
+    divineGlowIntensity: 0
+  darkStage3Preset:
+    stateName: Dark5+Stage3 (-8, Light Rain)
+    sunColor: {r: 0.42, g: 0.48, b: 0.75, a: 1}
+    sunIntensity: 0.18
+    sunAngle: 75
+    moonEnabled: 1
+    moonColor: {r: 0.55, g: 0.65, b: 0.85, a: 1}
+    moonIntensity: 1.2
+    darkPathIntensity: 4
+    ambientColor: {r: 0.18, g: 0.18, b: 0.25, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.45
+    divineGlowIntensity: 0
+  darkStage4Preset:
+    stateName: Dark5+Stage4 (-9, Heavy Rain)
+    sunColor: {r: 0.39, g: 0.44, b: 0.7, a: 1}
+    sunIntensity: 0.15
+    sunAngle: 76
+    moonEnabled: 1
+    moonColor: {r: 0.5, g: 0.6, b: 0.8, a: 1}
+    moonIntensity: 1
+    darkPathIntensity: 5
+    ambientColor: {r: 0.16, g: 0.16, b: 0.22, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.4
+    divineGlowIntensity: 0
+  darkStage5Preset:
+    stateName: Dark5+Stage5 (-10, THUNDERSTORM)
+    sunColor: {r: 0.5, g: 0.55, b: 0.75, a: 1}
+    sunIntensity: 0.12
+    sunAngle: 78
+    moonEnabled: 1
+    moonColor: {r: 0.45, g: 0.55, b: 0.75, a: 1}
+    moonIntensity: 0.8
+    darkPathIntensity: 6
+    ambientColor: {r: 0.14, g: 0.14, b: 0.2, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.35
+    divineGlowIntensity: 0
+  eclipsePreset:
+    stateName: Eclipse (5L + 5R, Dramatic)
+    sunColor: {r: 1, g: 0.4, b: 0.2, a: 1}
+    sunIntensity: 0.2
+    sunAngle: 45
+    moonEnabled: 1
+    moonColor: {r: 0.5, g: 0.38, b: 0.8, a: 1}
+    moonIntensity: 0.15
+    darkPathIntensity: 0
+    ambientColor: {r: 0.1, g: 0.08, b: 0.15, a: 1}
+    ambientIntensity: 1
+    shadowStrength: 0.95
+    divineGlowIntensity: 0
+  divineGlowColor: {r: 1, g: 0.98, b: 0.9, a: 1}
+  divineGlowRange: 15
+  divineGlowOffset: {x: 0, y: 3, z: 0}
+  logChanges: 1
+  currentAtmosphere: 0
+  currentWeatherStage: 0
