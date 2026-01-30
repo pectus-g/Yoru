@@ -1,0 +1,101 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-3310986481697937640
+MonoBehaviour:
+  m_ObjectHideFlags: 11
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da692e001514ec24dbc4cca1949ff7e8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.HighDefinition.Editor::UnityEditor.Rendering.HighDefinition.AssetVersion
+  version: 13
+  hdPluginSubTargetMaterialVersions:
+    m_Keys: []
+    m_Values: 
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: grany final_hair base_BaseColor
+  m_Shader: {fileID: -6465566751694194690, guid: 384d88ff5b296a44b89f1fb2d4442c01, type: 3}
+  m_Parent: {fileID: -876546973899608171, guid: 384d88ff5b296a44b89f1fb2d4442c01, type: 3}
+  m_ModifiedSerializedProperties: 24
+  m_ValidKeywords:
+  - _ALPHATEST_ON
+  - _DOUBLESIDED_ON
+  - _ENABLE_FOG_ON_TRANSPARENT
+  - _SURFACE_TYPE_TRANSPARENT
+  - _TRANSPARENT_WRITES_MOTION_VEC
+  m_InvalidKeywords:
+  - _NORMALMAP_TANGENT_SPACE
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 1
+  m_CustomRenderQueue: 3014
+  stringTagMap:
+    MotionVector: User
+    RenderType: Transparent
+  disabledShaderPasses:
+  - RayTracingPrepass
+  - MOTIONVECTORS
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseColorMap:
+        m_Texture: {fileID: 2800000, guid: b9a2af5de5a491a44a61c2bf6b4704ee, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 2800000, guid: 0346aa72a2fad3e4f934e0ddf4ea603c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AlphaClipThreshold: 0
+    - _AlphaClipThresholdDepthPostpass: 0.512
+    - _AlphaClipThresholdDepthPrepass: 0.441
+    - _AlphaCutoffEnable: 1
+    - _AlphaDstBlend: 10
+    - _AlphaThresholdShadow: 0.513
+    - _BlendMode: 0
+    - _CullMode: 0
+    - _CullModeForward: 2
+    - _DoubleSidedEnable: 1
+    - _DoubleSidedNormalMode: 1
+    - _DstBlend: 10
+    - _DstBlend2: 10
+    - _NormalScale: 0.59
+    - _ReceivesSSRTransparent: 1
+    - _SecondarySpecular: 0.666
+    - _SecondarySpecularShift: 0.085
+    - _SmoothnessMax: 0.679
+    - _SmoothnessMin: 0.547
+    - _Specular: 0.603
+    - _SpecularShift: 0.65
+    - _StencilRefDepth: 8
+    - _StencilRefMV: 40
+    - _SurfaceType: 1
+    - _TransmissionRim: 0.629
+    - _TransparentBackfaceEnable: 1
+    - _TransparentDepthPostpassEnable: 1
+    - _TransparentDepthPrepassEnable: 1
+    - _TransparentSortPriority: 14
+    - _TransparentWritingMotionVec: 1
+    - _TransparentZWrite: 0
+    - _UseShadowThreshold: 1
+    - _ZTestDepthEqualForOpaque: 4
+    - _ZWrite: 0
+    m_Colors:
+    - _BaseColor: {r: 0.899371, g: 0.899371, b: 0.899371, a: 1}
+    - _DoubleSidedConstants: {r: 1, g: 1, b: -1, a: 0}
+    - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
