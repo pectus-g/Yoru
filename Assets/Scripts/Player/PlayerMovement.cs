@@ -31,6 +31,8 @@ public class PlayerMovement : MonoBehaviour
     
     #region Private Fields
     // Cached components (allocated once)
+    private PlayerCombat playerCombat;
+
     private CharacterController controller;
     private Animator animator;
     private ThirdPersonCamera cameraController;
@@ -79,7 +81,7 @@ public class PlayerMovement : MonoBehaviour
     
     #region Unity Lifecycle
     private void Awake()
-    {
+    {playerCombat = GetComponent<PlayerCombat>();
         // Cache all components once
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
@@ -243,7 +245,7 @@ public class PlayerMovement : MonoBehaviour
     
     #region Jump System
     private void TryJump()
-    {
+    {if (playerCombat != null && playerCombat.IsAttacking() && !playerCombat.IsAerialAttack()) return;
         // First jump
         if (jumpCount == 0 && (HasState(PlayerState.Grounded) || coyoteTimer > 0))
         {
