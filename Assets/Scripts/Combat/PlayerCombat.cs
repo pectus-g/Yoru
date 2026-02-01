@@ -1,12 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// YORU Combat System
-/// - Ground: 3-hit combo (paw, paw, spin)
-/// - Air: Single spin attack (once per jump)
-/// - Heavy attack: Hold M1 on ground
-/// 
-/// Uses Layer Weight to control Combat Layer - eliminates transition freeze!
+/// YORU Combat System - FIXED VERSION
+/// Uses direct animation playback (CrossFade) instead of unreliable triggers
+/// Combat Layer stays at weight 1 always
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -15,8 +12,19 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private Transform attackPoint;
     
+    [Header("Animation State Names")]
+    [Tooltip("Exact name of Combo1 state in Combat Layer")]
+    [SerializeField] private string combo1StateName = "Combo1";
+    [Tooltip("Exact name of Combo2 state in Combat Layer")]
+    [SerializeField] private string combo2StateName = "Combo2";
+    [Tooltip("Exact name of Combo3/Spin state in Combat Layer")]
+    [SerializeField] private string combo3StateName = "Combo3";
+    [Tooltip("Exact name of Heavy Attack state in Combat Layer")]
+    [SerializeField] private string heavyStateName = "HeavyAttack";
+    [Tooltip("Exact name of Combat Idle state in Combat Layer")]
+    [SerializeField] private string combatIdleStateName = "Combat_Idle";
+    
     [Header("Layer Settings")]
-    [Tooltip("Index of Combat Layer in Animator (usually 1)")]
     [SerializeField] private int combatLayerIndex = 1;
     
     [Header("Combo Settings")]
@@ -37,11 +45,10 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private LayerMask enemyLayer;
     
     [Header("VFX")]
-    [Tooltip("Drag your spin ParticleSystem here!")]
     [SerializeField] private ParticleSystem spinVFX;
     
     [Header("Safety")]
-    [SerializeField] private float maxAttackDuration = 3f;
+    [SerializeField] private float maxAttackDuration = 4f;
     
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
@@ -80,12 +87,9 @@ public class PlayerCombat : MonoBehaviour
     private Quaternion lockedRotation;
     private bool wasGroundedWhenLocked;
     
-    // Animation hashes
-    private static readonly int HashAttack = Animator.StringToHash("Attack");
-    private static readonly int HashComboStep = Animator.StringToHash("ComboStep");
-    private static readonly int HashHeavyAttack = Animator.StringToHash("HeavyAttack");
+    // Animation hashes (for bool/int parameters only)
     private static readonly int HashIsAttacking = Animator.StringToHash("IsAttacking");
-    private static readonly int HashAerialSpin = Animator.StringToHash("AerialSpin");
+    private static readonly int HashComboStep = Animator.StringToHash("ComboStep");
     #endregion
     
     #region Unity Lifecycle
@@ -106,53 +110,49 @@ public class PlayerCombat : MonoBehaviour
             DebugLog("Created AttackPoint automatically");
         }
         
-        // Start with Combat Layer OFF
-        SetCombatLayerWeight(0f);
-        
-        // Check if spinVFX is assigned
-        if (spinVFX == null)
+        // Keep Combat Layer at weight 1 ALWAYS
+        if (animator != null)
         {
-            DebugLog("⚠️ Spin VFX not assigned in Inspector!");
+            animator.SetLayerWeight(combatLayerIndex, 1f);
         }
         
-        DebugLog("PlayerCombat initialized (Layer Weight Control)");
+        if (spinVFX == null)
+        {
+            DebugLog("⚠️ Spin VFX not assigned!");
+        }
+        
+        DebugLog("PlayerCombat initialized (Direct Animation Control)");
     }
     
     private void Update()
     {
-        // Enforce position lock BEFORE anything else
         EnforcePositionLock();
-        
         HandleInput();
         CheckGroundedStatus();
         
         // Safety timeout
         if (isAttacking && Time.time - attackStartTime > maxAttackDuration)
         {
-            DebugLog("⚠️ SAFETY: Attack stuck, forcing reset");
+            DebugLog("⚠️ SAFETY: Attack timeout, resetting");
             ForceResetCombat();
         }
         
         // Debug reset
         if (Input.GetKeyDown(KeyCode.R))
         {
-            DebugLog("DEBUG: Manual combat reset");
+            DebugLog("DEBUG: Manual reset");
             ForceResetCombat();
         }
     }
     
     private void LateUpdate()
     {
-        // Also enforce in LateUpdate to catch any movement
         EnforcePositionLock();
     }
     
     private void EnforcePositionLock()
     {
-        if (!lockPosition || characterController == null)
-            return;
-        
-        if (!wasGroundedWhenLocked)
+        if (!lockPosition || characterController == null || !wasGroundedWhenLocked)
             return;
         
         characterController.enabled = false;
@@ -170,22 +170,6 @@ public class PlayerCombat : MonoBehaviour
                 hasUsedAerialAttack = false;
                 isAerialAttack = false;
             }
-        }
-    }
-    #endregion
-    
-    #region Layer Weight Control
-    /// <summary>
-    /// Controls Combat Layer weight - this is the key to eliminating freeze!
-    /// Weight 1 = Combat Layer active (shows attacks)
-    /// Weight 0 = Combat Layer off (Base Layer shows through)
-    /// </summary>
-    private void SetCombatLayerWeight(float weight)
-    {
-        if (animator != null)
-        {
-            animator.SetLayerWeight(combatLayerIndex, weight);
-            DebugLog($"Combat Layer Weight → {weight}");
         }
     }
     #endregion
@@ -260,7 +244,7 @@ public class PlayerCombat : MonoBehaviour
         if (currentComboStep > 0 && Time.time - lastAttackTime > comboWindowTime)
         {
             currentComboStep = 0;
-            DebugLog("Combo window expired, resetting");
+            DebugLog("Combo window expired");
         }
         
         // Advance combo
@@ -270,10 +254,7 @@ public class PlayerCombat : MonoBehaviour
         
         DebugLog($">>> COMBO {currentComboStep} <<< Damage: {GetComboDamage(currentComboStep)}");
         
-        // TURN ON COMBAT LAYER
-        SetCombatLayerWeight(1f);
-        
-        // Position lock based on attack type
+        // Position lock (not for spin)
         if (currentComboStep == 3)
         {
             UnlockPosition();
@@ -284,19 +265,29 @@ public class PlayerCombat : MonoBehaviour
             LockPositionNow();
         }
         
-        // Trigger animation
-        if (animator != null)
-        {
-            animator.SetInteger(HashComboStep, currentComboStep);
-            animator.SetTrigger(HashAttack);
-            animator.SetBool(HashIsAttacking, true);
-        }
+        // DIRECT ANIMATION PLAYBACK - no triggers!
+        string stateName = GetComboStateName(currentComboStep);
+        PlayCombatAnimation(stateName);
+        
+        animator.SetInteger(HashComboStep, currentComboStep);
+        animator.SetBool(HashIsAttacking, true);
         
         isAttacking = true;
         isAerialAttack = false;
         canQueueNextAttack = false;
         nextAttackQueued = false;
         lastAttackTime = Time.time;
+    }
+    
+    private string GetComboStateName(int step)
+    {
+        switch (step)
+        {
+            case 1: return combo1StateName;
+            case 2: return combo2StateName;
+            case 3: return combo3StateName;
+            default: return combo1StateName;
+        }
     }
     
     private int GetComboDamage(int step)
@@ -311,7 +302,7 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
     
-    #region Aerial Spin Attack
+    #region Aerial Spin
     private void TryAerialSpin()
     {
         if (hasUsedAerialAttack)
@@ -338,19 +329,14 @@ public class PlayerCombat : MonoBehaviour
         
         DebugLog($">>> AERIAL SPIN <<< Damage: {aerialSpinDamage}");
         
-        // TURN ON COMBAT LAYER
-        SetCombatLayerWeight(1f);
-        
         // No position lock in air
         UnlockPosition();
         
-        // Trigger spin animation
-        if (animator != null)
-        {
-            animator.SetInteger(HashComboStep, 3);
-            animator.SetTrigger(HashAerialSpin);
-            animator.SetBool(HashIsAttacking, true);
-        }
+        // DIRECT ANIMATION PLAYBACK - plays Combo3/Spin animation
+        PlayCombatAnimation(combo3StateName);
+        
+        animator.SetInteger(HashComboStep, 3);
+        animator.SetBool(HashIsAttacking, true);
         
         isAttacking = true;
         canQueueNextAttack = false;
@@ -365,7 +351,7 @@ public class PlayerCombat : MonoBehaviour
         isChargingHeavy = true;
         heavyChargeStartTime = Time.time;
         currentComboStep = 0;
-        DebugLog("Charging HEAVY ATTACK...");
+        DebugLog("Charging HEAVY...");
     }
     
     private void ReleaseHeavyAttack()
@@ -375,19 +361,14 @@ public class PlayerCombat : MonoBehaviour
         storedHeavyChargePercent = Mathf.Clamp01((Time.time - heavyChargeStartTime) / heavyChargeTimeMax);
         int damage = Mathf.RoundToInt(Mathf.Lerp(heavyDamageMin, heavyDamageMax, storedHeavyChargePercent));
         
-        DebugLog($">>> HEAVY ATTACK <<< Charge: {storedHeavyChargePercent * 100f:F0}% Damage: {damage}");
+        DebugLog($">>> HEAVY <<< {storedHeavyChargePercent * 100f:F0}% = {damage} dmg");
         
-        // TURN ON COMBAT LAYER
-        SetCombatLayerWeight(1f);
-        
-        // Lock position
         LockPositionNow();
         
-        if (animator != null)
-        {
-            animator.SetTrigger(HashHeavyAttack);
-            animator.SetBool(HashIsAttacking, true);
-        }
+        // DIRECT ANIMATION PLAYBACK
+        PlayCombatAnimation(heavyStateName);
+        
+        animator.SetBool(HashIsAttacking, true);
         
         isChargingHeavy = false;
         isAttacking = true;
@@ -399,6 +380,33 @@ public class PlayerCombat : MonoBehaviour
     {
         if (!isChargingHeavy) return 0f;
         return Mathf.Clamp01((Time.time - heavyChargeStartTime) / heavyChargeTimeMax);
+    }
+    #endregion
+    
+    #region Animation Playback
+    /// <summary>
+    /// Plays animation directly on Combat Layer - more reliable than triggers
+    /// </summary>
+    private void PlayCombatAnimation(string stateName)
+    {
+        if (animator == null) return;
+        
+        // CrossFadeInFixedTime is more reliable than triggers
+        // Layer index 1 = Combat Layer
+        animator.CrossFadeInFixedTime(stateName, 0.05f, combatLayerIndex);
+        
+        DebugLog($"Playing: {stateName}");
+    }
+    
+    /// <summary>
+    /// Returns to Combat_Idle (which should be empty/transparent)
+    /// </summary>
+    private void ReturnToIdle()
+    {
+        if (animator == null) return;
+        
+        animator.CrossFadeInFixedTime(combatIdleStateName, 0.1f, combatLayerIndex);
+        DebugLog("Returning to Combat_Idle");
     }
     #endregion
     
@@ -435,15 +443,7 @@ public class PlayerCombat : MonoBehaviour
     #region Hit Detection
     public void DealDamage()
     {
-        int damage;
-        if (isAerialAttack)
-        {
-            damage = aerialSpinDamage;
-        }
-        else
-        {
-            damage = GetComboDamage(currentComboStep);
-        }
+        int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
         DealDamageInRange(damage);
     }
     
@@ -463,7 +463,7 @@ public class PlayerCombat : MonoBehaviour
             if (enemyHealth != null)
             {
                 enemyHealth.TakeDamage(damage);
-                DebugLog($"Hit {enemy.name} for {damage} damage!");
+                DebugLog($"Hit {enemy.name} for {damage}!");
             }
         }
     }
@@ -476,10 +476,6 @@ public class PlayerCombat : MonoBehaviour
         {
             spinVFX.Play();
             DebugLog("🌀 SPIN VFX START");
-        }
-        else
-        {
-            DebugLog("⚠️ VFX_SpinStart called but spinVFX is NULL!");
         }
     }
     
@@ -497,7 +493,7 @@ public class PlayerCombat : MonoBehaviour
     public void OnCanQueueNextAttack()
     {
         canQueueNextAttack = true;
-        DebugLog($"Can queue (current: combo {currentComboStep})");
+        DebugLog($"Can queue (combo {currentComboStep})");
         
         if (nextAttackQueued)
         {
@@ -526,13 +522,10 @@ public class PlayerCombat : MonoBehaviour
         
         UnlockPosition();
         
-        // TURN OFF COMBAT LAYER - Base Layer takes over instantly!
-        SetCombatLayerWeight(0f);
+        // Return to idle state
+        ReturnToIdle();
         
-        if (animator != null)
-        {
-            animator.SetBool(HashIsAttacking, false);
-        }
+        animator.SetBool(HashIsAttacking, false);
     }
     #endregion
     
@@ -552,17 +545,12 @@ public class PlayerCombat : MonoBehaviour
         
         UnlockPosition();
         VFX_SpinStop();
-        
-        // TURN OFF COMBAT LAYER
-        SetCombatLayerWeight(0f);
+        ReturnToIdle();
         
         if (animator != null)
         {
             animator.SetBool(HashIsAttacking, false);
             animator.SetInteger(HashComboStep, 0);
-            animator.ResetTrigger(HashAttack);
-            animator.ResetTrigger(HashHeavyAttack);
-            animator.ResetTrigger(HashAerialSpin);
         }
         
         DebugLog("Combat RESET");
@@ -586,13 +574,9 @@ public class PlayerCombat : MonoBehaviour
     
     private void OnDrawGizmosSelected()
     {
-        if (!showHitboxGizmo) return;
-        
-        if (attackPoint != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(attackPoint.position, attackRange);
-        }
+        if (!showHitboxGizmo || attackPoint == null) return;
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(attackPoint.position, attackRange);
     }
     #endregion
 }
