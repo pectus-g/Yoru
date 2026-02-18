@@ -130,7 +130,7 @@ public class EnemyCombat : MonoBehaviour
         {
             attackTimer -= Time.deltaTime;
         }
-        
+        if (currentState == EnemyState.Dead) return;
         // Run current state behavior
         switch (currentState)
         {
