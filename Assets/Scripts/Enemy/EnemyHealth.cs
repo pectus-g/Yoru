@@ -5,6 +5,8 @@ public class EnemyHealth : MonoBehaviour
     [Header("Health Settings")]
     [SerializeField] private int maxHealth = 50;
     private int currentHealth;
+    public int CurrentHealth => currentHealth;
+    public int MaxHealth => maxHealth;
     
     [Header("Death Settings")]
     [SerializeField] private float deathDelay = 2f;
