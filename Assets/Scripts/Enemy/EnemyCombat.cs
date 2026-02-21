@@ -155,7 +155,12 @@ public class EnemyCombat : MonoBehaviour
                 break;
         }
     }
-    
+    public void ResetCombatState()
+{
+    currentState = EnemyState.LostSoul;
+    attackTimer = 0f;
+    Debug.Log($"{gameObject.name} combat state reset to LostSoul");
+}
     void HandleLostSoulState()
     {
         // Confused soul looking around

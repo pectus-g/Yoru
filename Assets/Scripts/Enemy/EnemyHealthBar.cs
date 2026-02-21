@@ -293,7 +293,18 @@ public class EnemyHealthBar : MonoBehaviour
 
         return img;
     }
-
+public void ResetBar()
+{
+    isDead = false;
+    hasBeenHit = false;
+    isVisible = false;
+    isFading = false;
+    currentAlpha = 0f;
+    healthFillAmount = 1f;
+    trailFillAmount = 1f;
+    lastKnownHealth = enemyHealth.MaxHealth;
+    if (canvasGroup != null) canvasGroup.alpha = 0f;
+}
     /// <summary>
     /// Creates an anchor-stretched bar (used for health and trail).
     /// Anchored left-to-right inside the container so we can

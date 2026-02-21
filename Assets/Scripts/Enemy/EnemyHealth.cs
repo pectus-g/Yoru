@@ -79,12 +79,25 @@ public class EnemyHealth : MonoBehaviour
         currentHealth = 0;
         Die();
     }
-    
+    public void ResetHealth()
+{
+    currentHealth = maxHealth;
+    isDead = false;
+    Debug.Log($"[Health] {gameObject.name} reset to {maxHealth} HP");
+}
     private void Die()
-    {
-        if (isDead) return;
+    {if (isDead) return;
         
         isDead = true;
+
+        var deathEffect = GetComponent<EnemyDeathEffect>();
+
+if (deathEffect != null)
+{
+    deathEffect.StartDeathSequence();
+    return; // Death effect handles cleanup
+}
+        
         
         Debug.Log($"💀 {gameObject.name} died!");
         
@@ -221,12 +234,7 @@ public class EnemyHealth : MonoBehaviour
         }
     }
     
-    public void ResetHealth()
-    {
-        currentHealth = maxHealth;
-        isDead = false;
-    }
-    
+  
     // Public getters
     public int GetCurrentHealth() => currentHealth;
     public int GetMaxHealth() => maxHealth;
