@@ -441,32 +441,32 @@ public class PlayerCombat : MonoBehaviour
     #endregion
     
     #region Hit Detection
-    public void DealDamage()
+  public void DealDamage()
+{
+    int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
+    DealDamageInRange(damage, false);  // light hit
+}
+
+public void DealHeavyDamage()
+{
+    int damage = Mathf.RoundToInt(Mathf.Lerp(heavyDamageMin, heavyDamageMax, storedHeavyChargePercent));
+    DealDamageInRange(damage, true);   // heavy → stagger
+}
+
+private void DealDamageInRange(int damage, bool isHeavy)
+{
+    Collider[] hitEnemies = Physics.OverlapSphere(attackPoint.position, attackRange, enemyLayer);
+
+    foreach (Collider enemy in hitEnemies)
     {
-        int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
-        DealDamageInRange(damage);
-    }
-    
-    public void DealHeavyDamage()
-    {
-        int damage = Mathf.RoundToInt(Mathf.Lerp(heavyDamageMin, heavyDamageMax, storedHeavyChargePercent));
-        DealDamageInRange(damage);
-    }
-    
-    private void DealDamageInRange(int damage)
-    {
-        Collider[] hitEnemies = Physics.OverlapSphere(attackPoint.position, attackRange, enemyLayer);
-        
-        foreach (Collider enemy in hitEnemies)
+        EnemyHealth enemyHealth = enemy.GetComponent<EnemyHealth>();
+        if (enemyHealth != null)
         {
-            EnemyHealth enemyHealth = enemy.GetComponent<EnemyHealth>();
-            if (enemyHealth != null)
-            {
-                enemyHealth.TakeDamage(damage);
-                DebugLog($"Hit {enemy.name} for {damage}!");
-            }
+            enemyHealth.TakeDamage(damage, isHeavy);
+            DebugLog($"Hit {enemy.name} for {damage}{(isHeavy ? " (HEAVY)" : "")}!");
         }
     }
+}
     #endregion
     
     #region VFX - Animation Events

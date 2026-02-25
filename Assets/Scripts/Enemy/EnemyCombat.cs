@@ -1,399 +1,814 @@
 using UnityEngine;
+using UnityEngine.AI;
+using System.Collections;
 
+/// <summary>
+/// Universal Enemy AI — works for all enemy tiers.
+/// Per-enemy differences handled entirely through Inspector values.
+/// 
+/// States: Idle → Alert → Chase → Telegraph → Attack → Recovery → (loop)
+/// + Stagger (from heavy/parry), Teleport (optional), Dead
+/// + Narrative overrides: LostSoul, Dialogue, Peaceful
+/// </summary>
 public class EnemyCombat : MonoBehaviour
 {
-    // Enum definition (no Header attribute allowed here)
+    #region Enums
     public enum EnemyState
     {
-        LostSoul,      // Confused, looking around (pre-dialogue)
-        Dialogue,      // Talking to player (frozen)
-        Hostile,       // Attacking player (post dark choice)
-        Peaceful,      // Passing on (post light choice)
-        Dead           // Defeated
+        // Narrative states (override combat)
+        LostSoul,
+        Dialogue,
+        Peaceful,
+        
+        // Combat states
+        Idle,
+        Alert,
+        Chase,
+        Telegraph,
+        Attack,
+        Recovery,
+        Stagger,
+        Teleport,
+        Dead
     }
     
-    [Header("Enemy State")]
+    public enum AttackPhase
+    {
+        Both,
+        Phase1Only,
+        Phase2Only
+    }
+    #endregion
+    
+    #region Attack Definition
+    [System.Serializable]
+    public class EnemyAttack
+    {
+        public string attackName = "Attack";
+        
+        [Header("Animation")]
+        [Tooltip("Animator state name for telegraph wind-up")]
+        public string telegraphAnim = "HairLash_Telegraph";
+        [Tooltip("Animator state name for attack strike (leave empty for AoE/scream type)")]
+        public string attackAnim = "HairLash_Attack";
+        
+        [Header("Speed")]
+        [Tooltip("Playback speed for telegraph animation")]
+        public float telegraphSpeed = 1f;
+        [Tooltip("Playback speed for attack animation")]
+        public float attackSpeed = 1f;
+        
+        [Header("Timing")]
+        [Tooltip("Base telegraph duration before speed modifier")]
+        public float telegraphDuration = 0.4f;
+        [Tooltip("Base attack duration before speed modifier")]
+        public float attackDuration = 0.3f;
+        
+        [Header("Damage")]
+        public int damage = 8;
+        [Tooltip("Attack range — how close player must be to get hit")]
+        public float range = 3.5f;
+        [Tooltip("Is this AoE? (damage all in range vs single target)")]
+        public bool isAoE = false;
+        
+        [Header("Player Effects")]
+        [Tooltip("Stun player for this duration on hit (0 = no stun)")]
+        public float stunPlayerDuration = 0f;
+        
+        [Header("Phase")]
+        public AttackPhase phase = AttackPhase.Both;
+        [Tooltip("Selection weight — higher = more likely to be picked")]
+        [Range(1, 100)]
+        public int weight = 50;
+    }
+    #endregion
+    
+    #region Serialized Fields
+    [Header("Current State (Debug)")]
     [SerializeField] private EnemyState currentState = EnemyState.LostSoul;
     
     [Header("Detection")]
     [SerializeField] private float detectionRange = 10f;
-    [SerializeField] private float attackRange = 2.5f;
+    [SerializeField] private float attackRange = 3.5f;
+    [SerializeField] private float escapeRange = 15f;
     
-    [Header("Attack Settings")]
-    [SerializeField] private int punchDamage = 1;
-    [SerializeField] private int kickDamage = 2;
-    [SerializeField] private float attackCooldown = 2f;
-    private float attackTimer = 0f;
+    [Header("Timing")]
+    [SerializeField] private float alertDuration = 0.5f;
+    [SerializeField] private float recoveryDuration = 0.4f;
+    [SerializeField] private float staggerDuration = 1.0f;
+    [SerializeField] private float attackCooldown = 2.0f;
     
     [Header("Movement")]
-    [SerializeField] private float walkSpeed = 1.5f;
-    [SerializeField] private float runSpeed = 4f;
+    [SerializeField] private float patrolSpeed = 1.5f;
+    [SerializeField] private float chaseSpeed = 3.0f;
     [SerializeField] private float rotationSpeed = 5f;
     
-    [Header("Lost Soul Behavior")]
-    [SerializeField] private float lookAroundInterval = 5f;
-    private float lookAroundTimer = 0f;
+    [Header("Attacks")]
+    [SerializeField] private EnemyAttack[] attacks;
     
+    [Header("Phase System")]
+    [SerializeField] private bool hasPhases = false;
+    [Tooltip("HP percentage to trigger Phase 2 (0.5 = 50%)")]
+    [SerializeField] private float phaseThreshold = 0.5f;
+    [SerializeField] private float chaseSpeedP2 = 4.0f;
+    [SerializeField] private float attackCooldownP2 = 1.2f;
+    
+    [Header("Teleport")]
+    [SerializeField] private bool canTeleport = false;
+    [Tooltip("Chance to teleport after recovery (0-1)")]
+    [SerializeField] private float teleportChance = 0.3f;
+    [SerializeField] private float teleportChanceP2 = 0.6f;
+    [SerializeField] private float teleportDistance = 5f;
+    [Tooltip("Playback speed for teleport animations")]
+    [SerializeField] private float teleportSpeed = 1.0f;
+    [SerializeField] private float teleportSpeedP2 = 1.4f;
+    [Tooltip("Duration of Teleport_Out animation at 1x speed")]
+    [SerializeField] private float teleportOutDuration = 0.5f;
+    [Tooltip("Duration of Teleport_In animation at 1x speed")]
+    [SerializeField] private float teleportInDuration = 0.4f;
+    
+    [Header("Animation State Names")]
+    [SerializeField] private string idleAnim = "Float_Idle";
+    [SerializeField] private string walkAnim = "Walk_Glide";
+    [SerializeField] private string runAnim = "Run_Chase";
+    [SerializeField] private string alertAnim = "Alert_Notice";
+    [SerializeField] private string staggerAnim = "Stagger";
+    [SerializeField] private string deathAnim = "Death_Dissolve";
+    [SerializeField] private string hitReactAnim = "Hit_Reaction";
+    [SerializeField] private string teleportOutAnim = "Teleport_Out";
+    [SerializeField] private string teleportInAnim = "Teleport_In";
+    
+    [Header("Animator Layer")]
+    [SerializeField] private int combatLayerIndex = 0;
+    
+    [Header("Debug")]
+    [SerializeField] private bool showDebugLogs = true;
+    [SerializeField] private bool showGizmos = true;
+    #endregion
+    
+    #region Private Fields
     private Transform player;
     private EnemyHealth enemyHealth;
     private Animator animator;
-    private bool isAttacking = false;
+    private NavMeshAgent navAgent;
     
-    void Start()
+    // Timing
+    private float stateTimer;
+    private float cooldownTimer;
+    
+    // Phase
+    private bool isPhase2;
+    
+    // Attack
+    private EnemyAttack currentAttack;
+    
+    // Alert (only triggers once per encounter)
+    private bool hasAlerted;
+    
+    // Teleport
+    private bool isTeleporting;
+    
+    // Animator speed parameter
+    private static readonly int HashAnimSpeed = Animator.StringToHash("AnimSpeed");
+    #endregion
+    
+    #region Unity Lifecycle
+    private void Start()
     {
-        // Find player
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null)
-        {
-            player = playerObj.transform;
-            Debug.Log($"{gameObject.name} found player at {player.position}");
-        }
-        else
-        {
-            Debug.LogError($"{gameObject.name} could not find Player! Make sure Player has 'Player' tag!");
-        }
+        player = GameObject.FindGameObjectWithTag("Player")?.transform;
+        if (player == null)
+            Debug.LogError($"{gameObject.name}: No Player found! Tag your player 'Player'.");
         
         enemyHealth = GetComponent<EnemyHealth>();
         animator = GetComponent<Animator>();
+        navAgent = GetComponent<NavMeshAgent>();
         
-        // Start as confused lost soul
+        if (navAgent != null)
+        {
+            navAgent.speed = patrolSpeed;
+            navAgent.stoppingDistance = attackRange;
+            navAgent.updateRotation = false; // We handle rotation manually
+        }
+        
+        if (attacks == null || attacks.Length == 0)
+            Debug.LogWarning($"{gameObject.name}: No attacks defined!");
+        
         SetState(EnemyState.LostSoul);
-        
-        Debug.Log($"{gameObject.name} initialized. Detection Range: {detectionRange}, Attack Range: {attackRange}");
+        DebugLog("Initialized");
     }
     
-    void Update()
+    private void Update()
     {
-        // ========== DEBUG KEYS (FOR TESTING) ==========
-        
-        // Press T to make enemy hostile
-        if (Input.GetKeyDown(KeyCode.T))
-        {
-            SetState(EnemyState.Hostile);
-            Debug.Log($"[DEBUG] {gameObject.name} forced to HOSTILE state!");
-        }
-        
-        // Press Y to test walk animation
-        if (Input.GetKeyDown(KeyCode.Y))
-        {
-            if (animator != null)
-            {
-                animator.SetBool("IsWalking", true);
-                animator.SetBool("IsRunning", false);
-            }
-            Debug.Log($"[DEBUG] Testing WALK animation");
-        }
-        
-        // Press U to test run animation
-        if (Input.GetKeyDown(KeyCode.U))
-        {
-            if (animator != null)
-            {
-                animator.SetBool("IsWalking", false);
-                animator.SetBool("IsRunning", true);
-            }
-            Debug.Log($"[DEBUG] Testing RUN animation");
-        }
-        
-        // Press I to test idle animation
-        if (Input.GetKeyDown(KeyCode.I))
-        {
-            if (animator != null)
-            {
-                animator.SetBool("IsWalking", false);
-                animator.SetBool("IsRunning", false);
-            }
-            Debug.Log($"[DEBUG] Testing IDLE animation");
-        }
-        
-        // Press P to show current distance to player
-        if (Input.GetKeyDown(KeyCode.P))
-        {
-            if (player != null)
-            {
-                float dist = Vector3.Distance(transform.position, player.position);
-                Debug.Log($"[DEBUG] Distance to player: {dist:F2} units | Detection: {detectionRange} | Attack: {attackRange}");
-            }
-        }
-        
-        // ========== END DEBUG KEYS ==========
-        
-        // Don't do anything if dead
+        // Dead check
         if (enemyHealth != null && enemyHealth.IsDead())
         {
-            SetState(EnemyState.Dead);
+            if (currentState != EnemyState.Dead)
+                SetState(EnemyState.Dead);
             return;
         }
         
-        // Update attack cooldown
-        if (attackTimer > 0)
-        {
-            attackTimer -= Time.deltaTime;
-        }
-        if (currentState == EnemyState.Dead) return;
-        // Run current state behavior
+        // Phase check
+        UpdatePhase();
+        
+        // Cooldown tick
+        if (cooldownTimer > 0)
+            cooldownTimer -= Time.deltaTime;
+        
+        // State timer tick
+        if (stateTimer > 0)
+            stateTimer -= Time.deltaTime;
+        
+        // Run current state
         switch (currentState)
         {
-            case EnemyState.LostSoul:
-                HandleLostSoulState();
-                break;
-                
-            case EnemyState.Dialogue:
-                HandleDialogueState();
-                break;
-                
-            case EnemyState.Hostile:
-                HandleHostileState();
-                break;
-                
-            case EnemyState.Peaceful:
-                HandlePeacefulState();
-                break;
-                
-            case EnemyState.Dead:
-                HandleDeadState();
-                break;
-        }
-    }
-    public void ResetCombatState()
-{
-    currentState = EnemyState.LostSoul;
-    attackTimer = 0f;
-    Debug.Log($"{gameObject.name} combat state reset to LostSoul");
-}
-    void HandleLostSoulState()
-    {
-        // Confused soul looking around
-        if (animator != null)
-        {
-            animator.SetBool("IsWalking", false);
-            animator.SetBool("IsRunning", false);
+            case EnemyState.LostSoul: HandleLostSoul(); break;
+            case EnemyState.Dialogue: HandleDialogue(); break;
+            case EnemyState.Peaceful: HandlePeaceful(); break;
+            case EnemyState.Idle: HandleIdle(); break;
+            case EnemyState.Alert: HandleAlert(); break;
+            case EnemyState.Chase: HandleChase(); break;
+            case EnemyState.Telegraph: HandleTelegraph(); break;
+            case EnemyState.Attack: HandleAttack(); break;
+            case EnemyState.Recovery: HandleRecovery(); break;
+            case EnemyState.Stagger: HandleStagger(); break;
+            case EnemyState.Teleport: break; // Handled by coroutine
+            case EnemyState.Dead: HandleDead(); break;
         }
         
-        // Occasionally look around confused
-        lookAroundTimer -= Time.deltaTime;
-        if (lookAroundTimer <= 0)
-        {
-            // We don't have LookAround trigger in your animator yet
-            // Just reset timer for now
-            lookAroundTimer = lookAroundInterval;
-        }
-        
-        // Note: Will transition to Dialogue state when player presses E
-        // That will be handled by dialogue system later
+        // Debug keys
+        HandleDebugInput();
     }
+    #endregion
     
-    void HandleDialogueState()
+    #region State Handlers
+    private void HandleLostSoul()
     {
-        // Frozen during dialogue - do nothing
-        if (animator != null)
+        StopNav();
+        PlayAnimation(idleAnim);
+        
+        // Transition to combat when player is in range
+        if (player != null && DistanceToPlayer() <= detectionRange)
         {
-            animator.SetBool("IsWalking", false);
-            animator.SetBool("IsRunning", false);
+            SetState(EnemyState.Alert);
         }
     }
     
-    void HandleHostileState()
+    private void HandleDialogue()
     {
-        if (player == null)
+        StopNav();
+    }
+    
+    private void HandlePeaceful()
+    {
+        StopNav();
+        PlayAnimation(idleAnim);
+    }
+    
+    private void HandleIdle()
+    {
+        StopNav();
+        PlayAnimation(idleAnim);
+        
+        if (player == null) return;
+        
+        float dist = DistanceToPlayer();
+        
+        if (dist <= detectionRange)
         {
-            Debug.LogWarning($"{gameObject.name} is hostile but player is null!");
-            return;
-        }
-        
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-        
-        // Debug: Log distance occasionally (every 60 frames = ~1 second)
-        if (Time.frameCount % 60 == 0)
-        {
-            Debug.Log($"{gameObject.name} HOSTILE: Distance={distanceToPlayer:F2}, InDetection={distanceToPlayer <= detectionRange}, InAttack={distanceToPlayer <= attackRange}");
-        }
-        
-        // Look at player
-        LookAtPlayer();
-        
-        // Check if in attack range
-        if (distanceToPlayer <= attackRange)
-        {
-            // Stop and attack
-            if (animator != null)
+            if (!hasAlerted)
             {
-                animator.SetBool("IsWalking", false);
-                animator.SetBool("IsRunning", false);
-            }
-            
-            if (attackTimer <= 0 && !isAttacking)
-            {
-                StartCoroutine(AttackPlayer());
-            }
-        }
-        else if (distanceToPlayer <= detectionRange)
-        {
-            // Run toward player
-            ChasePlayer();
-        }
-        else
-        {
-            // Player escaped - return to lost soul state
-            Debug.Log($"{gameObject.name} lost player, returning to LostSoul state");
-            SetState(EnemyState.LostSoul);
-        }
-    }
-    
-    void HandlePeacefulState()
-    {
-        // Soul is passing on peacefully
-        // Play peaceful animation, fade out, etc.
-        // For now, just stay idle
-        if (animator != null)
-        {
-            animator.SetBool("IsWalking", false);
-            animator.SetBool("IsRunning", false);
-        }
-        
-        // Could add: Float upward, fade out, spawn particles, etc.
-    }
-    
-    void HandleDeadState()
-    {
-        // Already dead - do nothing
-        if (animator != null)
-        {
-            animator.SetBool("IsWalking", false);
-            animator.SetBool("IsRunning", false);
-        }
-    }
-    
-    void LookAtPlayer()
-    {
-        Vector3 directionToPlayer = (player.position - transform.position).normalized;
-        directionToPlayer.y = 0;
-        
-        if (directionToPlayer != Vector3.zero)
-        {
-            Quaternion lookRotation = Quaternion.LookRotation(directionToPlayer);
-            transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, Time.deltaTime * rotationSpeed);
-        }
-    }
-    
-    void ChasePlayer()
-{
-    Vector3 directionToPlayer = (player.position - transform.position).normalized;
-    directionToPlayer.y = 0; // Don't move up/down
-    
-    Vector3 newPosition = transform.position + directionToPlayer * runSpeed * Time.deltaTime;
-    newPosition.y = transform.position.y; // Lock Y position (stay at current height)
-    
-    transform.position = newPosition;
-    
-    // Play run animation
-    if (animator != null)
-    {
-        animator.SetBool("IsWalking", false);
-        animator.SetBool("IsRunning", true);
-    }
-}
-    
-    System.Collections.IEnumerator AttackPlayer()
-    {
-        isAttacking = true;
-        
-        // Choose random attack (punch or kick)
-        int attackType = Random.Range(0, 2); // 0 or 1
-        int damage = (attackType == 0) ? punchDamage : kickDamage;
-        string attackName = (attackType == 0) ? "Punch" : "Kick";
-        
-        // Play attack animation
-        if (animator != null)
-        {
-            animator.SetInteger("AttackType", attackType);
-            animator.SetTrigger("Attack");
-        }
-        
-        Debug.Log($"💥 {gameObject.name} uses {attackName}!");
-        
-        // Wait for animation to reach hit frame (adjust timing as needed)
-        yield return new WaitForSeconds(0.5f);
-        
-        // Deal damage if still in range
-        if (player != null)
-        {
-            float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-            
-            if (distanceToPlayer <= attackRange)
-            {
-                PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
-                if (playerHealth != null)
-                {
-                    playerHealth.TakeDamage(damage);
-                    Debug.Log($"⚔️ Player took {damage} damage from {attackName}!");
-                }
-                else
-                {
-                    Debug.LogError("Player doesn't have PlayerHealth component!");
-                }
+                SetState(EnemyState.Alert);
             }
             else
             {
-                Debug.Log($"{gameObject.name} attack missed - player moved out of range!");
+                SetState(EnemyState.Chase);
+            }
+        }
+    }
+    
+    private void HandleAlert()
+    {
+        StopNav();
+        LookAtPlayer();
+        
+        if (stateTimer <= 0)
+        {
+            hasAlerted = true;
+            SetState(EnemyState.Chase);
+        }
+    }
+    
+    private void HandleChase()
+    {
+        if (player == null) return;
+        
+        float dist = DistanceToPlayer();
+        
+        // Player escaped
+        if (dist > escapeRange)
+        {
+            hasAlerted = false;
+            SetState(EnemyState.Idle);
+            DebugLog("Player escaped, returning to Idle");
+            return;
+        }
+        
+        // In attack range and cooldown ready
+        if (dist <= attackRange && cooldownTimer <= 0)
+        {
+            EnemyAttack chosen = ChooseAttack();
+            if (chosen != null)
+            {
+                currentAttack = chosen;
+                SetState(EnemyState.Telegraph);
+                return;
             }
         }
         
-        // Reset cooldown
-        attackTimer = attackCooldown;
-        isAttacking = false;
+        // Chase
+        LookAtPlayer();
+        float speed = isPhase2 ? chaseSpeedP2 : chaseSpeed;
+        
+        if (navAgent != null && navAgent.isOnNavMesh)
+        {
+            navAgent.isStopped = false;
+            navAgent.speed = speed;
+            navAgent.SetDestination(player.position);
+        }
+        
+        PlayAnimation(runAnim);
     }
     
-    // Public method to change state (called by dialogue system)
-    public void SetState(EnemyState newState)
+    private void HandleTelegraph()
     {
-        if (currentState == newState) return;
+        StopNav();
+        LookAtPlayer();
         
-        Debug.Log($"🔄 {gameObject.name} state: {currentState} → {newState}");
-        currentState = newState;
-        
-        // Trigger death animation if becoming dead
-        if (newState == EnemyState.Dead && animator != null)
+        if (stateTimer <= 0)
         {
-            animator.SetTrigger("Die");
+            SetState(EnemyState.Attack);
         }
     }
     
-    public EnemyState GetCurrentState() => currentState;
-    
-    // Called when player chooses to fight (dark path)
-    public void BecomeHostile()
+    private void HandleAttack()
     {
-        SetState(EnemyState.Hostile);
+        StopNav();
+        
+        if (stateTimer <= 0)
+        {
+            // Deal damage at end of attack
+            DealDamageToPlayer();
+            SetState(EnemyState.Recovery);
+        }
     }
     
-    // Called when player chooses empathy (light path)
+    private void HandleRecovery()
+    {
+        StopNav();
+        
+        if (stateTimer <= 0)
+        {
+            // Decide: teleport or chase
+            float tpChance = isPhase2 ? teleportChanceP2 : teleportChance;
+            
+            if (canTeleport && Random.value < tpChance)
+            {
+                StartCoroutine(TeleportSequence());
+            }
+            else
+            {
+                float cd = isPhase2 ? attackCooldownP2 : attackCooldown;
+                cooldownTimer = cd;
+                SetState(EnemyState.Chase);
+            }
+        }
+    }
+    
+    private void HandleStagger()
+    {
+        StopNav();
+        
+        if (stateTimer <= 0)
+        {
+            SetState(EnemyState.Chase);
+        }
+    }
+    
+    private void HandleDead()
+    {
+        StopNav();
+    }
+    #endregion
+    
+    #region State Transitions
+    public void SetState(EnemyState newState)
+    {
+        if (currentState == EnemyState.Dead && newState != EnemyState.Dead)
+            return; // Can't leave dead state
+        
+        if (currentState == newState) return;
+        
+        EnemyState oldState = currentState;
+        currentState = newState;
+        
+        DebugLog($"{oldState} → {newState}");
+        
+        // Stop any ongoing coroutines when changing state (except teleport managing itself)
+        if (newState != EnemyState.Teleport)
+            isTeleporting = false;
+        
+        switch (newState)
+        {
+            case EnemyState.Alert:
+                stateTimer = alertDuration;
+                PlayAnimation(alertAnim);
+                SetAnimSpeed(1f);
+                break;
+                
+            case EnemyState.Telegraph:
+                if (currentAttack != null)
+                {
+                    float speed = currentAttack.telegraphSpeed;
+                    float duration = currentAttack.telegraphDuration / speed;
+                    stateTimer = duration;
+                    PlayAnimation(currentAttack.telegraphAnim);
+                    SetAnimSpeed(speed);
+                    DebugLog($"Telegraph: {currentAttack.attackName} ({duration:F2}s)");
+                }
+                break;
+                
+            case EnemyState.Attack:
+                if (currentAttack != null)
+                {
+                    float speed = currentAttack.attackSpeed;
+                    float duration = currentAttack.attackDuration / speed;
+                    stateTimer = duration;
+                    
+                    // Some attacks have no attack anim (scream type — telegraph IS the attack)
+                    if (!string.IsNullOrEmpty(currentAttack.attackAnim))
+                    {
+                        PlayAnimation(currentAttack.attackAnim);
+                        SetAnimSpeed(speed);
+                    }
+                    
+                    DebugLog($"Attack: {currentAttack.attackName} ({duration:F2}s, {currentAttack.damage} dmg)");
+                }
+                break;
+                
+            case EnemyState.Recovery:
+                stateTimer = recoveryDuration;
+                PlayAnimation(idleAnim);
+                SetAnimSpeed(1f);
+                break;
+                
+            case EnemyState.Stagger:
+                stateTimer = staggerDuration;
+                PlayAnimation(staggerAnim);
+                SetAnimSpeed(1f);
+                cooldownTimer = 0; // Reset cooldown after stagger
+                DebugLog($"STAGGERED for {staggerDuration}s");
+                break;
+                
+            case EnemyState.Dead:
+                StopNav();
+                PlayAnimation(deathAnim);
+                SetAnimSpeed(1f);
+                break;
+                
+            case EnemyState.Chase:
+                SetAnimSpeed(1f);
+                break;
+                
+            case EnemyState.Idle:
+                StopNav();
+                SetAnimSpeed(1f);
+                break;
+                
+            case EnemyState.Teleport:
+                // Handled by coroutine
+                break;
+        }
+    }
+    #endregion
+    
+    #region Phase System
+    private void UpdatePhase()
+    {
+        if (!hasPhases || isPhase2) return;
+        if (enemyHealth == null) return;
+        
+        if (enemyHealth.GetHealthPercentage() <= phaseThreshold)
+        {
+            isPhase2 = true;
+            DebugLog("⚡ PHASE 2 ACTIVATED");
+        }
+    }
+    #endregion
+    
+    #region Attack Selection
+    private EnemyAttack ChooseAttack()
+    {
+        if (attacks == null || attacks.Length == 0) return null;
+        
+        // Build list of valid attacks for current phase
+        int totalWeight = 0;
+        
+        for (int i = 0; i < attacks.Length; i++)
+        {
+            if (IsAttackValid(attacks[i]))
+                totalWeight += attacks[i].weight;
+        }
+        
+        if (totalWeight == 0) return null;
+        
+        // Weighted random selection
+        int roll = Random.Range(0, totalWeight);
+        int running = 0;
+        
+        for (int i = 0; i < attacks.Length; i++)
+        {
+            if (!IsAttackValid(attacks[i])) continue;
+            
+            running += attacks[i].weight;
+            if (roll < running)
+                return attacks[i];
+        }
+        
+        return attacks[0]; // Fallback
+    }
+    
+    private bool IsAttackValid(EnemyAttack atk)
+    {
+        if (atk.phase == AttackPhase.Phase1Only && isPhase2) return false;
+        if (atk.phase == AttackPhase.Phase2Only && !isPhase2) return false;
+        return true;
+    }
+    #endregion
+    
+    #region Damage
+    private void DealDamageToPlayer()
+    {
+        if (currentAttack == null || player == null) return;
+        
+        float dist = DistanceToPlayer();
+        
+        if (dist > currentAttack.range)
+        {
+            DebugLog($"Attack missed — player out of range ({dist:F1}m > {currentAttack.range}m)");
+            return;
+        }
+        
+        PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
+        if (playerHealth == null) return;
+        
+        playerHealth.TakeDamage(currentAttack.damage);
+        DebugLog($"⚔️ Hit player for {currentAttack.damage} ({currentAttack.attackName})");
+        
+        // Apply stun if attack has it
+        if (currentAttack.stunPlayerDuration > 0)
+        {
+            playerHealth.ApplyStun(currentAttack.stunPlayerDuration);
+            DebugLog($"Player stunned for {currentAttack.stunPlayerDuration}s");
+        }
+    }
+    #endregion
+    
+    #region Teleport
+    private IEnumerator TeleportSequence()
+    {
+        SetState(EnemyState.Teleport);
+        isTeleporting = true;
+        
+        float speed = isPhase2 ? teleportSpeedP2 : teleportSpeed;
+        
+        // Phase 1: Teleport Out
+        PlayAnimation(teleportOutAnim);
+        SetAnimSpeed(speed);
+        
+        float outTime = teleportOutDuration / speed;
+        yield return new WaitForSeconds(outTime);
+        
+        if (!isTeleporting) yield break; // State was changed externally
+        
+        // Reposition behind player
+        Vector3 behindPlayer = GetPositionBehindPlayer();
+        
+        if (navAgent != null)
+        {
+            navAgent.enabled = false;
+            transform.position = behindPlayer;
+            navAgent.enabled = true;
+            
+            if (navAgent.isOnNavMesh)
+                navAgent.Warp(behindPlayer);
+        }
+        else
+        {
+            transform.position = behindPlayer;
+        }
+        
+        // Phase 2: Teleport In
+        PlayAnimation(teleportInAnim);
+        SetAnimSpeed(speed);
+        
+        float inTime = teleportInDuration / speed;
+        yield return new WaitForSeconds(inTime);
+        
+        if (!isTeleporting) yield break;
+        
+        isTeleporting = false;
+        
+        // After teleport, set cooldown and chase
+        float cd = isPhase2 ? attackCooldownP2 : attackCooldown;
+        cooldownTimer = cd * 0.5f; // Shorter cooldown after teleport — keeps pressure on
+        SetState(EnemyState.Chase);
+    }
+    
+    private Vector3 GetPositionBehindPlayer()
+    {
+        if (player == null) return transform.position;
+        
+        Vector3 behindDir = -player.forward;
+        Vector3 targetPos = player.position + behindDir * teleportDistance;
+        
+        // Ensure position is on NavMesh
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, teleportDistance, NavMesh.AllAreas))
+        {
+            return hit.position;
+        }
+        
+        // Fallback: try to the side
+        Vector3 sidePos = player.position + player.right * teleportDistance;
+        if (NavMesh.SamplePosition(sidePos, out hit, teleportDistance, NavMesh.AllAreas))
+        {
+            return hit.position;
+        }
+        
+        return transform.position; // Stay put if no valid position
+    }
+    #endregion
+    
+    #region Public Methods (called by other scripts)
+    /// <summary>
+    /// Called by EnemyHealth when hit by heavy attack or parried.
+    /// Interrupts current action and enters stagger state.
+    /// </summary>
+    public void TriggerStagger()
+    {
+        if (currentState == EnemyState.Dead) return;
+        
+        StopAllCoroutines();
+        isTeleporting = false;
+        SetState(EnemyState.Stagger);
+    }
+    
+    /// <summary>
+    /// Called by EnemyHealth on light hit. Plays hit reaction
+    /// but does NOT interrupt telegraph/attack — only interrupts idle/chase.
+    /// </summary>
+    public void TriggerHitReact()
+    {
+        if (currentState == EnemyState.Dead) return;
+        if (currentState == EnemyState.Stagger) return; // Already staggered
+        
+        // Only interrupt non-critical states
+        if (currentState == EnemyState.Idle || 
+            currentState == EnemyState.Chase || 
+            currentState == EnemyState.Recovery)
+        {
+            PlayAnimation(hitReactAnim);
+            SetAnimSpeed(1f);
+        }
+    }
+    
+    /// <summary>
+    /// Start combat — called when dialogue fails or player attacks.
+    /// </summary>
+    public void BecomeHostile()
+    {
+        if (currentState == EnemyState.Dead) return;
+        hasAlerted = false;
+        SetState(EnemyState.Alert);
+        DebugLog("Became HOSTILE");
+    }
+    
+    /// <summary>
+    /// Light path — soul passes on peacefully.
+    /// </summary>
     public void BecomePeaceful()
     {
+        if (currentState == EnemyState.Dead) return;
+        StopAllCoroutines();
         SetState(EnemyState.Peaceful);
-        // Could trigger peaceful death/ascension here
         StartCoroutine(PassOnPeacefully());
     }
     
-    System.Collections.IEnumerator PassOnPeacefully()
+    /// <summary>
+    /// Reset to initial state.
+    /// </summary>
+    public void ResetCombatState()
     {
-        // Wait a moment
-        yield return new WaitForSeconds(2f);
-        
-        // Fade out and destroy
-        Debug.Log($"✨ {gameObject.name} passes on peacefully...");
-        Destroy(gameObject, 1f);
+        StopAllCoroutines();
+        isTeleporting = false;
+        isPhase2 = false;
+        hasAlerted = false;
+        cooldownTimer = 0;
+        stateTimer = 0;
+        currentAttack = null;
+        currentState = EnemyState.LostSoul;
+        SetAnimSpeed(1f);
+        DebugLog("Combat state RESET");
+    }
+    #endregion
+    
+    #region Navigation Helpers
+    private void StopNav()
+    {
+        if (navAgent != null && navAgent.isOnNavMesh)
+        {
+            navAgent.isStopped = true;
+            navAgent.velocity = Vector3.zero;
+        }
     }
     
-    // Debug visualization
-    void OnDrawGizmosSelected()
+    private void LookAtPlayer()
     {
-        // Detection range (yellow)
+        if (player == null) return;
+        
+        Vector3 dir = (player.position - transform.position).normalized;
+        dir.y = 0;
+        
+        if (dir != Vector3.zero)
+        {
+            Quaternion target = Quaternion.LookRotation(dir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * rotationSpeed);
+        }
+    }
+    
+    private float DistanceToPlayer()
+    {
+        if (player == null) return float.MaxValue;
+        return Vector3.Distance(transform.position, player.position);
+    }
+    #endregion
+    
+    #region Animation Helpers
+    private void PlayAnimation(string stateName)
+    {
+        if (animator == null || string.IsNullOrEmpty(stateName)) return;
+        animator.CrossFadeInFixedTime(stateName, 0.1f, combatLayerIndex);
+    }
+    
+    private void SetAnimSpeed(float speed)
+    {
+        if (animator == null) return;
+        animator.SetFloat(HashAnimSpeed, speed);
+    }
+    #endregion
+    
+    #region Coroutines
+    private IEnumerator PassOnPeacefully()
+    {
+        yield return new WaitForSeconds(2f);
+        DebugLog("✨ Passing on peacefully...");
+        Destroy(gameObject, 1f);
+    }
+    #endregion
+    
+    #region Getters
+    public EnemyState GetCurrentState() => currentState;
+    public bool IsPhase2() => isPhase2;
+    public bool IsInCombat() => currentState >= EnemyState.Idle && currentState <= EnemyState.Teleport;
+    #endregion
+    
+    #region Debug
+    private void HandleDebugInput()
+    {
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            BecomeHostile();
+            DebugLog("[DEBUG] Forced HOSTILE");
+        }
+    }
+    
+    private void DebugLog(string msg)
+    {
+        if (showDebugLogs)
+            Debug.Log($"[{gameObject.name}] {msg}");
+    }
+    
+    private void OnDrawGizmosSelected()
+    {
+        if (!showGizmos) return;
+        
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
         
-        // Attack range (red)
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
+        
+        Gizmos.color = new Color(1, 0.5f, 0, 0.3f);
+        Gizmos.DrawWireSphere(transform.position, escapeRange);
     }
+    #endregion
 }

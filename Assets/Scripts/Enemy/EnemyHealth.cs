@@ -1,9 +1,13 @@
 using UnityEngine;
 
+/// <summary>
+/// Universal Enemy Health — works for all enemy tiers.
+/// Updated: passes hit type (heavy/light) to EnemyCombat for stagger.
+/// </summary>
 public class EnemyHealth : MonoBehaviour
 {
     [Header("Health Settings")]
-    [SerializeField] private int maxHealth = 50;
+    [SerializeField] private int maxHealth = 60;
     private int currentHealth;
     public int CurrentHealth => currentHealth;
     public int MaxHealth => maxHealth;
@@ -13,53 +17,73 @@ public class EnemyHealth : MonoBehaviour
     [SerializeField] private bool dropItemOnDeath = false;
     
     [Header("Death Effects")]
-    [SerializeField] private GameObject deathParticlePrefab; // NEW!
-    [SerializeField] private float particleYOffset = 1f; // Spawn particles at center of enemy
+    [SerializeField] private GameObject deathParticlePrefab;
+    [SerializeField] private float particleYOffset = 1f;
     
     [Header("Animation")]
     [SerializeField] private bool useAnimations = true;
-    private Animator animator;
     
+    private Animator animator;
+    private EnemyCombat enemyCombat;
     private bool isDead = false;
     
     void Start()
     {
         currentHealth = maxHealth;
         animator = GetComponent<Animator>();
-        
-        if (useAnimations && animator == null)
-        {
-            Debug.LogWarning($"{gameObject.name} has useAnimations enabled but no Animator component!");
-        }
+        enemyCombat = GetComponent<EnemyCombat>();
         
         Debug.Log($"{gameObject.name} initialized with {currentHealth} HP");
     }
     
+    /// <summary>
+    /// Standard damage — light hit (quick flinch).
+    /// </summary>
     public void TakeDamage(int damage)
+    {
+        TakeDamage(damage, false);
+    }
+    
+    /// <summary>
+    /// Damage with hit type — heavy hits trigger stagger.
+    /// </summary>
+    public void TakeDamage(int damage, bool isHeavy)
     {
         if (isDead) return;
         
         currentHealth -= damage;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         
-        Debug.Log($"{gameObject.name} took {damage} damage. HP: {currentHealth}/{maxHealth}");
-        
-        if (useAnimations && animator != null)
-        {
-            animator.SetTrigger("Hit");
-        }
+        Debug.Log($"{gameObject.name} took {damage} damage{(isHeavy ? " (HEAVY)" : "")}. HP: {currentHealth}/{maxHealth}");
         
         FlashRed();
         
         if (currentHealth <= 0)
         {
             Die();
+            return;
+        }
+        
+        // Notify combat script about hit type
+        if (enemyCombat != null)
+        {
+            if (isHeavy)
+            {
+                enemyCombat.TriggerStagger();
+            }
+            else
+            {
+                enemyCombat.TriggerHitReact();
+            }
         }
     }
     
+    /// <summary>
+    /// Overload for positional damage (backwards compatibility).
+    /// </summary>
     public void TakeDamage(int damage, Vector3 damageSourcePosition)
     {
-        TakeDamage(damage);
+        TakeDamage(damage, false);
     }
     
     public void Heal(int amount)
@@ -75,97 +99,69 @@ public class EnemyHealth : MonoBehaviour
     public void InstantKill()
     {
         if (isDead) return;
-        
         currentHealth = 0;
         Die();
     }
+    
     public void ResetHealth()
-{
-    currentHealth = maxHealth;
-    isDead = false;
-    Debug.Log($"[Health] {gameObject.name} reset to {maxHealth} HP");
-}
+    {
+        currentHealth = maxHealth;
+        isDead = false;
+        Debug.Log($"[Health] {gameObject.name} reset to {maxHealth} HP");
+    }
+    
     private void Die()
-    {if (isDead) return;
-        
+    {
+        if (isDead) return;
         isDead = true;
-
-        var deathEffect = GetComponent<EnemyDeathEffect>();
-
-if (deathEffect != null)
-{
-    deathEffect.StartDeathSequence();
-    return; // Death effect handles cleanup
-}
         
+        // Use EnemyDeathEffect if available
+        var deathEffect = GetComponent<EnemyDeathEffect>();
+        if (deathEffect != null)
+        {
+            deathEffect.StartDeathSequence();
+            return;
+        }
         
         Debug.Log($"💀 {gameObject.name} died!");
         
-        // Notify combat system about death
-        EnemyCombat combat = GetComponent<EnemyCombat>();
-        if (combat != null)
+        // Notify combat system
+        if (enemyCombat != null)
         {
-            combat.SetState(EnemyCombat.EnemyState.Dead);
+            enemyCombat.SetState(EnemyCombat.EnemyState.Dead);
         }
         
-        // Play death animation
-        if (useAnimations && animator != null)
-        {
-            animator.SetTrigger("Die");
-        }
-        
-        // SPAWN DEATH PARTICLES! NEW!
         SpawnDeathParticles();
         
         // Disable collider
         Collider col = GetComponent<Collider>();
         if (col != null)
-        {
             col.enabled = false;
-        }
         
         DisableMovement();
         
         if (dropItemOnDeath)
-        {
             DropItems();
-        }
         
-        // Destroy enemy after delay
         Destroy(gameObject, deathDelay);
     }
     
-    // NEW FUNCTION!
     private void SpawnDeathParticles()
     {
-        if (deathParticlePrefab != null)
+        if (deathParticlePrefab == null) return;
+        
+        Vector3 spawnPos = transform.position + new Vector3(0, particleYOffset, 0);
+        GameObject particles = Instantiate(deathParticlePrefab, spawnPos, Quaternion.identity);
+        
+        ParticleSystem ps = particles.GetComponent<ParticleSystem>();
+        if (ps != null)
         {
-            // Calculate spawn position (center of enemy)
-            Vector3 spawnPosition = transform.position + new Vector3(0, particleYOffset, 0);
-            
-            // Instantiate particles
-            GameObject particles = Instantiate(deathParticlePrefab, spawnPosition, Quaternion.identity);
-            
-            // Play the particle system
-            ParticleSystem ps = particles.GetComponent<ParticleSystem>();
-            if (ps != null)
-            {
-                ps.Play();
-                
-                // Destroy particle object after it finishes (2 seconds + buffer)
-                Destroy(particles, ps.main.duration + 0.5f);
-            }
-            else
-            {
-                // No particle system found, just destroy after 3 seconds
-                Destroy(particles, 3f);
-            }
-            
-            Debug.Log($"✨ Spawned death particles for {gameObject.name}");
+            ps.Play();
+            Destroy(particles, ps.main.duration + 0.5f);
         }
         else
         {
-            Debug.LogWarning($"{gameObject.name} has no death particle prefab assigned!");
+            Destroy(particles, 3f);
         }
     }
     
@@ -189,22 +185,19 @@ if (deathEffect != null)
     private void FlashRed()
     {
         Renderer[] renderers = GetComponentsInChildren<Renderer>();
-        
         if (renderers.Length > 0)
-        {
             StartCoroutine(FlashRedCoroutine(renderers));
-        }
     }
     
     private System.Collections.IEnumerator FlashRedCoroutine(Renderer[] renderers)
     {
-        Color[] originalColors = new Color[renderers.Length];
+        Color[] originals = new Color[renderers.Length];
         Material[] materials = new Material[renderers.Length];
         
         for (int i = 0; i < renderers.Length; i++)
         {
             materials[i] = renderers[i].material;
-            originalColors[i] = materials[i].color;
+            originals[i] = materials[i].color;
             materials[i].color = Color.red;
         }
         
@@ -213,9 +206,7 @@ if (deathEffect != null)
         for (int i = 0; i < renderers.Length; i++)
         {
             if (materials[i] != null)
-            {
-                materials[i].color = originalColors[i];
-            }
+                materials[i].color = originals[i];
         }
     }
     
@@ -227,15 +218,11 @@ if (deathEffect != null)
     public void SetHealth(int newHealth)
     {
         currentHealth = Mathf.Clamp(newHealth, 0, maxHealth);
-        
         if (currentHealth <= 0 && !isDead)
-        {
             Die();
-        }
     }
     
-  
-    // Public getters
+    // Getters
     public int GetCurrentHealth() => currentHealth;
     public int GetMaxHealth() => maxHealth;
     public float GetHealthPercentage() => (float)currentHealth / maxHealth;
