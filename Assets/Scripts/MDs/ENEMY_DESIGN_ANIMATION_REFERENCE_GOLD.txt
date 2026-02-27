@@ -1,0 +1,181 @@
+
+YORU: Eclipse of Tails
+Enemy Design & Animation Reference
+Folklore • Combat Behavior • Animation Lists • Backstories
+Version 1.0 — February 2026
+Pectus Games • Hazel
+Table of Contents
+1. Enemy Lineup Overview
+2. Shared Animation Set (All Enemies)
+3. Combat Feel Systems
+4. Per-Attack Range Adjustments
+5. Tier 4 — Withered Kodama
+6. Tier 4 — Hitotsume-kozō
+7. Tier 3 — Noppera-bō
+8. Tier 2 — Komainu (Guardian)
+9. Tier 1 — Oni (Boss)
+10. Animation Summary & Totals
+11. Notes for Animator
+1. Enemy Lineup Overview
+YORU features four enemy tiers, each rooted in authentic Japanese folklore. Every yokai has a tragic backstory that serves dual purpose: it defines their combat behavior AND provides the foundation for the persuasion/dialogue system where Yoru can choose empathy over violence.
+
+
+
+Design philosophy: Each tier introduces a new combat lesson. Tier 4 teaches basic attack and dodge. Tier 3 introduces deception and repositioning. Tier 2 demands mastery of parry and combo management. Tier 1 tests everything the player has learned.
+2. Shared Animation Set (All Enemies)
+These 8 animations form the base set for every enemy. The animator can rig these once per skeleton type and retarget across enemies with similar body proportions. Only the unique attack/ability animations need to be created from scratch per enemy.
+
+
+
+Important for Hit Reaction vs Stagger: Hit Reaction is the quick flinch from normal attacks (0.3s) — it interrupts the enemy briefly but the fight continues fast. Stagger is the long stun from heavy hits or parry (1.2s) — the enemy is clearly dazed and the player gets a free window to attack. These MUST feel visually distinct. Stagger should be more dramatic: stumbling back, arms wide, maybe knees buckling.
+3. Combat Feel Systems
+These systems apply to ALL enemies and are what make combat feel satisfying regardless of hit detection method. Every Zelda, God of War, and Ghost of Tsushima uses these. Without them, even perfect hitboxes feel like swinging through air.
+
+
+4. Per-Attack Range Adjustments
+Currently all attacks use the same 1.5 radius OverlapSphere. Each attack should have its own range based on the visual arc of the animation. This makes combat feel more honest — if it looks like it should hit, it hits. If it looks like a miss, it misses.
+
+
+
+Implementation: Add per-attack range fields to PlayerCombat.cs and pass the appropriate range to DealDamageInRange() based on which attack is active.
+5. Tier 4 — Withered Kodama
+Folklore & Backstory
+In Japanese Shinto belief, kodama (木霊) are spirits that inhabit trees. When an ancient tree is cut down, the kodama dies with it — and the woodcutter is said to be cursed. In some regions, entire forests were left untouched out of fear of angering kodama.
+
+The Withered Kodama in YORU are tree spirits whose forests were destroyed before their time. They arrived in purgatory not through malice but through grief — their trees were taken from them, and they withered along with them. Now they wander as dried, cracked husks of what they once were, lashing out at anything that moves because they cannot distinguish friend from threat. Their bark-like skin is split and pale, and faint green light pulses weakly inside them — the last ember of the life force they once channeled through their trees.
+
+Persuasion Theme: Grief and loss. Yoru must help the Kodama understand that the forest lives on through seeds and soil, that death is not the end of growth. The Kodama’s rage is really mourning.
+
+Combat Stats (from Design Doc)
+
+
+AI Behavior
+IDLE (Patrol) → ALERT (0.5s, player within 8m) → CHASE (runs toward player) → TELEGRAPH (0.5s, parry window) → ATTACK (0.3s) → RECOVERY (0.4s) → back to CHASE. Heavy hit or parried → STAGGER (1.2s). HP ≤ 0 → DEATH. Player > 15m → return to IDLE.
+
+The Kodama is the tutorial enemy. It teaches players the basic combat loop: dodge the telegraph, punish during recovery, use heavy attacks for stagger. It is predictable and fair.
+
+Unique Animations
+
+
+Total animations: 11 (8 shared + 3 unique)
+Combat identity: Simple, slow, predictable melee. The training dummy of YORU. Players should feel confident fighting Kodama after 2-3 encounters.
+6. Tier 4 — Hitotsume-kozō
+Folklore & Backstory
+Hitotsume-kozō (一つ目小僧) literally translates to "one-eyed young monk." In folklore, they are small, childlike yokai with a single large eye in the center of their face. They are tricksters rather than killers — known for startling travelers at night, stealing food, and causing minor mischief. Some legends say they are the ghosts of children who died while training as monks, forever playing pranks because they never got to play as children.
+
+In YORU, the Hitotsume-kozō are lost child spirits who arrived in purgatory full of confused energy. Their single eye sees the world differently than others — they perceive emotions as colors and respond to fear with excitement. They throw objects and harass from a distance not out of malice but because interaction is all they know. They wear tattered straw cloaks and conical hats from the mountain temples where they once studied, and their green skin has the sickly pallor of spirits who died young and restless.
+
+Persuasion Theme: Innocence lost and the need to play. Yoru must reach the child underneath the yokai — acknowledge that they never got to be children, that their mischief is just loneliness wearing a mask. The Hitotsume doesn’t need judgment, it needs someone to actually play with it, to see it as a child rather than a monster.
+
+Combat Stats
+
+
+AI Behavior
+Unlike the Kodama who charges straight at you, the Hitotsume tries to KEEP DISTANCE. It’s a kiting enemy: IDLE → ALERT (spots player from far away) → RETREAT + THROW (backs away while lobbing projectiles) → if player closes distance → PANIC SWIPE (desperate melee) → DODGE BACK → resume throwing.
+
+This forces the player to learn gap-closing: sprinting, using the dive attack, or dodging through projectiles. It’s the opposite lesson from Kodama — Kodama teaches "stand your ground and time your attacks." Hitotsume teaches "close the distance and be aggressive."
+
+Unique Animations
+
+
+Total animations: 13 (8 shared + 5 unique)
+Combat identity: Ranged trickster that forces the player to close distance. Comic relief enemy with tragic undertones. Individually weak but annoying in groups. The projectile enemy that complements Kodama’s melee-only role.
+Projectile note: The thrown object should be a small glowing spirit orb or a clump of earth. It arcs through the air (think Octorok rocks in Zelda). It can be dodged but NOT parried. Deals 4 damage on hit.
+7. Tier 3 — Noppera-bō
+Folklore & Backstory
+The Noppera-bō (のっぺらぼう) is one of the most iconic ghosts in Japanese folklore. The classic tale goes: a traveler meets a beautiful woman weeping by a river. Concerned, the traveler approaches and asks what’s wrong. The woman slowly turns around — and where her face should be, there is nothing. Smooth, blank skin. No eyes, no mouth, no nose. The traveler screams and flees. He runs until he finds another person and gasps out his story. That person turns around too. Also faceless. The horror is not violence — it’s the uncanny, the wrongness of something that looks human but isn’t.
+
+In YORU, the Noppera-bō was once a woman named Ayame who lived in a small village during the Edo period. She was kind and gentle, but utterly invisible to those around her. Her husband ignored her. Her neighbors looked through her. Her children grew up and forgot her name. Over decades of being unseen, her face — the thing that makes a person recognizable, individual, SEEN — simply faded away. She died alone in a room that nobody entered for three weeks. In purgatory, her grief became power. Her long dark hair moves with a life of its own, reaching for anyone who comes close, desperate for someone to finally look at her and see a person rather than emptiness.
+
+Persuasion Theme: Being truly seen. Yoru must do what nobody in Ayame’s life ever did: look at the blankness where her face was and speak to the person underneath. Not recoil, not fight, not flee — just acknowledge her. "I see you. You were real. You mattered." The persuasion path is about resisting the instinct to look away.
+
+Combat Stats
+
+
+AI Behavior
+The Noppera-bō has TWO PHASES, matching the folklore reveal:
+
+Phase 1 — The Disguise (above 50% HP): Appears as a woman in a white kimono with long dark hair covering her face (player cannot see if there’s a face or not). Moves slowly, eerily. Uses only Hair Lash attacks from mid-range. Hair extends like whips. Occasionally teleports behind the player (disappears into mist, reappears elsewhere). Unsettling but not overwhelming.
+
+Phase 2 — The Reveal (below 50% HP): Hair parts, revealing the blank face. A burst of dark energy pushes the player back. Now she’s aggressive: Hair Lash is faster, she uses the Grab attack (hair wraps around player), and she has the Scream (blank face emits a distorted wail that stuns). She teleports more frequently. The screen subtly desaturates during Phase 2.
+
+This teaches the player that enemies can change mid-fight. It also introduces the concept of phases that will be crucial for the Tier 1 boss.
+
+Unique Animations
+
+
+Total animations: 17 (8 shared + 9 unique — more because of two phases)
+Combat identity: Horror-themed mid-range fighter. Teaches phasing, repositioning, and that enemies can escalate. The most atmospheric enemy — should feel genuinely unsettling. Japanese horror (J-horror: The Ring, Ju-On) is the visual reference for her movement style.
+8. Tier 2 — Komainu (Guardian)
+Folklore & Backstory
+Komainu (狛犬), literally "lion-dogs," are the stone guardian statues found at the entrance of virtually every Shinto shrine and many Buddhist temples in Japan. They always come in pairs: one with mouth open (called "A" or "阿"), one with mouth closed (called "Un" or "吽"). Together they form "A-Un" (阿吽) — the first and last sounds of the Sanskrit alphabet — representing the beginning and end of all things, birth and death, the first breath and the last.
+
+In YORU, the Komainu are ancient guardians who have stood watch over the Torii gates between worlds for centuries. They are not evil. They are not corrupted. They are protectors fulfilling a sacred duty that has long outlasted its purpose. The gates they guard no longer lead anywhere meaningful, but the Komainu cannot stop. Duty is all they know. Their stone bodies have cracked and weathered, moss grows in their joints, but their eyes still burn with divine purpose. They fight not with anger but with the calm, relentless certainty of beings who have done this for a thousand years.
+
+Persuasion Theme: Duty versus purpose. Yoru must help the Komainu understand that their duty has been fulfilled — the gates are open, the worlds have merged, and there is nothing left to protect. True guardianship means knowing when to stand down. The Komainu’s loyalty is beautiful but has become a prison. They can rest now.
+
+Pair Design: Two Komainu guard each Torii gate. "A" (mouth open) is the aggressive one — charges, bites, attacks first. "Un" (mouth closed) is the defensive one — guards, blocks, supports. When fighting both, they complement each other. Defeating one enrages the other. You can choose to fight them or persuade them as a pair.
+
+Combat Stats
+
+
+AI Behavior
+Komainu "A" (Aggressive): Charges the player, uses Paw Slam and Bite Combo, leaps to close distance. Relentless attacker.
+Komainu "Un" (Defensive): Hangs back, uses Guardian Stance to block, uses Roar to buff partner. Only attacks when player focuses on "A" too long (punishes tunnel vision).
+When one is defeated, the survivor enters ENRAGED state: faster attacks, no more blocking, attacks become more desperate and powerful. This is the emotional climax of the fight.
+
+Unique Animations
+
+
+Total animations: 18 (8 shared + 10 unique)
+Note on variants: You have 10 Torii gates = 20 Komainu. You can reuse the same animation set across all of them, differentiating gates through stat scaling (later gates = more HP/damage), visual variants (different stone colors, different moss levels, elemental effects), and behavior weights (later "A" Komainu use Leap more, later "Un" Komainu block more).
+Combat identity: Honorable mini-boss that tests mastery. Requires reading telegraphs, managing two enemies simultaneously, and choosing which to target first. The emotional weight of the enraged state should make the player feel something — these aren’t evil creatures, they’re loyal guardians.
+9. Tier 1 — Oni (Boss)
+Folklore & Backstory
+The Oni (鬼) is the most recognizable yokai in all of Japanese mythology. Massive, muscular demons with horns, wild hair, and tiger-skin loincloths, wielding the iron club called kanabō (金棒). In Buddhist tradition, Oni serve as the torturers of hell, punishing the wicked. But older Shinto folklore is more nuanced — some Oni were once human, transformed by extreme rage, jealousy, or grief. The most famous tale is Shuten-dōji, an Oni lord who was once a brilliant young man driven to monstrousness by rejection.
+
+In YORU, the Oni is the first boss encounter and the most personal. This Oni was once a general named Takeshi who fought to protect his village from invasion. He succeeded — but at terrible cost. He killed so many that the blood stained his soul. The rage he summoned to protect his people consumed him, and he became the thing he fought against: a destroyer. His horns grew from the guilt he could not release. His skin reddened from the shame he could not shed. His kanabō, once a weapon of protection, became a tool of blind destruction. In purgatory, he cannot stop fighting because stopping would mean facing what he became.
+
+Persuasion Theme: Rage as a shield for grief. Yoru must cut through the Oni’s fury to reach the general underneath — the man who only ever wanted to protect his village. Takeshi’s violence is not who he is, it’s what he uses to avoid remembering who he lost. The persuasion path is the hardest in the game because the Oni DOES NOT WANT to be saved. He wants to fight. Saving him means refusing to fight back at the right moments — showing him that not every conflict needs a weapon.
+
+Combat Stats (Boss-Level)
+
+
+AI Behavior
+Phase 1 — The General (above 50% HP): Disciplined, powerful, methodical. Uses Club Swing combos, Club Slam, and Charge. Clear telegraphs. Fights like a trained warrior. Between attack sequences, he pauses and watches the player — assessing. This is Takeshi the general showing through.
+
+Phase 2 — The Demon (below 50% HP): Transition cinematic: roars, grows slightly larger, skin darkens, horns glow. Now he’s wild: Ground Pound, Grab & Throw, faster attacks with shorter telegraphs. Less predictable. The general is gone, only the rage remains. He may also destroy parts of the arena (pillars, walls) during this phase.
+
+Unique Animations
+
+
+Total animations: 23 (8 shared + 15 unique)
+Combat identity: The ultimate test. Two distinct phases. Requires mastery of dodge, parry, and knowing when to attack vs when to retreat. The emotional weight should be heavy — this is a person, not a monster. The persuasion path should feel like the "true" ending for this encounter.
+Important for Boss: This is Phase 12 of the roadmap (Days 101-118). Do NOT animate this yet. Focus on Tier 4 and Tier 3 first. The boss animations will be the most expensive and should only be created once the combat system is fully proven with lower-tier enemies.
+10. Animation Summary & Totals
+
+
+Grand total: 82 animations across all enemies. However, the 8 shared animations can be retargeted across enemies with similar skeletons, reducing unique animation work significantly.
+
+The shared set of 8 animations only needs to be created from scratch for each unique skeleton/body type. If the Kodama and Hitotsume have similar proportions (small, bipedal, humanoid), their shared animations can be retargeted from one to the other with minimal adjustment.
+
+Animation Priority for Immediate Testing (Phase 1)
+For the Meshy test enemy right now, get these 6 animations to complete Phase 1 and begin Phase 2:
+
+11. Notes for Animator
+
+General Style: All animations should lean slightly stylized rather than hyperrealistic. Think Okami or BOTW — readable silhouettes, slightly exaggerated movements, clear anticipation-action-recovery arcs. Every attack should have a clear windup that the player can learn to read.
+
+Telegraph Priority: The attack telegraph animations are the MOST IMPORTANT animations in the game. If the player cannot read when an attack is coming, combat will feel unfair. Telegraphs should be exaggerated — bigger than what feels natural. Better to be too readable than too subtle.
+
+Recovery Windows: Every attack must have a recovery animation where the enemy is vulnerable. This is what makes combat feel fair and strategic — the player learns to dodge the attack and punish the recovery.
+
+Hit Reactions Must Be Short: 0.3 seconds maximum for light hit reaction. If it’s too long, the player can stun-lock enemies infinitely and combat becomes trivial. The reaction should be visible but brief.
+
+Death Should Feel Weighty: Death animations should have gravity. No ragdoll physics — these are authored falls. The Kodama crumbles. The Noppera-bō dissolves. The Komainu turns to stone. The Oni falls to his knees. Each death should match the character’s identity.
+
+Root Motion: Charge attacks, dodge backs, and leap attacks should use root motion (movement baked into the animation) rather than code-driven movement. This makes the movement match the visual exactly. All other animations should be in-place (code handles positioning).
+
+Looping Animations: Idle, Walk, Run, Chase, Float Idle, and Guardian Stance should loop seamlessly. All other animations are one-shots. Ensure loop points are smooth — no visible pops or jumps at the loop boundary.
+
+Japanese Cultural Accuracy: These yokai come from real folklore. Their movements should reflect their origins: Kodama moves like creaking wood. Noppera-bō glides like a yurei (Japanese ghost — reference The Ring and Ju-On for movement style). Komainu moves like stone coming to life — powerful but stiff. Oni moves like a warrior — disciplined in Phase 1, berserk in Phase 2.

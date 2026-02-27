@@ -168,6 +168,9 @@ public class EnemyCombat : MonoBehaviour
     // Teleport
     private bool isTeleporting;
     
+    // Animation tracking — prevents CrossFade from restarting every frame
+    private string currentPlayingAnim = "";
+    
     // Animator speed parameter
     private static readonly int HashAnimSpeed = Animator.StringToHash("AnimSpeed");
     #endregion
@@ -298,47 +301,77 @@ public class EnemyCombat : MonoBehaviour
         }
     }
     
-    private void HandleChase()
+ private void HandleChase()
+{
+    if (player == null) return;
+
+    float dist = DistanceToPlayer();
+
+    // Player escaped
+    if (dist > escapeRange)
     {
-        if (player == null) return;
-        
-        float dist = DistanceToPlayer();
-        
-        // Player escaped
-        if (dist > escapeRange)
+        hasAlerted = false;
+        SetState(EnemyState.Idle);
+        DebugLog("Player escaped, returning to Idle");
+        return;
+    }
+
+    // Hit reaction active — freeze movement and animation
+    if (Time.time < hitReactEndTime)
+    {
+        StopNav();
+        return;
+    }
+
+    // In attack range and cooldown ready — attack
+    if (dist <= attackRange && cooldownTimer <= 0)
+    {
+        EnemyAttack chosen = ChooseAttack();
+        if (chosen != null)
         {
-            hasAlerted = false;
-            SetState(EnemyState.Idle);
-            DebugLog("Player escaped, returning to Idle");
+            currentAttack = chosen;
+            SetState(EnemyState.Telegraph);
             return;
         }
-        
-        // In attack range and cooldown ready
-        if (dist <= attackRange && cooldownTimer <= 0)
-        {
-            EnemyAttack chosen = ChooseAttack();
-            if (chosen != null)
-            {
-                currentAttack = chosen;
-                SetState(EnemyState.Telegraph);
-                return;
-            }
-        }
-        
-        // Chase
+    }
+
+    // In attack range but cooldown not ready — wait in place
+    if (dist <= attackRange)
+    {
+        StopNav();
         LookAtPlayer();
+        PlayAnimation(idleAnim);
+        return;
+    }
+
+    // Chase — distance-based speed and animation
+    LookAtPlayer();
+    float walkThreshold = attackRange + 3f;
+
+    if (dist <= walkThreshold)
+    {
+        // Close — walk
+        if (navAgent != null && navAgent.isOnNavMesh)
+        {
+            navAgent.isStopped = false;
+            navAgent.speed = patrolSpeed;
+            navAgent.SetDestination(player.position);
+        }
+        PlayAnimation(walkAnim);
+    }
+    else
+    {
+        // Far — run
         float speed = isPhase2 ? chaseSpeedP2 : chaseSpeed;
-        
         if (navAgent != null && navAgent.isOnNavMesh)
         {
             navAgent.isStopped = false;
             navAgent.speed = speed;
             navAgent.SetDestination(player.position);
         }
-        
         PlayAnimation(runAnim);
     }
-    
+}
     private void HandleTelegraph()
     {
         StopNav();
@@ -561,7 +594,7 @@ public class EnemyCombat : MonoBehaviour
         PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
         if (playerHealth == null) return;
         
-        playerHealth.TakeDamage(currentAttack.damage);
+   playerHealth.TakeDamage(currentAttack.damage, false, transform.position);
         DebugLog($"⚔️ Hit player for {currentAttack.damage} ({currentAttack.attackName})");
         
         // Apply stun if attack has it
@@ -662,25 +695,31 @@ public class EnemyCombat : MonoBehaviour
         SetState(EnemyState.Stagger);
     }
     
-    /// <summary>
-    /// Called by EnemyHealth on light hit. Plays hit reaction
-    /// but does NOT interrupt telegraph/attack — only interrupts idle/chase.
-    /// </summary>
-    public void TriggerHitReact()
+ // Time.time value until which hit reaction animation is protected from override
+private float hitReactEndTime;
+
+/// <summary>
+/// Called by EnemyHealth on light hit. Plays hit reaction
+/// and freezes chase behavior so animation plays fully.
+/// Does NOT interrupt telegraph/attack.
+/// </summary>
+public void TriggerHitReact()
+{
+    if (currentState == EnemyState.Dead) return;
+    if (currentState == EnemyState.Stagger) return;
+
+    // Only interrupt non-critical states
+    if (currentState == EnemyState.Idle ||
+        currentState == EnemyState.Chase ||
+        currentState == EnemyState.Recovery)
     {
-        if (currentState == EnemyState.Dead) return;
-        if (currentState == EnemyState.Stagger) return; // Already staggered
-        
-        // Only interrupt non-critical states
-        if (currentState == EnemyState.Idle || 
-            currentState == EnemyState.Chase || 
-            currentState == EnemyState.Recovery)
-        {
-            PlayAnimation(hitReactAnim);
-            SetAnimSpeed(1f);
-        }
+        hitReactEndTime = Time.time + 0.5f;
+        StopNav();
+        ForcePlayAnimation(hitReactAnim);
+        SetAnimSpeed(1f);
+        DebugLog("Hit react — frozen for 0.5s");
     }
-    
+}
     /// <summary>
     /// Start combat — called when dialogue fails or player attacks.
     /// </summary>
@@ -715,6 +754,7 @@ public class EnemyCombat : MonoBehaviour
         cooldownTimer = 0;
         stateTimer = 0;
         currentAttack = null;
+        currentPlayingAnim = "";
         currentState = EnemyState.LostSoul;
         SetAnimSpeed(1f);
         DebugLog("Combat state RESET");
@@ -756,6 +796,19 @@ public class EnemyCombat : MonoBehaviour
     private void PlayAnimation(string stateName)
     {
         if (animator == null || string.IsNullOrEmpty(stateName)) return;
+        if (stateName == currentPlayingAnim) return; // Already playing — don't restart
+        
+        currentPlayingAnim = stateName;
+        animator.CrossFadeInFixedTime(stateName, 0.1f, combatLayerIndex);
+    }
+    
+    /// <summary>
+    /// Force play — used when same animation must restart (e.g. hit react while idling).
+    /// </summary>
+    private void ForcePlayAnimation(string stateName)
+    {
+        if (animator == null || string.IsNullOrEmpty(stateName)) return;
+        currentPlayingAnim = stateName;
         animator.CrossFadeInFixedTime(stateName, 0.1f, combatLayerIndex);
     }
     

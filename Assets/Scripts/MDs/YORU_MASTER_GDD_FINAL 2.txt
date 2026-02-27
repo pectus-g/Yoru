@@ -1,0 +1,2673 @@
+YORU: ECLIPSE OF TAILS - MASTER DESIGN DOCUMENT
+Complete System Design & Implementation Guide
+Last Updated: February 7, 2026 Developer: Hazel (Solo Dev) - Pectus Studio Engine: Unity (Built-in Render Pipeline) Location: Ottawa, Canada
+
+TABLE OF CONTENTS
+Core Concept
+Game Loop
+Transformation System
+Emotional Aura System
+Persuasion System - Emotional Threading
+Combat System
+Necromancy/Puppet System
+Ring & Ability System
+Boss Design
+Enemy Tiers & Economy
+Balance System System
+Map & Navigation
+Progression Systems
+Inventory System
+NPC System
+Endings
+Post-Game Content
+Technical Specifications
+Implementation Roadmap
+
+CORE CONCEPT
+High Concept
+Play as Yoru, a two-tailed Nekomata navigating purgatory. Every moral choice is literally visible on your body through glowing rings on your tails. Your decisions shape both your appearance and the entire world around you.
+Unique Selling Points
+Visible Karma: Rings on tails show your moral path (left = dark/combat, right = light/persuasion)
+Dual Forms: Transform between Nekomata (cat) and Old Woman (Tomoe) to see emotional auras
+Balance System: Environment changes dynamically based on ring distribution (7 possible world states)
+Buddhist Themes: Each boss represents one of the 10 Fetters (attachments) from Buddhist philosophy
+Authentic Japanese Folklore: All bosses based on real yokai with cultural respect
+Core Themes
+Grief and acceptance
+Duality (life/death, light/dark, forgiveness/vengeance)
+Breaking attachments to find peace
+Memory and identity
+The weight of choices
+
+GAME LOOP
+Complete Progression Flow
+1. START AT ANCIENT TREE
+   ↓
+2. TREE GIVES QUEST
+   - "I sense a tormented spirit in the Northern Forest..."
+   - Quest marker appears on map
+   ↓
+3. EXPLORE TO FIND BOSS
+   - Discover map by walking
+   - Fight small enemies (Tier 4)
+   - Collect Mon (currency)
+   - Find offering guardians (Tier 2)
+   ↓
+4. REACH TORI GATE
+   - Requires 1 Omamori + 1 Incense + 1 Sake to open
+   - Gate leads to boss realm (separate scene)
+   ↓
+5. BOSS ENCOUNTER
+   - Short cinematic (30 sec - shows corrupted state)
+   - Choose path:
+   
+   PATH A: COMBAT                    PATH B: PERSUASION
+   - Fight boss                      - Transform to human
+   - Reduce HP to 0                  - See emotional aura
+   - Fast, agile combat              - Emotional Threading mini-game
+   - Dodge, parry, combo             - Match correct emotion path
+   ↓                                 ↓
+6. BOSS DEFEATED
+   - Drops soul orb (red if combat, blue if persuasion)
+   - Drops 500-1000 Mon
+   - Drops 3-5 unique consumables
+   - Drops special item (boss-themed)
+   ↓
+7. COLLECT SOUL
+   - Walk near soul orb
+   - Absorption animation plays
+   - Soul flies to player like magnet
+   - Added to soul inventory
+   ↓
+8. RETURN TO ANCIENT TREE
+   - Tree glows (ready to free soul)
+   - Press [E] in tree's area
+   ↓
+9. FREEING SOUL RITUAL
+   - Soul inventory opens
+   - Select which soul to free
+   - Full cinematic plays (1 min flashback)
+   - Shows boss's backstory (Tomoe's memory)
+   - Emotional resolution
+   ↓
+10. RECEIVE RING
+    - Tree rewards ring item to inventory
+    - Auto-save creates restore point
+    ↓
+11. ACTIVATE RING (FORCED)
+    - Must activate to progress
+    - "Circle Activation" animation plays
+    - Ring becomes visible on tail (XFur color 0 → visible)
+    - Ability tree opens
+    ↓
+12. CHOOSE ABILITY
+    - Combat soul → 10 left-tail abilities available
+    - Persuasion soul → 10 right-tail abilities available
+    - Pick ONE ability (permanent)
+    - 9 abilities remain for future rings
+    ↓
+13. WORLD SHIFTS
+    - Environment changes based on new ring ratio
+    - Skybox adjusts (sun/moon/eclipse)
+    - NPCs react differently
+    - Music transitions
+    ↓
+14. STATS INCREASE
+    - Peaches: +1 every 2 rings (3→4→5→6→7→8)
+    - Shines: +1 every 2 rings (3→4→5→6→7→8)
+    ↓
+15. NEXT QUEST
+    - Tree reveals next boss location
+    - Repeat steps 3-14 for all 10 bosses
+    ↓
+16. AFTER 10 BOSSES
+    - Check ring balance
+    - If 5L-5R (perfect balance) → Secret realm unlocks!
+    - Core Realm (Izanagi & Izanami) revealed
+    ↓
+17. ENDING
+    - One of 7 endings based on ring distribution
+    - Post-game content unlocks
+
+TRANSFORMATION SYSTEM
+Nekomata ↔ Old Woman (Tomoe)
+Press [T] to Transform
+Nekomata Form (Default)
+Two-tailed cat, bipedal capable
+Normal movement speed
+Combat-focused
+Cannot see emotional auras
+All attacks available
+Old Woman Form (Tomoe)
+Elderly human appearance
+Slower movement (-30% speed)
+CAN see emotional auras (critical for persuasion!)
+Vulnerable in combat (take +50% damage)
+Used for seeing enemy emotions and initiating dialogue
+Transformation Animation
+1 second fade effect (no custom animation yet)
+Particle effect during transition
+Can be interrupted by attacks
+Strategic Use
+Transform before boss to see emotion
+Stay in Nekomata for combat
+Switch forms mid-exploration for investigation
+Adds tactical layer to gameplay
+
+EMOTIONAL AURA SYSTEM
+8 Emotional States
+Each boss and some enemies have ONE fixed emotional state:
+
+
+Visual Implementation
+Aura Appearance:
+Colored mist/fog around enemy body
+Particles floating upward from body
+Glow effect matching emotion color
+Pulsing intensity (slow for sad, fast for angry)
+Visibility Rules:
+Nekomata form: Auras INVISIBLE
+Human form: Auras VISIBLE (within 20 meters)
+Boss arenas: Always visible once transformed
+Technical:
+Particle system attached to enemy
+SetActive(false) by default
+Activated when player transforms to human
+Color/behavior set via emotional state enum
+
+PERSUASION SYSTEM
+Emotional Threading Mini-Game
+CONCEPT: Weave a thread of understanding through the enemy's tangled emotions to reach their heart.
+How It Works
+Visual:
+Screen shows enemy's "emotional web" - like a constellation/neural network
+Multiple emotion nodes (glowing orbs) connected by potential paths
+Each node has a color matching emotional state
+Center = HEART (goal)
+
+Example for Yuki-onna (GRIEF):
+
+    [ANGER-Red]     [FEAR-Yellow]
+         ↓         ↙
+    [GRIEF-Blue] → [GUILT-Purple] → [HOPE-White] → ❤️ HEART
+         ↑         ↘
+    [DESPAIR-Gray]  [REGRET-Purple]
+Gameplay:
+Player sees 8-10 emotion nodes scattered on screen
+Must draw a line connecting nodes in correct order
+Click/drag mouse or use arrow keys to trace path
+Some connections work (nodes light up green)
+Some connections break thread (nodes flash red, try again)
+Reach heart = Persuasion success!
+Limited attempts (3 tries per boss)
+Difficulty Scaling:
+BASED ON DARK RING COUNT:
+
+Easy (0-2 dark rings):
+- 3 correct nodes in straight line
+- 5 total nodes (2 wrong)
+- Clear emotional logic
+
+Medium (3-5 dark rings):
+- 5 correct nodes
+- 8 total nodes (3 wrong)
+- Some branching paths
+
+Hard (6-8 dark rings):
+- 7 correct nodes
+- 12 total nodes (5 wrong)
+- Multiple dead-end paths
+- Time limit (60 seconds)
+
+Very Hard (9-10 dark rings):
+- 8 correct nodes
+- 15 total nodes (7 wrong)
+- Complex web, many dead ends
+- Time limit (45 seconds)
+Example Correct Paths:
+Yuki-onna (Grief): GRIEF → GUILT → REGRET → HOPE → HEART
+Oni (Rage): RAGE → EMPATHY → CALM → UNDERSTANDING → HEART
+Gashadokuro (Despair): DESPAIR → ACKNOWLEDGMENT → PURPOSE → HOPE → HEART
+Success/Failure
+Success:
+Thread reaches heart
+Beautiful particle effect
+Enemy calms, becomes peaceful
+Drops blue soul orb (persuasion)
++1 right tail ring potential
+Failure (3 attempts used):
+Thread cannot reach heart
+Enemy becomes hostile
+Forces combat encounter
+If defeated in combat, drops red soul orb
++1 left tail ring potential
+Partial Success (2 attempts):
+Can try again with hints
+Some nodes glow slightly (guidance)
+
+COMBAT SYSTEM
+COMBAT SYSTEM
+[Updated February 2026]
+
+This section explains how combat works in YORU. The combat is inspired by Zelda and God of War — it should feel smooth, satisfying, and empowering. Players should feel like a powerful cat spirit, not struggle against the controls.
+
+
+COMBAT PHILOSOPHY
+
+The combat in YORU follows these principles:
+
+1. NO STAMINA FOR COMBAT
+   Unlike Dark Souls, there is no stamina bar that limits attacks. Players can attack freely. Only climbing uses energy.
+
+2. CLEAR ENEMY TELEGRAPHS
+   Enemies signal their attacks before hitting. This gives players time to dodge or parry. The game rewards skill but doesn't punish casual players.
+
+3. DUAL PATHS
+   Every enemy (including bosses) can be defeated through Combat OR through Persuasion/Dialogue. Both paths give equal rewards.
+
+4. CAT SPIRIT THEME
+   Yoru is a Nekomata — a two-tailed cat spirit. Movements should feel agile, graceful, and feline. The signature power is Necromancy (raising the dead).
+
+
+THREE RESOURCE SYSTEMS
+
+YORU uses three separate resources. Each has a different purpose:
+
+RESOURCE 1: PEACHES (Health)
+
+What it is: Your health, displayed as peaches on screen.
+
+How it works:
+• 1 Peach = 4 HP (hit points)
+• You start with 3 Peaches (12 HP total)
+• Maximum is 8 Peaches (32 HP total)
+• When you take damage, you lose HP
+• When HP reaches 0, you die
+
+How to get more:
+• Eat food items to heal
+• Use Healing Whisper ability (Light path)
+• Use Eclipse Mercy ultimate (Light path)
+• Add Health Sockets at the Secret Tree (permanent increase)
+
+
+RESOURCE 2: ENERGY (For Climbing Only)
+
+What it is: Your climbing stamina.
+
+How it works:
+• Displayed as energy bars
+• ONLY used when climbing walls/surfaces
+• NOT used for combat or abilities
+• Depletes while climbing, regenerates when resting
+
+How to get more:
+• Wait for it to regenerate
+• Use consumable items
+• Add Energy Sockets at the Secret Tree (permanent increase)
+
+
+RESOURCE 3: SHINE (For Necromancy Only)
+
+What it is: Your spiritual energy for maintaining ghost puppets.
+
+How it works:
+• Displayed as shine bars
+• ONLY used when you have a summoned ghost puppet active
+• Drains CONTINUOUSLY while your puppet exists
+• When Shine runs out, your puppet disappears
+• Regenerates when no puppet is active
+
+How to get more:
+• Wait for it to regenerate (when no puppet active)
+• Use consumable items
+• Add Shine Sockets at the Secret Tree (permanent increase)
+
+
+SOCKET CHOICE
+
+After defeating each boss and returning to the Secret Tree, you choose ONE:
+• +1 Health Socket (more Peaches - lets you take more hits)
+• +1 Energy Socket (more climbing stamina)
+• +1 Shine Socket (puppets last longer)
+
+This choice is permanent for that playthrough. Choose based on your playstyle.
+
+
+STANCE SYSTEM
+
+Yoru has two stances that switch automatically:
+
+2-LEG STANCE (Standing/Walking)
+• Normal movement speed
+• Full damage on attacks (100%)
+• Backflip dodge (more invincibility frames)
+• Used when: standing still or walking
+
+4-LEG STANCE (Sprinting)
+• Faster movement (+30% speed)
+• Reduced damage per hit (85%)
+• Roll dodge (longer distance)
+• Used when: holding sprint button
+
+The stance changes automatically based on whether you're sprinting or not. You don't need to think about it — just know that sprinting makes you faster but slightly weaker.
+
+
+BASIC COMBO SYSTEM
+
+The basic attack is a 3-hit combo:
+
+HIT 1: PAW SWIPE
+• Animation: Single paw swipe forward
+• Damage: 10
+• Duration: 0.4 seconds
+• Targets: One enemy
+
+HIT 2: DOUBLE PAW
+• Animation: Both paws strike together
+• Damage: 20
+• Duration: 0.5 seconds
+• Targets: One enemy
+
+HIT 3: FORWARD SPIN
+• Animation: Yoru spins forward like a Tasmanian devil
+• Damage: 35
+• Duration: 0.7 seconds
+• Targets: ONE enemy only (not area damage!)
+
+TOTAL COMBO: 65 damage in 1.6 seconds
+
+COMBO WINDOW: You have 1 second between each click to continue the combo. If you wait longer than 1 second, the combo resets.
+
+IMPORTANT NOTE ABOUT HIT 3:
+The spin attack only hits ONE enemy — the one you're facing. This is different from the Inferno Spiral ring ability, which hits ALL enemies around you. The spin is a rushing attack toward one target, not a spinning area attack.
+
+
+HEAVY ATTACK
+
+Hold the attack button instead of tapping:
+
+MINIMUM CHARGE (0.5 seconds):
+• Damage: 50
+• Effect: Enemy staggers (briefly stunned)
+
+MEDIUM CHARGE (1.0 seconds):
+• Damage: 65
+• Effect: Stagger + knockback (enemy pushed away)
+
+MAXIMUM CHARGE (1.5 seconds):
+• Damage: 80
+• Effect: Stagger + guard break (ignores blocking enemies)
+
+Use heavy attacks on tough enemies or when you have an opening.
+
+
+MOVEMENT ATTACKS
+
+POUNCE ATTACK
+• How to do it: Sprint + Attack
+• Damage: 40
+• What it does: Yoru leaps forward and strikes. Good for closing distance quickly. Knocks down small enemies.
+
+DIVE ATTACK
+• How to do it: Attack while in the air
+• Damage: 45
+• What it does: Yoru plunges straight down. Primarily useful for descending from heights quickly, not combat-focused.
+
+
+DODGE SYSTEM
+
+Press dodge to avoid attacks:
+
+BACKFLIP (Dodge + Back or No Direction):
+• Distance: 2 meters (2.5m if sprinting)
+• Invincibility: Frames 6-20 of animation
+• Use when: You need quick escape, more safe frames
+
+FORWARD DASH (Dodge + Forward):
+• Distance: 3 meters (3.5m if sprinting)
+• Invincibility: Frames 4-16 of animation
+• Use when: You want to dodge through an attack
+
+There is NO upgrade for dodge. It's skill-based — practice the timing.
+
+
+PERFECT DODGE AND FLURRY RUSH
+
+If you dodge at the EXACT moment an enemy attack would hit you (within 0.1 seconds):
+
+What happens:
+1. Time slows down to 30% speed for 2 seconds
+2. You move at normal speed (everything else is slow)
+3. "Flurry Rush" prompt appears
+4. Mash attack button to hit up to 6 times (8 with Flurry Stone)
+5. Each hit does 15 damage
+
+Total damage: 90 (or 120 with Flurry Stone)
+
+This is a powerful reward for skilled timing. Practice on easier enemies first.
+
+
+PARRY SYSTEM
+
+Press the parry button to block an attack:
+
+PARRY WINDOW: 0.4 seconds (0.5 with Parry Stone)
+• This means you have a small window to press parry before the attack hits
+
+IF SUCCESSFUL:
+• Enemy staggers for 1.2 seconds
+• You can immediately counter-attack
+• Counter damage: 60 (90 with Counter Stone)
+
+IF YOU FAIL:
+• Yoru is briefly vulnerable
+• You might get hit
+
+The parry animation is a "scared cat pose" — Yoru puffs up defensively.
+
+
+DEFAULT ABILITIES (Available From Game Start)
+
+These abilities are FREE — you have them from the beginning without needing any rings:
+
+COMBAT ABILITIES:
+1. Paw Attack (Combo 1) — 10 damage — Paw Stone adds +25%
+2. TwoPaw Attack (Combo 2) — 20 damage — Paw Stone adds +25%
+3. Spin Attack (Combo 3) — 35 damage — Spin Stone adds +25%
+4. Heavy Attack — 50-80 damage — Heavy Stone adds +25%
+5. Pounce Attack — 40 damage — Movement Stone adds +25%
+6. Dive Attack — 45 damage — No stone upgrade
+7. Parry Counter — 60 damage — Counter Stone adds +50%
+8. Flurry Rush — 90 damage (6 hits) — Flurry Stone adds +2 hits
+
+BASIC LEFT TAIL (Offensive):
+• What it does: Fires a shadow projectile at enemies
+• Default: 1 projectile, 5 damage
+• With Left Tail Stone: 5 projectiles in a spread pattern
+• Cooldown: 3 seconds
+
+BASIC RIGHT TAIL (Defensive):
+• What it does: Creates an air barrier that blocks attacks
+• Default: Blocks 1 hit, lasts 2 seconds
+• With Right Tail Stone: Blocks 3 hits, lasts 5 seconds
+• Cooldown: 5 seconds
+• IMPORTANT: Right tail does NO DAMAGE. It is purely defensive.
+
+
+STONE SYSTEM
+
+Stones are upgrades for your DEFAULT abilities. You equip them in slots.
+
+THE 10 STONES:
+
+1. PAW STONE
+   • Affects: Combo 1, Combo 2, Flurry Rush hits
+   • Effect: +25% damage
+   • Quest to unlock: Defeat 20 kill points worth of enemies using combo attacks
+
+2. SPIN STONE
+   • Affects: Combo 3 (forward spin)
+   • Effect: +25% damage
+   • Quest to unlock: Defeat 15 kill points worth of enemies using spin attack
+
+3. HEAVY STONE
+   • Affects: Heavy Attack (charged)
+   • Effect: +25% damage
+   • Quest to unlock: Defeat 15 kill points worth of enemies using heavy attack
+
+4. MOVEMENT STONE
+   • Affects: Pounce Attack
+   • Effect: +25% damage
+   • Quest to unlock: Defeat 15 kill points worth of enemies using pounce
+
+5. LEFT TAIL STONE
+   • Affects: Basic Left Tail projectile
+   • Effect: Fires 5 projectiles instead of 1
+   • Quest to unlock: Defeat 20 kill points worth of enemies using left tail
+
+6. RIGHT TAIL STONE
+   • Affects: Basic Right Tail barrier
+   • Effect: Blocks 3 hits (up from 1), lasts 5 seconds (up from 2)
+   • Quest to unlock: Block 30 enemy attacks with the barrier
+
+7. PARRY STONE
+   • Affects: Parry timing window
+   • Effect: +0.1 seconds (0.4s becomes 0.5s)
+   • Quest to unlock: Successfully parry 30 enemy attacks
+
+8. COUNTER STONE
+   • Affects: Damage after successful parry
+   • Effect: +50% damage (60 becomes 90)
+   • Quest to unlock: Defeat 15 kill points worth of enemies using parry counter
+
+9. FLURRY STONE
+   • Affects: Flurry Rush after perfect dodge
+   • Effect: +2 extra hits (6 becomes 8)
+   • Quest to unlock: Perform 15 successful Flurry Rushes
+
+10. SPEED STONE
+    • Affects: Movement speed
+    • Effect: +10% running speed
+    • Quest to unlock: Run 5000 meters total distance
+
+STONE SLOTS:
+
+You start with 3 slots. Maximum is 10 slots.
+
+To get more slots, collect MAGATAMA:
+• 0 Magatama = 3 slots
+• 3 Magatama = 4 slots
+• 6 Magatama = 5 slots
+• 9 Magatama = 6 slots
+• 12 Magatama = 7 slots
+• 15 Magatama = 8 slots
+• 18 Magatama = 9 slots
+• 21 Magatama = 10 slots (maximum)
+
+There are 21 Magatama hidden throughout the world. Every 3 you find gives +1 slot.
+
+
+RING ABILITIES — HOW THEY WORK
+
+Rings are earned by defeating bosses:
+• Defeat boss through COMBAT → Dark Soul → Left Ring
+• Defeat boss through PERSUASION → Light Soul → Right Ring
+
+When you get a ring, you can spend it on ONE of:
+• Unlock a new ability (from the available pool)
+• Upgrade an ability you already have
+
+There are 5 Dark abilities and 5 Light abilities. Each can be upgraded once.
+
+
+DARK PATH ABILITIES (Left Tail) — DETAILED
+
+These abilities deal damage and are offensive. All use cooldowns only — no resource cost.
+
+
+ABILITY 1: SOUL BURN
+
+What it is: A charged fireball that burns enemies.
+
+BASE VERSION:
+• How it works: Yoru charges and throws a blue-purple fireball
+• Direct hit damage: 30
+• Burn effect: 5 damage per second for 3 seconds (15 total)
+• Total damage: 45
+• Cooldown: 8 seconds
+• Animation: Ability_LeftTail_Slow (takes time to charge)
+• Best used when: Enemy is staggered or distracted (slow animation)
+
+UPGRADED VERSION (Soul Inferno):
+• Same as base, PLUS:
+• Explosion on impact: Deals 20 damage to all enemies within 3 meters
+• Great for groups of enemies
+
+
+ABILITY 2: SPIRIT SURGE
+
+What it is: A power boost that eliminates all cooldowns temporarily.
+
+BASE VERSION:
+• How it works: Activating this immediately resets ALL your ability cooldowns
+• Duration: For 4 seconds, you have NO COOLDOWNS (spam any ability freely)
+• Cooldown: 90 seconds (very long — save for important fights)
+• Visual: Yoru glows with crackling dark energy
+• Best used when: Boss fights, emergencies, tough enemy groups
+
+UPGRADED VERSION:
+• Duration increases: 8 seconds of no cooldowns (doubled)
+• Cooldown reduces: 75 seconds
+
+Think of it like the Star power-up in Mario Kart — temporary invincibility to cooldowns.
+
+
+ABILITY 3: NEKOMATA'S CALL (Necromancy)
+
+What it is: Summon a ghost of a previously defeated enemy to fight for you.
+
+HOW NECROMANCY WORKS:
+1. First, defeat an enemy type at least once
+2. Pay Mon (currency) to UNLOCK that enemy's soul for summoning
+3. When you use Nekomata's Call, choose which enemy to summon
+4. The ghost appears and fights for you
+5. Ghost drains your SHINE continuously while active
+6. Ghost disappears when: killed, Shine runs out, or you dismiss it
+
+BASE VERSION:
+• Summon cooldown: 45 seconds (between summons)
+• Ghost HP: 50% of original enemy's HP
+• Ghost damage: 75% of original enemy's damage
+• Ghost follows you within 15 meters
+• Shine drain: Continuous while ghost exists
+
+UPGRADED VERSION (Undying Legion):
+• Shine efficiency: Drains 50% slower (ghosts last twice as long)
+• Can maintain ghosts more easily
+
+WHAT ENEMIES CAN YOU SUMMON?
+• Tier 4 (Common): 2 Soul Gems to unlock (1 with upgrade)
+• Tier 3 (Mixed): 4 Soul Gems to unlock (2 with upgrade)
+• Tier 2 (Guardians): 6 Soul Gems to unlock (3 with upgrade)
+• Tier 1 (Bosses): CANNOT be summoned — too powerful
+
+ONE SOUL PER TYPE:
+If you kill 12 Kodama, you only store 1 Kodama soul. You can summon that Kodama type, but you don't get 12 summons.
+
+
+ABILITY 4: INFERNO SPIRAL
+
+What it is: A spinning fire attack that hits ALL enemies around you.
+
+BASE VERSION:
+• How it works: Yoru spins surrounded by fire
+• Damage: 60 to EVERY enemy within range
+• Range: 4 meters radius (centered on Yoru)
+• Duration: 1.2 seconds (spinning animation)
+• Cooldown: 15 seconds
+
+UPGRADED VERSION (Hellfire Ring):
+• Same spin attack, PLUS:
+• Leaves burning ground for 5 seconds after
+• Burning ground deals 10 damage per second
+• Enemies standing in fire take up to 50 extra damage
+
+DIFFERENT FROM COMBO 3:
+• Combo 3 (spin): Hits ONE enemy, forward rush
+• Inferno Spiral: Hits ALL enemies, stationary spin, fire element
+
+
+ABILITY 5: SPIRIT JUDGMENT (Dark Ultimate)
+
+What it is: Slow time, mark enemies, teleport to each and execute them.
+
+CHARGE REQUIREMENT:
+Before you can use this, you must charge it to 100% through combat:
+• Basic attack hit: +2% charge
+• Perfect dodge: +3% charge
+• Parry success: +5% charge
+• Enemy kill: +10% charge
+
+HOW IT WORKS:
+PHASE 1 — ACTIVATION (Hold the ultimate button):
+• Time slows to 10% speed (almost frozen)
+• You have 3 seconds in this state
+
+PHASE 2 — MARKING (While holding button):
+• Click on enemies to mark them
+• Maximum marks: 5 (7 when upgraded)
+• Marks appear as glowing symbols on enemies
+
+PHASE 3 — EXECUTION (Release button):
+• Yoru teleports to each marked enemy and strikes
+• Each strike deals 40-50 damage (depends on karma)
+• Total potential damage: 200-250 (280-350 upgraded)
+
+COST: Using Spirit Judgment costs 1 Peach (you sacrifice health for power — Dark path)
+
+BASE VERSION:
+• Max marks: 5
+• Damage per mark: 40-50
+• Total damage: 200-250
+• Cooldown: 60 seconds
+
+UPGRADED VERSION (Eclipse Wrath):
+• Max marks: 7
+• Total damage: 280-350
+• Cooldown: 60 seconds
+
+KARMA EFFECT ON DAMAGE:
+• More Left rings: Marks glow crimson, 50 damage each
+• More Right rings: Marks glow gold, 40 damage each (less lethal Light path)
+• Balanced: Marks glow purple, 45 damage each
+
+
+LIGHT PATH ABILITIES (Right Tail) — DETAILED
+
+These abilities are supportive and utility-focused. They deal NO DAMAGE. Light path = non-violent.
+All use cooldowns only — no resource cost.
+
+
+ABILITY 1: PURIFICATION BURST
+
+What it is: A pulse that stuns enemies and opens them to dialogue.
+
+BASE VERSION:
+• How it works: Golden light pulses outward from Yoru
+• Damage: 0 (NO damage — Light path)
+• Effect: All enemies within range are STUNNED
+• Stun duration: 2 seconds
+• Range: 5 meters radius
+• Cooldown: 10 seconds
+• Special: During stun, a "Speak" prompt appears on stunned enemies
+• Use: Create opportunities to talk instead of fight
+
+UPGRADED VERSION (Cleansing Wave):
+• Stun duration: 3 seconds (longer window to talk)
+• Range: 8 meters (larger area)
+
+
+ABILITY 2: CALMING MIST (Kiri)
+
+What it is: A mist that makes enemies forget the battle happened.
+
+"Kiri" means mist (霧) in Japanese.
+
+BASE VERSION:
+• How it works: Soft fog spreads from Yoru
+• Damage: 0 (NO damage — Light path)
+• Effect: Target enemy completely forgets the fight
+• Result: Enemy returns to LostSoul state (passive, confused)
+• Use: Failed a persuasion? Use this to reset and try again!
+• Range: 5 meters (affects 1 enemy)
+• Cooldown: 20 seconds
+• Limitation: Cannot reset an enemy below 50% HP
+
+UPGRADED VERSION:
+• Range: 10 meters
+• Can affect multiple enemies at once
+
+
+ABILITY 3: HEALING WHISPER
+
+What it is: Heal yourself over time.
+
+BASE VERSION:
+• How it works: Green and gold particles surround Yoru
+• Healing: 2 HP over 3 seconds
+• Equivalent to: Half a Peach restored
+• Cooldown: 15 seconds
+• Note: You can move and fight while healing
+
+UPGRADED VERSION (Rejuvenation):
+• Healing: 4 HP over 3 seconds (one full Peach)
+• Bonus: Also removes negative effects (burns, poison, slow)
+
+
+ABILITY 4: SOUL SIGHT
+
+What it is: See hidden things in the world.
+
+BASE VERSION:
+• How it works: Yoru's eyes glow, world highlights change
+• Damage: 0 (NO damage — Light path)
+• Reveals: Hidden paths, secret items, breakable walls, enemy weak points
+• Duration: 10 seconds
+• Cooldown: 25 seconds
+• Visual: Hidden objects glow with ethereal light
+
+UPGRADED VERSION (True Vision):
+• Duration: 20 seconds (doubled)
+• Bonus: Enemy attack telegraphs glow brighter and earlier
+• Use: Makes parrying and dodging easier during True Vision
+
+
+ABILITY 5: ECLIPSE MERCY (Light Ultimate)
+
+What it is: Mark yourself and heal massively.
+
+CHARGE REQUIREMENT:
+Same as Spirit Judgment — charge to 100% through combat.
+
+HOW IT WORKS:
+• Activate the ultimate
+• Golden marks appear on Yoru (not enemies)
+• Each mark heals 4 HP
+• Maximum marks: 5 (7 when upgraded)
+• Total healing: 20 HP = 5 full Peaches! (28 HP upgraded)
+
+COST: FREE! (Light path mercy — no sacrifice required)
+
+BASE VERSION:
+• Max marks: 5
+• Healing per mark: 4 HP
+• Total healing: 20 HP (5 Peaches)
+• Cooldown: 60 seconds
+
+UPGRADED VERSION (Divine Restoration):
+• Max marks: 7
+• Total healing: 28 HP (7 Peaches)
+• Bonus: 3 seconds of invincibility after healing completes
+
+
+COMPARING THE TWO ULTIMATES:
+
+Spirit Judgment (Dark):
+• Purpose: Kill enemies
+• Effect: Up to 350 damage
+• Cost: Lose 1 Peach
+• Best for: Aggressive combat players
+
+Eclipse Mercy (Light):
+• Purpose: Heal yourself
+• Effect: Up to 28 HP healing
+• Cost: FREE
+• Best for: Survival-focused players
+
+Both require 100% charge and have 60 second cooldowns.
+
+
+NECROMANCY SYSTEM
+Puppet Master Mechanic
+CONCEPT: Yoru can summon defeated enemy souls to fight alongside her!
+Core Mechanics
+Collecting Bodies:
+STEP 1: Defeat Enemy (First Time)
+- Enemy drops soul essence
+- Popup: "New Soul Unlocked!"
+- Added to Necromancy Grimoire (locked)
+
+STEP 2: Purchase Soul Control
+- Open Grimoire [Hold R]
+- Select locked soul
+- Pay ONE-TIME FEE: 300 Mon + 3 Shine
+- Soul permanently unlocked for summoning!
+
+STEP 3: Summon Puppet
+- Open Grimoire → Select unlocked soul
+- Pay activation cost: 2-5 Shine (depends on enemy strength)
+- Puppet spawns beside player
+- Begins draining Shine continuously
+Grimoire Interface
+Press and Hold [R] to Open
+┌────────────────────────────────────┐
+│    NECROMANCY GRIMOIRE            │
+│    Collected Souls: 8/20          │
+├────────────────────────────────────┤
+│                                    │
+│  [Icon] Hitotsume-kozō            │
+│  HP: 200  |  Drain: 0.1 Shine/sec │
+│  [SUMMON] Cost: 2 Shine           │
+│                                    │
+│  [Icon] Kasa-obake                │
+│  HP: 300  |  Drain: 0.15 Shine/sec│
+│  [SUMMON] Cost: 3 Shine           │
+│                                    │
+│  [LOCKED] ????????                │
+│  Defeat enemy to unlock           │
+│  Unlock Cost: 300 Mon + 3 Shine   │
+│                                    │
+└────────────────────────────────────┘
+
+Current Active Puppets: 2/5
+Total Shine Drain: 0.25/sec
+Estimated Duration: 32 seconds
+Puppet Behavior
+AI Modes (Toggle with [T] while Grimoire open):
+AGGRESSIVE MODE:
+Attack nearest enemy automatically
+Chase targets aggressively
+Shine drain: x1.5 multiplier
+Best for offense
+DEFENSIVE MODE:
+Stay near player
+Block attacks aimed at player
+Shine drain: x1.0 (normal)
+Best for tanking
+FOLLOW MODE:
+Just follow player, don't attack
+Only attack if player is hit
+Shine drain: x0.5 (reduced)
+Best for exploration
+Shine Drain System
+Balanced Drain Rates:
+PUPPET STRENGTH → DRAIN RATE:
+
+Weak enemies (Tier 4):
+- Drain: 0.1 Shine/sec
+- Duration: 80 seconds (with 8 Shine)
+
+Medium enemies (Tier 3):
+- Drain: 0.2 Shine/sec
+- Duration: 40 seconds
+
+Strong enemies (Tier 2):
+- Drain: 0.3 Shine/sec
+- Duration: 26 seconds
+
+MULTIPLE PUPPETS:
+- Drain stacks additively
+- 3 weak puppets = 0.3 Shine/sec total
+- 5 weak puppets = 0.5 Shine/sec total
+- 2 strong puppets = 0.6 Shine/sec total
+
+MAXIMUM PUPPETS: 5 simultaneously
+Puppet Health
+Visual:
+Small health bar above each puppet's head:
+
+[Puppet Name] ████████░░ 80%
+
+Color-coded:
+- Green: 100-70% HP
+- Yellow: 69-30% HP
+- Red: 29-0% HP (critical)
+
+When HP reaches 0:
+- Puppet vanishes in particle poof
+- Stop draining Shine
+- Can resummon immediately (if have Shine)
+Puppet dies when:
+HP depleted by enemy attacks
+Shine reaches 0 (all puppets disappear!)
+Player manually dismisses (hold R, click dismiss)
+Strategic Depth
+SCENARIOS:
+Boss Fight:
+- Summon 3 medium puppets (0.6 Shine/sec)
+- They tank damage and distract
+- Player attacks from behind
+- Must finish fight in ~13 seconds before Shine depletes!
+- High risk, high reward
+Exploration:
+- Summon 1 weak puppet in Follow mode (0.05 Shine/sec)
+- Minimal drain (160 seconds duration!)
+- Helper for small enemies
+- Efficient resource use
+Emergency:
+- Summon ALL 5 puppets (max possible)
+- Overwhelming force
+- 1.5+ Shine/sec drain
+- Shine depletes in 5-6 seconds!
+- Desperate all-in strategy
+Implementation Difficulty
+HARD - Multi-unit AI system
+Development Time Estimate: 7-10 days
+Phased Implementation:
+PHASE 1 (3 days):
+1 puppet only
+Basic follow AI
+Simple "attack nearest enemy"
+Fixed drain rate
+PHASE 2 (3 days):
+Multiple puppets (up to 5)
+Health bars above each
+Book UI interface
+Summon/dismiss controls
+PHASE 3 (2 days):
+AI modes (aggressive/defensive/follow)
+Polish animations
+Balance drain rates
+Bug fixes
+
+RING & ABILITY SYSTEM
+The Core Mechanic
+Two Tails, Two Paths:
+Left Tail (Dark): Combat, vengeance, punishment
+Right Tail (Light): Persuasion, mercy, forgiveness
+10 Rings Maximum (one per main boss)
+Ring Distribution = Ending
+POSSIBLE DISTRIBUTIONS:
+
+Pure Dark:    10L - 0R
+Dark Heavy:   9-8L - 1-2R
+Dark Balance: 7-6L - 3-4R
+ECLIPSE:      5L - 5R (TRUE BALANCE)
+Light Balance: 6-7R - 3-4L
+Light Heavy:  8-9R - 1-2L
+Pure Light:   10R - 0L
+
+= 7 POSSIBLE ENDINGS
+Ability Pool System
+Total Available Abilities:
+10 Combat Abilities (left tail pool)
+10 Persuasion Abilities (right tail pool)
+20 abilities total, but player can only unlock 10!
+How It Works:
+EXAMPLE PLAYTHROUGH:
+
+Ring 1 (Combat soul from Yuki-onna):
+- Open left ability pool (10 options)
+- Choose "Frozen Claws" (ice damage)
+- 9 combat abilities remain
+
+Ring 2 (Persuasion soul from Oni):
+- Open right ability pool (10 options)
+- Choose "Peaceful Flame" (calming aura)
+- 9 persuasion abilities remain
+
+Ring 3 (Combat soul):
+- Open left pool (9 options remaining)
+- Choose "Soul Burn" (DoT damage)
+- 8 combat abilities remain
+
+...continue until 10 rings activated
+
+Final Result: Player has 10 abilities total
+Could be: 7 combat + 3 persuasion
+OR: 5 combat + 5 persuasion
+OR: 10 combat + 0 persuasion
+OR: Any combination!
+Boss-Themed Abilities
+Each boss soul gives abilities themed after that boss:
+YUKI-ONNA (Ice/Snow):
+Combat Version:
+"Frozen Claws" - Paw attacks slow enemies 30%, ice particles
+Cost: 1 Shine
+Cooldown: 10 sec
+Persuasion Version:
+"Soothing Snow" - Create healing snow field (AoE)
+Cost: 2 Shine
+Cooldown: 30 sec
+
+ONI (Fire/Rage):
+Combat Version:
+"Oni's Fury" - +50% attack damage for 15 seconds
+Cost: 2 Shine
+Cooldown: 45 sec
+Persuasion Version:
+"Peaceful Flame" - Calming aura, enemies less aggressive
+Cost: 1 Shine
+Cooldown: 20 sec
+
+RAIJU (Lightning):
+Combat Version:
+"Lightning Strike" - Call lightning bolt on target
+Cost: 2 Shine
+Cooldown: 15 sec
+Persuasion Version:
+"Static Shield" - Lightning barrier reflects projectiles
+Cost: 1.5 Shine
+Cooldown: 25 sec
+
+NUE (Shadow/Chimera):
+Combat Version:
+"Shadow Step" - Teleport short distance, invincible during
+Cost: 1 Shine
+Cooldown: 8 sec
+Persuasion Version:
+"Shadow Cloak" - Become invisible for 10 seconds
+Cost: 2 Shine
+Cooldown: 60 sec
+
+ŌMUKADE (Poison/Centipede):
+Combat Version:
+"Venom Fangs" - Attacks apply poison DoT (5 damage/sec, 10 sec)
+Cost: 1.5 Shine
+Cooldown: 20 sec
+Persuasion Version:
+"Antidote Aura" - Immunity to poison + cleanse allies
+Cost: 1 Shine
+Cooldown: 40 sec
+
+GASHADOKURO (Bone/Death):
+Combat Version:
+"Life Drain" - Steal HP from enemies with attacks
+Cost: 2 Shine
+Cooldown: 30 sec
+Persuasion Version:
+"Bone Shield" - Damage taken creates healing orbs
+Cost: 1.5 Shine
+Cooldown: 35 sec
+
+FUTAKUCHI-ONNA (Hunger/Greed):
+Combat Version:
+"Ravenous Strike" - Critical hits restore 1 Shine
+Cost: Passive (always active once unlocked)
+Persuasion Version:
+"Shared Sustenance" - Healing items affect nearby allies
+Cost: Passive
+
+SUTOKU TENNŌ (Cursed Emperor):
+Combat Version:
+"Emperor's Wrath" - AoE explosion around player
+Cost: 3 Shine
+Cooldown: 60 sec
+Persuasion Version:
+"Royal Decree" - Enemies cannot attack for 5 seconds
+Cost: 3 Shine
+Cooldown: 90 sec
+
+TAMAMO-NO-MAE (Nine-Tailed Fox):
+Combat Version:
+"Kitsune Fire" - Tail projectiles leave fire trails
+Cost: 1 Shine
+Cooldown: 15 sec
+Persuasion Version:
+"Illusionary Double" - Create decoy that draws aggro
+Cost: 2 Shine
+Cooldown: 45 sec
+
+SHUTEN-DŌJI (Demon King - FINAL BOSS):
+Combat Version:
+"Demon Transformation" - Ultimate form, +100% all stats, 10 sec
+Cost: 5 Shine (all remaining!)
+Cooldown: 180 sec
+Persuasion Version:
+"Sacred Sake" - Restore all Peaches and Shines, remove debuffs
+Cost: 3 Shine
+Cooldown: 120 sec
+
+Ability Progression (3 Levels)
+Each ability can be leveled up through use:
+LEVEL 1 (Base) - Unlocked from boss:
+- Standard power
+- Basic VFX
+
+LEVEL 2 (Enhanced) - Use ability 50 times:
+- +30% damage/effect
+- Better VFX (more particles)
+- Slightly faster cooldown
+
+LEVEL 3 (Mastered) - Use ability 200 times:
+- +60% damage/effect
+- BEST VFX (screen shake, intense glow)
+- New bonus property varies per ability
+- Cooldown -20%
+Example: "Frozen Claws" Progression:
+Level 1:
+20% slow effect
+Small ice particles
+Level 2:
+30% slow effect
+Ice particles + frost trail on ground
+Yoru's claws have faint blue glow
+Level 3:
+50% slow + 2 second freeze on critical hits!
+Massive ice explosion on impact
+Yoru's claws visibly glow bright blue
+Ice crystals form on ground where she walks
+Screen shake on freeze triggers
+
+BOSS DESIGN
+10 Main Bosses - Buddhist Fetter System
+Each boss represents one of the 10 Fetters (bonds/attachments) from Buddhism that keep souls trapped in the cycle of suffering.
+
+
+Boss Names Display
+Format:
+════════════════════════
+  THE SNOW MOTHER
+    (Yuki-onna)
+════════════════════════
+
+English title (large, memorable)
+Japanese name (small, authentic)
+All Boss Titles:
+The Snow Mother (Yuki-onna)
+The Burning Rage (Oni)
+The Lightning Beast (Raiju)
+The Shadow Chimera (Nue)
+The Poison Centipede (Ōmukade)
+The Starving Giant (Gashadokuro)
+The Hidden Hunger (Futakuchi-onna)
+The Cursed Emperor (Sutoku Tennō)
+The Nine-Tailed Deceiver (Tamamo-no-Mae)
+The Demon King (Shuten-dōji)
+Boss Fight Structure
+INTRO (30 seconds):
+Cinematic camera
+Boss appears dramatically
+Short dialogue revealing their pain/corruption
+Shows glimpse of their tragedy
+Music builds tension
+PHASE 1 (100% - 66% HP):
+Basic attack patterns
+Telegraphed attacks (visual warnings)
+Learning phase for player
+Boss speaks occasionally
+PHASE 2 (66% - 33% HP):
+New attack patterns added
+Faster/more aggressive
+Arena may change (hazards appear)
+Boss reveals more backstory
+PHASE 3 (33% - 0% HP):
+Desperate, most dangerous attacks
+Ultimate ability used
+Music intensifies
+Final dialogue before defeat
+DEFEAT:
+Boss collapses
+Last words (regret, acceptance, or defiance)
+Body dissolves into soul orb
+Drops loot
+Victory music
+Special Boss Mechanics
+YUKI-ONNA:
+Creates ice walls to block player
+Snowstorm reduces visibility
+Frozen ground makes player slip
+Must stay warm or take DoT
+ONI:
+Requires 1 Sake to weaken before fight!
+Berserk mode at low HP (+50% damage)
+Fire tornadoes appear in arena
+Can only be damaged after attack recovery
+TENGU (Grounded Flight Boss):
+Perches on high pillars in arena
+Player must climb to reach
+Swoops down in scripted pattern
+Dodge timing-based fight
+Wing damaged → falls to ground for Phase 3
+KAPPA (Amphibious Boss):
+Starts in pond (immune to damage)
+Shoots water projectiles from water
+Must lure onto land with bait
+Slower on land (vulnerable)
+Retreats to water when damaged
+Phase 3: Commits to land fight
+Boss Item Drops
+EVERY BOSS DROPS:
+Soul orb (for ring) ✓
+500-1000 Mon (currency)
+3-5 rare consumables
+1 unique special item
+Boss-Specific Items:
+Yuki-onna:
+"Frozen Tear" - Consumable: Freeze time 5 seconds
+"Snow Crystal" - Crafting material (future feature)
+Oni:
+"Oni's Horn" - Consumable: +50% attack 30 seconds
+"Demon Blood" - Crafting material
+Gashadokuro:
+"Ancient Bone" - Rare crafting material
+"Marrow Essence" - Full heal (all 8 peaches)
+Tamamo-no-Mae:
+"Fox Tail Fragment" - Cosmetic: Adds particle glow to tail
+"Kitsune Charm" - Permanent +5% crit chance
+Shuten-dōji:
+"Demon King Crown" - Trophy item
+"Cursed Sake" - +10 Shine, -1 Peach (risk/reward!)
+
+ENEMY ECONOMY
+ENEMY ECONOMY
+[Updated February 2026]
+
+This section explains the enemy system — how many enemies exist, what they drop, and how the Tori Gate system works.
+
+
+TOTAL ENEMIES IN THE GAME: 55
+
+The enemies are divided into 4 tiers:
+
+
+TIER 1: MAIN BOSSES (10 total)
+
+These are the story bosses. Each represents one of the Buddhist Fetters (attachments).
+
+Stats:
+• HP: 6,000 to 12,000 (varies per boss)
+• Damage: 16 to 40 (varies per boss)
+
+Drops (Combat OR Persuasion — same rewards):
+• Soul (Dark if combat, Light if persuasion)
+• 200-500 Mon (currency)
+• Unique boss-specific items
+
+Respawn: NO — one-time story encounters
+Can be summoned as ghost: NO — too powerful
+
+FIRST BOSS: ONI (rest to be determined)
+
+
+TIER 2: OFFERING GUARDIANS (20 total)
+
+These are mini-bosses that guard the offerings needed to open Tori Gates.
+
+Stats:
+• HP: 1,200 to 1,800
+• Damage: 12 to 20
+
+Drops (Combat OR Persuasion — same rewards):
+• 50-100 Mon
+• 1 Offering item (Omamori, Incense, or Sake)
+
+Respawn: NO — one-time encounters
+Can be summoned as ghost: YES (costs 6 Soul Gems, 3 with upgrade)
+
+Location: Near Tori Gates throughout the world
+
+
+TIER 3: MIXED ENEMIES (10 total)
+
+These are optional challenge enemies found while exploring.
+
+Stats:
+• HP: 400 to 600
+• Damage: 8 to 14
+
+Drops (Combat OR Persuasion — same rewards):
+• 25-65 Mon
+• Rare consumables or special loot
+
+Respawn: YES — respawn when you earn a new Ring (maximum 10 times)
+Can be summoned as ghost: YES (costs 4 Soul Gems, 2 with upgrade)
+
+
+TIER 4: COMMON ENEMIES (15 total)
+
+These are basic enemies found everywhere for farming and practice.
+
+Stats:
+• HP: 100 to 150
+• Damage: 4 to 7
+
+Drops (Combat OR Persuasion — same rewards):
+• 10-50 Mon
+
+Respawn: YES — respawn when you're 50+ meters away AND 2 minutes pass
+Can be summoned as ghost: YES (costs 2 Soul Gems, 1 with upgrade)
+
+
+TORI GATE SYSTEM
+
+How to reach a boss:
+
+STEP 1: FIND A TORI GATE
+There are 10 Tori Gates in the world, one for each boss.
+Gates are locked — you cannot enter without offerings.
+
+STEP 2: DEFEAT OR PERSUADE THE GUARDIANS
+Tier 2 Guardians guard the offerings near each gate.
+You can fight them (Combat) or talk to them (Persuasion).
+Both give the same reward.
+
+STEP 3: COLLECT THE OFFERINGS
+Each Guardian drops one type of offering:
+• Omamori (amulet)
+• Incense
+• Sake
+
+To open a gate, you need ALL THREE types:
+• 1 Omamori + 1 Incense + 1 Sake
+
+STEP 4: OPEN THE GATE
+Bring your offerings to the Tori Gate.
+Use them to unlock the gate.
+A portal opens.
+
+STEP 5: ENTER THE BOSS ARENA
+Walk through the portal.
+A separate scene loads.
+Boss encounter begins — choose Combat or Persuasion.
+
+
+COMBAT VS PERSUASION REWARDS
+
+IMPORTANT: Both paths give EQUAL rewards!
+Choose based on preference and roleplay, not efficiency.
+
+Combat Path:
+• You fight and defeat the enemy
+• Enemy dies and drops items on the ground
+• Soul is RED (Dark)
+
+Persuasion Path:
+• You talk to the enemy and help them find peace
+• Enemy GIFTS you the same items before ascending into light
+• Soul is BLUE (Light)
+
+The rewards are identical. The only difference is the soul color (which determines your ring type).
+
+
+ENEMY STATE MACHINE
+
+Every enemy (except bosses) starts in the same state and can change based on your actions:
+
+STATE 1: LOSTSOUL (Default)
+• Enemy is passive, confused, wandering
+• NOT aggressive — won't attack you
+• If you ATTACK: Enemy becomes Hostile
+• If you TALK: Enemy enters Dialogue
+
+STATE 2: DIALOGUE
+• Persuasion interaction is active
+• Mini-game or dialogue choices appear
+• If SUCCESS: Enemy becomes Peaceful
+• If FAIL: Enemy becomes Hostile IMMEDIATELY (no second chance!)
+
+STATE 3: HOSTILE
+• Combat is active, enemy fights you
+• Enemy attacks until one of you is defeated
+• If you DEFEAT enemy: Enemy becomes Dead
+• If you RUN 15+ meters away: Enemy returns to LostSoul
+• WARNING: Once Hostile, you CANNOT return to Dialogue!
+
+STATE 4: PEACEFUL
+• Enemy found peace and is ascending into light
+• Gives you Mon and items as a gift
+• IMMUNE to damage — you cannot attack them
+• Dissolves into beautiful light particles
+
+STATE 5: DEAD
+• Enemy was defeated through combat
+• Drops loot on the ground
+• Corpse remains for 60 seconds, then disappears
+
+KEY RULES:
+• Your FIRST action determines the path (attack = Hostile, talk = Dialogue)
+• Once Hostile, dialogue is LOCKED (unless you use Calming Mist ability)
+• To try again differently: Reload your last checkpoint
+
+
+KILL POINT SYSTEM
+
+Kill Points are used for Stone mastery quests.
+
+How many points per enemy:
+• Tier 1 (Bosses): 0 points — bosses don't count
+• Tier 2 (Guardians): 3 points each
+• Tier 3 (Mixed): 2 points each
+• Tier 4 (Common): 1 point each
+
+Example quest: "Defeat 20 kill points of enemies using combo attacks"
+You could complete this with:
+• 20 Tier 4 enemies (20 × 1 = 20 points), OR
+• 10 Tier 3 enemies (10 × 2 = 20 points), OR
+• 7 Tier 2 enemies (7 × 3 = 21 points)
+
+
+ZONE SCALING SYSTEM
+
+Enemies get stronger as you progress through the story.
+
+Zone 1 (Rings 0-2): Base stats
+• HP multiplier: 1.0x
+• Damage multiplier: 1.0x
+
+Zone 2 (Rings 3-4): Slightly stronger
+• HP multiplier: 1.3x
+• Damage multiplier: 1.2x
+
+Zone 3 (Rings 5-6): Moderately stronger
+• HP multiplier: 1.6x
+• Damage multiplier: 1.4x
+
+Zone 4 (Rings 7-8): Much stronger
+• HP multiplier: 2.0x
+• Damage multiplier: 1.6x
+
+Zone 5 (Rings 9-10): Maximum strength
+• HP multiplier: 2.5x
+• Damage multiplier: 1.8x
+
+EXAMPLE — Tier 4 enemy across zones:
+• Zone 1: 100 HP, 4 damage
+• Zone 2: 130 HP, 5 damage
+• Zone 3: 160 HP, 6 damage
+• Zone 4: 200 HP, 6 damage
+• Zone 5: 250 HP, 7 damage
+
+
+BALANCE SYSTEM
+BALANCE SYSTEM
+[New Section — Complete Technical Design from Balance System Handoff v2.0]
+
+This section explains how the world transforms based on your moral choices. This is the heart of YORU — the world itself reacts to how you play.
+
+
+CORE CONCEPT
+
+In YORU, your choices are VISIBLE. The two tails show your karma:
+• LEFT TAIL: Dark/Shadow energy (judgment, punishment, night)
+• RIGHT TAIL: Light/Divine energy (mercy, forgiveness, day)
+
+Each tail can have 0 to 10 glowing rings. These rings are earned from bosses:
+• Combat victory → Dark Soul → Ring on LEFT tail
+• Persuasion victory → Light Soul → Ring on RIGHT tail
+
+The BALANCE is calculated as:
+Balance = Right Rings minus Left Rings
+
+Range: -10 (pure dark) to +10 (pure light)
+
+Examples:
+• 0 Left, 0 Right = Balance 0 (Neutral — game start)
+• 5 Left, 0 Right = Balance -5 (Dark path)
+• 0 Left, 5 Right = Balance +5 (Light path)
+• 5 Left, 5 Right = Balance 0 (ECLIPSE — both high but balanced)
+• 10 Left, 0 Right = Balance -10 (Pure Dark)
+• 0 Left, 10 Right = Balance +10 (Pure Light)
+
+
+THE 29-STATE SYSTEM
+
+The world can be in one of 29 different states. Which state you're in depends on your ring distribution.
+
+
+NEUTRAL STATES (3 states)
+
+These occur when you have few rings and they're balanced:
+
+• 0L/0R — Perfect neutral (game start)
+• 1L/1R — Minor balance
+• 2L/2R — Early balance
+
+World appearance: Morning (9 AM), pleasant weather, normal fog.
+
+
+SUNSET / SUNRISE TRANSITIONS (2 states)
+
+These are transitional states:
+
+• Sunset — World is shifting toward darkness
+• Sunrise — World is shifting toward light
+
+These occur briefly when moving between neutral and path states.
+
+
+DARK PATH (5 states: Dark1 through Dark5)
+
+These occur when LEFT rings are winning (difference > 2):
+
+Dark1:
+• Time: 4:00 PM (afternoon)
+• Sky: Starting to dim
+• Fog: Slightly thicker
+
+Dark2:
+• Time: 6:00 PM (sunset)
+• Sky: Orange/red sunset
+• Fog: Thicker
+
+Dark3:
+• Time: 8:00 PM (night)
+• Sky: Dark, stars appearing
+• Fog: Dark colored
+• Special: MOON becomes visible
+
+Dark4:
+• Time: 10:00 PM (late night)
+• Sky: Deep night
+• Fog: Very thick
+• Moon: Nearly full
+
+Dark5:
+• Time: 12:00 AM (midnight)
+• Sky: Pitch black
+• Fog: Heavy and dark
+• Moon: Full
+
+
+DARK ESCALATION (5 states: DarkStage1 through DarkStage5)
+
+These occur when you have 6+ LEFT rings (committed to dark path):
+
+DarkStage1 (6 Left rings):
+• Time: Midnight
+• Weather: Partly cloudy
+• Wind: Increasing
+
+DarkStage2 (7 Left rings):
+• Time: Midnight
+• Weather: Overcast (full cloud cover)
+• Wind: Strong
+
+DarkStage3 (8 Left rings):
+• Time: Midnight
+• Weather: LIGHT RAIN begins
+• Wind: Very strong
+
+DarkStage4 (9 Left rings):
+• Time: Midnight
+• Weather: HEAVY RAIN
+• Wind: Powerful gusts
+
+DarkStage5 (10 Left rings — Pure Dark):
+• Time: Midnight
+• Weather: THUNDERSTORM
+• Wind: Maximum (1.5 intensity)
+• Lightning: Active
+• This is the most oppressive atmosphere
+
+
+LIGHT PATH (5 states: Light1 through Light5)
+
+These occur when RIGHT rings are winning (difference > 2):
+
+Light1:
+• Time: 7:00 AM (dawn)
+• Sky: Pink/orange dawn colors
+• Fog: Light and wispy
+
+Light2:
+• Time: 8:00 AM (morning)
+• Sky: Brightening
+• Fog: Thin
+
+Light3:
+• Time: 10:00 AM (mid-morning)
+• Sky: Bright blue
+• Fog: Very light
+
+Light4:
+• Time: 11:00 AM (golden hour)
+• Sky: Golden sunlight
+• Fog: Ethereal quality
+
+Light5:
+• Time: 12:00 PM (noon)
+• Sky: Brightest point
+• Fog: Heavenly glow
+
+
+LIGHT ESCALATION (5 states: LightStage1 through LightStage5)
+
+These occur when you have 6+ RIGHT rings (committed to light path):
+
+LightStage1 (6 Right rings):
+• Time: Noon
+• Atmosphere: Blessed
+• God rays: Strong
+
+LightStage2 (7 Right rings):
+• Time: Noon
+• Atmosphere: Sacred
+• God rays: Very strong
+
+LightStage3 (8 Right rings):
+• Time: Noon
+• Atmosphere: Radiant
+• God rays: Brilliant
+
+LightStage4 (9 Right rings):
+• Time: Noon
+• Atmosphere: Transcendent
+• God rays: Intense
+
+LightStage5 (10 Right rings — Pure Light):
+• Time: Noon
+• Atmosphere: DIVINE
+• God rays: Maximum intensity
+• Fog: Almost none, pure white
+• This is the most ethereal atmosphere
+
+
+ECLIPSE STATES (6 states)
+
+Eclipse occurs when BOTH tails have significant rings AND they're balanced:
+• Condition: Difference of 1 or less, AND minimum of 2 rings on each tail
+
+Eclipse 20%:
+• Rings: 2L/3R or 3L/2R (total = 5)
+• Eclipse is beginning to form
+
+Eclipse 40%:
+• Rings: 3L/3R (total = 6)
+• Partial eclipse visible
+
+Eclipse 50%:
+• Rings: 3L/4R or 4L/3R (total = 7)
+• Half eclipse
+
+Eclipse 60%:
+• Rings: 4L/4R (total = 8)
+• Significant eclipse
+
+Eclipse 75%:
+• Rings: 4L/5R or 5L/4R (total = 9)
+• Near-total eclipse
+
+Eclipse FULL (5L/5R — True Balance):
+• Rings: 5L/5R (total = 10)
+• TOTAL ECLIPSE — sun and moon overlap
+• Time: 4:00 PM
+• Fog: Deep purple, mystical
+• This unlocks the SECRET BOSS
+
+Eclipse atmosphere:
+• Time: 4:00 PM (dramatic lighting)
+• Sky: Sun partially or fully blocked by moon
+• Fog: Purple/mystical color
+• Particles: Floating purple mystical particles
+• Mood: Tense, powerful, otherworldly
+
+
+HOW THE WORLD CHANGES — TECHNICAL VALUES
+
+TIME OF DAY (Hours):
+
+• Neutral: 9.0 (9:00 AM)
+• Sunset: 18.0 (6:00 PM)
+• Sunrise: 6.5 (6:30 AM)
+• Dark1: 16.0 (4:00 PM)
+• Dark2: 18.0 (6:00 PM)
+• Dark3: 20.0 (8:00 PM)
+• Dark4: 22.0 (10:00 PM)
+• Dark5: 0.0 (Midnight)
+• DarkStage1-5: 0.0 (Midnight)
+• Light1: 7.0 (7:00 AM)
+• Light2: 8.0 (8:00 AM)
+• Light3: 10.0 (10:00 AM)
+• Light4: 11.0 (11:00 AM)
+• Light5: 12.0 (Noon)
+• LightStage1-5: 12.0 (Noon)
+• Eclipse: 16.0 (4:00 PM)
+
+
+FOG DENSITY (0 = no fog, 1 = maximum fog):
+
+• Neutral: 0.15
+• Sunset: 0.20
+• Sunrise: 0.18
+• Dark1: 0.22
+• Dark2: 0.28
+• Dark3: 0.35
+• Dark4: 0.42
+• Dark5: 0.50
+• DarkStage1: 0.55
+• DarkStage2: 0.60
+• DarkStage3: 0.68
+• DarkStage4: 0.75
+• DarkStage5: 0.85 (very thick)
+• Light1: 0.12
+• Light2: 0.10
+• Light3: 0.08
+• Light4: 0.06
+• Light5: 0.05
+• LightStage1: 0.04
+• LightStage2: 0.03
+• LightStage3: 0.025
+• LightStage4: 0.02
+• LightStage5: 0.015 (almost none)
+• Eclipse20: 0.25
+• Eclipse40: 0.32
+• Eclipse50: 0.38
+• Eclipse60: 0.45
+• Eclipse75: 0.55
+• EclipseFull: 0.65
+
+
+FOG HEIGHT (How high the fog extends):
+
+• Neutral: 150 meters
+• Sunset/Sunrise: 180 meters
+• Dark1: 160 meters
+• Dark2: 170 meters
+• Dark3: 180 meters
+• Dark4: 200 meters
+• Dark5: 220 meters
+• DarkStage1: 250 meters
+• DarkStage2: 280 meters
+• DarkStage3: 300 meters
+• DarkStage4: 350 meters
+• DarkStage5: 400 meters
+• Light states: Same progression but decreasing density
+• Eclipse states: 200-400 meters depending on progress
+
+
+FOG COLORS:
+
+• Neutral: Light bluish-gray (0.85, 0.88, 0.92)
+• Dark5: Near black (0.25, 0.25, 0.32)
+• DarkStage5: Very dark (0.18, 0.20, 0.25)
+• Light5: Divine glow (1.0, 0.98, 0.93)
+• LightStage5: Pure white (1.0, 1.0, 1.0)
+• Eclipse Full: Deep purple (0.30, 0.25, 0.45)
+
+
+GOD RAYS / LIGHT SHAFTS (0 = none, 0.2 = maximum):
+
+• Neutral: 0.05 (subtle)
+• Sunset: 0.12 (strong golden)
+• Sunrise: 0.10 (soft morning)
+• Dark1: 0.04 (fading)
+• Dark2: 0.03 (dim)
+• Dark3: 0.02 (minimal)
+• Dark4: 0.01 (almost none)
+• Dark5: 0.005 (trace)
+• DarkStage1-5: 0 to 0.003 (none)
+• Light1: 0.06 (gentle)
+• Light2: 0.08 (visible)
+• Light3: 0.10 (clear)
+• Light4: 0.12 (bright)
+• Light5: 0.14 (strong)
+• LightStage1: 0.15 (very bright)
+• LightStage2: 0.16 (brilliant)
+• LightStage3: 0.17 (radiant)
+• LightStage4: 0.18 (intense)
+• LightStage5: 0.20 (maximum)
+• Eclipse: 0.015 to 0.04 (mystical corona)
+
+
+WEATHER PROFILES:
+
+• Neutral: Clear
+• Dark1-5: Clear (just darker)
+• DarkStage1: Partly Cloudy
+• DarkStage2: Overcast
+• DarkStage3: Light Rain
+• DarkStage4: Heavy Rain
+• DarkStage5: Thunderstorm
+• Light1-5: Clear (brighter)
+• LightStage1-5: Clear (radiant)
+• Eclipse: Clear (special eclipse rendering)
+
+
+WIND INTENSITY (0.1 = calm, 1.5 = storm):
+
+• Neutral: 0.2
+• Dark5: 0.35
+• DarkStage5: 1.5 (maximum)
+• Light5: 0.15
+• Eclipse: 0.1 (calm)
+
+
+MOON VISIBILITY:
+
+The moon only appears during dark path NIGHT states (3+ Left rings):
+
+• Neutral: HIDDEN (daytime)
+• Dark1: HIDDEN (afternoon)
+• Dark2: HIDDEN (sunset)
+• Dark3: VISIBLE (night starts)
+• Dark4: VISIBLE (late night)
+• Dark5: VISIBLE (midnight)
+• DarkStage1-5: VISIBLE
+• Light1-5: HIDDEN (daytime)
+• LightStage1-5: HIDDEN (daytime)
+• Eclipse: HIDDEN (special event)
+
+Moon phase changes with rings:
+• 3 Left rings: Quarter moon
+• 4 Left rings: Nearly full moon
+• 5+ Left rings: Full moon
+
+
+STATE PRIORITY (How the game decides which state to use):
+
+When rings change, the game checks in this order:
+1. Is this Eclipse? (difference ≤ 1 AND both tails have 2+ rings)
+2. Is this a Sunset/Sunrise transition?
+3. Is this Escalation? (6+ rings on one side)
+4. Is this a Path state? (difference > 2)
+5. Is this mild dark/light? (small difference)
+6. Default to Neutral
+
+
+WHAT ELSE CHANGES:
+
+Besides weather and visuals:
+
+ANCIENT TREE:
+• Dark path: Tree withers, loses leaves, looks dying
+• Light path: Tree flourishes, blooms, looks healthy
+• Eclipse: Tree is perfectly balanced between states
+
+NPCs:
+• Dark path: Fear you, are hostile, distrust you
+• Light path: Revere you, are friendly, trust you
+• Eclipse: Are awed, curious, respectful
+
+MUSIC:
+• Dark path: Ominous, tense, foreboding
+• Light path: Peaceful, uplifting, hopeful
+• Eclipse: Epic, transcendent, mystical
+
+
+TECHNOLOGY USED:
+
+The Balance System uses these technologies (for reference):
+• COZY Weather 3 — Controls sky, time, weather, eclipse, moon
+• Kronnect Volumetric Fog & Mist 2 — Controls fog density, color, god rays
+• Unity Post-Processing Stack v2 — Controls color grading, bloom, vignette
+• Custom controllers — Manage ring meshes, particles, lighting
+
+
+7 ENDINGS
+
+Your final ring distribution determines your ending:
+
+-10 to -8 (Pure Dark — 10L or 9L): "The Devourer"
+-7 to -5 (Dark Heavy — 7-8L, few R): "Vengeful Spirit"
+-4 to -2 (Dark Balanced — mostly L): "Uneasy Peace"
+-1 to +1 (ECLIPSE — balanced): "True Balance" → UNLOCKS SECRET BOSS
++2 to +4 (Light Balanced — mostly R): "Harmony Path"
++5 to +7 (Light Heavy — 7-8R, few L): "Revered Guide"
++8 to +10 (Pure Light — 10R or 9R): "Enlightenment"
+
+The Eclipse ending (5L/5R) is the "true" ending and unlocks:
+• Core Realm access
+• Secret boss: Izanagi & Izanami (creation god and death goddess)
+• True ending cinematic
+
+
+MAP & NAVIGATION
+Map Structure
+MAIN MAP - Purgatory Surface:
+Central hub with Ancient Tree at middle
+Open world exploration
+10 Tori gates scattered around (various distances from tree)
+Fog of war system (reveals as player walks)
+10 TORI GATE REALMS:
+Each gate leads to separate scene (boss arena)
+Closed arena - cannot leave until boss defeated
+Auto-save before entering (safety net!)
+Fast travel points once opened
+SECRET REALM - Core (Onsen Cave):
+Unlocks only at 5L-5R balance
+Hidden cave entrance
+Beautiful peaceful interior
+Izanagi & Izanami encounter
+Map Discovery System
+FOG OF WAR:
+- Map starts completely fogged
+- 50-meter radius around player reveals permanently
+- Walk to discover (encourages exploration!)
+- Like scratching a scratch card (satisfying!)
+DISCOVERY METHODS:
+1. Walking/Running (Primary):
+Natural exploration
+Rewards thorough players
+No additional mechanics needed
+2. Offering Guardians (Optional):
+Defeating Offering Guardian reveals nearby area
+Shows Tori gate location on map
+Incentive to fight tougher enemies
+3. Ancient Tree Vision (Story-Driven):
+Tree shows vague direction of next boss
+"I sense a tormented spirit in the Northern Forest..."
+Quest marker appears (can be toggled off in settings)
+Mini-Map
+Bottom Left Corner:
+┌──────────────┐
+│   N          │
+│   ↑          │
+│   •          │ ← Player icon
+│              │
+│   📍        │ ← Quest marker
+└──────────────┘
+
+- Rotating compass or static
+- Simple, clean
+- Shows nearby enemies (red dots)
+- Shows discovered Tori gates (blue gates)
+Full Map Interface
+Press [M] to Open:
+┌────────────────────────────────────┐
+│  PURGATORY MAP                     │
+│  Discovered: 45%                   │
+├────────────────────────────────────┤
+│                                    │
+│         [Fogged Area]              │
+│                                    │
+│   🌳 Ancient Tree (You are here)  │
+│                                    │
+│   ⛩️ Frozen Forest Gate           │
+│   ⛩️ [Undiscovered]               │
+│                                    │
+│   📍 Current Quest Marker         │
+│                                    │
+└────────────────────────────────────┘
+
+Legend:
+🌳 = Ancient Tree
+⛩️ = Tori Gate
+📍 = Quest Objective
+• = Your Position
+Fast Travel
+UNLOCKS: After opening a Tori gate
+HOW IT WORKS:
+1. Open map [M]
+2. Hover over discovered gate
+3. Press [Enter] to fast travel
+4. Fade transition (2 seconds)
+5. Player appears at gate location
+
+RESTRICTIONS:
+- Cannot fast travel during combat
+- Cannot fast travel inside boss arena
+- Cannot fast travel while puppets active
+Fast Travel Points:
+Ancient Tree (always available)
+10 Tori Gates (once opened with offerings)
+Total: 11 fast travel points
+Boss Distance Scaling
+Difficulty Based on Distance from Tree:
+FORMULA:
+Boss HP = Base HP × (1 + distance × 0.0003)
+
+EXAMPLES:
+Tree Center = (0, 0)
+
+Boss at 100m:  8,000 HP (closest, easiest)
+Boss at 500m: 10,000 HP (medium)
+Boss at 1000m: 12,000 HP (farthest, hardest)
+
+VISUAL CUES:
+Close gates (100-300m):
+- Weathered stone, overgrown moss
+- Peaceful atmosphere
+- White/gray Tori gate
+
+Medium gates (400-700m):
+- Slightly darker stone
+- Some cracks, warning signs
+- Gray Tori gate
+
+Far gates (800-1000m):
+- Ominous, dark stone
+- Crackling energy, warning symbols
+- Black/red Tori gate
+- Skull decorations
+
+Player sees difficulty before entering!
+NOTE: Difficulty is FIXED per boss, NOT adaptive to player level. Encourages strategic order.
+Map Implementation Difficulty
+Mini-Map: EASY (1 day) Fog of War: MEDIUM (2-3 days) Fast Travel: EASY (1 day) Full Map UI: MEDIUM (2 days)
+Total: ~1 week for complete map system
+
+PROGRESSION SYSTEMS
+Health System (Peaches)
+Starting: 3 Peaches ❤❤❤
+Progression:
+Rings Activated → Peaches
+
+0-1 rings: 3 peaches
+2-3 rings: 4 peaches
+4-5 rings: 5 peaches
+6-7 rings: 6 peaches
+8-9 rings: 7 peaches
+10 rings:  8 peaches (MAX)
+
++1 peach every 2 rings activated
+Healing:
+Peach item: +1 peach (common drop)
+Dango: +1 peach (buy from shop)
+Onigiri: +2 peaches (rare)
+Bento Box: +3 peaches (very rare)
+Regeneration:
+NO auto-regen during combat
+Slow regen out of combat (1 peach per 30 seconds)
+Food items for instant healing
+
+Stamina System (Shines)
+Starting: 3 Shines ✦✦✦
+Progression:
+Same as Peaches:
+0-1 rings: 3 shines
+2-3 rings: 4 shines
+4-5 rings: 5 shines
+6-7 rings: 6 shines
+8-9 rings: 7 shines
+10 rings:  8 shines (MAX)
+Recovery:
+Green Tea: +1 shine (common)
+Mochi: +2 shines (uncommon)
+Sake: +3 shines BUT -1 peach! (risk/reward)
+Ippudo Matcha: +3 shines (rare, expensive)
+Regeneration:
+Base: 1 shine per 3 seconds (out of combat)
+Combo Bonus: Up to 2x faster (1 shine per 1.5 sec at 10+ combo)
+Guard Bonus: +50% regen while guarding
+
+XP System (For Basic Skills)
+Separate from Ring Abilities!
+What XP Unlocks:
+Double Jump (Level 5)
+Triple Jump (Level 10)
+Dodge Roll (Level 3)
+Air Dodge (Level 8)
+Faster Sprint (Level 6)
+Climbing Ability (Level 4)
+XP Sources:
+Small enemies: 10 XP
+Medium enemies: 50 XP
+Mini-bosses: 100 XP
+Main bosses: 500 XP (BONUS, not required)
+Level Requirements:
+Level 2: 100 XP
+Level 3: 200 XP (Total: 300)
+Level 4: 300 XP (Total: 600)
+Level 5: 400 XP (Total: 1000)
+...
+Level 10: 900 XP (Total: ~5000)
+
+Achievable by mid-game!
+
+Currency System (Mon)
+Mon = Japanese historical coins with square holes
+Sources:
+Tier 4 enemies: 10-50 Mon
+Tier 3 enemies: 50-100 Mon
+Tier 2 enemies: 100-200 Mon
+Main bosses: 500-1000 Mon
+Hidden chests: 200-500 Mon
+Gashapon prizes: 100-300 Mon
+Uses:
+Buy consumables from Rabbit NPC
+Unlock puppet summons (300 Mon per soul)
+Gashapon machines (100 Mon per pull)
+Optional cosmetic items (future)
+No Currency Sink Issues: Spending feels meaningful, not grindy!
+
+INVENTORY SYSTEM
+Overview (From Uploaded Files)
+Slot-Based System:
+Dynamic slots (appear as items collected)
+Stacking (multiple of same item = one slot with counter)
+Drag & drop
+Use/consume
+Auto-saves
+Capacity: 20 unique item types maximum
+Categories
+SOULS:
+Separate from main inventory
+Soul inventory UI (shows collected boss souls)
+Max 10 souls (one per boss)
+CONSUMABLES:
+Healing items (peaches, dango, onigiri, bento)
+Stamina items (tea, mochi, sake, matcha)
+Buff items (takoyaki, daifuku, ramen)
+Stack up to 99 per slot
+OFFERINGS:
+Omamori (amulets) - 10 total
+Incense - 10 total
+Sake bottles - 11 total
+Required for gates, do NOT stack
+KEY ITEMS:
+Boss special items
+Quest items
+Unique collectibles
+Do NOT stack
+CRAFTING MATERIALS (Future):
+Boss materials (frozen tear, oni horn, etc.)
+Stack up to 99
+Inventory Interface
+Press [I] to Open:
+┌───────────────────────────────────┐
+│  INVENTORY                        │
+│  Weight: 12/20 Items              │
+├───────────────────────────────────┤
+│                                   │
+│  [Icon] Peach        x12         │
+│  [Icon] Dango        x5          │
+│  [Icon] Green Tea    x8          │
+│  [Icon] Omamori      x3          │
+│  [Icon] Incense      x2          │
+│  [Icon] Frozen Tear  x1          │
+│                                   │
+│  [Empty Slot]                    │
+│  [Empty Slot]                    │
+│  ...                             │
+│                                   │
+└───────────────────────────────────┘
+
+[Right Panel - Preview]
+┌───────────────────────┐
+│  PEACH               │
+│  [Large Icon]        │
+│                      │
+│  Restores 1 HP       │
+│  "Sweet and juicy"   │
+│                      │
+│  [Right-Click: Use]  │
+└───────────────────────┘
+Quick Use
+Hotbar (Bottom of Screen):
+┌─────────────────────────┐
+│  [1]    [2]    [3]    [4] │
+│ Peach  Mochi  Tea   [Empty]│
+└─────────────────────────┘
+
+Press 1-4 to use instantly without opening inventory!
+Assign Items:
+Open inventory [I]
+Right-click item → "Assign to Hotbar"
+Choose slot 1-4
+
+NPC SYSTEM
+Rabbit NPC - "Haru" (Spring)
+ROLE: Main shopkeeper / friendly guide
+Appearance:
+Friendly white rabbit
+Wears small merchant bag
+Glowing slightly (spirit form)
+Location:
+Near Ancient Tree (main shop)
+Occasionally appears at safe zones
+Always near save points
+Personality:
+Warm, kind, helpful
+Gives hints about secrets
+Feels familiar to Yoru (she doesn't know why)
+Story Twist:
+Revealed late-game: He was Tomoe's husband
+Died in earthquake with Tomoe
+Both stuck in purgatory
+Neither remembers the other initially
+Tearful reunion when memories return
+Shop Inventory:
+Peaches: 50 Mon
+Dango: 80 Mon
+Onigiri: 150 Mon
+Green Tea: 40 Mon
+Mochi: 100 Mon
+Takoyaki (attack buff): 200 Mon
+Daifuku (defense buff): 200 Mon
+Special Services:
+Storage (can store 10 extra items)
+Hints ("I heard there's a secret near the waterfall...")
+
+Kitsune Guide (Optional NPC)
+ROLE: Tutorial/hint system (toggleable)
+Appearance:
+Small fox spirit
+Follows Yoru occasionally
+Can be dismissed in settings
+Dialogue:
+"I smell death nearby..." (enemy warning)
+"Your aura grows darker..." (ring feedback)
+"The tree calls to you..." (quest reminder)
+Not intrusive, just helpful!
+
+Offering Guardian NPCs
+Mini-Boss Enemies, But Have Personality:
+Example: Omamori Guardian
+Shrine maiden spirit
+Guards sacred amulet
+Dialogue before fight: "This charm is not yours to take..."
+If persuaded: "Perhaps you are worthy after all..."
+Drops Omamori peacefully
+Adds story to every enemy encounter!
+
+Izanagi & Izanami (Secret Boss)
+Izanagi (Male, Creation God):
+Appears on left side of onsen
+Radiates light, life, warmth
+Gentle voice
+Regrets leaving Izanami in underworld
+Izanami (Female, Death Goddess):
+Appears on right side of onsen
+Radiates darkness, death, cold
+Stern voice
+Angry at being abandoned
+Encounter:
+DIALOGUE CHOICE:
+
+Option 1: Help them reunite (persuasion)
+- Threading mini-game (very hard!)
+- Success: They reconcile, balance restored
+- Reward: True Ending, +2 bonus abilities
+
+Option 2: Fight them (combat)
+- Dual boss fight (VERY HARD)
+- Defeat: They fade separately, balance never restored
+- Reward: Alt ending, +2 bonus abilities
+
+Option 3: Leave (neutral)
+- Walk away, don't interfere
+- Balance left broken
+- Different ending
+
+Player choice matters!
+
+ENDINGS SYSTEM
+7 Possible Endings Based on Ring Distribution
+PURE DARK (10L-0R):
+"The Devourer"
+- Yoru becomes demon
+- World consumed in darkness
+- NPCs flee or die
+- Yoru rules purgatory through fear
+- Sad/horror ending
+
+DARK HEAVY (8-9L, 1-2R):
+"The Vengeful Spirit"
+- Yoru brings justice through violence
+- World harsh but stable
+- NPCs fearful but respect strength
+- Bittersweet ending
+
+DARK BALANCED (6-7L, 3-4R):
+"The Gray Judge"
+- Yoru balances mercy with punishment
+- World neutral, neither good nor evil
+- NPCs cautious but accepting
+- Ambiguous ending
+
+PERFECT BALANCE (5L-5R):
+"Eclipse of Souls" (TRUE ENDING)
+- Yoru achieves enlightenment
+- Balance restored to purgatory
+- Izanagi & Izanami reunite
+- Yoru remembers everything
+- Core secret revealed
+- Most satisfying ending
+- Unlocks New Game+ with abilities
+
+LIGHT BALANCED (6-7R, 3-4L):
+"The Merciful One"
+- Yoru brings peace through forgiveness
+- World healing, hopeful
+- NPCs grateful
+- Happy ending
+
+LIGHT HEAVY (8-9R, 1-2L):
+"The Saint"
+- Yoru becomes beacon of hope
+- World blooming, beautiful
+- NPCs worship her
+- Very happy ending
+
+PURE LIGHT (10R-0L):
+"The Savior"
+- Yoru transcends, becomes goddess
+- World paradise
+- All souls freed
+- Yoru ascends, leaves purgatory
+- Most hopeful ending
+Ending Cinematics
+All endings include:
+3-5 minute cinematic
+Shows world's final state
+NPC reactions
+Yoru's fate
+Credits with ending-specific music
+Replayability: Players want to see all 7!
+
+POST-GAME CONTENT
+New Game Plus (NG+)
+TIERS:
+TIER 1: True Balance Unlock (5L-5R first)
+Rewards:
+- Keep ALL 10 abilities
+- Keep max peaches/shines (8/8)
+- Keep Mon currency
+- Enemies +20% HP (harder)
+- New dialogue (NPCs react to your power)
+- "Veteran" mode indicator
+
+Purpose: Overpowered fun run to discover other endings!
+TIER 2: Any Other Ending First
+Standard NG+:
+- Keep Mon only
+- Keep gashapon collection
+- Lose abilities (fresh choices)
+- Normal enemy difficulty
+TIER 3: 100% Completion (All 7 Endings)
+"True NG+":
+- Keep abilities
+- Enemies +50% HP (very hard)
+- Boss Rush mode unlocked
+- All cosmetics unlocked
+- Developer commentary mode
+Ending Stacking Rewards
+Each ending discovered gives permanent buff:
+1st ending: +10% to all abilities
+2nd ending: +20% total
+3rd ending: +30% total
+...
+7th ending: +70% to all abilities!
+
+Eventually becomes cheat-code powerful!
+Encourages getting ALL endings!
+Boss Rush Mode
+Unlocked: After True Ending
+Mode:
+Fight all 10 bosses back-to-back
+- No breaks
+- No healing between fights
+- Timer tracked
+- Online leaderboard (optional)
+- Rewards: Cosmetic items
+Gashapon Collection
+50 Total Collectibles:
+Continues across NG+ runs
+Journal tracks completion %
+100% completion reward: Special fur shader
+Discord Secret Room
+True Ending shows code:
+"Secret Code: ECLIPSE2025"
+Grants access to private Discord channel
+"Core Walkers" exclusive club
+Share secrets, discuss lore
+Developer Q&A access
+Photo Mode
+Unlocked: After any ending
+Features:
+Freeze game
+Free camera
+Remove UI
+Filters (sepia, noir, vibrant)
+Adjust depth of field
+Add text
+Share screenshots
+
+TECHNICAL SPECIFICATIONS
+Engine & Tools
+Unity 2022.3 LTS (Built-in Render Pipeline)
+Post Processing Stack v2
+Cinemachine (camera)
+XFur Studio (character fur)
+NavMeshAgent (AI pathfinding)
+TextMeshPro (UI text)
+Target Platform
+PC (Steam, initial release)
+Minimum Specs: i5, GTX 1050, 8GB RAM
+Target FPS: 60fps
+Resolution: 1080p - 4K
+File Size Target
+<10GB total
+Development Scope
+Solo developer (Hazel)
+Time estimate: 12-18 months full-time
+Budget: $3,500 - $12,000 (freelance animators, assets, marketing)
+Key Asset Packs Used
+Eastlands Stylized Asian Environment
+Various particle packs for VFX
+XFur Studio for character rendering
+Save System
+JSON-based
+Auto-save before bosses
+Manual save at Ancient Tree
+Cloud saves (Steam)
+
+IMPLEMENTATION ROADMAP
+Phase-by-Phase Development Plan
+PHASE 1: CORE SYSTEMS (Weeks 1-8)
+Week 1-2: Player Controller
+Movement (WASD, sprint)
+Camera system
+Transform ability (Nekomata ↔ Human)
+Basic animations
+Week 3-4: Combat Basics
+Attack system (Q, E, R combos)
+Hit detection
+Enemy AI (basic)
+Health/Shine systems
+Death/respawn
+Week 5-6: Inventory & UI
+Inventory system integration
+Soul inventory
+Consumable use
+UI framework
+Save/load system
+Week 7-8: Ancient Tree & Ring System
+Tree interaction
+Soul freeing ritual
+Ring activation
+Ability selection UI
+XFur ring visibility toggle
+
+PHASE 2: BOSS FOUNDATION (Weeks 9-16)
+Week 9-10: Boss Framework
+Boss base class
+HP system
+Phase transitions
+Arena system
+Auto-save before entry
+Week 11-12: First Boss (Yuki-onna)
+Model/animations
+Attack patterns
+Ice mechanics
+Cinematic intro/outro
+Loot drops
+Soul orb spawn
+Week 13-14: Persuasion System
+Emotional Threading mini-game
+Aura visibility system
+Success/failure states
+Integration with boss fights
+Week 15-16: Second Boss (Oni)
+Complete implementation
+Test combat balance
+Sake requirement mechanic
+Refine persuasion flow
+
+PHASE 3: WORLD SYSTEMS (Weeks 17-24)
+Week 17-18: Map System
+Main map layout
+Fog of war
+Mini-map
+Tori gates placement
+Distance-based difficulty
+Week 19-20: World Responsiveness
+7 world state system
+Skybox swapping
+Lighting changes
+Tree transformation
+Gradual transitions
+Week 21-22: Enemy Population
+Create 8 base enemy types
+Color variants (Tier 2, 3, 4)
+AI behaviors
+Drop tables
+Offering system
+Week 23-24: Economy & Progression
+Mon currency
+Rabbit NPC shop
+XP system for basic skills
+Peach/Shine progression
+Gashapon machines
+
+PHASE 4: NECROMANCY & ADVANCED COMBAT (Weeks 25-32)
+Week 25-27: Necromancy System
+Grimoire UI
+Puppet AI (Phase 1)
+Summoning mechanics
+Shine drain system
+Health bars
+Week 28-29: Necromancy Polish
+AI modes (aggressive/defensive/follow)
+Multiple puppet management
+Balance shine costs
+VFX for summons
+Week 30-31: Advanced Combat
+Parry system
+Perfect dodge
+Guard mechanics
+Finisher system
+Combo progression
+Screen shake/VFX juice
+Week 32: Climbing System
+Climbable surface detection
+Climbing animations
+Integration with Tengu fight
+
+PHASE 5: REMAINING BOSSES (Weeks 33-48)
+Week 33-48: Bosses 3-10
+~2 weeks per boss
+Unique mechanics each
+Abilities (2 versions per boss)
+Test and balance
+Cinematics
+Integration with world system
+Special Attention:
+Tengu (grounded flight)
+Kappa (amphibious)
+Shuten-dōji (final boss complexity)
+
+PHASE 6: ENDINGS & POST-GAME (Weeks 49-56)
+Week 49-50: Secret Realm
+Core onsen cave environment
+Izanagi & Izanami encounter
+Dual boss mechanics
+Balance unlock condition
+Week 51-52: Ending System
+7 ending cinematics
+Ring distribution calculation
+NPC reactions per ending
+Credits sequences
+Week 53-54: New Game Plus
+NG+ mode implementation
+Ability retention
+Difficulty scaling
+Ending rewards stacking
+Week 55-56: Boss Rush & Extras
+Boss rush mode
+Photo mode
+Gashapon completion
+Discord integration
+Leaderboards
+
+PHASE 7: POLISH & TESTING (Weeks 57-64)
+Week 57-58: VFX Polish
+All particle effects
+Screen effects
+Ability visuals
+Aura system polish
+Week 59-60: Audio
+Music implementation
+Sound effects
+Voice (if any)
+Audio mixing
+Week 61-62: Balance Pass
+Enemy HP/damage
+Ability costs
+Economy balance
+Difficulty curve
+Week 63-64: Bug Fixing & Optimization
+Playtest feedback
+Performance optimization
+Bug fixes
+Final polish
+
+PHASE 8: RELEASE PREP (Weeks 65-68)
+Week 65: Steam Page
+Store description
+Screenshots
+Trailer
+Tags/categories
+Week 66: Marketing
+Social media posts
+Press kit
+Streamer outreach
+Discord community
+Week 67: Localization (Optional)
+UI text
+Dialogue
+Subtitles
+Week 68: LAUNCH!
+Final build
+Release day prep
+Community management
+
+TOTAL TIMELINE: 16-18 MONTHS
+With focused development:
+Core systems: 2 months
+Boss implementation: 4 months
+World/economy: 2 months
+Advanced features: 2 months
+Bosses completion: 4 months
+Endings/polish: 4 months
+Launch prep: 1 month
+REALISTIC FOR SOLO DEV!
+
+GLOSSARY
+Nekomata: Two-tailed cat spirit from Japanese folklore, supernatural powers Yokai: Japanese supernatural creatures/spirits Purgatory: Realm between life and death where souls are stuck Fetter: Buddhist concept - attachment that binds soul to suffering Mon: Historical Japanese currency (Edo period) Tori Gate: Traditional Japanese gate, marks sacred spaces Gashapon: Japanese capsule toy vending machines Omamori: Japanese amulets/charms for protection XFur: Unity asset for fur rendering I-frames: Invincibility frames during dodge/roll VFX: Visual effects (particles, glows, etc.) NG+: New Game Plus (replay with bonuses) HP: Hit Points (health) DoT: Damage over Time AoE: Area of Effect NPC: Non-Player Character UI: User Interface HUD: Heads-Up Display
+
+FINAL NOTES
+This document contains:
+Complete game design
+All systems explained
+Implementation guidance
+Timeline estimates
+Technical specifications
+Ready for:
+Step-by-step development
+Investor pitches
+Team communication
+Reference during dev
+Maintained by: Claude (AI Assistant) & Hazel (Developer) Living Document: Will update as systems are implemented and refined
+
+VERSION HISTORY:
+v1.0 (Dec 7, 2025): Initial comprehensive design document
+
+CONTACT & LINKS
+Developer: Hazel Studio: Pectus Studio Website: pectus.games Location: Ottawa, Canada
+Steam Page: [In Progress] Discord: [To Be Created]
+
+END OF MASTER DESIGN DOCUMENT
+"Every choice leaves a mark. Every soul tells a story. Find yours in the Eclipse."

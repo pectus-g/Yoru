@@ -1,0 +1,662 @@
+YORU: Eclipse of Tails — Combat System Design Document
+Version 3.0 — Complete Technical Handoff
+January 2026
+
+TABLE OF CONTENTS
+Game Overview
+Control Scheme
+Combat States & Stances
+Health & Energy Systems
+Combo System
+Defensive Mechanics
+Default Abilities
+Soul → Tree → Ring Flow
+Ring & Ability System
+Skill Tree UI
+Dark Path Abilities
+Light Path Abilities
+Necromancy System
+Spirit Judgment Ultimate
+Karma & Dialogue Integration
+Stone System
+Magatama Collectible System
+Side Quest System
+Kill Point System
+Enemy Tier System
+Enemy Respawn System
+Enemy Design: Withered Kodama
+Animation Inventory
+Animation Reuse Strategy
+Animations Still Needed
+VFX & Sound Requirements
+Integration with Existing Systems
+Implementation Roadmap
+Testing Stages
+Key Decisions Log
+
+1. GAME OVERVIEW
+Genre
+Narrative Action-Adventure (similar to God of War 2018, Ghost of Tsushima, Okami)
+Game Context
+YORU: Eclipse of Tails is a narrative-driven action-adventure featuring Yoru, a two-tailed Nekomata (cat spirit) who judges lost souls in purgatory. Combat is one of two paths for resolving encounters — the other being empathy/dialogue.
+Combat Philosophy
+Zelda-inspired: Smooth, satisfying, empowering (not punishing)
+No stamina for combat: Only climbing uses energy
+Clear telegraphs: Enemies signal attacks for parry/dodge timing
+Rewarding skill: Perfect dodge and parry are powerful but not required
+Movement freedom: Player maintains mobility during combat
+Cat spirit theme: Agile, graceful, feline movements
+Nekomata identity: Necromancy is core power (raising the dead)
+Dual paths: Every boss can be defeated via Combat OR Empathy
+Core Loop
+Encounter Boss → Combat OR Dialogue → Soul Drops → Take to Secret Tree → 
+Ring + Memory + Health/Energy Choice → Skill Tree Opens → World Transforms
+
+2. CONTROL SCHEME
+PC Controls (Finalized)
+
+
+Key Rebinding
+Available in Settings menu
+Defaults pre-set, player can change anytime
+All combat actions reachable without moving hand from WASD
+
+3. COMBAT STATES & STANCES
+Player Combat States
+public enum CombatState
+{
+    Idle,           // Not in combat
+    Combat,         // In combat, can attack
+    Attacking,      // During attack animation
+    Dodging,        // During dodge i-frames
+    Parrying,       // During parry window
+    Stunned,        // After taking hit
+    UsingAbility,   // During ability cast
+    Ultimate,       // During Spirit Judgment
+    SpiritSurge     // During Spirit Surge (no cooldowns)
+}
+Stance System (Automatic)
+
+
+Stance switches automatically based on movement input.
+
+4. HEALTH & ENERGY SYSTEMS
+Health System
+
+
+Energy System
+
+
+Health Socket vs Energy Socket Choice
+After each boss encounter, at the Secret Tree:
+Player receives Ring
+Player receives Memory Piece
+Player CHOOSES: +1 Health Socket OR +1 Energy Socket
+This is similar to Zelda BOTW's Heart vs Stamina choice (mechanic is not copyrighted).
+
+5. COMBO SYSTEM
+Basic Combo (3-Hit)
+
+
+Important: Combo 3 Spin hits ONE targeted enemy only — it's a forward rushing spin attack, NOT area damage. This differentiates it from Inferno Spiral (ring ability) which hits ALL nearby enemies.
+Combo Window: 1.0 second between clicks Total Combo Damage: 65 damage in 1.6 seconds
+Heavy Attack
+
+
+Animation: Combat_Combo1_Paw (charged version)
+Movement Attacks
+
+
+Note: Dive Attack has NO stone — it's mainly for descending from heights, with occasional combat use.
+4-Leg Combo Variant
+When sprinting (4-leg stance):
+Attacks are 15% weaker per hit
+Attack speed is 20% faster
+Uses Combat_Combo3_Spin_4legs for finisher
+Better DPS due to speed, worse per-hit damage
+
+6. DEFENSIVE MECHANICS
+Dodge System
+
+
+No Dodge Stone — Dodge is skill-based, no upgrades
+Perfect Dodge → Flurry Rush
+
+
+Difference from Spirit Judgment: Flurry Rush hits ONE enemy, no targeting, earned through skill (perfect dodge). Spirit Judgment marks MULTIPLE enemies, requires ultimate charge.
+Parry System
+
+
+Hit Reactions
+
+
+
+7. DEFAULT ABILITIES (Free From Start)
+These abilities require NO rings — player has them immediately.
+Combat Abilities
+
+
+Defensive Abilities
+
+
+Basic Tail Abilities
+
+
+Important:
+Left Tail = Offensive (projectile damage)
+Right Tail = Defensive (air barrier protection, NO DAMAGE)
+Both scale with kill points AND stones
+Movement Abilities (Default)
+
+
+
+8. SOUL → TREE → RING FLOW
+Boss Encounter Outcomes
+Path A: PERSUASION (Empathy/Dialogue)
+1. Boss persuaded through dialogue
+2. Boss becomes light, vanishes peacefully
+3. LIGHT SOUL drops
+4. Player collects Light Soul
+Path B: COMBAT (Fighting)
+1. Boss defeated through combat
+2. Boss burns, becomes ashes, vanishes
+3. DARK SOUL drops
+4. Player collects Dark Soul
+Secret Tree Rewards
+Player brings Soul to Secret Tree
+
+Tree provides:
+├── 1. RING
+│   ├── Light Soul → Right Ring (Light abilities)
+│   └── Dark Soul → Left Ring (Dark abilities)
+│
+├── 2. MEMORY PIECE
+│   ├── Cinematic plays (must watch)
+│   └── Memory goes to Memory Book (viewable later)
+│
+└── 3. SOCKET CHOICE
+    ├── +1 Health Socket (more Peaches)
+    └── OR +1 Energy Socket (more climbing)
+
+After Tree:
+├── Skill Tree opens automatically
+├── Player spends Ring on ability
+└── World atmosphere transforms
+Total from 10 Bosses
+10 Rings (distributed between Left/Right based on choices)
+10 Memory Pieces
+10 Socket upgrades (mix of Health/Energy)
+
+9. RING & ABILITY SYSTEM
+How Rings Work
+10 Boss Encounters in Game
+Each encounter = Player chooses COMBAT or EMPATHY
+
+COMBAT choice → Dark Soul → Left Ring (Dark abilities)
+EMPATHY choice → Light Soul → Right Ring (Light abilities)
+
+Total possible: 10 rings distributed between tails
+Ability Unlock System: OPTION B (Full Player Choice)
+Every ring = Player chooses:
+Unlock a NEW ability (from available pool)
+OR Upgrade an existing ability (if already unlocked)
+Rules:
+5 Dark abilities available to unlock
+5 Light abilities available to unlock
+Each ability upgradable ONCE only
+Player chooses freely in ANY order
+Can upgrade immediately after unlocking
+Example Dark Path Progression:
+Ring 1 (Dark): Player chooses → Unlocks Nekomata's Call (Necromancy)
+Ring 2 (Dark): Player chooses → Upgrades Nekomata's Call
+Ring 3 (Dark): Player chooses → Unlocks Soul Burn
+Ring 4 (Dark): Player chooses → Unlocks Spirit Judgment (ultimate)
+Ring 5 (Dark): Player chooses → Upgrades Spirit Judgment
+Why Option B?
+Maximum player expression
+More replayability
+Immediate reward after every boss
+Industry standard (Skyrim, God of War, Elden Ring)
+
+10. SKILL TREE UI
+Access
+Player can VIEW anytime (pause menu)
+Can only SPEND rings at Secret Tree (after boss)
+Visual Layout
+┌─────────────────────────────────────────────────────────────┐
+│                        SKILL TREE                           │
+├────────────────────────┬────────────────────────────────────┤
+│      DARK PATH         │         LIGHT PATH                 │
+│      (Left Tail)       │         (Right Tail)               │
+├────────────────────────┼────────────────────────────────────┤
+│                        │                                    │
+│  ┌──────────┐ ┌──────┐ │  ┌────────────┐ ┌──────┐          │
+│  │Soul Burn │→│ UP   │ │  │Purification│→│ UP   │          │
+│  └──────────┘ └──────┘ │  │   Burst    │ │      │          │
+│                        │  └────────────┘ └──────┘          │
+│  ┌──────────┐ ┌──────┐ │                                    │
+│  │ Spirit   │→│ UP   │ │  ┌────────────┐ ┌──────┐          │
+│  │ Surge    │ │      │ │  │ Calming    │→│ UP   │          │
+│  └──────────┘ └──────┘ │  │   Mist     │ │      │          │
+│                        │  └────────────┘ └──────┘          │
+│  ┌──────────┐ ┌──────┐ │                                    │
+│  │Nekomata's│→│ UP   │ │  ┌────────────┐ ┌──────┐          │
+│  │  Call    │ │      │ │  │  Healing   │→│ UP   │          │
+│  └──────────┘ └──────┘ │  │  Whisper   │ │      │          │
+│                        │  └────────────┘ └──────┘          │
+│  ┌──────────┐ ┌──────┐ │                                    │
+│  │ Inferno  │→│ UP   │ │  ┌────────────┐ ┌──────┐          │
+│  │ Spiral   │ │      │ │  │ Soul Sight │→│ UP   │          │
+│  └──────────┘ └──────┘ │  └────────────┘ └──────┘          │
+│                        │                                    │
+│  ┌──────────┐ ┌──────┐ │  ┌────────────┐ ┌──────┐          │
+│  │ Spirit   │→│ UP   │ │  │  Eclipse   │→│ UP   │          │
+│  │ Judgment │ │      │ │  │   Mercy    │ │      │          │
+│  └──────────┘ └──────┘ │  └────────────┘ └──────┘          │
+│                        │                                    │
+├────────────────────────┴────────────────────────────────────┤
+│  Left Rings: ●●●○○○○○○○     Right Rings: ●●○○○○○○○○        │
+│                                                             │
+│  ╔═══════════════════════════════════════════════════════╗ │
+│  ║  🔔 RING AVAILABLE! Select ability to unlock/upgrade. ║ │
+│  ╚═══════════════════════════════════════════════════════╝ │
+└─────────────────────────────────────────────────────────────┘
+
+11. DARK PATH ABILITIES (Left Tail)
+Ring Ability 1: Soul Burn
+
+
+Ring Ability 2: Spirit Surge
+
+
+Ring Ability 3: Nekomata's Call (Necromancy)
+
+
+See Section 13 for complete Necromancy System
+Ring Ability 4: Inferno Spiral
+
+
+Ring Ability 5: Spirit Judgment (Ultimate)
+
+
+See Section 14 for complete Spirit Judgment details
+
+12. LIGHT PATH ABILITIES (Right Tail)
+Ring Ability 1: Purification Burst
+
+
+Ring Ability 2: Calming Mist (Kiri)
+
+
+Ring Ability 3: Healing Whisper
+
+
+Ring Ability 4: Soul Sight
+
+
+Ring Ability 5: Eclipse Mercy (Ultimate)
+
+
+Important: Eclipse Mercy heals YORU (the player), NOT enemies! Mark yourself multiple times for big heal.
+
+13. NECROMANCY SYSTEM
+Overview
+Nekomata's signature power — raising the dead to fight alongside you.
+Core Rule: One Soul Per Enemy TYPE
+Player kills throughout game:
+- 12 Kodama (same type)
+- 5 Kasa-obake (same type)
+- 1 Hitotsume-kozō
+
+Stored in Necromancy Book:
+- 1 Kodama soul
+- 1 Kasa-obake soul
+- 1 Hitotsume-kozō soul
+
+Total: 3 unique souls (NOT 18)
+Storable Enemy Tiers
+
+
+Why Tier 1 (Bosses) not storable:
+First boss = no rings yet = no necromancy ability
+Bosses too powerful, would break balance
+Keeps boss encounters special
+Soul Gems
+
+
+Ghost Behavior
+
+
+Necromancy Book UI
+┌─────────────────────────────────────────────────────────────┐
+│                    NECROMANCY BOOK                          │
+├─────────────────────────────────────────────────────────────┤
+│  Soul Gems: ◆◆◆◆◆◆◆◆ (8 available)                         │
+│  Ghost Duration: 25 seconds                                 │
+│  Undying Legion: [ACTIVE] (gems count as 2)                 │
+├─────────────────────────────────────────────────────────────┤
+│  TIER 4 — COMMON (2 gems each, 1 with upgrade)             │
+│  [ ] Kodama               [Collected ✓]                    │
+│  [ ] Kasa-obake           [Collected ✓]                    │
+│                                                             │
+│  TIER 3 — MIXED (4 gems each, 2 with upgrade)              │
+│  [ ] Rokurokubi           [Collected ✓]                    │
+│                                                             │
+│  TIER 2 — GUARDIANS (6 gems each, 3 with upgrade)          │
+│  [ ] Torii Guardian A     [Not Found]                      │
+├─────────────────────────────────────────────────────────────┤
+│  Selected: 2 souls | Cost: 3 gems | [SUMMON] [CANCEL]      │
+└─────────────────────────────────────────────────────────────┘
+
+14. SPIRIT JUDGMENT ULTIMATE
+Charge System
+
+
+Visual: Tails pulse/glow when 100% charged
+Execution Flow
+PHASE 1: ACTIVATION (Hold R)
+─────────────────────────────
+- Time slows to 0.1x
+- Animation: Combat_Parry
+- Screen desaturates
+- Duration: 3 seconds max
+
+PHASE 2: MARKING (While R held)
+─────────────────────────────
+- Move mouse over enemies
+- Left-click to mark (kanji symbol)
+- Max: 5 marks (7 upgraded)
+- Can mark same enemy multiple times
+
+PHASE 3: EXECUTION (Release R)
+─────────────────────────────
+- Time snaps back to normal
+- For each mark (2x animation speed):
+  → Combat_DiveAttack (teleport)
+  → Combat_Combo1_Paw (strike)
+- Total: ~1.5-2 seconds
+
+PHASE 4: AFTERMATH
+─────────────────────────────
+- All damage applied at once
+- Cost applied based on karma
+- Cooldown begins (60 sec)
+Karma Variants
+
+
+
+15. KARMA & DIALOGUE INTEGRATION
+Balance Calculation
+Karma Score = Right Rings - Left Rings
+Range: -10 (pure dark) to +10 (pure light)
+Dialogue Difficulty Modifiers
+
+
+Light Path Dialogue Bonuses
+Ring 3+: Heart Reading unlocked (see success %)
+More Right Rings = easier persuasion
+Calming Mist allows retry from zero
+
+16. STONE SYSTEM
+Complete Stone List (10 Stones)
+
+
+Stone Slots
+
+
+Stone Properties
+Equippable: Must be in slot to gain bonus
+Sellable: Yes (gains Mon, loses bonus)
+Buyback: Yes (15% markup, regains bonus)
+Earned via: Side quests (unlock with each ring)
+
+17. MAGATAMA COLLECTIBLE SYSTEM
+What is Magatama?
+
+
+Slot Expansion
+
+
+3 Magatama = 1 additional stone slot Total Magatama in game: 21
+Where to Find
+Hidden in shrines
+Reward for exploration
+Secret areas
+Optional puzzles
+
+18. SIDE QUEST SYSTEM (For Stones)
+How It Works
+1. Player earns Ring (from boss via Tree)
+2. Side Quest drops to Quest Book
+3. Quest = specific challenge (kill with combo, parry attacks, etc.)
+4. Complete quest → Receive Stone
+5. Equip stone → Ability upgraded
+Quest List
+
+
+Note: Kill points vary by tier (see Section 19)
+
+19. KILL POINT SYSTEM
+Points Per Enemy Tier
+
+
+Why Bosses Don't Count
+Bosses give Rings (already rewarding)
+Respecting player choice (Empathy players not punished)
+Bosses don't respawn (can't "catch up")
+Cleaner separation of reward systems
+Total Points Available
+Fixed points (one-time kills):
+- 20 Guardians × 3 points = 60 points
+- 10 Mixed × 2 points × 11 cycles = 220 points (with respawns)
+
+Farmable points:
+- 15 Common × 1 point × unlimited = ∞
+
+Total from playing normally: ~280 points
+
+20. ENEMY TIER SYSTEM
+Overview
+
+
+Guardian Details
+2 Guardians per Torii gate
+10 Torii gates total = 20 Guardians
+Do NOT respawn (one-time encounters)
+
+21. ENEMY RESPAWN SYSTEM
+Respawn Rules
+
+
+God of War Style (Chosen)
+Natural feeling during exploration
+Player doesn't feel "punished" by sudden respawn
+Distance + time = predictable, adjustable
+
+22. ENEMY DESIGN: WITHERED KODAMA
+Overview
+Tier 4 common enemy — first enemy to build for testing combat.
+Stats
+
+
+AI State Machine
+IDLE (Patrol)
+    │
+    ▼ (player within 8m)
+ALERT (0.5s) ──── sound cue
+    │
+    ▼
+CHASE ──────────── runs toward player
+    │
+    ▼ (within 2m)
+TELEGRAPH (0.5s) ── PARRY WINDOW
+    │
+    ▼
+ATTACK (0.3s)
+    │
+    ▼
+RECOVERY (0.4s)
+    │
+    └───► back to CHASE
+
+SPECIAL:
+- Heavy hit/parried → STAGGER (1.2s)
+- HP ≤ 0 → DEATH → corpse stays 60s
+- Player > 15m → return to IDLE
+Required Animations (14)
+
+
+
+23. ANIMATION INVENTORY
+Combat Folder (Assets/Animations_Yoru/Combat/)
+
+
+Ability Folder (Assets/Animations_Yoru/Ability/)
+
+
+Movement Folder (Assets/Animations_Yoru/Movement/)
+
+
+Cinematic Folder (Assets/Animations_Yoru/Cinematic/)
+
+
+
+24. ANIMATION REUSE STRATEGY
+
+
+
+25. ANIMATIONS STILL NEEDED
+
+
+State-Based Death System
+// When player dies, check state
+if (isAirborne)
+{
+    Play("Combat_Death_Jump");
+}
+else if (isRunning)
+{
+    Play("Combat_Death_4Leg");
+}
+else
+{
+    Play("Combat_Death_2Leg");
+}
+
+26. VFX & SOUND REQUIREMENTS
+Combat VFX
+
+
+Ability VFX
+
+
+Sound Design
+
+
+
+27. INTEGRATION WITH EXISTING SYSTEMS
+WorldStateManager
+// After Tree grants ring
+WorldStateManager.Instance.AddLeftRing(); // Dark
+// OR
+WorldStateManager.Instance.AddRightRing(); // Light
+
+// Triggers atmosphere change (29-state system)
+PlayerHealth
+// 1 Peach = 4 HP
+playerHealth.TakeDamage(amount);
+playerHealth.Heal(amount);
+
+// Spirit Judgment dark cost
+playerHealth.TakeDamage(4); // 1 Peach
+Existing Scripts to Modify
+
+
+
+28. IMPLEMENTATION ROADMAP
+Phase 1: Core Combat (Weeks 1-2)
+Create PlayerCombat.cs
+Basic combo (3-hit)
+Hit detection
+Enemy takes damage
+Phase 2: Enemy AI — Kodama (Weeks 3-4)
+State machine (Idle → Alert → Chase → Attack)
+Telegraph system
+Stagger state
+Phase 3: Defensive Mechanics (Weeks 5-6)
+Dodge with i-frames
+Parry system
+Perfect dodge → Flurry Rush
+Phase 4: Kill Points & Stones (Week 7)
+KillPointManager.cs
+Side quest triggers
+Stone equip system
+Phase 5: Second Tier 4 Enemy (Week 8)
+New enemy type
+Different attack patterns
+Phase 6: Basic Tail Abilities (Week 9)
+Left Tail (projectile)
+Right Tail (barrier)
+Stone upgrades
+Phase 7: Tier 3 Enemy (Weeks 10-11)
+Harder AI
+Respawn on ring system
+Phase 8: Ring Abilities (Weeks 12-13)
+Soul Burn, Purification
+Ability Wheel UI
+Skill Tree UI
+Phase 9: Tier 2 Guardian (Weeks 14-15)
+Mini-boss AI
+No respawn
+Phase 10: Remaining Abilities (Weeks 16-18)
+Spirit Surge, Calming Mist
+Necromancy system
+Soul Sight, Healing
+Phase 11: Ultimates (Weeks 19-20)
+Spirit Judgment
+Eclipse Mercy
+Charge system
+Phase 12: Tier 1 Boss (Weeks 21-23)
+Full boss AI
+Combat/Empathy choice
+Soul → Tree flow
+Phase 13: Magatama & Polish (Weeks 24-26)
+Collectible placement
+Balance pass
+VFX/Sound pass
+
+29. TESTING STAGES
+
+
+
+30. KEY DECISIONS LOG
+
+
+
+APPENDIX A: ABILITY QUICK REFERENCE
+Default Abilities (Free)
+
+
+Dark Ring Abilities
+
+
+Light Ring Abilities
+
+
+
+APPENDIX B: STONE QUICK REFERENCE
+
+
+
+Document created for Hazel / Pectus Games YORU: Eclipse of Tails — Combat System Design v3.0 January 2026
+This document contains ALL discussions from the design session. Ready for implementation phase.
+Shared Animation Set (Every Enemy Gets These)
+
+
+Tier 4 — Common Enemies (2 types in design doc)
+Withered Kodama (Section 22 in your doc — melee enemy, first to build)
+
+
+Total for Kodama: 11 animations (8 shared + 3 unique)
+Kasa-obake (umbrella yokai — could be a ranged/projectile enemy to create variety)
+
