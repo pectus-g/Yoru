@@ -91,7 +91,7 @@ public class EnemyCombat : MonoBehaviour
     [Header("Detection")]
     [SerializeField] private float detectionRange = 10f;
     [SerializeField] private float attackRange = 3.5f;
-    [SerializeField] private float escapeRange = 15f;
+    [SerializeField] private float escapeRange = 50f;
     
     [Header("Timing")]
     [SerializeField] private float alertDuration = 0.5f;
@@ -116,10 +116,10 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float attackCooldownP2 = 1.2f;
     
     [Header("Teleport")]
-    [SerializeField] private bool canTeleport = false;
+    [SerializeField] private bool canTeleport = true;
     [Tooltip("Chance to teleport after recovery (0-1)")]
-    [SerializeField] private float teleportChance = 0.3f;
-    [SerializeField] private float teleportChanceP2 = 0.6f;
+    [SerializeField] private float teleportChance = 0.5f;
+    [SerializeField] private float teleportChanceP2 = 0.8f;
     [SerializeField] private float teleportDistance = 5f;
     [Tooltip("Playback speed for teleport animations")]
     [SerializeField] private float teleportSpeed = 1.0f;
@@ -150,6 +150,24 @@ public class EnemyCombat : MonoBehaviour
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
     [SerializeField] private bool showGizmos = true;
+    
+    [Header("VFX Prefabs (drag-and-drop)")]
+    [Tooltip("Particle effect for telegraph wind-up")]
+    [SerializeField] private GameObject telegraphVFXPrefab;
+    [Tooltip("Particle effect for attack strike")]
+    [SerializeField] private GameObject attackVFXPrefab;
+    [Tooltip("Particle effect for hit reaction")]
+    [SerializeField] private GameObject hitReactVFXPrefab;
+    [Tooltip("Particle effect for stagger")]
+    [SerializeField] private GameObject staggerVFXPrefab;
+    [Tooltip("Particle effect for teleport out")]
+    [SerializeField] private GameObject teleportOutVFXPrefab;
+    [Tooltip("Particle effect for teleport in")]
+    [SerializeField] private GameObject teleportInVFXPrefab;
+    [Tooltip("Particle effect for death")]
+    [SerializeField] private GameObject deathVFXPrefab;
+    [Tooltip("Where to spawn VFX (auto-finds if empty)")]
+    [SerializeField] private Transform vfxSpawnPoint;
     #endregion
     
     #region Private Fields
@@ -195,9 +213,12 @@ public class EnemyCombat : MonoBehaviour
         if (navAgent != null)
         {
             navAgent.speed = patrolSpeed;
-            navAgent.stoppingDistance = attackRange;
+            navAgent.stoppingDistance = 0.5f;
             navAgent.updateRotation = false; // We handle rotation manually
         }
+        
+        if (vfxSpawnPoint == null)
+            vfxSpawnPoint = transform;
         
         if (attacks == null || attacks.Length == 0)
             Debug.LogWarning($"{gameObject.name}: No attacks defined!");
@@ -314,12 +335,20 @@ public class EnemyCombat : MonoBehaviour
 
     float dist = DistanceToPlayer();
 
-    // Player escaped
+    // Player escaped detection entirely
     if (dist > escapeRange)
     {
         hasAlerted = false;
         SetState(EnemyState.Idle);
         DebugLog("Player escaped, returning to Idle");
+        return;
+    }
+
+    // Too far to chase on foot — teleport close if able
+    if (canTeleport && dist > attackRange * 3f && !isTeleporting)
+    {
+        DebugLog($"Too far ({dist:F1}m) — teleporting close!");
+        StartCoroutine(TeleportSequence());
         return;
     }
 
@@ -477,6 +506,7 @@ public class EnemyCombat : MonoBehaviour
                     stateTimer = duration;
                     PlayAnimation(currentAttack.telegraphAnim);
                     SetAnimSpeed(speed);
+                    SpawnVFX(telegraphVFXPrefab);
                     DebugLog($"Telegraph: {currentAttack.attackName} ({duration:F2}s)");
                 }
                 break;
@@ -495,6 +525,7 @@ public class EnemyCombat : MonoBehaviour
                         SetAnimSpeed(speed);
                     }
                     
+                    SpawnVFX(attackVFXPrefab);
                     DebugLog($"Attack: {currentAttack.attackName} ({duration:F2}s, {currentAttack.damage} dmg)");
                 }
                 break;
@@ -509,6 +540,7 @@ public class EnemyCombat : MonoBehaviour
                 stateTimer = hitReactDuration;
                 ForcePlayAnimation(hitReactAnim);
                 SetAnimSpeed(1f);
+                SpawnVFX(hitReactVFXPrefab);
                 break;
                 
             case EnemyState.Stagger:
@@ -516,6 +548,7 @@ public class EnemyCombat : MonoBehaviour
                 PlayAnimation(staggerAnim);
                 SetAnimSpeed(1f);
                 cooldownTimer = 0; // Reset cooldown after stagger
+                SpawnVFX(staggerVFXPrefab);
                 DebugLog($"STAGGERED for {staggerDuration}s");
                 break;
                 
@@ -523,6 +556,7 @@ public class EnemyCombat : MonoBehaviour
                 StopNav();
                 PlayAnimation(deathAnim);
                 SetAnimSpeed(1f);
+                SpawnVFX(deathVFXPrefab);
                 break;
                 
             case EnemyState.Chase:
@@ -611,8 +645,9 @@ public class EnemyCombat : MonoBehaviour
         PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
         if (playerHealth == null) return;
         
-   playerHealth.TakeDamage(currentAttack.damage, false, transform.position);
-        DebugLog($"⚔️ Hit player for {currentAttack.damage} ({currentAttack.attackName})");
+        bool isHeavyHit = currentAttack.damage >= 15;
+        playerHealth.TakeDamage(currentAttack.damage, isHeavyHit, transform.position);
+        DebugLog($"⚔️ Hit player for {currentAttack.damage}{(isHeavyHit ? " (HEAVY)" : "")} ({currentAttack.attackName})");
         
         // Apply stun if attack has it
         if (currentAttack.stunPlayerDuration > 0)
@@ -634,6 +669,7 @@ public class EnemyCombat : MonoBehaviour
         // Phase 1: Teleport Out
         PlayAnimation(teleportOutAnim);
         SetAnimSpeed(speed);
+        SpawnVFX(teleportOutVFXPrefab);
         
         float outTime = teleportOutDuration / speed;
         yield return new WaitForSeconds(outTime);
@@ -660,6 +696,7 @@ public class EnemyCombat : MonoBehaviour
         // Phase 2: Teleport In
         PlayAnimation(teleportInAnim);
         SetAnimSpeed(speed);
+        SpawnVFX(teleportInVFXPrefab);
         
         float inTime = teleportInDuration / speed;
         yield return new WaitForSeconds(inTime);
@@ -844,6 +881,15 @@ private void TriggerHitFlash()
     {
         if (animator == null) return;
         animator.SetFloat(HashAnimSpeed, speed);
+    }
+    
+    private void SpawnVFX(GameObject prefab)
+    {
+        if (prefab == null) return;
+        Vector3 spawnPos = vfxSpawnPoint != null ? vfxSpawnPoint.position : transform.position + Vector3.up;
+        GameObject vfx = Instantiate(prefab, spawnPos, Quaternion.identity);
+        Destroy(vfx, 3f); // Auto-cleanup
+        DebugLog($"VFX spawned: {prefab.name}");
     }
     #endregion
     
