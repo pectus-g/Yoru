@@ -27,6 +27,7 @@ public class EnemyCombat : MonoBehaviour
         Telegraph,
         Attack,
         Recovery,
+        HitReact,
         Stagger,
         Teleport,
         Dead
@@ -95,6 +96,7 @@ public class EnemyCombat : MonoBehaviour
     [Header("Timing")]
     [SerializeField] private float alertDuration = 0.5f;
     [SerializeField] private float recoveryDuration = 0.4f;
+    [SerializeField] private float hitReactDuration = 0.5f;
     [SerializeField] private float staggerDuration = 1.0f;
     [SerializeField] private float attackCooldown = 2.0f;
     
@@ -128,6 +130,10 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float teleportInDuration = 0.4f;
     
     [Header("Animation State Names")]
+    // NOTE: Each enemy prefab must set these fields in the Inspector to match its Animator state names.
+    // Kodama defaults: idleAnim="Kodama_Idle", walkAnim="Kodama_Walk", runAnim="Kodama_Run",
+    //   alertAnim="Kodama_Alert", staggerAnim="Kodama_Stagger", hitReactAnim="Kodama_HitReact",
+    //   deathAnim="Kodama_Death". Nopperabo: set hitReactAnim to match its Animator state name.
     [SerializeField] private string idleAnim = "Float_Idle";
     [SerializeField] private string walkAnim = "Walk_Glide";
     [SerializeField] private string runAnim = "Run_Chase";
@@ -233,6 +239,7 @@ public class EnemyCombat : MonoBehaviour
             case EnemyState.Telegraph: HandleTelegraph(); break;
             case EnemyState.Attack: HandleAttack(); break;
             case EnemyState.Recovery: HandleRecovery(); break;
+            case EnemyState.HitReact: HandleHitReact(); break;
             case EnemyState.Stagger: HandleStagger(); break;
             case EnemyState.Teleport: break; // Handled by coroutine
             case EnemyState.Dead: HandleDead(); break;
@@ -313,13 +320,6 @@ public class EnemyCombat : MonoBehaviour
         hasAlerted = false;
         SetState(EnemyState.Idle);
         DebugLog("Player escaped, returning to Idle");
-        return;
-    }
-
-    // Hit reaction active — freeze movement and animation
-    if (Time.time < hitReactEndTime)
-    {
-        StopNav();
         return;
     }
 
@@ -427,6 +427,17 @@ public class EnemyCombat : MonoBehaviour
         }
     }
     
+    private void HandleHitReact()
+    {
+        StopNav();
+        LookAtPlayer();
+        
+        if (stateTimer <= 0)
+        {
+            SetState(EnemyState.Chase);
+        }
+    }
+    
     private void HandleDead()
     {
         StopNav();
@@ -491,6 +502,12 @@ public class EnemyCombat : MonoBehaviour
             case EnemyState.Recovery:
                 stateTimer = recoveryDuration;
                 PlayAnimation(idleAnim);
+                SetAnimSpeed(1f);
+                break;
+                
+            case EnemyState.HitReact:
+                stateTimer = hitReactDuration;
+                ForcePlayAnimation(hitReactAnim);
                 SetAnimSpeed(1f);
                 break;
                 
@@ -695,30 +712,39 @@ public class EnemyCombat : MonoBehaviour
         SetState(EnemyState.Stagger);
     }
     
- // Time.time value until which hit reaction animation is protected from override
-private float hitReactEndTime;
-
-/// <summary>
-/// Called by EnemyHealth on light hit. Plays hit reaction
-/// and freezes chase behavior so animation plays fully.
-/// Does NOT interrupt telegraph/attack.
+ /// <summary>
+/// Called by EnemyHealth on light hit. Transitions to HitReact state so the
+/// animation plays fully without being overridden by Chase/Idle handlers.
+/// During Telegraph or Attack, does a quick white flash for hit confirmation.
 /// </summary>
 public void TriggerHitReact()
 {
     if (currentState == EnemyState.Dead) return;
     if (currentState == EnemyState.Stagger) return;
+    if (currentState == EnemyState.HitReact) return;
 
-    // Only interrupt non-critical states
+    // Interrupt non-critical states with a proper HitReact state
     if (currentState == EnemyState.Idle ||
         currentState == EnemyState.Chase ||
         currentState == EnemyState.Recovery)
     {
-        hitReactEndTime = Time.time + 0.5f;
-        StopNav();
-        ForcePlayAnimation(hitReactAnim);
-        SetAnimSpeed(1f);
-        DebugLog("Hit react — frozen for 0.5s");
+        SetState(EnemyState.HitReact);
     }
+    else if (currentState == EnemyState.Telegraph || currentState == EnemyState.Attack)
+    {
+        // Can't interrupt attack — give the player visual confirmation instead
+        TriggerHitFlash();
+    }
+}
+
+/// <summary>
+/// Plays a quick white flash to confirm a hit landed during Telegraph or Attack.
+/// </summary>
+private void TriggerHitFlash()
+{
+    if (enemyHealth != null)
+        enemyHealth.FlashWhite();
+    DebugLog($"🤕 Hit during {currentState} — flash only");
 }
     /// <summary>
     /// Start combat — called when dialogue fails or player attacks.
@@ -804,12 +830,14 @@ public void TriggerHitReact()
     
     /// <summary>
     /// Force play — used when same animation must restart (e.g. hit react while idling).
+    /// Uses animator.Play() (immediate, non-blendable) so it cannot be overridden by
+    /// the next PlayAnimation() call in the same or next frame. Same approach as PlayerCombat.
     /// </summary>
     private void ForcePlayAnimation(string stateName)
     {
         if (animator == null || string.IsNullOrEmpty(stateName)) return;
         currentPlayingAnim = stateName;
-        animator.CrossFadeInFixedTime(stateName, 0.1f, combatLayerIndex);
+        animator.Play(stateName, combatLayerIndex, 0f);
     }
     
     private void SetAnimSpeed(float speed)

@@ -189,6 +189,17 @@ public class EnemyHealth : MonoBehaviour
             StartCoroutine(FlashRedCoroutine(renderers));
     }
     
+    /// <summary>
+    /// Quick white flash used as "hit confirmed" visual during Telegraph/Attack states.
+    /// Shorter duration than FlashRed so it doesn't linger.
+    /// </summary>
+    public void FlashWhite()
+    {
+        Renderer[] renderers = GetComponentsInChildren<Renderer>();
+        if (renderers.Length > 0)
+            StartCoroutine(FlashWhiteCoroutine(renderers));
+    }
+    
     private System.Collections.IEnumerator FlashRedCoroutine(Renderer[] renderers)
     {
         Color[] originals = new Color[renderers.Length];
@@ -202,6 +213,27 @@ public class EnemyHealth : MonoBehaviour
         }
         
         yield return new WaitForSeconds(0.1f);
+        
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (materials[i] != null)
+                materials[i].color = originals[i];
+        }
+    }
+    
+    private System.Collections.IEnumerator FlashWhiteCoroutine(Renderer[] renderers)
+    {
+        Color[] originals = new Color[renderers.Length];
+        Material[] materials = new Material[renderers.Length];
+        
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            materials[i] = renderers[i].material;
+            originals[i] = materials[i].color;
+            materials[i].color = Color.white;
+        }
+        
+        yield return new WaitForSeconds(0.05f);
         
         for (int i = 0; i < renderers.Length; i++)
         {
