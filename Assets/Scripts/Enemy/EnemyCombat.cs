@@ -91,7 +91,7 @@ public class EnemyCombat : MonoBehaviour
     [Header("Detection")]
     [SerializeField] private float detectionRange = 10f;
     [SerializeField] private float attackRange = 3.5f;
-    [SerializeField] private float escapeRange = 15f;
+    [SerializeField] private float escapeRange = 40f;
     
     [Header("Timing")]
     [SerializeField] private float alertDuration = 0.5f;
@@ -99,6 +99,14 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float hitReactDuration = 0.5f;
     [SerializeField] private float staggerDuration = 1.0f;
     [SerializeField] private float attackCooldown = 2.0f;
+    
+    [Header("Chase Duration")]
+    [Tooltip("How long enemy chases before giving up (seconds)")]
+    [SerializeField] private float maxChaseDuration = 60f;
+    
+    [Header("Hit Type")]
+    [Tooltip("Damage >= this amount counts as heavy hit on the player")]
+    [SerializeField] private int heavyHitThreshold = 15;
     
     [Header("Movement")]
     [SerializeField] private float patrolSpeed = 1.5f;
@@ -171,6 +179,9 @@ public class EnemyCombat : MonoBehaviour
     // Alert (only triggers once per encounter)
     private bool hasAlerted;
     
+    // Chase duration
+    private float chaseStartTime;
+    
     // Teleport
     private bool isTeleporting;
     
@@ -195,7 +206,7 @@ public class EnemyCombat : MonoBehaviour
         if (navAgent != null)
         {
             navAgent.speed = patrolSpeed;
-            navAgent.stoppingDistance = attackRange;
+            navAgent.stoppingDistance = 0.5f;  // Get close, attack range handled by code logic
             navAgent.updateRotation = false; // We handle rotation manually
         }
         
@@ -314,12 +325,13 @@ public class EnemyCombat : MonoBehaviour
 
     float dist = DistanceToPlayer();
 
-    // Player escaped
-    if (dist > escapeRange)
+    // Chase timeout — give up after maxChaseDuration seconds of uninterrupted chasing
+    bool chasedTooLong = (Time.time - chaseStartTime) >= maxChaseDuration;
+    if (chasedTooLong || dist > escapeRange)
     {
         hasAlerted = false;
         SetState(EnemyState.Idle);
-        DebugLog("Player escaped, returning to Idle");
+        DebugLog(chasedTooLong ? $"Chase timeout ({maxChaseDuration}s), returning to Idle" : "Player escaped, returning to Idle");
         return;
     }
 
@@ -527,6 +539,7 @@ public class EnemyCombat : MonoBehaviour
                 
             case EnemyState.Chase:
                 SetAnimSpeed(1f);
+                chaseStartTime = Time.time;
                 break;
                 
             case EnemyState.Idle:
@@ -611,7 +624,8 @@ public class EnemyCombat : MonoBehaviour
         PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
         if (playerHealth == null) return;
         
-   playerHealth.TakeDamage(currentAttack.damage, false, transform.position);
+        bool isHeavy = currentAttack.damage >= heavyHitThreshold;
+        playerHealth.TakeDamage(currentAttack.damage, isHeavy, transform.position);
         DebugLog($"⚔️ Hit player for {currentAttack.damage} ({currentAttack.attackName})");
         
         // Apply stun if attack has it

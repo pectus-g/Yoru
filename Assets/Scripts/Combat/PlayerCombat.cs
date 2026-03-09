@@ -27,8 +27,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private string hitReactHeavy4Leg = "HitReact_Running_4Leg";
 
     [Header("Hit Reaction Timing")]
-    [SerializeField] private float lightHitReactDuration = 0.45f;
-    [SerializeField] private float heavyHitReactDuration = 0.7f;
+    [SerializeField] private float lightHitReactDuration = 0.65f;
+    [SerializeField] private float heavyHitReactDuration = 1.0f;
 
     [Header("Knockback Pull")]
     [Tooltip("How far the player gets pulled toward attacker on Hair Lash hit")]
@@ -38,6 +38,7 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Layer Settings")]
     [SerializeField] private int combatLayerIndex = 1;
+    [SerializeField] private int baseLayerIndex = 0;
 
     [Header("Combo Settings")]
     [SerializeField] private float comboWindowTime = 1.5f;
@@ -69,6 +70,7 @@ public class PlayerCombat : MonoBehaviour
 
     #region Private Fields
     private CharacterController characterController;
+    private PlayerMovement playerMovement;
     private Transform cachedTransform;
 
     // Combo state
@@ -118,6 +120,7 @@ public class PlayerCombat : MonoBehaviour
             animator = GetComponent<Animator>();
 
         characterController = GetComponent<CharacterController>();
+        playerMovement = GetComponent<PlayerMovement>();
         cachedTransform = transform;
 
         if (attackPoint == null)
@@ -245,7 +248,7 @@ public class PlayerCombat : MonoBehaviour
         }
 
         // Pick animation based on stance and severity
-        bool is4Leg = Input.GetKey(KeyCode.LeftShift);
+        bool is4Leg = playerMovement != null && playerMovement.IsRunning();
         string animState;
         float duration;
 
@@ -265,6 +268,7 @@ public class PlayerCombat : MonoBehaviour
         if (animator != null)
         {
             animator.Play(animState, combatLayerIndex, 0f);
+            animator.Play(animState, baseLayerIndex, 0f);  // Also play on base layer to prevent locomotion override
             DebugLog($"🤕 Hit React: {animState} ({duration}s) [animator.Play]");
         }
 
