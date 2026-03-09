@@ -13,11 +13,12 @@ public class PlayerHealth : MonoBehaviour
 
     [Header("I-Frames")]
     [Tooltip("Invincibility duration after taking damage")]
-    [SerializeField] private float iFrameDuration = 0.5f;
+    [SerializeField] private float iFrameDuration = 0.3f;
     private float iFrameTimer;
 
     [Header("Stun")]
-    private float stunTimer;
+    [Tooltip("Duration of stun effect applied to player")]
+    [SerializeField] private float stunTimer;
 
     [Header("UI")]
     [SerializeField] private Image healthBarFill;
@@ -70,35 +71,29 @@ public class PlayerHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(int damage, bool isHeavy, Vector3 attackerPos)
     {
-        if (currentHealth <= 0) return;
-
         if (iFrameTimer > 0)
         {
             Debug.Log("🛡️ I-FRAMES active, damage ignored");
             return;
         }
 
-        currentHealth -= damage;
-        if (currentHealth < 0) currentHealth = 0;
-
-        iFrameTimer = iFrameDuration;
-
-        Debug.Log($"💔 DAMAGE! {damage} dmg → HP: {currentHealth}/{maxHealth}");
-
-        if (peachHealthUI != null)
-            peachHealthUI.UpdateHealth(currentHealth);
-
-        if (currentHealth <= 0)
+        if (currentHealth > 0)
         {
-            Debug.Log("💀 PLAYER DIED!");
+            currentHealth -= damage;
+            if (currentHealth < 0) currentHealth = 0;
+            iFrameTimer = iFrameDuration;
+            Debug.Log($"💔 DAMAGE! {damage} dmg → HP: {currentHealth}/{maxHealth}");
+
+            if (peachHealthUI != null)
+                peachHealthUI.UpdateHealth(currentHealth);
+
+            if (currentHealth <= 0)
+                Debug.Log("💀 PLAYER DIED!");
         }
-        else
-        {
-            if (playerCombat != null)
-            {
-                playerCombat.PlayHitReaction(isHeavy, attackerPos);
-            }
-        }
+
+        // ALWAYS play hit reaction — even after death for testing
+        if (playerCombat != null)
+            playerCombat.PlayHitReaction(isHeavy, attackerPos);
     }
 
     public void ApplyStun(float duration)

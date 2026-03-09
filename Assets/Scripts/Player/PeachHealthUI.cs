@@ -12,7 +12,7 @@ public class PeachHealthUI : MonoBehaviour
     
     private Image[] peachImages;
     
-    void Start()
+    void Awake()
     {
         peachImages = new Image[3];
         
@@ -38,6 +38,8 @@ public class PeachHealthUI : MonoBehaviour
     
     public void UpdateHealth(int currentHP)
     {
+        if (peachImages == null) return;
+        
         Debug.Log($"🍑 UpdateHealth: {currentHP}/12 HP");
         
         // Peach 2 (rightmost): HP 9-12

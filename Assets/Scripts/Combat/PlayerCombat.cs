@@ -44,13 +44,13 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float attackCooldown = 0.1f;
 
     [Header("Damage")]
-    [SerializeField] private int combo1Damage = 10;
-    [SerializeField] private int combo2Damage = 20;
-    [SerializeField] private int combo3Damage = 35;
-    [SerializeField] private int heavyDamageMin = 50;
-    [SerializeField] private int heavyDamageMax = 80;
+    [SerializeField] private int combo1Damage = 5;
+    [SerializeField] private int combo2Damage = 8;
+    [SerializeField] private int combo3Damage = 15;
+    [SerializeField] private int heavyDamageMin = 20;
+    [SerializeField] private int heavyDamageMax = 40;
     [SerializeField] private float heavyChargeTimeMax = 1.5f;
-    [SerializeField] private int aerialSpinDamage = 25;
+    [SerializeField] private int aerialSpinDamage = 12;
 
     [Header("Hitbox")]
     [SerializeField] private float attackRange = 1.5f;
@@ -58,6 +58,10 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("VFX")]
     [SerializeField] private ParticleSystem spinVFX;
+    
+    [Header("Hit Reaction VFX")]
+    [SerializeField] private ParticleSystem lightHitVFX;
+    [SerializeField] private ParticleSystem heavyHitVFX;
 
     [Header("Safety")]
     [SerializeField] private float maxAttackDuration = 4f;
@@ -267,6 +271,11 @@ public class PlayerCombat : MonoBehaviour
             animator.Play(animState, combatLayerIndex, 0f);
             DebugLog($"🤕 Hit React: {animState} ({duration}s) [animator.Play]");
         }
+
+        if (isHeavy)
+            PlayVFX(heavyHitVFX);
+        else
+            PlayVFX(lightHitVFX);
 
         isInHitReaction = true;
         hitReactionEndTime = Time.time + duration;
@@ -614,6 +623,11 @@ public class PlayerCombat : MonoBehaviour
             spinVFX.Stop();
             DebugLog("🌀 SPIN VFX STOP");
         }
+    }
+    
+    private void PlayVFX(ParticleSystem vfx)
+    {
+        if (vfx != null) vfx.Play();
     }
     #endregion
 
