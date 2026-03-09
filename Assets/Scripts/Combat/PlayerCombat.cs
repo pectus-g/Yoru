@@ -571,7 +571,8 @@ public class PlayerCombat : MonoBehaviour
     public void DealDamage()
     {
         int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
-        DealDamageInRange(damage, false);
+        bool isFinisher = !isAerialAttack && currentComboStep == 3;
+        DealDamageInRange(damage, isFinisher);  // combo 3 finisher triggers stagger
     }
 
     public void DealHeavyDamage()
