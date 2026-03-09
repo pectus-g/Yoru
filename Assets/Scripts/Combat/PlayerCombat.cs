@@ -59,6 +59,20 @@ public class PlayerCombat : MonoBehaviour
     [Header("VFX")]
     [SerializeField] private ParticleSystem spinVFX;
 
+    [Header("Hit Reaction VFX (drag-and-drop)")]
+    [Tooltip("VFX for light hit reaction")]
+    [SerializeField] private GameObject lightHitVFXPrefab;
+    [Tooltip("VFX for heavy hit reaction")]
+    [SerializeField] private GameObject heavyHitVFXPrefab;
+    [Tooltip("VFX for combo 1 attack")]
+    [SerializeField] private GameObject combo1VFXPrefab;
+    [Tooltip("VFX for combo 2 attack")]
+    [SerializeField] private GameObject combo2VFXPrefab;
+    [Tooltip("VFX for combo 3 attack")]
+    [SerializeField] private GameObject combo3VFXPrefab;
+    [Tooltip("VFX for heavy attack")]
+    [SerializeField] private GameObject heavyAttackVFXPrefab;
+
     [Header("Safety")]
     [SerializeField] private float maxAttackDuration = 4f;
 
@@ -270,6 +284,7 @@ public class PlayerCombat : MonoBehaviour
 
         isInHitReaction = true;
         hitReactionEndTime = Time.time + duration;
+        SpawnVFX(isHeavy ? heavyHitVFXPrefab : lightHitVFXPrefab);
     }
 
     /// <summary>
@@ -410,6 +425,13 @@ public class PlayerCombat : MonoBehaviour
         string stateName = GetComboStateName(currentComboStep);
         PlayCombatAnimation(stateName);
 
+        switch (currentComboStep)
+        {
+            case 1: SpawnVFX(combo1VFXPrefab); break;
+            case 2: SpawnVFX(combo2VFXPrefab); break;
+            case 3: SpawnVFX(combo3VFXPrefab); break;
+        }
+
         animator.SetInteger(HashComboStep, currentComboStep);
         animator.SetBool(HashIsAttacking, true);
 
@@ -505,6 +527,7 @@ public class PlayerCombat : MonoBehaviour
         LockPositionNow();
 
         PlayCombatAnimation(heavyStateName);
+        SpawnVFX(heavyAttackVFXPrefab);
 
         animator.SetBool(HashIsAttacking, true);
 
@@ -614,6 +637,15 @@ public class PlayerCombat : MonoBehaviour
             spinVFX.Stop();
             DebugLog("🌀 SPIN VFX STOP");
         }
+    }
+
+    private void SpawnVFX(GameObject prefab)
+    {
+        if (prefab == null) return;
+        Vector3 spawnPos = attackPoint != null ? attackPoint.position : cachedTransform.position + Vector3.up;
+        GameObject vfx = Instantiate(prefab, spawnPos, Quaternion.identity);
+        Destroy(vfx, 3f);
+        DebugLog($"VFX: {prefab.name}");
     }
     #endregion
 

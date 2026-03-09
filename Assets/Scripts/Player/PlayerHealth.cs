@@ -8,12 +8,12 @@ using TMPro;
 public class PlayerHealth : MonoBehaviour
 {
     [Header("Health Settings")]
-    [SerializeField] private int maxHealth = 12;
+    [SerializeField] private int maxHealth = 40;
     private int currentHealth;
 
     [Header("I-Frames")]
     [Tooltip("Invincibility duration after taking damage")]
-    [SerializeField] private float iFrameDuration = 0.5f;
+    [SerializeField] private float iFrameDuration = 0.3f;
     private float iFrameTimer;
 
     [Header("Stun")]
@@ -70,34 +70,36 @@ public class PlayerHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(int damage, bool isHeavy, Vector3 attackerPos)
     {
-        if (currentHealth <= 0) return;
-
+        // I-frames check (still works when alive)
         if (iFrameTimer > 0)
         {
             Debug.Log("🛡️ I-FRAMES active, damage ignored");
             return;
         }
 
-        currentHealth -= damage;
-        if (currentHealth < 0) currentHealth = 0;
-
-        iFrameTimer = iFrameDuration;
-
-        Debug.Log($"💔 DAMAGE! {damage} dmg → HP: {currentHealth}/{maxHealth}");
-
-        if (peachHealthUI != null)
-            peachHealthUI.UpdateHealth(currentHealth);
-
-        if (currentHealth <= 0)
+        // Apply damage only if alive
+        if (currentHealth > 0)
         {
-            Debug.Log("💀 PLAYER DIED!");
-        }
-        else
-        {
-            if (playerCombat != null)
+            currentHealth -= damage;
+            if (currentHealth < 0) currentHealth = 0;
+
+            iFrameTimer = iFrameDuration;
+
+            Debug.Log($"💔 DAMAGE! {damage} dmg → HP: {currentHealth}/{maxHealth}");
+
+            if (peachHealthUI != null)
+                peachHealthUI.UpdateHealth(currentHealth);
+
+            if (currentHealth <= 0)
             {
-                playerCombat.PlayHitReaction(isHeavy, attackerPos);
+                Debug.Log("💀 PLAYER DIED!");
             }
+        }
+
+        // ALWAYS play hit reaction (even after death for testing feedback)
+        if (playerCombat != null)
+        {
+            playerCombat.PlayHitReaction(isHeavy, attackerPos);
         }
     }
 
