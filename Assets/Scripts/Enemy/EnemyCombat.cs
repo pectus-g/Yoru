@@ -66,7 +66,7 @@ public class EnemyCombat : MonoBehaviour
         public float attackDuration = 0.3f;
         
         [Header("Damage")]
-        public int damage = 8;
+        public int damage = 1;
         [Tooltip("Attack range — how close player must be to get hit")]
         public float range = 3.5f;
         [Tooltip("Is this AoE? (damage all in range vs single target)")]
@@ -91,14 +91,14 @@ public class EnemyCombat : MonoBehaviour
     [Header("Detection")]
     [SerializeField] private float detectionRange = 10f;
     [SerializeField] private float attackRange = 3.5f;
-    [SerializeField] private float escapeRange = 15f;
+    [SerializeField] private float escapeRange = 50f;
     
     [Header("Timing")]
     [SerializeField] private float alertDuration = 0.5f;
     [SerializeField] private float recoveryDuration = 0.4f;
     [SerializeField] private float hitReactDuration = 0.5f;
     [SerializeField] private float staggerDuration = 1.0f;
-    [SerializeField] private float attackCooldown = 2.0f;
+    [SerializeField] private float attackCooldown = 3.0f;
     
     [Header("Movement")]
     [SerializeField] private float patrolSpeed = 1.5f;
@@ -113,13 +113,13 @@ public class EnemyCombat : MonoBehaviour
     [Tooltip("HP percentage to trigger Phase 2 (0.5 = 50%)")]
     [SerializeField] private float phaseThreshold = 0.5f;
     [SerializeField] private float chaseSpeedP2 = 4.0f;
-    [SerializeField] private float attackCooldownP2 = 1.2f;
+    [SerializeField] private float attackCooldownP2 = 2.0f;
     
     [Header("Teleport")]
-    [SerializeField] private bool canTeleport = false;
+    [SerializeField] private bool canTeleport = true;
     [Tooltip("Chance to teleport after recovery (0-1)")]
-    [SerializeField] private float teleportChance = 0.3f;
-    [SerializeField] private float teleportChanceP2 = 0.6f;
+    [SerializeField] private float teleportChance = 0.5f;
+    [SerializeField] private float teleportChanceP2 = 0.8f;
     [SerializeField] private float teleportDistance = 5f;
     [Tooltip("Playback speed for teleport animations")]
     [SerializeField] private float teleportSpeed = 1.0f;
@@ -143,6 +143,28 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private string hitReactAnim = "Hit_Reaction";
     [SerializeField] private string teleportOutAnim = "Teleport_Out";
     [SerializeField] private string teleportInAnim = "Teleport_In";
+    
+    [Header("VFX")]
+    [Tooltip("Particle effect for telegraph wind-up")]
+    [SerializeField] private ParticleSystem telegraphVFX;
+    [Tooltip("Particle effect for attack strike")]
+    [SerializeField] private ParticleSystem attackVFX;
+    [Tooltip("Particle effect for stagger")]
+    [SerializeField] private ParticleSystem staggerVFX;
+    [Tooltip("Particle effect for hit reaction")]
+    [SerializeField] private ParticleSystem hitReactVFX;
+    [Tooltip("Particle effect for teleport out")]
+    [SerializeField] private ParticleSystem teleportOutVFX;
+    [Tooltip("Particle effect for teleport in")]
+    [SerializeField] private ParticleSystem teleportInVFX;
+    [Tooltip("Particle effect for death")]
+    [SerializeField] private ParticleSystem deathVFX;
+    [Tooltip("Particle effect for alert/notice")]
+    [SerializeField] private ParticleSystem alertVFX;
+    
+    [Header("Damage")]
+    [Tooltip("Damage at or above this value is treated as a heavy hit for the player")]
+    [SerializeField] private int heavyHitThreshold = 15;
     
     [Header("Animator Layer")]
     [SerializeField] private int combatLayerIndex = 0;
@@ -195,7 +217,7 @@ public class EnemyCombat : MonoBehaviour
         if (navAgent != null)
         {
             navAgent.speed = patrolSpeed;
-            navAgent.stoppingDistance = attackRange;
+            navAgent.stoppingDistance = 0.5f;
             navAgent.updateRotation = false; // We handle rotation manually
         }
         
@@ -314,12 +336,26 @@ public class EnemyCombat : MonoBehaviour
 
     float dist = DistanceToPlayer();
 
-    // Player escaped
+    // Player escaped — teleport if possible, otherwise return to Idle
     if (dist > escapeRange)
     {
-        hasAlerted = false;
-        SetState(EnemyState.Idle);
-        DebugLog("Player escaped, returning to Idle");
+        if (canTeleport && !isTeleporting)
+        {
+            StartCoroutine(TeleportSequence());
+        }
+        else if (!canTeleport)
+        {
+            hasAlerted = false;
+            SetState(EnemyState.Idle);
+            DebugLog("Player escaped, returning to Idle");
+        }
+        return;
+    }
+
+    // Distance-based teleport trigger — close the gap instead of running forever
+    if (dist > escapeRange * 0.8f && canTeleport && !isTeleporting)
+    {
+        StartCoroutine(TeleportSequence());
         return;
     }
 
@@ -467,6 +503,7 @@ public class EnemyCombat : MonoBehaviour
                 stateTimer = alertDuration;
                 PlayAnimation(alertAnim);
                 SetAnimSpeed(1f);
+                PlayVFX(alertVFX);
                 break;
                 
             case EnemyState.Telegraph:
@@ -477,6 +514,7 @@ public class EnemyCombat : MonoBehaviour
                     stateTimer = duration;
                     PlayAnimation(currentAttack.telegraphAnim);
                     SetAnimSpeed(speed);
+                    PlayVFX(telegraphVFX);
                     DebugLog($"Telegraph: {currentAttack.attackName} ({duration:F2}s)");
                 }
                 break;
@@ -495,6 +533,7 @@ public class EnemyCombat : MonoBehaviour
                         SetAnimSpeed(speed);
                     }
                     
+                    PlayVFX(attackVFX);
                     DebugLog($"Attack: {currentAttack.attackName} ({duration:F2}s, {currentAttack.damage} dmg)");
                 }
                 break;
@@ -509,6 +548,7 @@ public class EnemyCombat : MonoBehaviour
                 stateTimer = hitReactDuration;
                 ForcePlayAnimation(hitReactAnim);
                 SetAnimSpeed(1f);
+                PlayVFX(hitReactVFX);
                 break;
                 
             case EnemyState.Stagger:
@@ -516,6 +556,7 @@ public class EnemyCombat : MonoBehaviour
                 PlayAnimation(staggerAnim);
                 SetAnimSpeed(1f);
                 cooldownTimer = 0; // Reset cooldown after stagger
+                PlayVFX(staggerVFX);
                 DebugLog($"STAGGERED for {staggerDuration}s");
                 break;
                 
@@ -523,6 +564,7 @@ public class EnemyCombat : MonoBehaviour
                 StopNav();
                 PlayAnimation(deathAnim);
                 SetAnimSpeed(1f);
+                PlayVFX(deathVFX);
                 break;
                 
             case EnemyState.Chase:
@@ -611,7 +653,8 @@ public class EnemyCombat : MonoBehaviour
         PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
         if (playerHealth == null) return;
         
-   playerHealth.TakeDamage(currentAttack.damage, false, transform.position);
+        bool isHeavy = currentAttack.damage >= heavyHitThreshold;
+        playerHealth.TakeDamage(currentAttack.damage, isHeavy, transform.position);
         DebugLog($"⚔️ Hit player for {currentAttack.damage} ({currentAttack.attackName})");
         
         // Apply stun if attack has it
@@ -634,6 +677,7 @@ public class EnemyCombat : MonoBehaviour
         // Phase 1: Teleport Out
         PlayAnimation(teleportOutAnim);
         SetAnimSpeed(speed);
+        PlayVFX(teleportOutVFX);
         
         float outTime = teleportOutDuration / speed;
         yield return new WaitForSeconds(outTime);
@@ -660,6 +704,7 @@ public class EnemyCombat : MonoBehaviour
         // Phase 2: Teleport In
         PlayAnimation(teleportInAnim);
         SetAnimSpeed(speed);
+        PlayVFX(teleportInVFX);
         
         float inTime = teleportInDuration / speed;
         yield return new WaitForSeconds(inTime);
@@ -819,8 +864,7 @@ private void TriggerHitFlash()
     #endregion
     
     #region Animation Helpers
-    private void PlayAnimation(string stateName)
-    {
+    private void PlayAnimation(string stateName)    {
         if (animator == null || string.IsNullOrEmpty(stateName)) return;
         if (stateName == currentPlayingAnim) return; // Already playing — don't restart
         
@@ -844,6 +888,11 @@ private void TriggerHitFlash()
     {
         if (animator == null) return;
         animator.SetFloat(HashAnimSpeed, speed);
+    }
+    
+    private void PlayVFX(ParticleSystem vfx)
+    {
+        if (vfx != null) vfx.Play();
     }
     #endregion
     

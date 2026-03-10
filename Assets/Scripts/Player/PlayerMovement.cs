@@ -134,6 +134,13 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
         
+        // Block input during hit reaction
+        if (playerCombat != null && playerCombat.IsInHitReaction())
+        {
+            SetState(PlayerState.Moving, false);
+            return;
+        }
+        
         // Get input once per frame
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
@@ -333,6 +340,9 @@ public class PlayerMovement : MonoBehaviour
     #region Animation
     private void UpdateAnimation()
     {
+        // Block locomotion animation during hit reaction
+        if (playerCombat != null && playerCombat.IsInHitReaction()) return;
+        
         // Skip if jumping or landing
         if (HasState(PlayerState.Jumping | PlayerState.Landing))
             return;
@@ -369,6 +379,8 @@ public class PlayerMovement : MonoBehaviour
     {
         return (currentState & state) != 0;
     }
+    
+    public bool IsRunning() => HasState(PlayerState.Running);
     #endregion
     
     #region Debug
