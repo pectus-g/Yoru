@@ -225,6 +225,9 @@ public class PlayerCombat : MonoBehaviour
     /// </summary>
     public void PlayHitReaction(bool isHeavy, Vector3 attackerPos)
     {
+        // CHECK STANCE FIRST — before reset clears movement state
+        bool is4Leg = playerMovement != null && playerMovement.IsRunning();
+
         // Reset combat state directly (no ReturnToIdle — avoids double transition)
         isAttacking = false;
         isChargingHeavy = false;
@@ -261,7 +264,6 @@ public class PlayerCombat : MonoBehaviour
         }
 
         // Pick animation based on stance and severity
-        bool is4Leg = playerMovement != null && playerMovement.IsRunning();
         string animState;
         float duration;
 
