@@ -171,7 +171,7 @@ public class EnemyCombat : MonoBehaviour
     
     [Header("Damage")]
     [Tooltip("Damage at or above this threshold is treated as a heavy hit")]
-    [SerializeField] private int heavyHitThreshold = 15;
+    [SerializeField] private int heavyHitThreshold = 5;
     #endregion
     
     #region Private Fields
@@ -711,15 +711,23 @@ public class EnemyCombat : MonoBehaviour
         Vector3 behindDir = -player.forward;
         Vector3 targetPos = player.position + behindDir * teleportDistance;
         
-        // Ensure position is on NavMesh
-        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, teleportDistance, NavMesh.AllAreas))
+        // Use larger search radius to ensure NavMesh hit
+        float searchRadius = teleportDistance * 3f;
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, searchRadius, NavMesh.AllAreas))
         {
             return hit.position;
         }
         
         // Fallback: try to the side
         Vector3 sidePos = player.position + player.right * teleportDistance;
-        if (NavMesh.SamplePosition(sidePos, out hit, teleportDistance, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(sidePos, out hit, searchRadius, NavMesh.AllAreas))
+        {
+            return hit.position;
+        }
+        
+        // Fallback: try in front
+        Vector3 frontPos = player.position + player.forward * teleportDistance;
+        if (NavMesh.SamplePosition(frontPos, out hit, searchRadius, NavMesh.AllAreas))
         {
             return hit.position;
         }
