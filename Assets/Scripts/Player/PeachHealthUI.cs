@@ -38,31 +38,31 @@ public class PeachHealthUI : MonoBehaviour
     
     public void UpdateHealth(int currentHP)
     {
-        if (peachImages == null) return; // Safety guard
+        if (peachImages == null) return;
         
-        Debug.Log($"🍑 UpdateHealth: {currentHP} HP");
+        Debug.Log($"🍑 UpdateHealth: {currentHP}/24 HP");
         
-        // Peach 2 (rightmost): HP 9-12
-        int peach2HP = Mathf.Clamp(currentHP - 8, 0, 4);
+        // Peach 2 (rightmost): HP 17-24
+        int peach2HP = Mathf.Clamp(currentHP - 16, 0, 8);
         peachImages[2].sprite = GetSprite(peach2HP);
         
-        // Peach 1 (middle): HP 5-8
-        int peach1HP = Mathf.Clamp(currentHP - 4, 0, 4);
+        // Peach 1 (middle): HP 9-16
+        int peach1HP = Mathf.Clamp(currentHP - 8, 0, 8);
         peachImages[1].sprite = GetSprite(peach1HP);
         
-        // Peach 0 (leftmost): HP 1-4
-        int peach0HP = Mathf.Clamp(currentHP, 0, 4);
+        // Peach 0 (leftmost): HP 1-8
+        int peach0HP = Mathf.Clamp(currentHP, 0, 8);
         peachImages[0].sprite = GetSprite(peach0HP);
         
-        Debug.Log($"  Peach 0: {peach0HP}, Peach 1: {peach1HP}, Peach 2: {peach2HP}");
+        Debug.Log($"  Peach 0: {peach0HP}/8, Peach 1: {peach1HP}/8, Peach 2: {peach2HP}/8");
     }
     
     Sprite GetSprite(int hp)
     {
-        if (hp == 4) return fullPeach;
-        if (hp == 3) return threeQuarterPeach;
-        if (hp == 2) return halfPeach;
-        if (hp == 1) return quarterPeach;
-        return emptyPeach;
+        if (hp >= 7) return fullPeach;        // 7-8 HP
+        if (hp >= 5) return threeQuarterPeach; // 5-6 HP
+        if (hp >= 3) return halfPeach;         // 3-4 HP
+        if (hp >= 1) return quarterPeach;      // 1-2 HP
+        return emptyPeach;                     // 0 HP
     }
 }

@@ -40,7 +40,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private int combatLayerIndex = 1;
 
     [Header("Combo Settings")]
-    [SerializeField] private float comboWindowTime = 1.5f;
+    [SerializeField] private float comboWindowTime = 2.0f;
     [SerializeField] private float attackCooldown = 0.1f;
 
     [Header("Damage")]
@@ -389,7 +389,7 @@ public class PlayerCombat : MonoBehaviour
 
         if (isAttacking)
         {
-            if (canQueueNextAttack && currentComboStep < 3)
+            if (currentComboStep < 3)
             {
                 nextAttackQueued = true;
                 DebugLog($"Queued combo {currentComboStep + 1}");
