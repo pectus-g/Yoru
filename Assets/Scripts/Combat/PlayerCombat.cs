@@ -27,8 +27,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private string hitReactHeavy4Leg = "HitReact_Running_4Leg";
 
     [Header("Hit Reaction Timing")]
-    [SerializeField] private float lightHitReactDuration = 0.45f;
-    [SerializeField] private float heavyHitReactDuration = 0.7f;
+    [SerializeField] private float lightHitReactDuration = 0.65f;
+    [SerializeField] private float heavyHitReactDuration = 1.0f;
 
     [Header("Knockback Pull")]
     [Tooltip("How far the player gets pulled toward attacker on Hair Lash hit")]
@@ -44,13 +44,13 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float attackCooldown = 0.1f;
 
     [Header("Damage")]
-    [SerializeField] private int combo1Damage = 10;
-    [SerializeField] private int combo2Damage = 20;
-    [SerializeField] private int combo3Damage = 35;
-    [SerializeField] private int heavyDamageMin = 50;
-    [SerializeField] private int heavyDamageMax = 80;
+    [SerializeField] private int combo1Damage = 5;
+    [SerializeField] private int combo2Damage = 8;
+    [SerializeField] private int combo3Damage = 15;
+    [SerializeField] private int heavyDamageMin = 20;
+    [SerializeField] private int heavyDamageMax = 40;
     [SerializeField] private float heavyChargeTimeMax = 1.5f;
-    [SerializeField] private int aerialSpinDamage = 25;
+    [SerializeField] private int aerialSpinDamage = 12;
 
     [Header("Hitbox")]
     [SerializeField] private float attackRange = 1.5f;
@@ -58,6 +58,20 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("VFX")]
     [SerializeField] private ParticleSystem spinVFX;
+
+    [Header("Combat VFX")]
+    [Tooltip("VFX for light hit reaction")]
+    [SerializeField] private ParticleSystem lightHitVFX;
+    [Tooltip("VFX for heavy hit reaction")]
+    [SerializeField] private ParticleSystem heavyHitVFX;
+    [Tooltip("VFX for combo 1 attack")]
+    [SerializeField] private ParticleSystem combo1VFX;
+    [Tooltip("VFX for combo 2 attack")]
+    [SerializeField] private ParticleSystem combo2VFX;
+    [Tooltip("VFX for combo 3 spin attack")]
+    [SerializeField] private ParticleSystem combo3VFX;
+    [Tooltip("VFX for heavy charge attack")]
+    [SerializeField] private ParticleSystem heavyAttackVFX;
 
     [Header("Safety")]
     [SerializeField] private float maxAttackDuration = 4f;
@@ -69,6 +83,7 @@ public class PlayerCombat : MonoBehaviour
 
     #region Private Fields
     private CharacterController characterController;
+    private PlayerMovement playerMovement;
     private Transform cachedTransform;
 
     // Combo state
@@ -118,6 +133,7 @@ public class PlayerCombat : MonoBehaviour
             animator = GetComponent<Animator>();
 
         characterController = GetComponent<CharacterController>();
+        playerMovement = GetComponent<PlayerMovement>();
         cachedTransform = transform;
 
         if (attackPoint == null)
@@ -245,7 +261,7 @@ public class PlayerCombat : MonoBehaviour
         }
 
         // Pick animation based on stance and severity
-        bool is4Leg = Input.GetKey(KeyCode.LeftShift);
+        bool is4Leg = playerMovement != null && playerMovement.IsRunning();
         string animState;
         float duration;
 
@@ -253,11 +269,13 @@ public class PlayerCombat : MonoBehaviour
         {
             animState = is4Leg ? hitReactHeavy4Leg : hitReactHeavy2Leg;
             duration = heavyHitReactDuration;
+            PlayVFX(heavyHitVFX);
         }
         else
         {
             animState = is4Leg ? hitReactLight4Leg : hitReactLight2Leg;
             duration = lightHitReactDuration;
+            PlayVFX(lightHitVFX);
         }
 
         // USE animator.Play() — immediate, no blend issues from empty/idle states
@@ -410,6 +428,14 @@ public class PlayerCombat : MonoBehaviour
         string stateName = GetComboStateName(currentComboStep);
         PlayCombatAnimation(stateName);
 
+        // Play combo VFX
+        switch (currentComboStep)
+        {
+            case 1: PlayVFX(combo1VFX); break;
+            case 2: PlayVFX(combo2VFX); break;
+            case 3: PlayVFX(combo3VFX); break;
+        }
+
         animator.SetInteger(HashComboStep, currentComboStep);
         animator.SetBool(HashIsAttacking, true);
 
@@ -505,6 +531,7 @@ public class PlayerCombat : MonoBehaviour
         LockPositionNow();
 
         PlayCombatAnimation(heavyStateName);
+        PlayVFX(heavyAttackVFX);
 
         animator.SetBool(HashIsAttacking, true);
 
@@ -614,6 +641,11 @@ public class PlayerCombat : MonoBehaviour
             spinVFX.Stop();
             DebugLog("🌀 SPIN VFX STOP");
         }
+    }
+    
+    private void PlayVFX(ParticleSystem vfx)
+    {
+        if (vfx != null) vfx.Play();
     }
     #endregion
 
