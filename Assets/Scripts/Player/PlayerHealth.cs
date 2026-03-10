@@ -8,7 +8,7 @@ using TMPro;
 public class PlayerHealth : MonoBehaviour
 {
     [Header("Health Settings")]
-    [SerializeField] private int maxHealth = 20;
+    [SerializeField] private int maxHealth = 24;
     private int currentHealth;
 
     [Header("I-Frames")]

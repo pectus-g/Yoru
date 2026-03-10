@@ -91,7 +91,7 @@ public class EnemyCombat : MonoBehaviour
     [Header("Detection")]
     [SerializeField] private float detectionRange = 10f;
     [SerializeField] private float attackRange = 3.5f;
-    [SerializeField] private float escapeRange = 50f;
+    [SerializeField] private float escapeRange = 15f;
     
     [Header("Timing")]
     [SerializeField] private float alertDuration = 0.5f;
@@ -194,7 +194,6 @@ public class EnemyCombat : MonoBehaviour
     private bool hasAlerted;
     
     // Teleport
-    private const float PreemptiveTeleportThreshold = 0.8f; // Teleport early at this fraction of escapeRange
     private bool isTeleporting;
     
     // Animation tracking — prevents CrossFade from restarting every frame
@@ -331,85 +330,69 @@ public class EnemyCombat : MonoBehaviour
         }
     }
     
- private void HandleChase()
-{
-    if (player == null) return;
-
-    float dist = DistanceToPlayer();
-
-    // Player too far — teleport instead of giving up
-    if (dist > escapeRange)
+    private void HandleChase()
     {
-        if (canTeleport && !isTeleporting)
+        if (player == null) return;
+
+        float dist = DistanceToPlayer();
+
+        // In attack range and cooldown ready — attack
+        if (dist <= attackRange && cooldownTimer <= 0)
+        {
+            EnemyAttack chosen = ChooseAttack();
+            if (chosen != null)
+            {
+                currentAttack = chosen;
+                SetState(EnemyState.Telegraph);
+                return;
+            }
+        }
+
+        // In attack range but cooldown not ready — wait in place
+        if (dist <= attackRange)
+        {
+            StopNav();
+            LookAtPlayer();
+            PlayAnimation(idleAnim);
+            return;
+        }
+
+        // Player getting far — teleport to close gap
+        if (canTeleport && !isTeleporting && dist > escapeRange)
         {
             DebugLog("Player too far, teleporting to close gap");
             StartCoroutine(TeleportSequence());
             return;
         }
-        // Only fall back to Idle if teleport is disabled
-        hasAlerted = false;
-        SetState(EnemyState.Idle);
-        DebugLog("Player escaped (teleport disabled), returning to Idle");
-        return;
-    }
 
-    // Preemptive teleport — if getting close to escape range, teleport early
-    if (canTeleport && !isTeleporting && dist > escapeRange * PreemptiveTeleportThreshold)
-    {
-        DebugLog("Preemptive teleport — approaching escape range");
-        StartCoroutine(TeleportSequence());
-        return;
-    }
-
-    // In attack range and cooldown ready — attack
-    if (dist <= attackRange && cooldownTimer <= 0)
-    {
-        EnemyAttack chosen = ChooseAttack();
-        if (chosen != null)
-        {
-            currentAttack = chosen;
-            SetState(EnemyState.Telegraph);
-            return;
-        }
-    }
-
-    // In attack range but cooldown not ready — wait in place
-    if (dist <= attackRange)
-    {
-        StopNav();
+        // Chase — distance-based speed and animation
         LookAtPlayer();
-        PlayAnimation(idleAnim);
-        return;
-    }
+        float walkThreshold = attackRange + 3f;
 
-    // Chase — distance-based speed and animation
-    LookAtPlayer();
-    float walkThreshold = attackRange + 3f;
-
-    if (dist <= walkThreshold)
-    {
-        // Close — walk
-        if (navAgent != null && navAgent.isOnNavMesh)
+        if (dist <= walkThreshold)
         {
-            navAgent.isStopped = false;
-            navAgent.speed = patrolSpeed;
-            navAgent.SetDestination(player.position);
+            // Close — walk
+            if (navAgent != null && navAgent.isOnNavMesh)
+            {
+                navAgent.isStopped = false;
+                navAgent.speed = patrolSpeed;
+                navAgent.SetDestination(player.position);
+            }
+            PlayAnimation(walkAnim);
         }
-        PlayAnimation(walkAnim);
-    }
-    else
-    {
-        // Far — run
-        float speed = isPhase2 ? chaseSpeedP2 : chaseSpeed;
-        if (navAgent != null && navAgent.isOnNavMesh)
+        else
         {
-            navAgent.isStopped = false;
-            navAgent.speed = speed;
-            navAgent.SetDestination(player.position);
+            // Far — run
+            float speed = isPhase2 ? chaseSpeedP2 : chaseSpeed;
+            if (navAgent != null && navAgent.isOnNavMesh)
+            {
+                navAgent.isStopped = false;
+                navAgent.speed = speed;
+                navAgent.SetDestination(player.position);
+            }
+            PlayAnimation(runAnim);
         }
-        PlayAnimation(runAnim);
     }
-}
     private void HandleTelegraph()
     {
         StopNav();
