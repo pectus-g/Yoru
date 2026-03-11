@@ -104,6 +104,12 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float patrolSpeed = 1.5f;
     [SerializeField] private float chaseSpeed = 3.0f;
     [SerializeField] private float rotationSpeed = 5f;
+    [Tooltip("Strafe speed when circling player during attack cooldown")]
+    [SerializeField] private float strafeSpeed = 2.0f;
+    
+    [Header("Chase Teleport Timer")]
+    [Tooltip("Seconds of chasing without attacking before forced teleport (0 = disabled)")]
+    [SerializeField] private float chaseTeleportTime = 8f;
     
     [Header("Attacks")]
     [SerializeField] private EnemyAttack[] attacks;
@@ -141,6 +147,7 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private string staggerAnim = "Stagger";
     [SerializeField] private string deathAnim = "Death_Dissolve";
     [SerializeField] private string hitReactAnim = "Hit_Reaction";
+    [SerializeField] private string recoveryAnim = "";
     [SerializeField] private string teleportOutAnim = "Teleport_Out";
     [SerializeField] private string teleportInAnim = "Teleport_In";
     
@@ -171,7 +178,7 @@ public class EnemyCombat : MonoBehaviour
     
     [Header("Damage")]
     [Tooltip("Damage at or above this threshold is treated as a heavy hit")]
-    [SerializeField] private int heavyHitThreshold = 5;
+    [SerializeField] private int heavyHitThreshold = 2;
     #endregion
     
     #region Private Fields
@@ -195,6 +202,9 @@ public class EnemyCombat : MonoBehaviour
     
     // Teleport
     private bool isTeleporting;
+    
+    // Chase timer — teleport if chasing too long without attacking
+    private float chaseTimer;
     
     // Animation tracking — prevents CrossFade from restarting every frame
     private string currentPlayingAnim = "";
@@ -335,10 +345,14 @@ public class EnemyCombat : MonoBehaviour
         if (player == null) return;
 
         float dist = DistanceToPlayer();
+        
+        // Increment chase timer
+        chaseTimer += Time.deltaTime;
 
         // In attack range and cooldown ready — attack
         if (dist <= attackRange && cooldownTimer <= 0)
         {
+            chaseTimer = 0f; // Reset — we're attacking
             EnemyAttack chosen = ChooseAttack();
             if (chosen != null)
             {
@@ -348,20 +362,45 @@ public class EnemyCombat : MonoBehaviour
             }
         }
 
-        // In attack range but cooldown not ready — wait in place
+        // In attack range but cooldown not ready — CIRCLE the player instead of standing idle
         if (dist <= attackRange)
         {
-            StopNav();
             LookAtPlayer();
-            PlayAnimation(idleAnim);
+            if (navAgent != null && navAgent.isOnNavMesh)
+            {
+                // Strafe sideways around the player
+                Vector3 strafeDir = Vector3.Cross(Vector3.up, (player.position - transform.position).normalized);
+                Vector3 strafeTarget = transform.position + strafeDir * 2f;
+                navAgent.isStopped = false;
+                navAgent.speed = strafeSpeed;
+                navAgent.SetDestination(strafeTarget);
+            }
+            PlayAnimation(walkAnim);
             return;
         }
 
-        // Player getting far — teleport to close gap
+        // Chase timer teleport — been chasing too long without attacking
+        if (canTeleport && !isTeleporting && chaseTeleportTime > 0 && chaseTimer >= chaseTeleportTime)
+        {
+            chaseTimer = 0f;
+            DebugLog($"Chase timer expired ({chaseTeleportTime}s), teleporting to close gap");
+            StartCoroutine(TeleportSequence());
+            return;
+        }
+
+        // Distance-based teleport — player escaped far away
         if (canTeleport && !isTeleporting && dist > escapeRange)
         {
+            chaseTimer = 0f;
             DebugLog("Player too far, teleporting to close gap");
             StartCoroutine(TeleportSequence());
+            return;
+        }
+
+        // Player beyond escape range and no teleport — return to idle
+        if (!canTeleport && dist > escapeRange)
+        {
+            SetState(EnemyState.Idle);
             return;
         }
 
@@ -525,7 +564,7 @@ public class EnemyCombat : MonoBehaviour
                 
             case EnemyState.Recovery:
                 stateTimer = recoveryDuration;
-                PlayAnimation(idleAnim);
+                PlayAnimation(string.IsNullOrEmpty(recoveryAnim) ? idleAnim : recoveryAnim);
                 SetAnimSpeed(1f);
                 break;
                 
@@ -553,6 +592,7 @@ public class EnemyCombat : MonoBehaviour
                 break;
                 
             case EnemyState.Chase:
+                chaseTimer = 0f;
                 SetAnimSpeed(1f);
                 break;
                 
@@ -817,6 +857,7 @@ private void TriggerHitFlash()
         hasAlerted = false;
         cooldownTimer = 0;
         stateTimer = 0;
+        chaseTimer = 0;
         currentAttack = null;
         currentPlayingAnim = "";
         currentState = EnemyState.LostSoul;

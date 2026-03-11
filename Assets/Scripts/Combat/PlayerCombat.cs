@@ -91,7 +91,7 @@ public class PlayerCombat : MonoBehaviour
     private float lastAttackTime;
     private bool isAttacking;
     private bool canQueueNextAttack;
-    private bool nextAttackQueued;
+    private int queuedClicks; // FIX: counter instead of bool so rapid 3-clicks all register
 
     // Aerial
     private bool isAerialAttack;
@@ -165,6 +165,14 @@ public class PlayerCombat : MonoBehaviour
         HandleInput();
         CheckGroundedStatus();
 
+        // Process queued clicks after attack ends (fallback if anim event was late)
+        if (!isAttacking && !isInHitReaction && queuedClicks > 0 && currentComboStep > 0 && currentComboStep < 3)
+        {
+            queuedClicks--;
+            DebugLog("Processing queued click (post-attack fallback)");
+            PerformGroundCombo();
+        }
+
         // Safety timeout
         if (isAttacking && Time.time - attackStartTime > maxAttackDuration)
         {
@@ -232,7 +240,7 @@ public class PlayerCombat : MonoBehaviour
         isAttacking = false;
         isChargingHeavy = false;
         canQueueNextAttack = false;
-        nextAttackQueued = false;
+        queuedClicks = 0;
         currentComboStep = 0;
         attackButtonHoldTime = 0f;
         isAerialAttack = false;
@@ -393,8 +401,8 @@ public class PlayerCombat : MonoBehaviour
         {
             if (currentComboStep < 3)
             {
-                nextAttackQueued = true;
-                DebugLog($"Queued combo {currentComboStep + 1}");
+                queuedClicks++;
+                DebugLog($"Queued click #{queuedClicks} (during combo {currentComboStep})");
             }
             return;
         }
@@ -444,7 +452,7 @@ public class PlayerCombat : MonoBehaviour
         isAttacking = true;
         isAerialAttack = false;
         canQueueNextAttack = false;
-        nextAttackQueued = false;
+        // NOTE: Don't clear queuedClicks here — remaining clicks persist for next combo step
         lastAttackTime = Time.time;
     }
 
@@ -507,7 +515,7 @@ public class PlayerCombat : MonoBehaviour
 
         isAttacking = true;
         canQueueNextAttack = false;
-        nextAttackQueued = false;
+        queuedClicks = 0;
         lastAttackTime = Time.time;
     }
     #endregion
@@ -655,12 +663,12 @@ public class PlayerCombat : MonoBehaviour
     public void OnCanQueueNextAttack()
     {
         canQueueNextAttack = true;
-        DebugLog($"Can queue (combo {currentComboStep})");
+        DebugLog($"Can queue (combo {currentComboStep}, {queuedClicks} clicks pending)");
 
-        if (nextAttackQueued)
+        if (queuedClicks > 0)
         {
-            nextAttackQueued = false;
-            DebugLog("Processing queued attack!");
+            queuedClicks--;
+            DebugLog("Processing queued click!");
             PerformGroundCombo();
         }
     }
@@ -694,7 +702,7 @@ public class PlayerCombat : MonoBehaviour
         isAttacking = false;
         isChargingHeavy = false;
         canQueueNextAttack = false;
-        nextAttackQueued = false;
+        queuedClicks = 0;
         currentComboStep = 0;
         attackStartTime = 0f;
         attackButtonHoldTime = 0f;
