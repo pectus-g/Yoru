@@ -44,13 +44,13 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float attackCooldown = 0.1f;
 
     [Header("Damage")]
-    [SerializeField] private int combo1Damage = 5;
-    [SerializeField] private int combo2Damage = 8;
-    [SerializeField] private int combo3Damage = 15;
-    [SerializeField] private int heavyDamageMin = 20;
-    [SerializeField] private int heavyDamageMax = 40;
+    [SerializeField] private int combo1Damage = 10;
+    [SerializeField] private int combo2Damage = 20;
+    [SerializeField] private int combo3Damage = 35;
+    [SerializeField] private int heavyDamageMin = 50;
+    [SerializeField] private int heavyDamageMax = 80;
     [SerializeField] private float heavyChargeTimeMax = 1.5f;
-    [SerializeField] private int aerialSpinDamage = 12;
+    [SerializeField] private int aerialSpinDamage = 45;
 
     [Header("Hitbox")]
     [SerializeField] private float attackRange = 1.5f;

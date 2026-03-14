@@ -374,9 +374,9 @@ Each of the 10 bosses grants:
   - NPCs trust her more
   - Dialogue options unlock that aren't available as a cat
 - **Weaknesses:**
-  - **Physically WEAK—cannot fight**
-  - **If transformed during combat = INSTANT DEATH**
-  - Slow movement
+  - **Physically WEAK—vulnerable in combat**
+  - **Takes +50% damage when in Old Woman form during combat**
+  - Slow movement (-30% speed)
   - Cannot dodge effectively
   - Cannot use tail abilities
 
@@ -389,13 +389,13 @@ Each of the 10 bosses grants:
 
 **During Boss Fight (HIGH RISK):**
 - ⚠️ **DO NOT TRANSFORM TO OLD WOMAN**
-- ⚠️ She is too weak—boss will kill her instantly
-- ⚠️ Transformation during combat = Game Over
+- ⚠️ She takes +50% damage in this form—boss will overwhelm her quickly
+- ⚠️ Staying in Old Woman form during prolonged combat is extremely dangerous
 
 **Strategic Gameplay:**
 - Players must decide: "Do I risk persuasion as the old woman, or fight as the cat?"
-- Old woman form = easier persuasion but locked into that choice
-- Cat form = harder persuasion but can fight if it fails
+- Old woman form = easier persuasion but very vulnerable if combat starts
+- Cat form = harder persuasion but can fight safely if it fails
 
 ---
 
