@@ -32,7 +32,7 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Knockback Pull")]
     [Tooltip("How far the player gets pulled toward attacker on Hair Lash hit")]
-    [SerializeField] private float pullDistance = 2.5f;
+    [SerializeField] private float pullDistance = 0.5f;
     [Tooltip("How long the pull takes (smooth over this many seconds)")]
     [SerializeField] private float pullDuration = 0.15f;
 
@@ -75,6 +75,12 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Safety")]
     [SerializeField] private float maxAttackDuration = 4f;
+
+    [Header("Combat Targeting (Soft Lock-On)")]
+    [Tooltip("Max distance to auto-face an enemy when attacking")]
+    [SerializeField] private float targetingRange = 8f;
+    [Tooltip("Max angle (degrees) from forward to consider an enemy for auto-face")]
+    [SerializeField] private float targetingAngle = 90f;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
@@ -262,6 +268,9 @@ public class PlayerCombat : MonoBehaviour
 
             if (pullDir.sqrMagnitude > 0.01f)
             {
+                // Face the attacker during hit reaction
+                cachedTransform.rotation = Quaternion.LookRotation(pullDir.normalized);
+
                 // Stop any existing pull
                 if (pullCoroutine != null)
                     StopCoroutine(pullCoroutine);
@@ -391,6 +400,55 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
 
+    #region Combat Targeting
+    /// <summary>
+    /// Soft lock-on: instantly rotates Yoru to face the nearest enemy within range and angle.
+    /// Called at the start of every attack so Yoru doesn't swing at air.
+    /// </summary>
+    private void FaceNearestEnemy()
+    {
+        Collider[] nearby = Physics.OverlapSphere(cachedTransform.position, targetingRange, enemyLayer);
+        if (nearby.Length == 0) return;
+
+        Transform bestTarget = null;
+        float bestScore = float.MaxValue;
+
+        foreach (Collider col in nearby)
+        {
+            // Skip dead enemies
+            EnemyHealth eh = col.GetComponent<EnemyHealth>();
+            if (eh != null && eh.IsDead()) continue;
+
+            Vector3 dirToEnemy = (col.transform.position - cachedTransform.position);
+            dirToEnemy.y = 0;
+            float dist = dirToEnemy.magnitude;
+            if (dist < 0.1f) continue;
+
+            // Check angle — only target enemies roughly in front
+            float angle = Vector3.Angle(cachedTransform.forward, dirToEnemy);
+            if (angle > targetingAngle) continue;
+
+            // Score: prefer closer enemies, slightly prefer enemies more centered
+            float score = dist + (angle * 0.02f);
+            if (score < bestScore)
+            {
+                bestScore = score;
+                bestTarget = col.transform;
+            }
+        }
+
+        if (bestTarget != null)
+        {
+            Vector3 lookDir = (bestTarget.position - cachedTransform.position);
+            lookDir.y = 0;
+            if (lookDir.sqrMagnitude > 0.01f)
+            {
+                cachedTransform.rotation = Quaternion.LookRotation(lookDir);
+            }
+        }
+    }
+    #endregion
+
     #region Ground Combo
     private void TryGroundCombo()
     {
@@ -399,7 +457,7 @@ public class PlayerCombat : MonoBehaviour
 
         if (isAttacking)
         {
-            if (currentComboStep < 3)
+            if (currentComboStep < 3 && queuedClicks < 2) // Cap at 2: enough for full 1→2→3 chain
             {
                 queuedClicks++;
                 DebugLog($"Queued click #{queuedClicks} (during combo {currentComboStep})");
@@ -413,6 +471,7 @@ public class PlayerCombat : MonoBehaviour
     private void PerformGroundCombo()
     {
         attackStartTime = Time.time;
+        FaceNearestEnemy(); // Soft lock-on: face nearest enemy before swinging
 
         if (currentComboStep > 0 && Time.time - lastAttackTime > comboWindowTime)
         {
@@ -500,6 +559,7 @@ public class PlayerCombat : MonoBehaviour
     private void PerformAerialSpin()
     {
         attackStartTime = Time.time;
+        FaceNearestEnemy(); // Soft lock-on
         hasUsedAerialAttack = true;
         isAerialAttack = true;
         currentComboStep = 3;
@@ -532,6 +592,7 @@ public class PlayerCombat : MonoBehaviour
     private void ReleaseHeavyAttack()
     {
         attackStartTime = Time.time;
+        FaceNearestEnemy(); // Soft lock-on
 
         storedHeavyChargePercent = Mathf.Clamp01((Time.time - heavyChargeStartTime) / heavyChargeTimeMax);
         int damage = Mathf.RoundToInt(Mathf.Lerp(heavyDamageMin, heavyDamageMax, storedHeavyChargePercent));
@@ -684,6 +745,12 @@ public class PlayerCombat : MonoBehaviour
         isAttacking = false;
         canQueueNextAttack = false;
         lastAttackTime = Time.time;
+
+        // Clear queue after combo 3, heavy, or aerial — combo chain is complete
+        if (currentComboStep >= 3 || isAerialAttack || currentComboStep == 0)
+        {
+            queuedClicks = 0;
+        }
 
         if (isAerialAttack)
         {
