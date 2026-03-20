@@ -944,16 +944,18 @@ private void TriggerHitFlash()
     public EnemyState GetCurrentState() => currentState;
     public bool IsPhase2() => isPhase2;
     public bool IsInCombat() => currentState >= EnemyState.Idle && currentState <= EnemyState.Teleport;
+
+    /// <summary>
+    /// Public Animator access — CombatFeedbackManager uses this for hitstop.
+    /// </summary>
+    public Animator GetAnimator() => animator;
     #endregion
     
     #region Debug
     private void HandleDebugInput()
     {
-        if (Input.GetKeyDown(KeyCode.T))
-        {
-            BecomeHostile();
-            DebugLog("[DEBUG] Forced HOSTILE");
-        }
+        // T key removed — conflicts with Transform (cat/human) keybind.
+        // Use Inspector button or console command to force hostile.
     }
     
     private void DebugLog(string msg)
