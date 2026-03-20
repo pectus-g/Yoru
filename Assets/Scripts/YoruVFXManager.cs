@@ -43,6 +43,8 @@ public class YoruVFXManager : MonoBehaviour
     private bool wasGrounded;
     private GameObject activeRunTrail;
     
+    private PlayerCombat playerCombat;
+    
     // Track if effects have been triggered this animation
     private bool attackPawTriggered;
     private bool towPawTriggered;
@@ -57,6 +59,7 @@ public class YoruVFXManager : MonoBehaviour
     {
         animator = GetComponent<Animator>();
         controller = GetComponent<CharacterController>();
+        playerCombat = GetComponent<PlayerCombat>();
         
         if (!centerBody) centerBody = transform;
         
@@ -204,16 +207,17 @@ public class YoruVFXManager : MonoBehaviour
             }
         }
         
-        // Landing effect
-     // Landing effect
+        // Landing effect — skip during dodge (CharacterController.Move causes ground flicker)
 if (!wasGrounded && isGrounded && landingImpactPrefab != null)
 {
-    Vector3 landingPos = transform.position;
-    landingPos.y += 0.5f;
-    // Rotate to make it point up
-    Quaternion rotation = Quaternion.Euler(-90, 0, 0);  // or try 90
-    SpawnEffect(landingImpactPrefab, landingPos, rotation);
-    if (debugMode) Debug.Log("💨 Landing VFX spawned!");
+    if (playerCombat == null || !playerCombat.IsDodging())
+    {
+        Vector3 landingPos = transform.position;
+        landingPos.y += 0.5f;
+        Quaternion rotation = Quaternion.Euler(-90, 0, 0);
+        SpawnEffect(landingImpactPrefab, landingPos, rotation);
+        if (debugMode) Debug.Log("💨 Landing VFX spawned!");
+    }
 }
     }
     

@@ -2,8 +2,12 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3A v3: Camera-relative dodge, auto clip-length, i-frame support.
-/// Combat Layer stays at weight 1 always. Animations via CrossFadeInFixedTime / animator.Play.
+/// YORU Combat System — Phase 3A v5
+/// - Dodge: frontflip always, direction from WASD input (S=toward camera, D=right, etc). No backflip.
+/// - Combo 1-2: no position lock (rotation tracking only). Combo 3 + heavy: position lock.
+/// - Combat layer weight stays at 1 always.
+/// - Attack debug logs to diagnose hit detection (remove after confirmed working).
+/// - enemyLayer scene override fixed (m_Bits: 1024 = layer 10).
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -26,8 +30,6 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private string hitReactHeavy4Leg = "HitReact_Running_4Leg";
 
     [Header("Animation State Names — Dodge")]
-    [SerializeField] private string dodgeBackflip2LegState = "Dodge_Backflip_2Leg";
-    [SerializeField] private string dodgeBackflip4LegState = "Dodge_Backflip_4Leg";
     [SerializeField] private string dodge2LegState = "Dodge_2Leg";
     [SerializeField] private string dodge4LegState = "Dodge_4Leg";
 
@@ -56,13 +58,11 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private int aerialSpinDamage = 25;
 
     [Header("Dodge — Distances")]
-    [SerializeField] private float backflip2LegDistance = 2.0f;
-    [SerializeField] private float frontflip2LegDistance = 3.0f;
-    [SerializeField] private float backflip4LegDistance = 2.5f;
-    [SerializeField] private float frontflip4LegDistance = 2.5f;
+    [SerializeField] private float dodge2LegDistance = 3.0f;
+    [SerializeField] private float dodge4LegDistance = 2.5f;
 
     [Header("Dodge — Timing")]
-    [Tooltip("Fallback duration if clip length can't be read. Actual clip length is read automatically.")]
+    [Tooltip("Fallback duration if clip length can't be read.")]
     [SerializeField] private float dodgeFallbackDuration = 0.87f;
     [Tooltip("Normalized anim time when i-frames BEGIN")]
     [SerializeField] private float iFrameStart = 0.08f;
@@ -166,12 +166,17 @@ public class PlayerCombat : MonoBehaviour
             ap.transform.SetParent(cachedTransform);
             ap.transform.localPosition = new Vector3(0f, 1f, 1f);
             attackPoint = ap.transform;
-            Debug.LogWarning("[Combat] WARNING: AttackPoint not assigned in Inspector! Auto-created at (0,1,1). " +
-                "Drag a child transform onto the AttackPoint field in PlayerCombat Inspector for accurate hit detection.");
+            Debug.LogWarning("[Combat] WARNING: AttackPoint not assigned in Inspector! Auto-created at (0,1,1).");
         }
 
+        // Combat layer weight stays at 1 always
         if (animator != null)
             animator.SetLayerWeight(combatLayerIndex, 1f);
+
+        // === HIT DETECTION DEBUG — remove after attacks work ===
+        DebugLog($"attackPoint: {(attackPoint != null ? attackPoint.name : "NULL")} at local {(attackPoint != null ? attackPoint.localPosition.ToString() : "N/A")}");
+        DebugLog($"attackRange: {attackRange}");
+        DebugLog($"enemyLayer mask: {enemyLayer.value} (expect 1024 for layer 10)");
 
         DebugLog("PlayerCombat initialized");
     }
@@ -198,7 +203,7 @@ public class PlayerCombat : MonoBehaviour
             ForceResetCombat();
         }
 
-        // Safety: dodge timeout (fallback + generous buffer)
+        // Safety: dodge timeout
         if (isDodging && Time.time - dodgeStartTime > currentDodgeDuration + 1.0f)
         {
             DebugLog("Safety: dodge timeout");
@@ -210,14 +215,11 @@ public class PlayerCombat : MonoBehaviour
     {
         EnforcePositionLock();
 
-        // Lock rotation during dodge — prevents PlayerMovement from turning Yoru mid-flip
+        // Lock rotation during dodge
         if (isDodging)
             cachedTransform.rotation = dodgeLockedRotation;
     }
 
-    /// <summary>
-    /// Fix 2: isDodging gate prevents position snap from overriding dodge movement.
-    /// </summary>
     private void EnforcePositionLock()
     {
         if (!lockPosition || isDodging || characterController == null || !wasGroundedWhenLocked)
@@ -287,8 +289,9 @@ public class PlayerCombat : MonoBehaviour
 
     #region Dodge System
     /// <summary>
-    /// Attempts a dodge. Returns true if dodge was performed.
-    /// Direction is camera-relative (BOTW style).
+    /// Dodge direction = WASD input direction (camera-relative).
+    /// W = forward, S = toward camera, A = left, D = right, W+D = forward-right, etc.
+    /// No input = forward (camera forward). Always frontflip animation.
     /// </summary>
     private bool TryDodge()
     {
@@ -301,47 +304,55 @@ public class PlayerCombat : MonoBehaviour
                 return false;
         }
 
-        // Direction from input keys — camera-relative
-        bool wHeld = Input.GetKey(KeyCode.W);
-        bool sHeld = Input.GetKey(KeyCode.S);
-        bool isForward = wHeld && !sHeld;
+        // Read WASD input
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
 
-        // Stance: check both PlayerMovement AND raw Shift key (macOS can drop Shift when Alt pressed)
+        // Build camera-relative direction from input
+        Vector3 dodgeDir = GetInputDirectionCameraRelative(h, v);
+
+        // Stance
         bool is4Leg = Input.GetKey(KeyCode.LeftShift) ||
                       (playerMovement != null && playerMovement.IsRunning());
 
-        // Calculate move direction from camera
-        Vector3 camForward = GetCameraForwardFlat();
-        Vector3 moveDir = isForward ? camForward : -camForward;
-
-        PerformDodge(isForward, is4Leg, moveDir);
+        PerformDodge(is4Leg, dodgeDir);
         return true;
     }
 
     /// <summary>
-    /// Camera forward flattened to XZ plane.
+    /// Converts WASD input into a camera-relative world direction.
+    /// If no input, returns camera forward.
     /// </summary>
-    private Vector3 GetCameraForwardFlat()
+    private Vector3 GetInputDirectionCameraRelative(float h, float v)
     {
         if (mainCamera == null)
             mainCamera = Camera.main;
 
+        Vector3 camForward = Vector3.forward;
+        Vector3 camRight = Vector3.right;
+
         if (mainCamera != null)
         {
-            Vector3 camFwd = mainCamera.transform.forward;
-            camFwd.y = 0f;
-            if (camFwd.sqrMagnitude > 0.001f)
-                return camFwd.normalized;
+            camForward = mainCamera.transform.forward;
+            camForward.y = 0f;
+            camForward.Normalize();
+
+            camRight = mainCamera.transform.right;
+            camRight.y = 0f;
+            camRight.Normalize();
         }
 
-        Vector3 fwd = cachedTransform.forward;
-        fwd.y = 0f;
-        return fwd.normalized;
+        // No input = dodge forward
+        if (Mathf.Abs(h) < 0.1f && Mathf.Abs(v) < 0.1f)
+            return camForward;
+
+        Vector3 dir = camForward * v + camRight * h;
+        return dir.normalized;
     }
 
-    private void PerformDodge(bool isForward, bool is4Leg, Vector3 moveDir)
+    private void PerformDodge(bool is4Leg, Vector3 moveDir)
     {
-        // Cancel attack state if dodge-cancelling from combo 1-2
+        // Cancel attack if dodge-cancelling from combo 1-2
         if (isAttacking)
         {
             isAttacking = false;
@@ -359,59 +370,32 @@ public class PlayerCombat : MonoBehaviour
             attackButtonHoldTime = 0f;
         }
 
-        // Fix 2: unlock position FIRST
         UnlockPosition();
 
         isDodging = true;
         dodgeStartTime = Time.time;
-        currentDodgeDuration = dodgeFallbackDuration; // Will be overridden by actual clip length
+        currentDodgeDuration = dodgeFallbackDuration;
 
-        // Lock rotation for entire dodge
-        if (isForward)
-        {
-            dodgeLockedRotation = Quaternion.LookRotation(moveDir);
-            cachedTransform.rotation = dodgeLockedRotation;
-        }
-        else
-        {
-            dodgeLockedRotation = cachedTransform.rotation;
-        }
+        // Face the dodge direction, then frontflip that way
+        dodgeLockedRotation = Quaternion.LookRotation(moveDir);
+        cachedTransform.rotation = dodgeLockedRotation;
 
-        // Select animation and distance
-        string animState;
-        float distance;
-
-        if (isForward)
-        {
-            animState = is4Leg ? dodge4LegState : dodge2LegState;
-            distance = is4Leg ? frontflip4LegDistance : frontflip2LegDistance;
-        }
-        else
-        {
-            animState = is4Leg ? dodgeBackflip4LegState : dodgeBackflip2LegState;
-            distance = is4Leg ? backflip4LegDistance : backflip2LegDistance;
-        }
+        string animState = is4Leg ? dodge4LegState : dodge2LegState;
+        float distance = is4Leg ? dodge4LegDistance : dodge2LegDistance;
 
         animator.Play(animState, combatLayerIndex, 0f);
 
-        DebugLog($"Dodge: {animState} ({distance}m {(isForward ? "fwd" : "back")}, {(is4Leg ? "4leg" : "2leg")})");
+        DebugLog($"Dodge: {animState} ({distance}m, {(is4Leg ? "4leg" : "2leg")})");
 
         if (dodgeCoroutine != null)
             StopCoroutine(dodgeCoroutine);
         dodgeCoroutine = StartCoroutine(DodgeMovement(moveDir, distance));
     }
 
-    /// <summary>
-    /// Smoothstep movement via CharacterController.Move().
-    /// Waits 1 frame to read actual animation clip length from the animator,
-    /// then spreads movement over that exact duration so movement matches animation.
-    /// </summary>
     private IEnumerator DodgeMovement(Vector3 direction, float distance)
     {
-        // Wait 1 frame for animator to register the new state
         yield return null;
 
-        // Read actual clip length from animator — avoids hardcoding per-dodge durations
         float duration = dodgeFallbackDuration;
         if (animator != null)
         {
@@ -430,20 +414,15 @@ public class PlayerCombat : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
-
-            // Smoothstep: slow start (wind-up) → fast middle (the flip) → slow end (landing)
             float eased = t * t * (3f - 2f * t);
-
             float frameDelta = eased - previousEased;
             previousEased = eased;
 
             if (characterController != null && characterController.enabled)
             {
                 Vector3 move = direction * (distance * frameDelta);
-
                 if (!characterController.isGrounded)
                     move.y = Physics.gravity.y * Time.deltaTime;
-
                 characterController.Move(move);
             }
 
@@ -461,9 +440,6 @@ public class PlayerCombat : MonoBehaviour
         DebugLog("Dodge ended");
     }
 
-    /// <summary>
-    /// Called by PlayerHealth.TakeDamage() — checks if Yoru is in dodge i-frame window.
-    /// </summary>
     public bool IsInDodgeIFrames()
     {
         if (!isDodging || animator == null)
@@ -544,8 +520,6 @@ public class PlayerCombat : MonoBehaviour
 
         if (animator != null)
         {
-            // Play on combat layer ONLY — base layer doesn't have these states
-            // (removed base layer play that caused "Animator.GotoState: State could not be found")
             animator.Play(animState, combatLayerIndex, 0f);
             DebugLog($"Hit react: {animState} ({duration}s)");
         }
@@ -664,9 +638,8 @@ public class PlayerCombat : MonoBehaviour
 
         DebugLog($"Combo {currentComboStep} — {GetComboDamage(currentComboStep)} dmg");
 
+        // Only commitment moves lock position
         if (currentComboStep == 3)
-            UnlockPosition();
-        else
             LockPositionNow();
 
         PlayCombatAnimation(GetComboStateName(currentComboStep));
@@ -824,18 +797,33 @@ public class PlayerCombat : MonoBehaviour
     {
         int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
         bool isFinisher = !isAerialAttack && currentComboStep == 3;
+
+        // === DEBUG — remove after attacks work ===
+        DebugLog($"DealDamage() combo={currentComboStep} dmg={damage} pos={attackPoint.position} range={attackRange} mask={enemyLayer.value}");
+
         DealDamageInRange(damage, isFinisher);
     }
 
     public void DealHeavyDamage()
     {
         int damage = Mathf.RoundToInt(Mathf.Lerp(heavyDamageMin, heavyDamageMax, storedHeavyChargePercent));
+        DebugLog($"DealHeavyDamage() dmg={damage} pos={attackPoint.position} range={attackRange} mask={enemyLayer.value}");
         DealDamageInRange(damage, true);
     }
 
     private void DealDamageInRange(int damage, bool isHeavy)
     {
         Collider[] hitEnemies = Physics.OverlapSphere(attackPoint.position, attackRange, enemyLayer);
+
+        // === DEBUG — remove after attacks work ===
+        DebugLog($"OverlapSphere: {hitEnemies.Length} hits at {attackPoint.position} r={attackRange}");
+        if (hitEnemies.Length == 0)
+        {
+            Collider[] allNearby = Physics.OverlapSphere(attackPoint.position, attackRange * 2f);
+            DebugLog($"NO-MASK check: {allNearby.Length} objects within {attackRange * 2f}m");
+            foreach (Collider c in allNearby)
+                DebugLog($"  -> {c.name} layer={c.gameObject.layer} ({LayerMask.LayerToName(c.gameObject.layer)})");
+        }
 
         foreach (Collider enemy in hitEnemies)
         {
