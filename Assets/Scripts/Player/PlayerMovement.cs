@@ -141,6 +141,16 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
         
+        // During attacks: block movement, allow rotation only (feet planted, body can turn)
+        // FaceNearestEnemy in PlayerCombat handles enemy targeting rotation.
+        // This just stops WASD from sliding Yoru while swinging.
+        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging()))
+        {
+            SetState(PlayerState.Moving, false);
+            SetState(PlayerState.Running, false);
+            return;
+        }
+        
         // Get input once per frame
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
@@ -342,6 +352,10 @@ public class PlayerMovement : MonoBehaviour
     {
         // Don't update locomotion during hit reaction — it overrides the flinch animation
         if (playerCombat != null && playerCombat.IsInHitReaction())
+            return;
+        
+        // Don't update locomotion during attacks or dodge — combat layer handles it
+        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging()))
             return;
         
         // Skip if jumping or landing
