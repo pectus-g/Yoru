@@ -3,7 +3,8 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Player Health — i-frames, stun, hit reaction with knockback pull.
+/// Player Health — all defensive gates live in TakeDamage() BEFORE HP subtraction.
+/// Gate order: post-hit i-frames → dodge i-frames → [Phase 3C: parry/guard] → subtract HP.
 /// </summary>
 public class PlayerHealth : MonoBehaviour
 {
@@ -12,27 +13,23 @@ public class PlayerHealth : MonoBehaviour
     private int currentHealth;
 
     [Header("I-Frames")]
-    [Tooltip("Invincibility duration after taking damage")]
+    [Tooltip("Invincibility duration after taking a hit")]
     [SerializeField] private float iFrameDuration = 0.3f;
     private float iFrameTimer;
 
     [Header("Stun")]
-    [Tooltip("Remaining stun duration in seconds — player input is blocked while this is > 0")]
     [SerializeField] private float stunTimer;
 
     [Header("UI")]
     [SerializeField] private Image healthBarFill;
     [SerializeField] private TMP_Text healthText;
 
-    // Cached references
     private PeachHealthUI peachHealthUI;
     private PlayerCombat playerCombat;
-    private Animator animator;
 
-    void Start()
+    private void Start()
     {
         currentHealth = maxHealth;
-        animator = GetComponent<Animator>();
         playerCombat = GetComponent<PlayerCombat>();
         peachHealthUI = FindObjectOfType<PeachHealthUI>();
 
@@ -40,17 +37,17 @@ public class PlayerHealth : MonoBehaviour
             peachHealthUI.UpdateHealth(currentHealth);
     }
 
-    void Update()
+    private void Update()
     {
-        if (iFrameTimer > 0)
+        if (iFrameTimer > 0f)
             iFrameTimer -= Time.deltaTime;
 
-        if (stunTimer > 0)
+        if (stunTimer > 0f)
             stunTimer -= Time.deltaTime;
     }
 
     /// <summary>
-    /// Take damage — light hit, no knockback (backward compatible).
+    /// Backward compatible — light hit, no knockback.
     /// </summary>
     public void TakeDamage(int damage)
     {
@@ -58,7 +55,7 @@ public class PlayerHealth : MonoBehaviour
     }
 
     /// <summary>
-    /// Take damage with hit type — no knockback.
+    /// Hit type overload — no knockback.
     /// </summary>
     public void TakeDamage(int damage, bool isHeavy)
     {
@@ -66,56 +63,52 @@ public class PlayerHealth : MonoBehaviour
     }
 
     /// <summary>
-    /// Take damage with hit type and attacker position for knockback pull.
-    /// attackerPos = Vector3.zero means no knockback.
+    /// Full TakeDamage — all defensive gates checked BEFORE HP subtraction.
+    /// Called by EnemyCombat.DealDamageToPlayer().
     /// </summary>
     public void TakeDamage(int damage, bool isHeavy, Vector3 attackerPos)
     {
-        // I-frames check first
-        if (iFrameTimer > 0)
-        {
-            Debug.Log("🛡️ I-FRAMES active, damage ignored");
+        // GATE 1: Post-hit i-frames — brief invincibility after last hit
+        if (iFrameTimer > 0f)
             return;
-        }
 
-        // Apply damage only if alive
-        if (currentHealth > 0)
-        {
-            currentHealth -= damage;
-            if (currentHealth < 0) currentHealth = 0;
+        // GATE 2: Dodge i-frames — mid-dodge invincibility window
+        if (playerCombat != null && playerCombat.IsInDodgeIFrames())
+            return;
 
-            iFrameTimer = iFrameDuration;
+        // Already dead — don't process further
+        if (currentHealth <= 0)
+            return;
 
-            Debug.Log($"💔 DAMAGE! {damage} dmg → HP: {currentHealth}/{maxHealth}");
+        // --- All gates passed — apply damage ---
+        currentHealth = Mathf.Max(currentHealth - damage, 0);
+        iFrameTimer = iFrameDuration;
 
-            if (peachHealthUI != null)
-                peachHealthUI.UpdateHealth(currentHealth);
+        if (peachHealthUI != null)
+            peachHealthUI.UpdateHealth(currentHealth);
 
-            if (currentHealth <= 0)
-            {
-                Debug.Log("💀 PLAYER DIED!");
-            }
-        }
-
-        // ALWAYS play hit reaction (even after death for testing feedback)
+        // Hit reaction — visual feedback
         if (playerCombat != null)
-        {
             playerCombat.PlayHitReaction(isHeavy, attackerPos);
-        }
+
+        if (currentHealth <= 0)
+            OnDeath();
+    }
+
+    private void OnDeath()
+    {
+        // Batch 6: death animation, respawn, reload from Tori Gate auto-save
+        Debug.Log("[Health] Player died");
     }
 
     public void ApplyStun(float duration)
     {
         stunTimer = duration;
-        Debug.Log($"😵 Player STUNNED for {duration}s");
     }
 
     public void Heal(int amount)
     {
-        currentHealth += amount;
-        if (currentHealth > maxHealth) currentHealth = maxHealth;
-
-        Debug.Log($"💚 HEAL! {amount} → HP: {currentHealth}/{maxHealth}");
+        currentHealth = Mathf.Min(currentHealth + amount, maxHealth);
 
         if (peachHealthUI != null)
             peachHealthUI.UpdateHealth(currentHealth);
@@ -123,7 +116,7 @@ public class PlayerHealth : MonoBehaviour
 
     public int GetCurrentHealth() => currentHealth;
     public int GetMaxHealth() => maxHealth;
-    public bool IsStunned() => stunTimer > 0;
-    public bool IsInvincible() => iFrameTimer > 0;
+    public bool IsStunned() => stunTimer > 0f;
+    public bool IsInvincible() => iFrameTimer > 0f;
     public bool IsAlive() => currentHealth > 0;
 }

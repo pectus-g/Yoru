@@ -2,9 +2,8 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Direct animation control with hit reactions + knockback.
-/// Combat Layer stays at weight 1 always.
-/// Hit reactions block attacks but allow movement (no PlayerMovement changes).
+/// YORU Combat System — Phase 3A v3: Camera-relative dodge, auto clip-length, i-frame support.
+/// Combat Layer stays at weight 1 always. Animations via CrossFadeInFixedTime / animator.Play.
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -13,27 +12,31 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private Transform attackPoint;
 
-    [Header("Animation State Names")]
+    [Header("Animation State Names — Combo")]
     [SerializeField] private string combo1StateName = "Combo1";
     [SerializeField] private string combo2StateName = "Combo2";
     [SerializeField] private string combo3StateName = "Combo3";
     [SerializeField] private string heavyStateName = "HeavyAttack";
     [SerializeField] private string combatIdleStateName = "Combat_Idle";
 
-    [Header("Hit Reaction State Names")]
+    [Header("Animation State Names — Hit Reaction")]
     [SerializeField] private string hitReactLight2Leg = "HitReact_Light_2Leg";
     [SerializeField] private string hitReactLight4Leg = "HitReact_Light_4Leg";
     [SerializeField] private string hitReactHeavy2Leg = "HitReact_Heavy_2Leg";
     [SerializeField] private string hitReactHeavy4Leg = "HitReact_Running_4Leg";
 
+    [Header("Animation State Names — Dodge")]
+    [SerializeField] private string dodgeBackflip2LegState = "Dodge_Backflip_2Leg";
+    [SerializeField] private string dodgeBackflip4LegState = "Dodge_Backflip_4Leg";
+    [SerializeField] private string dodge2LegState = "Dodge_2Leg";
+    [SerializeField] private string dodge4LegState = "Dodge_4Leg";
+
     [Header("Hit Reaction Timing")]
-    [SerializeField] private float lightHitReactDuration = 0.65f;
-    [SerializeField] private float heavyHitReactDuration = 1.0f;
+    [SerializeField] private float lightHitReactDuration = 0.3f;
+    [SerializeField] private float heavyHitReactDuration = 0.5f;
 
     [Header("Knockback Pull")]
-    [Tooltip("How far the player gets pulled toward attacker on Hair Lash hit")]
     [SerializeField] private float pullDistance = 0.5f;
-    [Tooltip("How long the pull takes (smooth over this many seconds)")]
     [SerializeField] private float pullDuration = 0.15f;
 
     [Header("Layer Settings")]
@@ -44,13 +47,27 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float attackCooldown = 0.1f;
 
     [Header("Damage")]
-    [SerializeField] private int combo1Damage = 5;
-    [SerializeField] private int combo2Damage = 8;
-    [SerializeField] private int combo3Damage = 15;
-    [SerializeField] private int heavyDamageMin = 20;
-    [SerializeField] private int heavyDamageMax = 40;
+    [SerializeField] private int combo1Damage = 10;
+    [SerializeField] private int combo2Damage = 20;
+    [SerializeField] private int combo3Damage = 35;
+    [SerializeField] private int heavyDamageMin = 50;
+    [SerializeField] private int heavyDamageMax = 80;
     [SerializeField] private float heavyChargeTimeMax = 1.5f;
-    [SerializeField] private int aerialSpinDamage = 12;
+    [SerializeField] private int aerialSpinDamage = 25;
+
+    [Header("Dodge — Distances")]
+    [SerializeField] private float backflip2LegDistance = 2.0f;
+    [SerializeField] private float frontflip2LegDistance = 3.0f;
+    [SerializeField] private float backflip4LegDistance = 2.5f;
+    [SerializeField] private float frontflip4LegDistance = 2.5f;
+
+    [Header("Dodge — Timing")]
+    [Tooltip("Fallback duration if clip length can't be read. Actual clip length is read automatically.")]
+    [SerializeField] private float dodgeFallbackDuration = 0.87f;
+    [Tooltip("Normalized anim time when i-frames BEGIN")]
+    [SerializeField] private float iFrameStart = 0.08f;
+    [Tooltip("Normalized anim time when i-frames END")]
+    [SerializeField] private float iFrameEnd = 0.35f;
 
     [Header("Hitbox")]
     [SerializeField] private float attackRange = 1.5f;
@@ -60,26 +77,18 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private ParticleSystem spinVFX;
 
     [Header("Combat VFX")]
-    [Tooltip("VFX for light hit reaction")]
     [SerializeField] private ParticleSystem lightHitVFX;
-    [Tooltip("VFX for heavy hit reaction")]
     [SerializeField] private ParticleSystem heavyHitVFX;
-    [Tooltip("VFX for combo 1")]
     [SerializeField] private ParticleSystem combo1VFX;
-    [Tooltip("VFX for combo 2")]
     [SerializeField] private ParticleSystem combo2VFX;
-    [Tooltip("VFX for combo 3")]
     [SerializeField] private ParticleSystem combo3VFX;
-    [Tooltip("VFX for heavy attack")]
     [SerializeField] private ParticleSystem heavyAttackVFX;
 
     [Header("Safety")]
     [SerializeField] private float maxAttackDuration = 4f;
 
     [Header("Combat Targeting (Soft Lock-On)")]
-    [Tooltip("Max distance to auto-face an enemy when attacking")]
     [SerializeField] private float targetingRange = 8f;
-    [Tooltip("Max angle (degrees) from forward to consider an enemy for auto-face")]
     [SerializeField] private float targetingAngle = 90f;
 
     [Header("Debug")]
@@ -91,19 +100,20 @@ public class PlayerCombat : MonoBehaviour
     private CharacterController characterController;
     private Transform cachedTransform;
     private PlayerMovement playerMovement;
+    private Camera mainCamera;
 
-    // Combo state
+    // Combo
     private int currentComboStep;
     private float lastAttackTime;
     private bool isAttacking;
     private bool canQueueNextAttack;
-    private int queuedClicks; // FIX: counter instead of bool so rapid 3-clicks all register
+    private int queuedClicks;
 
     // Aerial
     private bool isAerialAttack;
     private bool hasUsedAerialAttack;
 
-    // Heavy attack
+    // Heavy
     private bool isChargingHeavy;
     private float heavyChargeStartTime;
     private float storedHeavyChargePercent;
@@ -124,7 +134,14 @@ public class PlayerCombat : MonoBehaviour
     private bool isInHitReaction;
     private float hitReactionEndTime;
 
-    // Pullback coroutine
+    // Dodge
+    private bool isDodging;
+    private float dodgeStartTime;
+    private float currentDodgeDuration;
+    private Quaternion dodgeLockedRotation;
+    private Coroutine dodgeCoroutine;
+
+    // Pull
     private Coroutine pullCoroutine;
 
     // Animation hashes
@@ -141,6 +158,7 @@ public class PlayerCombat : MonoBehaviour
         characterController = GetComponent<CharacterController>();
         cachedTransform = transform;
         playerMovement = GetComponent<PlayerMovement>();
+        mainCamera = Camera.main;
 
         if (attackPoint == null)
         {
@@ -148,20 +166,14 @@ public class PlayerCombat : MonoBehaviour
             ap.transform.SetParent(cachedTransform);
             ap.transform.localPosition = new Vector3(0f, 1f, 1f);
             attackPoint = ap.transform;
-            DebugLog("Created AttackPoint automatically");
+            Debug.LogWarning("[Combat] WARNING: AttackPoint not assigned in Inspector! Auto-created at (0,1,1). " +
+                "Drag a child transform onto the AttackPoint field in PlayerCombat Inspector for accurate hit detection.");
         }
 
         if (animator != null)
-        {
             animator.SetLayerWeight(combatLayerIndex, 1f);
-        }
 
-        if (spinVFX == null)
-        {
-            DebugLog("⚠️ Spin VFX not assigned!");
-        }
-
-        DebugLog("PlayerCombat initialized (Direct Animation Control)");
+        DebugLog("PlayerCombat initialized");
     }
 
     private void Update()
@@ -171,37 +183,44 @@ public class PlayerCombat : MonoBehaviour
         HandleInput();
         CheckGroundedStatus();
 
-        // Process queued clicks after attack ends (fallback if anim event was late)
-        if (!isAttacking && !isInHitReaction && queuedClicks > 0 && currentComboStep > 0 && currentComboStep < 3)
+        // Process queued clicks after attack ends
+        if (!isAttacking && !isInHitReaction && !isDodging
+            && queuedClicks > 0 && currentComboStep > 0 && currentComboStep < 3)
         {
             queuedClicks--;
-            DebugLog("Processing queued click (post-attack fallback)");
             PerformGroundCombo();
         }
 
-        // Safety timeout
+        // Safety: attack timeout
         if (isAttacking && Time.time - attackStartTime > maxAttackDuration)
         {
-            DebugLog("⚠️ SAFETY: Attack timeout, resetting");
+            DebugLog("Safety: attack timeout");
             ForceResetCombat();
         }
 
-        // Debug reset
-        if (Input.GetKeyDown(KeyCode.R))
+        // Safety: dodge timeout (fallback + generous buffer)
+        if (isDodging && Time.time - dodgeStartTime > currentDodgeDuration + 1.0f)
         {
-            DebugLog("DEBUG: Manual reset");
-            ForceResetCombat();
+            DebugLog("Safety: dodge timeout");
+            EndDodge();
         }
     }
 
     private void LateUpdate()
     {
         EnforcePositionLock();
+
+        // Lock rotation during dodge — prevents PlayerMovement from turning Yoru mid-flip
+        if (isDodging)
+            cachedTransform.rotation = dodgeLockedRotation;
     }
 
+    /// <summary>
+    /// Fix 2: isDodging gate prevents position snap from overriding dodge movement.
+    /// </summary>
     private void EnforcePositionLock()
     {
-        if (!lockPosition || characterController == null || !wasGroundedWhenLocked)
+        if (!lockPosition || isDodging || characterController == null || !wasGroundedWhenLocked)
             return;
 
         characterController.enabled = false;
@@ -223,26 +242,248 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
 
-    #region Hit Reaction
+    #region Input
+    private void HandleInput()
+    {
+        if (isInHitReaction || isDodging) return;
+
+        // Dodge input — checked first so it can cancel combo 1-2
+        if (Input.GetKeyDown(KeyCode.LeftAlt))
+        {
+            if (TryDodge()) return;
+        }
+
+        bool isGrounded = characterController != null && characterController.isGrounded;
+
+        if (Input.GetMouseButtonDown(0))
+            attackButtonHoldTime = 0f;
+
+        if (Input.GetMouseButton(0))
+        {
+            attackButtonHoldTime += Time.deltaTime;
+
+            if (attackButtonHoldTime >= 0.3f && !isChargingHeavy && !isAttacking && isGrounded)
+                StartHeavyCharge();
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            if (isChargingHeavy)
+            {
+                ReleaseHeavyAttack();
+            }
+            else if (attackButtonHoldTime < 0.3f)
+            {
+                if (isGrounded)
+                    TryGroundCombo();
+                else
+                    TryAerialSpin();
+            }
+
+            attackButtonHoldTime = 0f;
+        }
+    }
+    #endregion
+
+    #region Dodge System
     /// <summary>
-    /// Backward compatible — no knockback.
+    /// Attempts a dodge. Returns true if dodge was performed.
+    /// Direction is camera-relative (BOTW style).
     /// </summary>
+    private bool TryDodge()
+    {
+        if (characterController == null || !characterController.isGrounded)
+            return false;
+
+        if (isAttacking)
+        {
+            if (currentComboStep != 1 && currentComboStep != 2)
+                return false;
+        }
+
+        // Direction from input keys — camera-relative
+        bool wHeld = Input.GetKey(KeyCode.W);
+        bool sHeld = Input.GetKey(KeyCode.S);
+        bool isForward = wHeld && !sHeld;
+
+        // Stance: check both PlayerMovement AND raw Shift key (macOS can drop Shift when Alt pressed)
+        bool is4Leg = Input.GetKey(KeyCode.LeftShift) ||
+                      (playerMovement != null && playerMovement.IsRunning());
+
+        // Calculate move direction from camera
+        Vector3 camForward = GetCameraForwardFlat();
+        Vector3 moveDir = isForward ? camForward : -camForward;
+
+        PerformDodge(isForward, is4Leg, moveDir);
+        return true;
+    }
+
+    /// <summary>
+    /// Camera forward flattened to XZ plane.
+    /// </summary>
+    private Vector3 GetCameraForwardFlat()
+    {
+        if (mainCamera == null)
+            mainCamera = Camera.main;
+
+        if (mainCamera != null)
+        {
+            Vector3 camFwd = mainCamera.transform.forward;
+            camFwd.y = 0f;
+            if (camFwd.sqrMagnitude > 0.001f)
+                return camFwd.normalized;
+        }
+
+        Vector3 fwd = cachedTransform.forward;
+        fwd.y = 0f;
+        return fwd.normalized;
+    }
+
+    private void PerformDodge(bool isForward, bool is4Leg, Vector3 moveDir)
+    {
+        // Cancel attack state if dodge-cancelling from combo 1-2
+        if (isAttacking)
+        {
+            isAttacking = false;
+            canQueueNextAttack = false;
+            queuedClicks = 0;
+            currentComboStep = 0;
+            VFX_SpinStop();
+            animator.SetBool(HashIsAttacking, false);
+            animator.SetInteger(HashComboStep, 0);
+        }
+
+        if (isChargingHeavy)
+        {
+            isChargingHeavy = false;
+            attackButtonHoldTime = 0f;
+        }
+
+        // Fix 2: unlock position FIRST
+        UnlockPosition();
+
+        isDodging = true;
+        dodgeStartTime = Time.time;
+        currentDodgeDuration = dodgeFallbackDuration; // Will be overridden by actual clip length
+
+        // Lock rotation for entire dodge
+        if (isForward)
+        {
+            dodgeLockedRotation = Quaternion.LookRotation(moveDir);
+            cachedTransform.rotation = dodgeLockedRotation;
+        }
+        else
+        {
+            dodgeLockedRotation = cachedTransform.rotation;
+        }
+
+        // Select animation and distance
+        string animState;
+        float distance;
+
+        if (isForward)
+        {
+            animState = is4Leg ? dodge4LegState : dodge2LegState;
+            distance = is4Leg ? frontflip4LegDistance : frontflip2LegDistance;
+        }
+        else
+        {
+            animState = is4Leg ? dodgeBackflip4LegState : dodgeBackflip2LegState;
+            distance = is4Leg ? backflip4LegDistance : backflip2LegDistance;
+        }
+
+        animator.Play(animState, combatLayerIndex, 0f);
+
+        DebugLog($"Dodge: {animState} ({distance}m {(isForward ? "fwd" : "back")}, {(is4Leg ? "4leg" : "2leg")})");
+
+        if (dodgeCoroutine != null)
+            StopCoroutine(dodgeCoroutine);
+        dodgeCoroutine = StartCoroutine(DodgeMovement(moveDir, distance));
+    }
+
+    /// <summary>
+    /// Smoothstep movement via CharacterController.Move().
+    /// Waits 1 frame to read actual animation clip length from the animator,
+    /// then spreads movement over that exact duration so movement matches animation.
+    /// </summary>
+    private IEnumerator DodgeMovement(Vector3 direction, float distance)
+    {
+        // Wait 1 frame for animator to register the new state
+        yield return null;
+
+        // Read actual clip length from animator — avoids hardcoding per-dodge durations
+        float duration = dodgeFallbackDuration;
+        if (animator != null)
+        {
+            AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            if (stateInfo.length > 0.1f)
+                duration = stateInfo.length;
+        }
+        currentDodgeDuration = duration;
+
+        DebugLog($"Dodge duration: {duration:F3}s (from clip)");
+
+        float elapsed = 0f;
+        float previousEased = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            // Smoothstep: slow start (wind-up) → fast middle (the flip) → slow end (landing)
+            float eased = t * t * (3f - 2f * t);
+
+            float frameDelta = eased - previousEased;
+            previousEased = eased;
+
+            if (characterController != null && characterController.enabled)
+            {
+                Vector3 move = direction * (distance * frameDelta);
+
+                if (!characterController.isGrounded)
+                    move.y = Physics.gravity.y * Time.deltaTime;
+
+                characterController.Move(move);
+            }
+
+            yield return null;
+        }
+
+        EndDodge();
+    }
+
+    private void EndDodge()
+    {
+        isDodging = false;
+        dodgeCoroutine = null;
+        ReturnToIdle();
+        DebugLog("Dodge ended");
+    }
+
+    /// <summary>
+    /// Called by PlayerHealth.TakeDamage() — checks if Yoru is in dodge i-frame window.
+    /// </summary>
+    public bool IsInDodgeIFrames()
+    {
+        if (!isDodging || animator == null)
+            return false;
+
+        float normalizedTime = animator.GetCurrentAnimatorStateInfo(combatLayerIndex).normalizedTime;
+        return normalizedTime >= iFrameStart && normalizedTime <= iFrameEnd;
+    }
+    #endregion
+
+    #region Hit Reaction
     public void PlayHitReaction(bool isHeavy)
     {
         PlayHitReaction(isHeavy, Vector3.zero);
     }
 
-    /// <summary>
-    /// Called by PlayerHealth when taking damage.
-    /// Cancels current attack, plays flinch via animator.Play (immediate, no blend issues).
-    /// Smoothly pulls player toward attacker over pullDuration seconds.
-    /// </summary>
     public void PlayHitReaction(bool isHeavy, Vector3 attackerPos)
     {
-        // CHECK STANCE FIRST — before reset clears movement state
         bool is4Leg = playerMovement != null && playerMovement.IsRunning();
 
-        // Reset combat state directly (no ReturnToIdle — avoids double transition)
         isAttacking = false;
         isChargingHeavy = false;
         canQueueNextAttack = false;
@@ -254,13 +495,22 @@ public class PlayerCombat : MonoBehaviour
         UnlockPosition();
         VFX_SpinStop();
 
+        if (isDodging)
+        {
+            isDodging = false;
+            if (dodgeCoroutine != null)
+            {
+                StopCoroutine(dodgeCoroutine);
+                dodgeCoroutine = null;
+            }
+        }
+
         if (animator != null)
         {
             animator.SetBool(HashIsAttacking, false);
             animator.SetInteger(HashComboStep, 0);
         }
 
-        // Smooth pullback toward attacker over time
         if (attackerPos != Vector3.zero && characterController != null)
         {
             Vector3 pullDir = attackerPos - cachedTransform.position;
@@ -268,19 +518,14 @@ public class PlayerCombat : MonoBehaviour
 
             if (pullDir.sqrMagnitude > 0.01f)
             {
-                // Face the attacker during hit reaction
                 cachedTransform.rotation = Quaternion.LookRotation(pullDir.normalized);
 
-                // Stop any existing pull
                 if (pullCoroutine != null)
                     StopCoroutine(pullCoroutine);
-
                 pullCoroutine = StartCoroutine(SmoothPull(pullDir.normalized, pullDistance, pullDuration));
-                DebugLog($"↩️ Pulling toward attacker ({pullDistance}m over {pullDuration}s)");
             }
         }
 
-        // Pick animation based on stance and severity
         string animState;
         float duration;
 
@@ -297,23 +542,18 @@ public class PlayerCombat : MonoBehaviour
             PlayVFX(lightHitVFX);
         }
 
-        // USE animator.Play() — immediate, no blend issues from empty/idle states
-        // CrossFadeInFixedTime was being swallowed when blending from Combat_Idle
         if (animator != null)
         {
+            // Play on combat layer ONLY — base layer doesn't have these states
+            // (removed base layer play that caused "Animator.GotoState: State could not be found")
             animator.Play(animState, combatLayerIndex, 0f);
-            animator.Play(animState, 0, 0f); // Also play on base layer to prevent locomotion override
-            DebugLog($"🤕 Hit React: {animState} ({duration}s) [animator.Play]");
+            DebugLog($"Hit react: {animState} ({duration}s)");
         }
 
         isInHitReaction = true;
         hitReactionEndTime = Time.time + duration;
     }
 
-    /// <summary>
-    /// Smoothly pulls the player in a direction over time.
-    /// Feels like getting yanked by the hair lash.
-    /// </summary>
     private IEnumerator SmoothPull(Vector3 direction, float distance, float duration)
     {
         float elapsed = 0f;
@@ -322,8 +562,6 @@ public class PlayerCombat : MonoBehaviour
         while (elapsed < duration && moved < distance)
         {
             elapsed += Time.deltaTime;
-
-            // Ease-out curve — fast start, slow finish (feels like impact)
             float t = elapsed / duration;
             float speedMultiplier = Mathf.Lerp(2f, 0.2f, t);
             float step = (distance / duration) * speedMultiplier * Time.deltaTime;
@@ -340,71 +578,17 @@ public class PlayerCombat : MonoBehaviour
         pullCoroutine = null;
     }
 
-    /// <summary>
-    /// Tick hit reaction timer. Returns to idle when done.
-    /// </summary>
     private void UpdateHitReaction()
     {
         if (isInHitReaction && Time.time >= hitReactionEndTime)
         {
             isInHitReaction = false;
             ReturnToIdle();
-            DebugLog("Hit reaction ended");
-        }
-    }
-    #endregion
-
-    #region Input
-    private void HandleInput()
-    {
-        // Block all combat input during hit reaction
-        if (isInHitReaction) return;
-
-        bool isGrounded = characterController != null && characterController.isGrounded;
-
-        if (Input.GetMouseButtonDown(0))
-        {
-            attackButtonHoldTime = 0f;
-        }
-
-        if (Input.GetMouseButton(0))
-        {
-            attackButtonHoldTime += Time.deltaTime;
-
-            if (attackButtonHoldTime >= 0.3f && !isChargingHeavy && !isAttacking && isGrounded)
-            {
-                StartHeavyCharge();
-            }
-        }
-
-        if (Input.GetMouseButtonUp(0))
-        {
-            if (isChargingHeavy)
-            {
-                ReleaseHeavyAttack();
-            }
-            else if (attackButtonHoldTime < 0.3f)
-            {
-                if (isGrounded)
-                {
-                    TryGroundCombo();
-                }
-                else
-                {
-                    TryAerialSpin();
-                }
-            }
-
-            attackButtonHoldTime = 0f;
         }
     }
     #endregion
 
     #region Combat Targeting
-    /// <summary>
-    /// Soft lock-on: instantly rotates Yoru to face the nearest enemy within range and angle.
-    /// Called at the start of every attack so Yoru doesn't swing at air.
-    /// </summary>
     private void FaceNearestEnemy()
     {
         Collider[] nearby = Physics.OverlapSphere(cachedTransform.position, targetingRange, enemyLayer);
@@ -415,21 +599,18 @@ public class PlayerCombat : MonoBehaviour
 
         foreach (Collider col in nearby)
         {
-            // Skip dead enemies
             EnemyHealth eh = col.GetComponent<EnemyHealth>();
             if (eh != null && eh.IsDead()) continue;
 
-            Vector3 dirToEnemy = (col.transform.position - cachedTransform.position);
-            dirToEnemy.y = 0;
+            Vector3 dirToEnemy = col.transform.position - cachedTransform.position;
+            dirToEnemy.y = 0f;
             float dist = dirToEnemy.magnitude;
             if (dist < 0.1f) continue;
 
-            // Check angle — only target enemies roughly in front
             float angle = Vector3.Angle(cachedTransform.forward, dirToEnemy);
             if (angle > targetingAngle) continue;
 
-            // Score: prefer closer enemies, slightly prefer enemies more centered
-            float score = dist + (angle * 0.02f);
+            float score = dist + angle * 0.02f;
             if (score < bestScore)
             {
                 bestScore = score;
@@ -439,12 +620,10 @@ public class PlayerCombat : MonoBehaviour
 
         if (bestTarget != null)
         {
-            Vector3 lookDir = (bestTarget.position - cachedTransform.position);
-            lookDir.y = 0;
+            Vector3 lookDir = bestTarget.position - cachedTransform.position;
+            lookDir.y = 0f;
             if (lookDir.sqrMagnitude > 0.01f)
-            {
                 cachedTransform.rotation = Quaternion.LookRotation(lookDir);
-            }
         }
     }
     #endregion
@@ -457,10 +636,10 @@ public class PlayerCombat : MonoBehaviour
 
         if (isAttacking)
         {
-            if (currentComboStep < 3 && queuedClicks < 2) // Cap at 2: enough for full 1→2→3 chain
+            if (currentComboStep < 3 && queuedClicks < 2)
             {
                 queuedClicks++;
-                DebugLog($"Queued click #{queuedClicks} (during combo {currentComboStep})");
+                DebugLog($"Queued click #{queuedClicks} (combo {currentComboStep})");
             }
             return;
         }
@@ -471,7 +650,7 @@ public class PlayerCombat : MonoBehaviour
     private void PerformGroundCombo()
     {
         attackStartTime = Time.time;
-        FaceNearestEnemy(); // Soft lock-on: face nearest enemy before swinging
+        FaceNearestEnemy();
 
         if (currentComboStep > 0 && Time.time - lastAttackTime > comboWindowTime)
         {
@@ -483,20 +662,14 @@ public class PlayerCombat : MonoBehaviour
         if (currentComboStep > 3)
             currentComboStep = 1;
 
-        DebugLog($">>> COMBO {currentComboStep} <<< Damage: {GetComboDamage(currentComboStep)}");
+        DebugLog($"Combo {currentComboStep} — {GetComboDamage(currentComboStep)} dmg");
 
         if (currentComboStep == 3)
-        {
             UnlockPosition();
-            DebugLog("GROUND SPIN - movement allowed");
-        }
         else
-        {
             LockPositionNow();
-        }
 
-        string stateName = GetComboStateName(currentComboStep);
-        PlayCombatAnimation(stateName);
+        PlayCombatAnimation(GetComboStateName(currentComboStep));
 
         switch (currentComboStep)
         {
@@ -511,7 +684,6 @@ public class PlayerCombat : MonoBehaviour
         isAttacking = true;
         isAerialAttack = false;
         canQueueNextAttack = false;
-        // NOTE: Don't clear queuedClicks here — remaining clicks persist for next combo step
         lastAttackTime = Time.time;
     }
 
@@ -541,33 +713,23 @@ public class PlayerCombat : MonoBehaviour
     #region Aerial Spin
     private void TryAerialSpin()
     {
-        if (hasUsedAerialAttack)
-        {
-            DebugLog("Already used aerial spin this jump");
+        if (hasUsedAerialAttack || isAttacking)
             return;
-        }
-
-        if (isAttacking)
-        {
-            DebugLog("Already attacking");
-            return;
-        }
-
         PerformAerialSpin();
     }
 
     private void PerformAerialSpin()
     {
         attackStartTime = Time.time;
-        FaceNearestEnemy(); // Soft lock-on
+        FaceNearestEnemy();
+
         hasUsedAerialAttack = true;
         isAerialAttack = true;
         currentComboStep = 3;
 
-        DebugLog($">>> AERIAL SPIN <<< Damage: {aerialSpinDamage}");
+        DebugLog($"Aerial spin — {aerialSpinDamage} dmg");
 
         UnlockPosition();
-
         PlayCombatAnimation(combo3StateName);
 
         animator.SetInteger(HashComboStep, 3);
@@ -586,21 +748,20 @@ public class PlayerCombat : MonoBehaviour
         isChargingHeavy = true;
         heavyChargeStartTime = Time.time;
         currentComboStep = 0;
-        DebugLog("Charging HEAVY...");
+        DebugLog("Charging heavy...");
     }
 
     private void ReleaseHeavyAttack()
     {
         attackStartTime = Time.time;
-        FaceNearestEnemy(); // Soft lock-on
+        FaceNearestEnemy();
 
         storedHeavyChargePercent = Mathf.Clamp01((Time.time - heavyChargeStartTime) / heavyChargeTimeMax);
         int damage = Mathf.RoundToInt(Mathf.Lerp(heavyDamageMin, heavyDamageMax, storedHeavyChargePercent));
 
-        DebugLog($">>> HEAVY <<< {storedHeavyChargePercent * 100f:F0}% = {damage} dmg");
+        DebugLog($"Heavy — {storedHeavyChargePercent * 100f:F0}% = {damage} dmg");
 
         LockPositionNow();
-
         PlayCombatAnimation(heavyStateName);
         PlayVFX(heavyAttackVFX);
 
@@ -624,14 +785,12 @@ public class PlayerCombat : MonoBehaviour
     {
         if (animator == null) return;
         animator.CrossFadeInFixedTime(stateName, 0.05f, combatLayerIndex);
-        DebugLog($"Playing: {stateName}");
     }
 
     private void ReturnToIdle()
     {
         if (animator == null) return;
         animator.CrossFadeInFixedTime(combatIdleStateName, 0.1f, combatLayerIndex);
-        DebugLog("Returning to Combat_Idle");
     }
     #endregion
 
@@ -650,18 +809,13 @@ public class PlayerCombat : MonoBehaviour
             cachedTransform.rotation = lockedRotation;
             characterController.enabled = true;
         }
-
-        DebugLog("Position LOCKED");
     }
 
     private void UnlockPosition()
     {
-        if (lockPosition)
-        {
-            lockPosition = false;
-            wasGroundedWhenLocked = false;
-            DebugLog("Position UNLOCKED");
-        }
+        if (!lockPosition) return;
+        lockPosition = false;
+        wasGroundedWhenLocked = false;
     }
     #endregion
 
@@ -670,7 +824,7 @@ public class PlayerCombat : MonoBehaviour
     {
         int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
         bool isFinisher = !isAerialAttack && currentComboStep == 3;
-        DealDamageInRange(damage, isFinisher);  // combo 3 finisher triggers stagger
+        DealDamageInRange(damage, isFinisher);
     }
 
     public void DealHeavyDamage()
@@ -689,31 +843,23 @@ public class PlayerCombat : MonoBehaviour
             if (enemyHealth != null)
             {
                 enemyHealth.TakeDamage(damage, isHeavy);
-                DebugLog($"Hit {enemy.name} for {damage}{(isHeavy ? " (HEAVY)" : "")}!");
+                DebugLog($"Hit {enemy.name} for {damage}{(isHeavy ? " (heavy)" : "")}");
             }
         }
     }
     #endregion
 
-    #region VFX - Animation Events
+    #region VFX — Animation Events
     public void VFX_SpinStart()
     {
-        if (spinVFX != null)
-        {
-            spinVFX.Play();
-            DebugLog("🌀 SPIN VFX START");
-        }
+        if (spinVFX != null) spinVFX.Play();
     }
 
     public void VFX_SpinStop()
     {
-        if (spinVFX != null)
-        {
-            spinVFX.Stop();
-            DebugLog("🌀 SPIN VFX STOP");
-        }
+        if (spinVFX != null) spinVFX.Stop();
     }
-    
+
     private void PlayVFX(ParticleSystem vfx)
     {
         if (vfx != null) vfx.Play();
@@ -724,38 +870,27 @@ public class PlayerCombat : MonoBehaviour
     public void OnCanQueueNextAttack()
     {
         canQueueNextAttack = true;
-        DebugLog($"Can queue (combo {currentComboStep}, {queuedClicks} clicks pending)");
 
         if (queuedClicks > 0)
         {
             queuedClicks--;
-            DebugLog("Processing queued click!");
             PerformGroundCombo();
         }
     }
 
     public void OnAttackEnd()
     {
-        if (!isAttacking)
-            return;
-
-        string attackType = isAerialAttack ? "AERIAL SPIN" : (currentComboStep == 0 ? "HEAVY" : $"combo {currentComboStep}");
-        DebugLog($"Attack END ({attackType})");
+        if (!isAttacking) return;
 
         isAttacking = false;
         canQueueNextAttack = false;
         lastAttackTime = Time.time;
 
-        // Clear queue after combo 3, heavy, or aerial — combo chain is complete
         if (currentComboStep >= 3 || isAerialAttack || currentComboStep == 0)
-        {
             queuedClicks = 0;
-        }
 
         if (isAerialAttack)
-        {
             isAerialAttack = false;
-        }
 
         UnlockPosition();
         ReturnToIdle();
@@ -778,6 +913,16 @@ public class PlayerCombat : MonoBehaviour
         storedHeavyChargePercent = 0f;
         isInHitReaction = false;
 
+        if (isDodging)
+        {
+            isDodging = false;
+            if (dodgeCoroutine != null)
+            {
+                StopCoroutine(dodgeCoroutine);
+                dodgeCoroutine = null;
+            }
+        }
+
         if (pullCoroutine != null)
         {
             StopCoroutine(pullCoroutine);
@@ -794,7 +939,7 @@ public class PlayerCombat : MonoBehaviour
             animator.SetInteger(HashComboStep, 0);
         }
 
-        DebugLog("Combat RESET");
+        DebugLog("Combat reset");
     }
     #endregion
 
@@ -805,6 +950,7 @@ public class PlayerCombat : MonoBehaviour
     public bool IsAerialAttack() => isAerialAttack;
     public bool IsPositionLocked() => lockPosition;
     public bool IsInHitReaction() => isInHitReaction;
+    public bool IsDodging() => isDodging;
     #endregion
 
     #region Debug
