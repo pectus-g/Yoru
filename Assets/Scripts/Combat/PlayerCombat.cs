@@ -2,16 +2,12 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3A v6
-/// Changes from v5:
-///   - Dodge→walk transition fix: early exit when movement input detected after 75% of dodge
-///   - Dodge Dash: Alt + Forward + LMB = forward dodge that deals 20 damage along path
-///     DodgeDash_2Leg (3.0m) and DodgeDash_4Leg (3.5m), i-frames active during dash
-///   - VFX fields for dodge (trail) and dodge dash (damage trail)
-///   - SFX hooks via CombatSFXManager for all combat actions
-///   - CombatFeedbackManager hooks: hitstop + camera shake + VFX at contact point
-///   - Hit detection debug logs removed (attacks confirmed working)
-///   - GetAnimator() public getter for CombatFeedbackManager hitstop
+/// YORU Combat System — Phase 3A v7
+/// Changes from v6:
+///   - All VFX prefab/particle fields moved to YoruVFXManager (one Inspector for all VFX)
+///   - Dodge Dash redesigned: press Alt to dodge, then LMB during dodge = dash attack (BOTW style)
+///   - Movement blocked during attacks via PlayerMovement check (feet planted, rotation only)
+///   - SFX/Feedback hooks unchanged
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -73,40 +69,23 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float dodgeDash2LegDistance = 3.0f;
     [SerializeField] private float dodgeDash4LegDistance = 3.5f;
     [SerializeField] private int dodgeDashDamage = 20;
-    [Tooltip("Hit range along the dodge dash path")]
     [SerializeField] private float dodgeDashHitRange = 1.8f;
 
     [Header("Dodge — Timing")]
-    [Tooltip("Fallback duration if clip length can't be read.")]
     [SerializeField] private float dodgeFallbackDuration = 0.87f;
-    [Tooltip("Normalized anim time when i-frames BEGIN")]
     [SerializeField] private float iFrameStart = 0.08f;
-    [Tooltip("Normalized anim time when i-frames END")]
     [SerializeField] private float iFrameEnd = 0.35f;
-    [Tooltip("Normalized time after which movement input can end dodge early (0.75 = 75%)")]
     [SerializeField] private float dodgeEarlyExitThreshold = 0.75f;
+
+    [Header("Dodge — Arc & Air Dodge")]
+    [Tooltip("Height of the frontflip arc. 0 = flat, 1.5 = noticeable hop, 3 = big leap")]
+    [SerializeField] private float dodgeHeight = 1.5f;
+    [Tooltip("Allow dodging while airborne (jumping)")]
+    [SerializeField] private bool allowAirDodge = true;
 
     [Header("Hitbox")]
     [SerializeField] private float attackRange = 1.5f;
     [SerializeField] private LayerMask enemyLayer;
-
-    [Header("VFX")]
-    [SerializeField] private ParticleSystem spinVFX;
-
-    [Header("Combat VFX")]
-    [SerializeField] private ParticleSystem lightHitVFX;
-    [SerializeField] private ParticleSystem heavyHitVFX;
-    [SerializeField] private ParticleSystem combo1VFX;
-    [SerializeField] private ParticleSystem combo2VFX;
-    [SerializeField] private ParticleSystem combo3VFX;
-    [SerializeField] private ParticleSystem heavyAttackVFX;
-
-    [Header("Dodge/Dash VFX — Assign in Inspector")]
-    [Tooltip("Trail effect spawned at feet on normal dodge")]
-    [SerializeField] private GameObject dodgeTrailVFXPrefab;
-    [Tooltip("Damage trail effect spawned during dodge dash")]
-    [SerializeField] private GameObject dodgeDashTrailVFXPrefab;
-    [SerializeField] private float dodgeVFXLifetime = 1.5f;
 
     [Header("Safety")]
     [SerializeField] private float maxAttackDuration = 4f;
@@ -124,6 +103,7 @@ public class PlayerCombat : MonoBehaviour
     private CharacterController characterController;
     private Transform cachedTransform;
     private PlayerMovement playerMovement;
+    private YoruVFXManager vfxManager;
     private Camera mainCamera;
 
     // Combo
@@ -160,10 +140,12 @@ public class PlayerCombat : MonoBehaviour
 
     // Dodge
     private bool isDodging;
-    private bool isDodgeDashing; // true = dodge dash (deals damage), false = normal dodge
+    private bool isDodgeDashing;
+    private bool was4LegDodge; // remember stance for dash conversion
     private float dodgeStartTime;
     private float currentDodgeDuration;
     private Quaternion dodgeLockedRotation;
+    private Vector3 currentDodgeDirection;
     private Coroutine dodgeCoroutine;
 
     // Pull
@@ -183,6 +165,7 @@ public class PlayerCombat : MonoBehaviour
         characterController = GetComponent<CharacterController>();
         cachedTransform = transform;
         playerMovement = GetComponent<PlayerMovement>();
+        vfxManager = GetComponent<YoruVFXManager>();
         mainCamera = Camera.main;
 
         if (attackPoint == null)
@@ -194,11 +177,10 @@ public class PlayerCombat : MonoBehaviour
             Debug.LogWarning("[Combat] WARNING: AttackPoint not assigned in Inspector! Auto-created at (0,1,1).");
         }
 
-        // Combat layer weight stays at 1 always
         if (animator != null)
             animator.SetLayerWeight(combatLayerIndex, 1f);
 
-        DebugLog("PlayerCombat initialized — Phase 3A v6");
+        DebugLog("PlayerCombat initialized — Phase 3A v7");
     }
 
     private void Update()
@@ -208,7 +190,6 @@ public class PlayerCombat : MonoBehaviour
         HandleInput();
         CheckGroundedStatus();
 
-        // Process queued clicks after attack ends
         if (!isAttacking && !isInHitReaction && !isDodging
             && queuedClicks > 0 && currentComboStep > 0 && currentComboStep < 3)
         {
@@ -216,14 +197,12 @@ public class PlayerCombat : MonoBehaviour
             PerformGroundCombo();
         }
 
-        // Safety: attack timeout
         if (isAttacking && Time.time - attackStartTime > maxAttackDuration)
         {
             DebugLog("Safety: attack timeout");
             ForceResetCombat();
         }
 
-        // Safety: dodge timeout
         if (isDodging && Time.time - dodgeStartTime > currentDodgeDuration + 1.0f)
         {
             DebugLog("Safety: dodge timeout");
@@ -234,8 +213,6 @@ public class PlayerCombat : MonoBehaviour
     private void LateUpdate()
     {
         EnforcePositionLock();
-
-        // Lock rotation during dodge
         if (isDodging)
             cachedTransform.rotation = dodgeLockedRotation;
     }
@@ -244,7 +221,6 @@ public class PlayerCombat : MonoBehaviour
     {
         if (!lockPosition || isDodging || characterController == null || !wasGroundedWhenLocked)
             return;
-
         characterController.enabled = false;
         cachedTransform.position = lockedPosition;
         cachedTransform.rotation = lockedRotation;
@@ -267,9 +243,21 @@ public class PlayerCombat : MonoBehaviour
     #region Input
     private void HandleInput()
     {
-        if (isInHitReaction || isDodging) return;
+        if (isInHitReaction) return;
 
-        // Dodge input — checked first so it can cancel combo 1-2
+        // During dodge: check for LMB to convert to dodge dash (BOTW style)
+        if (isDodging && !isDodgeDashing)
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                ConvertToDodgeDash();
+            }
+            return;
+        }
+
+        if (isDodging) return;
+
+        // Dodge input — can cancel combo 1-2
         if (Input.GetKeyDown(KeyCode.LeftAlt))
         {
             if (TryDodge()) return;
@@ -283,7 +271,6 @@ public class PlayerCombat : MonoBehaviour
         if (Input.GetMouseButton(0))
         {
             attackButtonHoldTime += Time.deltaTime;
-
             if (attackButtonHoldTime >= 0.3f && !isChargingHeavy && !isAttacking && isGrounded)
                 StartHeavyCharge();
         }
@@ -301,21 +288,18 @@ public class PlayerCombat : MonoBehaviour
                 else
                     TryAerialSpin();
             }
-
             attackButtonHoldTime = 0f;
         }
     }
     #endregion
 
     #region Dodge System
-    /// <summary>
-    /// Dodge direction = WASD input direction (camera-relative).
-    /// If LMB is also held AND direction is forward → Dodge Dash (deals damage).
-    /// Otherwise → normal frontflip dodge.
-    /// </summary>
     private bool TryDodge()
     {
-        if (characterController == null || !characterController.isGrounded)
+        if (characterController == null) return false;
+        
+        // Ground check — skip if air dodge is enabled
+        if (!allowAirDodge && !characterController.isGrounded)
             return false;
 
         if (isAttacking)
@@ -324,37 +308,17 @@ public class PlayerCombat : MonoBehaviour
                 return false;
         }
 
-        // Read WASD input
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
-
-        // Build camera-relative direction from input
         Vector3 dodgeDir = GetInputDirectionCameraRelative(h, v);
 
-        // Stance
         bool is4Leg = Input.GetKey(KeyCode.LeftShift) ||
                       (playerMovement != null && playerMovement.IsRunning());
 
-        // Check for Dodge Dash: Alt + Forward direction + LMB held
-        bool isForward = v > 0.1f;
-        bool lmbHeld = Input.GetMouseButton(0);
-
-        if (isForward && lmbHeld)
-        {
-            PerformDodgeDash(is4Leg, dodgeDir);
-        }
-        else
-        {
-            PerformDodge(is4Leg, dodgeDir);
-        }
-
+        PerformDodge(is4Leg, dodgeDir);
         return true;
     }
 
-    /// <summary>
-    /// Converts WASD input into a camera-relative world direction.
-    /// If no input, returns camera forward.
-    /// </summary>
     private Vector3 GetInputDirectionCameraRelative(float h, float v)
     {
         if (mainCamera == null)
@@ -368,13 +332,11 @@ public class PlayerCombat : MonoBehaviour
             camForward = mainCamera.transform.forward;
             camForward.y = 0f;
             camForward.Normalize();
-
             camRight = mainCamera.transform.right;
             camRight.y = 0f;
             camRight.Normalize();
         }
 
-        // No input = dodge forward
         if (Mathf.Abs(h) < 0.1f && Mathf.Abs(v) < 0.1f)
             return camForward;
 
@@ -382,19 +344,16 @@ public class PlayerCombat : MonoBehaviour
         return dir.normalized;
     }
 
-    /// <summary>
-    /// Normal dodge — frontflip, no damage, WASD direction.
-    /// </summary>
+    /// <summary>Normal dodge — press Alt. Can be converted to dash by pressing LMB during it.</summary>
     private void PerformDodge(bool is4Leg, Vector3 moveDir)
     {
-        // Cancel attack if dodge-cancelling from combo 1-2
         if (isAttacking)
         {
             isAttacking = false;
             canQueueNextAttack = false;
             queuedClicks = 0;
             currentComboStep = 0;
-            VFX_SpinStop();
+            if (vfxManager != null) vfxManager.PlaySpinStop();
             animator.SetBool(HashIsAttacking, false);
             animator.SetInteger(HashComboStep, 0);
         }
@@ -409,10 +368,11 @@ public class PlayerCombat : MonoBehaviour
 
         isDodging = true;
         isDodgeDashing = false;
+        was4LegDodge = is4Leg;
         dodgeStartTime = Time.time;
         currentDodgeDuration = dodgeFallbackDuration;
+        currentDodgeDirection = moveDir;
 
-        // Face the dodge direction, then frontflip that way
         dodgeLockedRotation = Quaternion.LookRotation(moveDir);
         cachedTransform.rotation = dodgeLockedRotation;
 
@@ -423,77 +383,40 @@ public class PlayerCombat : MonoBehaviour
 
         DebugLog($"Dodge: {animState} ({distance}m, {(is4Leg ? "4leg" : "2leg")})");
 
-        // Dodge VFX
-        SpawnDodgeVFX(dodgeTrailVFXPrefab);
+        // VFX + SFX
+        if (vfxManager != null) vfxManager.PlayDodgeTrailVFX();
+        if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayDodge();
 
-        // Dodge SFX
-        if (CombatSFXManager.Instance != null)
-            CombatSFXManager.Instance.PlayDodge();
-
-        if (dodgeCoroutine != null)
-            StopCoroutine(dodgeCoroutine);
-        dodgeCoroutine = StartCoroutine(DodgeMovement(moveDir, distance, false));
+        if (dodgeCoroutine != null) StopCoroutine(dodgeCoroutine);
+        dodgeCoroutine = StartCoroutine(DodgeMovement(moveDir, distance));
     }
 
     /// <summary>
-    /// Dodge Dash — forward dodge that deals 20 damage along the path.
-    /// Alt + Forward + LMB. Uses DodgeDash animation clips.
+    /// Convert active dodge into dodge dash. Called when LMB pressed during dodge.
+    /// Switches animation, starts dealing damage along path.
     /// </summary>
-    private void PerformDodgeDash(bool is4Leg, Vector3 moveDir)
+    private void ConvertToDodgeDash()
     {
-        // Cancel attack if dodge-cancelling from combo 1-2
-        if (isAttacking)
-        {
-            isAttacking = false;
-            canQueueNextAttack = false;
-            queuedClicks = 0;
-            currentComboStep = 0;
-            VFX_SpinStop();
-            animator.SetBool(HashIsAttacking, false);
-            animator.SetInteger(HashComboStep, 0);
-        }
-
-        if (isChargingHeavy)
-        {
-            isChargingHeavy = false;
-            attackButtonHoldTime = 0f;
-        }
-
-        UnlockPosition();
-
-        isDodging = true;
         isDodgeDashing = true;
-        dodgeStartTime = Time.time;
-        currentDodgeDuration = dodgeFallbackDuration;
 
-        dodgeLockedRotation = Quaternion.LookRotation(moveDir);
-        cachedTransform.rotation = dodgeLockedRotation;
+        // Switch to dodge dash animation
+        string dashAnim = was4LegDodge ? dodgeDash4LegState : dodgeDash2LegState;
+        float dashDistance = was4LegDodge ? dodgeDash4LegDistance : dodgeDash2LegDistance;
 
-        string animState = is4Leg ? dodgeDash4LegState : dodgeDash2LegState;
-        float distance = is4Leg ? dodgeDash4LegDistance : dodgeDash2LegDistance;
+        // Play dash animation from current normalized time to keep momentum
+        animator.Play(dashAnim, combatLayerIndex, 0f);
 
-        animator.Play(animState, combatLayerIndex, 0f);
+        DebugLog($"Dodge → Dash! {dashAnim} ({dashDistance}m, {dodgeDashDamage} dmg)");
 
-        DebugLog($"Dodge Dash: {animState} ({distance}m, {dodgeDashDamage} dmg, {(is4Leg ? "4leg" : "2leg")})");
+        // Stop current dodge coroutine and restart with dash distance
+        if (dodgeCoroutine != null) StopCoroutine(dodgeCoroutine);
+        dodgeCoroutine = StartCoroutine(DodgeMovement(currentDodgeDirection, dashDistance));
 
-        // Dodge Dash VFX — damage trail
-        SpawnDodgeVFX(dodgeDashTrailVFXPrefab);
-
-        // Dodge SFX
-        if (CombatSFXManager.Instance != null)
-            CombatSFXManager.Instance.PlayDodge();
-
-        if (dodgeCoroutine != null)
-            StopCoroutine(dodgeCoroutine);
-        dodgeCoroutine = StartCoroutine(DodgeMovement(moveDir, distance, true));
+        // VFX
+        if (vfxManager != null) vfxManager.PlayDodgeDashTrailVFX();
     }
 
-    /// <summary>
-    /// Smoothstep dodge movement with early exit and optional damage (dodge dash).
-    /// After dodgeEarlyExitThreshold (75%), if WASD input detected, exits early.
-    /// If isDash=true, deals dodgeDashDamage to enemies along the path (once per enemy).
-    /// </summary>
-    private IEnumerator DodgeMovement(Vector3 direction, float distance, bool isDash)
+    private IEnumerator DodgeMovement(Vector3 direction, float distance)
     {
         yield return null;
 
@@ -506,40 +429,51 @@ public class PlayerCombat : MonoBehaviour
         }
         currentDodgeDuration = duration;
 
-        DebugLog($"Dodge duration: {duration:F3}s (from clip)");
-
         float elapsed = 0f;
         float previousEased = 0f;
+        float previousArc = 0f; // Track vertical arc for delta calculation
 
-        // Track enemies already hit during dodge dash (no double-hits)
+        // Dodge dash: track enemies already hit
         System.Collections.Generic.HashSet<int> hitEnemyIDs = null;
-        if (isDash)
+        if (isDodgeDashing)
             hitEnemyIDs = new System.Collections.Generic.HashSet<int>();
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
-            float eased = t * t * (3f - 2f * t); // Smoothstep
+            float eased = t * t * (3f - 2f * t);
             float frameDelta = eased - previousEased;
             previousEased = eased;
 
             if (characterController != null && characterController.enabled)
             {
                 Vector3 move = direction * (distance * frameDelta);
-                if (!characterController.isGrounded)
+                
+                // Vertical arc: sine curve peaks at midpoint (like a real frontflip)
+                if (dodgeHeight > 0f)
+                {
+                    float arc = Mathf.Sin(t * Mathf.PI) * dodgeHeight;
+                    float arcDelta = arc - previousArc;
+                    previousArc = arc;
+                    move.y += arcDelta;
+                }
+                else if (!characterController.isGrounded)
+                {
                     move.y = Physics.gravity.y * Time.deltaTime;
+                }
+                
                 characterController.Move(move);
             }
 
-            // Dodge Dash: deal damage to enemies along path (once per enemy)
-            if (isDash && t >= iFrameStart && t <= iFrameEnd)
+            // Dodge dash damage during i-frame window
+            if (isDodgeDashing && hitEnemyIDs != null)
             {
                 DealDodgeDashDamage(hitEnemyIDs);
             }
 
-            // Early exit: movement input in tail end of dodge
-            if (t >= dodgeEarlyExitThreshold)
+            // Early exit on movement input
+            if (!isDodgeDashing && t >= dodgeEarlyExitThreshold)
             {
                 float h = Input.GetAxisRaw("Horizontal");
                 float v = Input.GetAxisRaw("Vertical");
@@ -556,10 +490,6 @@ public class PlayerCombat : MonoBehaviour
         EndDodge();
     }
 
-    /// <summary>
-    /// Deals dodgeDashDamage to enemies within dodgeDashHitRange of attackPoint.
-    /// Each enemy can only be hit once per dash (tracked by instance ID).
-    /// </summary>
     private void DealDodgeDashDamage(System.Collections.Generic.HashSet<int> hitEnemyIDs)
     {
         Collider[] enemies = Physics.OverlapSphere(attackPoint.position, dodgeDashHitRange, enemyLayer);
@@ -576,19 +506,14 @@ public class PlayerCombat : MonoBehaviour
                 enemyHealth.TakeDamage(dodgeDashDamage, false);
                 DebugLog($"Dodge Dash hit {enemy.name} for {dodgeDashDamage}");
 
-                // Feedback: contact point VFX + hitstop + SFX
                 Vector3 contactPoint = enemy.ClosestPoint(attackPoint.position);
-
                 if (CombatFeedbackManager.Instance != null)
                 {
                     Animator enemyAnimator = enemy.GetComponent<Animator>();
                     if (enemyAnimator == null)
                         enemyAnimator = enemy.GetComponentInChildren<Animator>();
-
-                    CombatFeedbackManager.Instance.PlayHitFeedback(
-                        contactPoint, false, animator, enemyAnimator);
+                    CombatFeedbackManager.Instance.PlayHitFeedback(contactPoint, false, animator, enemyAnimator);
                 }
-
                 if (CombatSFXManager.Instance != null)
                     CombatSFXManager.Instance.PlayImpact(false);
             }
@@ -600,34 +525,16 @@ public class PlayerCombat : MonoBehaviour
         isDodging = false;
         isDodgeDashing = false;
         dodgeCoroutine = null;
-
-        // Fast crossfade for snappy transition to locomotion
         if (animator != null)
             animator.CrossFadeInFixedTime(combatIdleStateName, 0.05f, combatLayerIndex);
-
         DebugLog("Dodge ended");
     }
 
     public bool IsInDodgeIFrames()
     {
-        if (!isDodging || animator == null)
-            return false;
-
+        if (!isDodging || animator == null) return false;
         float normalizedTime = animator.GetCurrentAnimatorStateInfo(combatLayerIndex).normalizedTime;
         return normalizedTime >= iFrameStart && normalizedTime <= iFrameEnd;
-    }
-
-    /// <summary>
-    /// Spawn dodge VFX prefab at Yoru's feet. Null-safe.
-    /// </summary>
-    private void SpawnDodgeVFX(GameObject prefab)
-    {
-        if (prefab == null) return;
-
-        Vector3 pos = cachedTransform.position;
-        pos.y += 0.1f;
-        GameObject vfx = Instantiate(prefab, pos, cachedTransform.rotation);
-        Destroy(vfx, dodgeVFXLifetime);
     }
     #endregion
 
@@ -650,7 +557,7 @@ public class PlayerCombat : MonoBehaviour
         isAerialAttack = false;
         storedHeavyChargePercent = 0f;
         UnlockPosition();
-        VFX_SpinStop();
+        if (vfxManager != null) vfxManager.PlaySpinStop();
 
         if (isDodging)
         {
@@ -673,13 +580,10 @@ public class PlayerCombat : MonoBehaviour
         {
             Vector3 pullDir = attackerPos - cachedTransform.position;
             pullDir.y = 0f;
-
             if (pullDir.sqrMagnitude > 0.01f)
             {
                 cachedTransform.rotation = Quaternion.LookRotation(pullDir.normalized);
-
-                if (pullCoroutine != null)
-                    StopCoroutine(pullCoroutine);
+                if (pullCoroutine != null) StopCoroutine(pullCoroutine);
                 pullCoroutine = StartCoroutine(SmoothPull(pullDir.normalized, pullDistance, pullDuration));
             }
         }
@@ -691,14 +595,15 @@ public class PlayerCombat : MonoBehaviour
         {
             animState = is4Leg ? hitReactHeavy4Leg : hitReactHeavy2Leg;
             duration = heavyHitReactDuration;
-            PlayVFX(heavyHitVFX);
         }
         else
         {
             animState = is4Leg ? hitReactLight4Leg : hitReactLight2Leg;
             duration = lightHitReactDuration;
-            PlayVFX(lightHitVFX);
         }
+
+        // VFX via YoruVFXManager
+        if (vfxManager != null) vfxManager.PlayHitReactVFX(isHeavy);
 
         if (animator != null)
         {
@@ -706,7 +611,7 @@ public class PlayerCombat : MonoBehaviour
             DebugLog($"Hit react: {animState} ({duration}s)");
         }
 
-        // Player-hit feedback
+        // Feedback + SFX
         if (CombatFeedbackManager.Instance != null)
             CombatFeedbackManager.Instance.PlayPlayerHitFeedback(isHeavy);
         if (CombatSFXManager.Instance != null)
@@ -720,23 +625,19 @@ public class PlayerCombat : MonoBehaviour
     {
         float elapsed = 0f;
         float moved = 0f;
-
         while (elapsed < duration && moved < distance)
         {
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
             float speedMultiplier = Mathf.Lerp(2f, 0.2f, t);
             float step = (distance / duration) * speedMultiplier * Time.deltaTime;
-
             if (characterController != null && characterController.enabled)
             {
                 characterController.Move(direction * step);
                 moved += step;
             }
-
             yield return null;
         }
-
         pullCoroutine = null;
     }
 
@@ -793,8 +694,7 @@ public class PlayerCombat : MonoBehaviour
     #region Ground Combo
     private void TryGroundCombo()
     {
-        if (Time.time - lastAttackTime < attackCooldown)
-            return;
+        if (Time.time - lastAttackTime < attackCooldown) return;
 
         if (isAttacking)
         {
@@ -805,7 +705,6 @@ public class PlayerCombat : MonoBehaviour
             }
             return;
         }
-
         PerformGroundCombo();
     }
 
@@ -821,23 +720,16 @@ public class PlayerCombat : MonoBehaviour
         }
 
         currentComboStep++;
-        if (currentComboStep > 3)
-            currentComboStep = 1;
+        if (currentComboStep > 3) currentComboStep = 1;
 
         DebugLog($"Combo {currentComboStep} — {GetComboDamage(currentComboStep)} dmg");
 
-        // Only commitment moves lock position
-        if (currentComboStep == 3)
-            LockPositionNow();
+        if (currentComboStep == 3) LockPositionNow();
 
         PlayCombatAnimation(GetComboStateName(currentComboStep));
 
-        switch (currentComboStep)
-        {
-            case 1: PlayVFX(combo1VFX); break;
-            case 2: PlayVFX(combo2VFX); break;
-            case 3: PlayVFX(combo3VFX); break;
-        }
+        // VFX via YoruVFXManager
+        if (vfxManager != null) vfxManager.PlayComboVFX(currentComboStep);
 
         animator.SetInteger(HashComboStep, currentComboStep);
         animator.SetBool(HashIsAttacking, true);
@@ -874,8 +766,7 @@ public class PlayerCombat : MonoBehaviour
     #region Aerial Spin
     private void TryAerialSpin()
     {
-        if (hasUsedAerialAttack || isAttacking)
-            return;
+        if (hasUsedAerialAttack || isAttacking) return;
         PerformAerialSpin();
     }
 
@@ -883,19 +774,14 @@ public class PlayerCombat : MonoBehaviour
     {
         attackStartTime = Time.time;
         FaceNearestEnemy();
-
         hasUsedAerialAttack = true;
         isAerialAttack = true;
         currentComboStep = 3;
-
         DebugLog($"Aerial spin — {aerialSpinDamage} dmg");
-
         UnlockPosition();
         PlayCombatAnimation(combo3StateName);
-
         animator.SetInteger(HashComboStep, 3);
         animator.SetBool(HashIsAttacking, true);
-
         isAttacking = true;
         canQueueNextAttack = false;
         queuedClicks = 0;
@@ -916,18 +802,13 @@ public class PlayerCombat : MonoBehaviour
     {
         attackStartTime = Time.time;
         FaceNearestEnemy();
-
         storedHeavyChargePercent = Mathf.Clamp01((Time.time - heavyChargeStartTime) / heavyChargeTimeMax);
         int damage = Mathf.RoundToInt(Mathf.Lerp(heavyDamageMin, heavyDamageMax, storedHeavyChargePercent));
-
         DebugLog($"Heavy — {storedHeavyChargePercent * 100f:F0}% = {damage} dmg");
-
         LockPositionNow();
         PlayCombatAnimation(heavyStateName);
-        PlayVFX(heavyAttackVFX);
-
+        if (vfxManager != null) vfxManager.PlayHeavyAttackVFX();
         animator.SetBool(HashIsAttacking, true);
-
         isChargingHeavy = false;
         isAttacking = true;
         lastAttackTime = Time.time;
@@ -962,7 +843,6 @@ public class PlayerCombat : MonoBehaviour
         lockedPosition = cachedTransform.position;
         lockedRotation = cachedTransform.rotation;
         wasGroundedWhenLocked = characterController != null && characterController.isGrounded;
-
         if (characterController != null)
         {
             characterController.enabled = false;
@@ -985,7 +865,6 @@ public class PlayerCombat : MonoBehaviour
     {
         int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
         bool isFinisher = !isAerialAttack && currentComboStep == 3;
-
         DealDamageInRange(damage, isFinisher);
     }
 
@@ -998,7 +877,6 @@ public class PlayerCombat : MonoBehaviour
     private void DealDamageInRange(int damage, bool isHeavy)
     {
         Collider[] hitEnemies = Physics.OverlapSphere(attackPoint.position, attackRange, enemyLayer);
-
         foreach (Collider enemy in hitEnemies)
         {
             EnemyHealth enemyHealth = enemy.GetComponent<EnemyHealth>();
@@ -1007,20 +885,14 @@ public class PlayerCombat : MonoBehaviour
                 enemyHealth.TakeDamage(damage, isHeavy);
                 DebugLog($"Hit {enemy.name} for {damage}{(isHeavy ? " (heavy)" : "")}");
 
-                // Feedback: contact point VFX + hitstop + camera shake
                 Vector3 contactPoint = enemy.ClosestPoint(attackPoint.position);
-
                 if (CombatFeedbackManager.Instance != null)
                 {
                     Animator enemyAnimator = enemy.GetComponent<Animator>();
                     if (enemyAnimator == null)
                         enemyAnimator = enemy.GetComponentInChildren<Animator>();
-
-                    CombatFeedbackManager.Instance.PlayHitFeedback(
-                        contactPoint, isHeavy, animator, enemyAnimator);
+                    CombatFeedbackManager.Instance.PlayHitFeedback(contactPoint, isHeavy, animator, enemyAnimator);
                 }
-
-                // Impact SFX
                 if (CombatSFXManager.Instance != null)
                 {
                     bool isCombo3 = !isAerialAttack && currentComboStep == 3;
@@ -1031,36 +903,27 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
 
-    #region VFX — Animation Events
+    #region VFX/SFX Animation Events
+    /// <summary>Animation Event: spin VFX start.</summary>
     public void VFX_SpinStart()
     {
-        if (spinVFX != null) spinVFX.Play();
+        if (vfxManager != null) vfxManager.PlaySpinStart();
     }
 
+    /// <summary>Animation Event: spin VFX stop.</summary>
     public void VFX_SpinStop()
     {
-        if (spinVFX != null) spinVFX.Stop();
+        if (vfxManager != null) vfxManager.PlaySpinStop();
     }
 
-    private void PlayVFX(ParticleSystem vfx)
-    {
-        if (vfx != null) vfx.Play();
-    }
-
-    /// <summary>
-    /// Animation Event: play swing whoosh SFX.
-    /// Add on combo clips at the start of the swing arc.
-    /// </summary>
+    /// <summary>Animation Event: swing SFX.</summary>
     public void SFX_Swing()
     {
         if (CombatSFXManager.Instance != null)
             CombatSFXManager.Instance.PlaySwing(currentComboStep);
     }
 
-    /// <summary>
-    /// Animation Event: play heavy swing whoosh SFX.
-    /// Add on the HeavyAttack clip.
-    /// </summary>
+    /// <summary>Animation Event: heavy swing SFX.</summary>
     public void SFX_SwingHeavy()
     {
         if (CombatSFXManager.Instance != null)
@@ -1072,7 +935,6 @@ public class PlayerCombat : MonoBehaviour
     public void OnCanQueueNextAttack()
     {
         canQueueNextAttack = true;
-
         if (queuedClicks > 0)
         {
             queuedClicks--;
@@ -1083,17 +945,12 @@ public class PlayerCombat : MonoBehaviour
     public void OnAttackEnd()
     {
         if (!isAttacking) return;
-
         isAttacking = false;
         canQueueNextAttack = false;
         lastAttackTime = Time.time;
-
         if (currentComboStep >= 3 || isAerialAttack || currentComboStep == 0)
             queuedClicks = 0;
-
-        if (isAerialAttack)
-            isAerialAttack = false;
-
+        if (isAerialAttack) isAerialAttack = false;
         UnlockPosition();
         ReturnToIdle();
         animator.SetBool(HashIsAttacking, false);
@@ -1125,7 +982,6 @@ public class PlayerCombat : MonoBehaviour
                 dodgeCoroutine = null;
             }
         }
-
         if (pullCoroutine != null)
         {
             StopCoroutine(pullCoroutine);
@@ -1133,7 +989,7 @@ public class PlayerCombat : MonoBehaviour
         }
 
         UnlockPosition();
-        VFX_SpinStop();
+        if (vfxManager != null) vfxManager.PlaySpinStop();
         ReturnToIdle();
 
         if (animator != null)
@@ -1141,7 +997,6 @@ public class PlayerCombat : MonoBehaviour
             animator.SetBool(HashIsAttacking, false);
             animator.SetInteger(HashComboStep, 0);
         }
-
         DebugLog("Combat reset");
     }
     #endregion

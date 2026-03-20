@@ -57,16 +57,6 @@ public class CombatFeedbackManager : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float shakeIntensityMultiplier = 1f;
 
-    [Header("VFX Prefabs")]
-    [Tooltip("Spawned at contact point on light hits")]
-    [SerializeField] private GameObject lightHitSparkPrefab;
-    [Tooltip("Spawned at contact point on heavy hits")]
-    [SerializeField] private GameObject heavyHitSparkPrefab;
-    [Tooltip("Spawned at Yoru's feet on dodge")]
-    [SerializeField] private GameObject dodgeTrailPrefab;
-    [Tooltip("VFX lifetime before auto-destroy")]
-    [SerializeField] private float vfxLifetime = 1.5f;
-
     [Header("Post-Process Pulse (Heavy Hits Only)")]
     [Tooltip("Enable chromatic aberration / vignette pulse on heavy hits")]
     [SerializeField] private bool enablePostProcessPulse = true;
@@ -85,6 +75,7 @@ public class CombatFeedbackManager : MonoBehaviour
     private Vector3 originalCamLocalPos;
     private Coroutine shakeCoroutine;
     private Coroutine pulseCoroutine;
+    private YoruVFXManager vfxManager;
 
     // Post-process references (assigned at runtime if available)
     // Using reflection-free approach: cache the post-process volume component if present
@@ -102,6 +93,8 @@ public class CombatFeedbackManager : MonoBehaviour
         }
 
         DebugLog("CombatFeedbackManager initialized");
+
+        vfxManager = FindObjectOfType<YoruVFXManager>();
     }
     #endregion
 
@@ -155,16 +148,6 @@ public class CombatFeedbackManager : MonoBehaviour
         CameraShake(lightShakeIntensity * 0.5f, shakeDuration * 0.5f);
 
         DebugLog("Guard feedback triggered");
-    }
-
-    /// <summary>
-    /// Spawn dodge trail VFX at Yoru's feet.
-    /// Call from PlayerCombat.PerformDodge().
-    /// </summary>
-    public void PlayDodgeVFX(Vector3 position, Quaternion rotation)
-    {
-        SpawnVFX(dodgeTrailPrefab, position, rotation);
-        DebugLog("Dodge VFX spawned");
     }
 
     /// <summary>
@@ -278,25 +261,12 @@ public class CombatFeedbackManager : MonoBehaviour
     }
     #endregion
 
-    #region VFX Spawning
+    #region VFX Spawning — Delegated to YoruVFXManager
 
     private void SpawnHitVFX(Vector3 position, bool isHeavy)
     {
-        GameObject prefab = isHeavy ? heavyHitSparkPrefab : lightHitSparkPrefab;
-        SpawnVFX(prefab, position, Quaternion.identity);
-    }
-
-    private void SpawnVFX(GameObject prefab, Vector3 position, Quaternion rotation)
-    {
-        if (prefab == null) return;
-
-        GameObject vfx = Instantiate(prefab, position, rotation);
-
-        ParticleSystem ps = vfx.GetComponent<ParticleSystem>();
-        if (ps != null && !ps.isPlaying)
-            ps.Play();
-
-        Destroy(vfx, vfxLifetime);
+        if (vfxManager != null)
+            vfxManager.PlayHitSparkVFX(position, isHeavy);
     }
     #endregion
 

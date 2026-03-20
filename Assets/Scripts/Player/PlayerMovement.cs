@@ -77,6 +77,10 @@ public class PlayerMovement : MonoBehaviour
     private const float MIN_MOVE_THRESHOLD = 0.01f;
     private const float GROUND_CHECK_DISTANCE = 0.1f;
     private const float ANIMATION_CROSS_FADE = 0.05f;
+    private const float MIN_AIRBORNE_FOR_LANDING = 0.1f; // Must be airborne this long before OnLanded fires
+    
+    // Ground flicker fix
+    private float airborneTimer;
     #endregion
     
     #region Unity Lifecycle
@@ -195,10 +199,26 @@ public class PlayerMovement : MonoBehaviour
         bool isGrounded = controller.isGrounded;
         SetState(PlayerState.Grounded, isGrounded);
         
-        // Landing detection
-        if (!wasGrounded && isGrounded)
+        // Track airborne time — prevents ground flicker from triggering false landings
+        if (!isGrounded)
+            airborneTimer += Time.deltaTime;
+        
+        // Landing detection — only fires if actually airborne for MIN_AIRBORNE_FOR_LANDING
+        // Also skip during dodge/attack — combat layer handles those animations
+        if (!wasGrounded && isGrounded && airborneTimer >= MIN_AIRBORNE_FOR_LANDING)
         {
-            OnLanded();
+            bool inCombatAction = playerCombat != null && 
+                (playerCombat.IsDodging() || playerCombat.IsAttacking() || playerCombat.IsInHitReaction());
+            
+            if (!inCombatAction)
+                OnLanded();
+            
+            airborneTimer = 0f;
+        }
+        else if (!wasGrounded && isGrounded)
+        {
+            // Ground flicker — reset timer but don't trigger landing
+            airborneTimer = 0f;
         }
         else if (wasGrounded && !isGrounded)
         {

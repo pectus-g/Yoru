@@ -14,6 +14,27 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private GameObject leftTailMagicPrefab;   
     [SerializeField] private GameObject rightTailMagicPrefab;  
     
+    [Header("=== COMBO / ATTACK VFX (assign ParticleSystems here) ===")]
+    [SerializeField] private ParticleSystem combo1VFX;
+    [SerializeField] private ParticleSystem combo2VFX;
+    [SerializeField] private ParticleSystem combo3VFX;
+    [SerializeField] private ParticleSystem heavyAttackVFX;
+    [SerializeField] private ParticleSystem spinVFX;
+    
+    [Header("=== HIT SPARK VFX (spawned at contact point) ===")]
+    [SerializeField] private GameObject lightHitSparkPrefab;
+    [SerializeField] private GameObject heavyHitSparkPrefab;
+    [SerializeField] private float hitSparkLifetime = 1.5f;
+    
+    [Header("=== DODGE VFX ===")]
+    [SerializeField] private GameObject dodgeTrailPrefab;
+    [SerializeField] private GameObject dodgeDashTrailPrefab;
+    [SerializeField] private float dodgeVFXLifetime = 1.5f;
+    
+    [Header("=== HIT REACTION VFX ===")]
+    [SerializeField] private ParticleSystem lightHitReactVFX;
+    [SerializeField] private ParticleSystem heavyHitReactVFX;  
+    
     [Header("=== CINEMATIC EFFECTS ===")]
     [SerializeField] private GameObject soulFreeingPrefab;     
     [SerializeField] private GameObject circleActivationPrefab;
@@ -42,6 +63,7 @@ public class YoruVFXManager : MonoBehaviour
     private float lastFootstepTime;
     private bool wasGrounded;
     private GameObject activeRunTrail;
+    private float airborneTimer; // Track how long airborne — prevents landing VFX spam
     
     private PlayerCombat playerCombat;
     
@@ -207,18 +229,28 @@ public class YoruVFXManager : MonoBehaviour
             }
         }
         
-        // Landing effect — skip during dodge (CharacterController.Move causes ground flicker)
-if (!wasGrounded && isGrounded && landingImpactPrefab != null)
-{
-    if (playerCombat == null || !playerCombat.IsDodging())
-    {
-        Vector3 landingPos = transform.position;
-        landingPos.y += 0.5f;
-        Quaternion rotation = Quaternion.Euler(-90, 0, 0);
-        SpawnEffect(landingImpactPrefab, landingPos, rotation);
-        if (debugMode) Debug.Log("💨 Landing VFX spawned!");
-    }
-}
+        // Landing effect — only fires after actually being airborne (not ground flicker)
+        if (!isGrounded)
+        {
+            airborneTimer += Time.deltaTime;
+        }
+
+        if (!wasGrounded && isGrounded && landingImpactPrefab != null)
+        {
+            // Only trigger if actually airborne for > 0.1s (prevents CharacterController ground flicker spam)
+            if (airborneTimer > 0.1f)
+            {
+                if (playerCombat == null || !playerCombat.IsDodging())
+                {
+                    Vector3 landingPos = transform.position;
+                    landingPos.y += 0.5f;
+                    Quaternion rotation = Quaternion.Euler(-90, 0, 0);
+                    SpawnEffect(landingImpactPrefab, landingPos, rotation);
+                    if (debugMode) Debug.Log("💨 Landing VFX spawned!");
+                }
+            }
+            airborneTimer = 0f;
+        }
     }
     
     // ========== COMBAT ANIMATIONS AUTO-DETECTION ==========
@@ -517,4 +549,80 @@ public void OnJump(int jumpNumber)
     // CHANGED: Now rotates with character direction
     SpawnEffect(absorbingPrefab, position, transform.rotation);
 }
+
+    // ========== COMBAT VFX — Called by PlayerCombat ==========
+
+    /// <summary>Play combo attack VFX for the given combo step (1, 2, or 3).</summary>
+    public void PlayComboVFX(int comboStep)
+    {
+        switch (comboStep)
+        {
+            case 1: if (combo1VFX != null) combo1VFX.Play(); break;
+            case 2: if (combo2VFX != null) combo2VFX.Play(); break;
+            case 3: if (combo3VFX != null) combo3VFX.Play(); break;
+        }
+    }
+
+    /// <summary>Play heavy attack VFX.</summary>
+    public void PlayHeavyAttackVFX()
+    {
+        if (heavyAttackVFX != null) heavyAttackVFX.Play();
+    }
+
+    /// <summary>Play spin VFX (combo 3 / aerial).</summary>
+    public void PlaySpinStart()
+    {
+        if (spinVFX != null) spinVFX.Play();
+    }
+
+    public void PlaySpinStop()
+    {
+        if (spinVFX != null) spinVFX.Stop();
+    }
+
+    /// <summary>Play hit reaction VFX on Yoru.</summary>
+    public void PlayHitReactVFX(bool isHeavy)
+    {
+        if (isHeavy)
+        {
+            if (heavyHitReactVFX != null) heavyHitReactVFX.Play();
+        }
+        else
+        {
+            if (lightHitReactVFX != null) lightHitReactVFX.Play();
+        }
+    }
+
+    // ========== DODGE VFX — Called by PlayerCombat ==========
+
+    /// <summary>Spawn dodge trail at Yoru's feet.</summary>
+    public void PlayDodgeTrailVFX()
+    {
+        if (dodgeTrailPrefab == null) return;
+        Vector3 pos = transform.position;
+        pos.y += 0.1f;
+        GameObject vfx = Instantiate(dodgeTrailPrefab, pos, transform.rotation);
+        Destroy(vfx, dodgeVFXLifetime);
+    }
+
+    /// <summary>Spawn dodge dash damage trail.</summary>
+    public void PlayDodgeDashTrailVFX()
+    {
+        if (dodgeDashTrailPrefab == null) return;
+        Vector3 pos = transform.position;
+        pos.y += 0.1f;
+        GameObject vfx = Instantiate(dodgeDashTrailPrefab, pos, transform.rotation);
+        Destroy(vfx, dodgeVFXLifetime);
+    }
+
+    // ========== HIT SPARK VFX — Called by CombatFeedbackManager ==========
+
+    /// <summary>Spawn hit spark at contact point.</summary>
+    public void PlayHitSparkVFX(Vector3 contactPoint, bool isHeavy)
+    {
+        GameObject prefab = isHeavy ? heavyHitSparkPrefab : lightHitSparkPrefab;
+        if (prefab == null) return;
+        GameObject vfx = Instantiate(prefab, contactPoint, Quaternion.identity);
+        Destroy(vfx, hitSparkLifetime);
+    }
 }
