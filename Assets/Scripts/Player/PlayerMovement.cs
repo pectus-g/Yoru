@@ -121,6 +121,11 @@ public class PlayerMovement : MonoBehaviour
     
     private void FixedUpdate()
     {
+        // During dodge, the dodge coroutine handles ALL movement via CharacterController.Move()
+        // We must NOT apply gravity or movement here or they fight each other = stutter
+        if (playerCombat != null && playerCombat.IsDodging())
+            return;
+        
         // Physics should be in FixedUpdate for consistency
         ApplyMovement();
         ApplyGravity();

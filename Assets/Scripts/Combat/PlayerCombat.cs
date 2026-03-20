@@ -379,7 +379,7 @@ public class PlayerCombat : MonoBehaviour
         string animState = is4Leg ? dodge4LegState : dodge2LegState;
         float distance = is4Leg ? dodge4LegDistance : dodge2LegDistance;
 
-        animator.Play(animState, combatLayerIndex, 0f);
+        animator.CrossFadeInFixedTime(animState, 0.08f, combatLayerIndex);
 
         DebugLog($"Dodge: {animState} ({distance}m, {(is4Leg ? "4leg" : "2leg")})");
 
@@ -403,8 +403,8 @@ public class PlayerCombat : MonoBehaviour
         string dashAnim = was4LegDodge ? dodgeDash4LegState : dodgeDash2LegState;
         float dashDistance = was4LegDodge ? dodgeDash4LegDistance : dodgeDash2LegDistance;
 
-        // Play dash animation from current normalized time to keep momentum
-        animator.Play(dashAnim, combatLayerIndex, 0f);
+        // Smooth transition into dash animation
+        animator.CrossFadeInFixedTime(dashAnim, 0.08f, combatLayerIndex);
 
         DebugLog($"Dodge → Dash! {dashAnim} ({dashDistance}m, {dodgeDashDamage} dmg)");
 
@@ -526,7 +526,7 @@ public class PlayerCombat : MonoBehaviour
         isDodgeDashing = false;
         dodgeCoroutine = null;
         if (animator != null)
-            animator.CrossFadeInFixedTime(combatIdleStateName, 0.05f, combatLayerIndex);
+            animator.CrossFadeInFixedTime(combatIdleStateName, 0.15f, combatLayerIndex);
         DebugLog("Dodge ended");
     }
 
