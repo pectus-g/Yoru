@@ -2,13 +2,11 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3A v8
-/// Changes from v7:
-///   - Dodge (Alt) = evasive frontflip with arc. No damage. One per jump in air (time window).
-///   - Dash (RMB) = aggressive flat rush with damage. Separate move. One per jump in air (time window).
-///   - Old LMB-during-dodge conversion REMOVED.
-///   - Flip stutter fix: animator.Play() at start, CrossFade at end.
-///   - Infinite air flip bug fixed.
+/// YORU Combat System — Phase 3A v9
+/// Changes from v8:
+///   - Dodge key: Left Alt → C (Alt/Ctrl both have editor conflicts)
+///   - Dash key: RMB → Middle Mouse Button (RMB is camera control)
+///   - Guard against inactive GameObject in PlayHitReaction (crash fix)
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -275,14 +273,14 @@ public class PlayerCombat : MonoBehaviour
         if (isInHitReaction) return;
         if (isDodging || isDashing) return;
 
-        // Dodge input (Alt) — evasive frontflip, can cancel combo 1-2
-        if (Input.GetKeyDown(KeyCode.LeftAlt))
+        // Dodge input (C key) — evasive frontflip, can cancel combo 1-2
+        if (Input.GetKeyDown(KeyCode.C))
         {
             if (TryDodge()) return;
         }
 
-        // Dash input (RMB) — aggressive rush with damage
-        if (Input.GetMouseButtonDown(1))
+        // Dash input (Middle Mouse) — aggressive rush with damage
+        if (Input.GetMouseButtonDown(2))
         {
             if (TryDash()) return;
         }
@@ -681,6 +679,9 @@ public class PlayerCombat : MonoBehaviour
 
     public void PlayHitReaction(bool isHeavy, Vector3 attackerPos)
     {
+        // Guard: skip if GameObject is inactive (prevents coroutine crash)
+        if (!gameObject.activeInHierarchy) return;
+
         bool is4Leg = playerMovement != null && playerMovement.IsRunning();
 
         isAttacking = false;
