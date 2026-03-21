@@ -460,7 +460,7 @@ public class PlayerCombat : MonoBehaviour
         isDodging = false;
         dodgeCoroutine = null;
         if (animator != null)
-            animator.CrossFadeInFixedTime(combatIdleStateName, 0.15f, combatLayerIndex);
+            animator.Play(combatIdleStateName, combatLayerIndex, 0f);
         DebugLog("Dodge ended");
     }
 
@@ -632,7 +632,7 @@ public class PlayerCombat : MonoBehaviour
         isDashing = false;
         dashCoroutine = null;
         if (animator != null)
-            animator.CrossFadeInFixedTime(combatIdleStateName, 0.15f, combatLayerIndex);
+            animator.Play(combatIdleStateName, combatLayerIndex, 0f);
         DebugLog("Dash ended");
     }
 
