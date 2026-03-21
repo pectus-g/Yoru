@@ -77,10 +77,14 @@ public class PlayerMovement : MonoBehaviour
     private const float MIN_MOVE_THRESHOLD = 0.01f;
     private const float GROUND_CHECK_DISTANCE = 0.1f;
     private const float ANIMATION_CROSS_FADE = 0.05f;
-    private const float MIN_AIRBORNE_FOR_LANDING = 0.1f; // Must be airborne this long before OnLanded fires
+    private const float MIN_AIRBORNE_FOR_LANDING = 0.15f; // Must be airborne this long before OnLanded fires
+    private const float FALL_DEATH_Y = -50f; // Teleport back if Yoru falls below this
     
     // Ground flicker fix
     private float airborneTimer;
+    
+    // Fall safety net
+    private Vector3 lastSafePosition;
     #endregion
     
     #region Unity Lifecycle
@@ -90,6 +94,7 @@ public class PlayerMovement : MonoBehaviour
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
         cachedTransform = transform;
+        lastSafePosition = transform.position;
         
         // Get VFX Manager if enabled
         if (enableVFX)
@@ -117,14 +122,47 @@ public class PlayerMovement : MonoBehaviour
         HandleInput();
         UpdateState();
         UpdateAnimation();
+        
+        // Fall safety net — teleport back if Yoru falls through terrain
+        if (cachedTransform.position.y < FALL_DEATH_Y)
+        {
+            Debug.LogWarning($"[Movement] Yoru fell below {FALL_DEATH_Y}! Teleporting to last safe position: {lastSafePosition}");
+            controller.enabled = false;
+            cachedTransform.position = lastSafePosition;
+            controller.enabled = true;
+            velocity = Vector3.zero;
+            jumpMomentum = Vector3.zero;
+        }
+        
+        // Track last safe grounded position
+        if (HasState(PlayerState.Grounded))
+        {
+            lastSafePosition = cachedTransform.position;
+        }
     }
+    
+    private bool wasDodgingLastFrame; // Track dodge transition for velocity reset
     
     private void FixedUpdate()
     {
-        // During dodge, the dodge coroutine handles ALL movement via CharacterController.Move()
+        bool isDodgingNow = playerCombat != null && playerCombat.IsDodging();
+        bool isDashingNow = playerCombat != null && playerCombat.IsDashing();
+        
+        // During dodge/dash, the coroutine handles ALL movement via CharacterController.Move()
         // We must NOT apply gravity or movement here or they fight each other = stutter
-        if (playerCombat != null && playerCombat.IsDodging())
+        if (isDodgingNow || isDashingNow)
+        {
+            wasDodgingLastFrame = true;
             return;
+        }
+        
+        // Just exited dodge — reset velocity so there's no gravity jolt
+        if (wasDodgingLastFrame)
+        {
+            wasDodgingLastFrame = false;
+            velocity.y = controller.isGrounded ? -2f : 0f;
+            jumpMomentum = Vector3.zero;
+        }
         
         // Physics should be in FixedUpdate for consistency
         ApplyMovement();
@@ -153,7 +191,7 @@ public class PlayerMovement : MonoBehaviour
         // During attacks: block movement, allow rotation only (feet planted, body can turn)
         // FaceNearestEnemy in PlayerCombat handles enemy targeting rotation.
         // This just stops WASD from sliding Yoru while swinging.
-        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging()))
+        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging() || playerCombat.IsDashing()))
         {
             SetState(PlayerState.Moving, false);
             SetState(PlayerState.Running, false);
@@ -213,7 +251,7 @@ public class PlayerMovement : MonoBehaviour
         if (!wasGrounded && isGrounded && airborneTimer >= MIN_AIRBORNE_FOR_LANDING)
         {
             bool inCombatAction = playerCombat != null && 
-                (playerCombat.IsDodging() || playerCombat.IsAttacking() || playerCombat.IsInHitReaction());
+                (playerCombat.IsDodging() || playerCombat.IsDashing() || playerCombat.IsAttacking() || playerCombat.IsInHitReaction());
             
             if (!inCombatAction)
                 OnLanded();
@@ -379,8 +417,8 @@ public class PlayerMovement : MonoBehaviour
         if (playerCombat != null && playerCombat.IsInHitReaction())
             return;
         
-        // Don't update locomotion during attacks or dodge — combat layer handles it
-        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging()))
+        // Don't update locomotion during attacks, dodge, or dash — combat layer handles it
+        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging() || playerCombat.IsDashing()))
             return;
         
         // Skip if jumping or landing
@@ -422,6 +460,9 @@ public class PlayerMovement : MonoBehaviour
     
     /// <summary>Returns true if the player is currently in a running state.</summary>
     public bool IsRunning() => HasState(PlayerState.Running);
+    
+    /// <summary>Returns remaining time in the jump window. Used by PlayerCombat for air dodge/dash timing.</summary>
+    public float GetJumpWindowTimer() => jumpWindowTimer;
     #endregion
     
     #region Debug

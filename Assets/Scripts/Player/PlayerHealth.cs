@@ -76,6 +76,10 @@ public class PlayerHealth : MonoBehaviour
         if (playerCombat != null && playerCombat.IsInDodgeIFrames())
             return;
 
+        // GATE 3: Dash i-frames — mid-dash invincibility window
+        if (playerCombat != null && playerCombat.IsInDashIFrames())
+            return;
+
         // Already dead — don't process further
         if (currentHealth <= 0)
             return;
