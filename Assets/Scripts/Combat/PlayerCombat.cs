@@ -2,11 +2,13 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3A v9
-/// Changes from v8:
-///   - Dodge key: Left Alt → C (Alt/Ctrl both have editor conflicts)
-///   - Dash key: RMB → Middle Mouse Button (RMB is camera control)
-///   - Guard against inactive GameObject in PlayHitReaction (crash fix)
+/// YORU Combat System — Phase 3A v10
+/// Changes from v9:
+///   - All animator.Play() on combat layer → CrossFadeInFixedTime (matches working combo pattern)
+///   - Removed yield return null dead frame from DodgeMovement/DashMovement
+///   - Added 0.15s dodge cooldown to prevent rapid re-entry
+///   - Added dodgeEndTime for PlayerMovement landing guard (Bug 2)
+///   - Dash start uses 0.03f blend for smooth transition (Bug 3)
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -155,6 +157,7 @@ public class PlayerCombat : MonoBehaviour
     private Quaternion dodgeLockedRotation;
     private Coroutine dodgeCoroutine;
     private bool hasUsedAirDodge; // one flip per jump
+    private float dodgeEndTime;  // timestamp for cooldown + landing guard
 
     // Dash (rush — RMB)
     private bool isDashing;
@@ -196,7 +199,7 @@ public class PlayerCombat : MonoBehaviour
         if (animator != null)
             animator.SetLayerWeight(combatLayerIndex, 1f);
 
-        DebugLog("PlayerCombat initialized — Phase 3A v8");
+        DebugLog("PlayerCombat initialized — Phase 3A v10");
     }
 
     private void Update()
@@ -320,6 +323,9 @@ public class PlayerCombat : MonoBehaviour
     {
         if (characterController == null) return false;
 
+        // Cooldown: prevent rapid re-entry that corrupts Animator state machine
+        if (Time.time - dodgeEndTime < 0.15f) return false;
+
         bool isGrounded = characterController.isGrounded;
 
         // Air dodge: needs jump time window + not used yet this jump
@@ -380,8 +386,8 @@ public class PlayerCombat : MonoBehaviour
         string animState = is4Leg ? dodge4LegState : dodge2LegState;
         float distance = is4Leg ? dodge4LegDistance : dodge2LegDistance;
 
-        // Fix: instant Play instead of CrossFade to avoid stutter at start
-        animator.Play(animState, combatLayerIndex, 0f);
+        // CrossFade with short blend — matches combo system (Play() corrupts state machine under rapid input)
+        animator.CrossFadeInFixedTime(animState, 0.03f, combatLayerIndex);
 
         DebugLog($"Dodge: {animState} ({distance}m, {(is4Leg ? "4leg" : "2leg")})");
 
@@ -394,14 +400,17 @@ public class PlayerCombat : MonoBehaviour
 
     private IEnumerator DodgeMovement(Vector3 direction, float distance)
     {
-        yield return null;
-
+        // No dead frame — start movement immediately
         float duration = dodgeFallbackDuration;
+        bool needsClipUpdate = true;
         if (animator != null)
         {
             AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
             if (stateInfo.length > 0.1f)
+            {
                 duration = stateInfo.length;
+                needsClipUpdate = false;
+            }
         }
         currentDodgeDuration = duration;
 
@@ -412,6 +421,19 @@ public class PlayerCombat : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
+
+            // Deferred: read actual clip length once animator has transitioned
+            if (needsClipUpdate && animator != null)
+            {
+                AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+                if (si.length > 0.1f)
+                {
+                    duration = si.length;
+                    currentDodgeDuration = duration;
+                }
+                needsClipUpdate = false;
+            }
+
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = t * t * (3f - 2f * t);
             float frameDelta = eased - previousEased;
@@ -459,8 +481,9 @@ public class PlayerCombat : MonoBehaviour
     {
         isDodging = false;
         dodgeCoroutine = null;
+        dodgeEndTime = Time.time;
         if (animator != null)
-            animator.Play(combatIdleStateName, combatLayerIndex, 0f);
+            animator.CrossFadeInFixedTime(combatIdleStateName, 0.1f, combatLayerIndex);
         DebugLog("Dodge ended");
     }
 
@@ -539,8 +562,8 @@ public class PlayerCombat : MonoBehaviour
         string animState = is4Leg ? dash4LegState : dash2LegState;
         float distance = is4Leg ? dash4LegDistance : dash2LegDistance;
 
-        // Instant play for snappy start
-        animator.Play(animState, combatLayerIndex, 0f);
+        // CrossFade with short blend — smooth transition (Bug 3) + matches combo pattern
+        animator.CrossFadeInFixedTime(animState, 0.03f, combatLayerIndex);
 
         DebugLog($"Dash: {animState} ({distance}m, {dashDamage} dmg, {(is4Leg ? "4leg" : "2leg")})");
 
@@ -553,14 +576,17 @@ public class PlayerCombat : MonoBehaviour
 
     private IEnumerator DashMovement(Vector3 direction, float distance)
     {
-        yield return null;
-
+        // No dead frame — start movement immediately
         float duration = dashFallbackDuration;
+        bool needsClipUpdate = true;
         if (animator != null)
         {
             AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
             if (stateInfo.length > 0.1f)
+            {
                 duration = stateInfo.length;
+                needsClipUpdate = false;
+            }
         }
         currentDashDuration = duration;
 
@@ -573,6 +599,19 @@ public class PlayerCombat : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
+
+            // Deferred: read actual clip length once animator has transitioned
+            if (needsClipUpdate && animator != null)
+            {
+                AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+                if (si.length > 0.1f)
+                {
+                    duration = si.length;
+                    currentDashDuration = duration;
+                }
+                needsClipUpdate = false;
+            }
+
             float t = Mathf.Clamp01(elapsed / duration);
             float eased = t * t * (3f - 2f * t);
             float frameDelta = eased - previousEased;
@@ -631,8 +670,9 @@ public class PlayerCombat : MonoBehaviour
     {
         isDashing = false;
         dashCoroutine = null;
+        dodgeEndTime = Time.time;
         if (animator != null)
-            animator.Play(combatIdleStateName, combatLayerIndex, 0f);
+            animator.CrossFadeInFixedTime(combatIdleStateName, 0.1f, combatLayerIndex);
         DebugLog("Dash ended");
     }
 
@@ -1109,6 +1149,7 @@ public class PlayerCombat : MonoBehaviour
         hasUsedAerialAttack = false;
         storedHeavyChargePercent = 0f;
         isInHitReaction = false;
+        dodgeEndTime = 0f;
 
         if (isDodging)
         {
@@ -1156,6 +1197,7 @@ public class PlayerCombat : MonoBehaviour
     public bool IsInHitReaction() => isInHitReaction;
     public bool IsDodging() => isDodging;
     public bool IsDashing() => isDashing;
+    public float GetDodgeEndTime() => dodgeEndTime;
     public Animator GetAnimator() => animator;
     #endregion
 

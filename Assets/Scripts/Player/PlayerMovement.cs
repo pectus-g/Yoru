@@ -251,7 +251,9 @@ public class PlayerMovement : MonoBehaviour
         if (!wasGrounded && isGrounded && airborneTimer >= MIN_AIRBORNE_FOR_LANDING)
         {
             bool inCombatAction = playerCombat != null && 
-                (playerCombat.IsDodging() || playerCombat.IsDashing() || playerCombat.IsAttacking() || playerCombat.IsInHitReaction());
+                (playerCombat.IsDodging() || playerCombat.IsDashing() || 
+                 playerCombat.IsAttacking() || playerCombat.IsInHitReaction() ||
+                 Time.time - playerCombat.GetDodgeEndTime() < 0.5f);
             
             if (!inCombatAction)
                 OnLanded();
