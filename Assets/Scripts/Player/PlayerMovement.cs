@@ -433,6 +433,13 @@ public class PlayerMovement : MonoBehaviour
         {
             targetSpeed = HasState(PlayerState.Running) ? 2f : 1f;
         }
+        // Bug 2 fix: during post-dodge fall, keep speed at run value if player is sprinting
+        // Without this, speed damps to 0 while airborne → base layer shows 2-leg idle
+        else if (playerCombat != null && Time.time - playerCombat.GetDodgeEndTime() < 0.5f
+                 && Input.GetKey(KeyCode.LeftShift))
+        {
+            targetSpeed = 2f;
+        }
         
         // Smooth transition (only update when changed)
         if (Mathf.Abs(currentSpeed - targetSpeed) > 0.01f)
