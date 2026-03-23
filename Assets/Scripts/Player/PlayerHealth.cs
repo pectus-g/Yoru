@@ -4,7 +4,7 @@ using TMPro;
 
 /// <summary>
 /// Player Health — all defensive gates live in TakeDamage() BEFORE HP subtraction.
-/// Gate order: post-hit i-frames → dodge i-frames → [Phase 3C: parry/guard] → subtract HP.
+/// Gate order: post-hit i-frames → dodge i-frames → dash i-frames → perfect parry → regular guard → subtract HP.
 /// </summary>
 public class PlayerHealth : MonoBehaviour
 {
@@ -80,11 +80,39 @@ public class PlayerHealth : MonoBehaviour
         if (playerCombat != null && playerCombat.IsInDashIFrames())
             return;
 
+        // GATE 4: Perfect parry — 0.2s window after Q press, zero damage + enemy stagger
+        if (playerCombat != null && playerCombat.IsInPerfectParryWindow())
+        {
+            playerCombat.OnPerfectParry(attackerPos);
+            iFrameTimer = iFrameDuration; // Brief i-frames after parry too
+            return;
+        }
+
+        // GATE 5: Regular guard — 70% damage blocked, no hit reaction, stay in guard
+        if (playerCombat != null && playerCombat.IsGuarding())
+        {
+            float reduction = playerCombat.GetGuardDamageReduction();
+            int reducedDamage = Mathf.Max(1, Mathf.RoundToInt(damage * (1f - reduction)));
+
+            currentHealth = Mathf.Max(currentHealth - reducedDamage, 0);
+            iFrameTimer = iFrameDuration;
+
+            if (peachHealthUI != null)
+                peachHealthUI.UpdateHealth(currentHealth);
+
+            // Guard hit feedback — NO hit reaction (Yoru stays in guard stance)
+            playerCombat.OnGuardHit(isHeavy);
+
+            if (currentHealth <= 0)
+                OnDeath();
+            return;
+        }
+
         // Already dead — don't process further
         if (currentHealth <= 0)
             return;
 
-        // --- All gates passed — apply damage ---
+        // --- All gates passed — apply full damage ---
         currentHealth = Mathf.Max(currentHealth - damage, 0);
         iFrameTimer = iFrameDuration;
 

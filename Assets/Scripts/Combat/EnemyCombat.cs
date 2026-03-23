@@ -789,6 +789,21 @@ public class EnemyCombat : MonoBehaviour
         isTeleporting = false;
         SetState(EnemyState.Stagger);
     }
+
+    /// <summary>
+    /// Overload with custom stagger duration (used by perfect parry).
+    /// </summary>
+    public void TriggerStagger(float customDuration)
+    {
+        if (currentState == EnemyState.Dead) return;
+        
+        StopAllCoroutines();
+        isTeleporting = false;
+        SetState(EnemyState.Stagger);
+        // Override the default stagger duration set by SetState
+        stateTimer = customDuration;
+        DebugLog($"STAGGERED (parry) for {customDuration}s");
+    }
     
  /// <summary>
 /// Called by EnemyHealth on light hit. Transitions to HitReact state so the

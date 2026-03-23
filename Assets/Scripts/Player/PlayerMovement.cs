@@ -147,10 +147,11 @@ public class PlayerMovement : MonoBehaviour
     {
         bool isDodgingNow = playerCombat != null && playerCombat.IsDodging();
         bool isDashingNow = playerCombat != null && playerCombat.IsDashing();
+        bool isGuardingNow = playerCombat != null && playerCombat.IsGuarding();
         
-        // During dodge/dash, the coroutine handles ALL movement via CharacterController.Move()
+        // During dodge/dash/guard, another system handles ALL movement
         // We must NOT apply gravity or movement here or they fight each other = stutter
-        if (isDodgingNow || isDashingNow)
+        if (isDodgingNow || isDashingNow || isGuardingNow)
         {
             wasDodgingLastFrame = true;
             return;
@@ -191,7 +192,7 @@ public class PlayerMovement : MonoBehaviour
         // During attacks: block movement, allow rotation only (feet planted, body can turn)
         // FaceNearestEnemy in PlayerCombat handles enemy targeting rotation.
         // This just stops WASD from sliding Yoru while swinging.
-        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging() || playerCombat.IsDashing()))
+        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging() || playerCombat.IsDashing() || playerCombat.IsGuarding()))
         {
             SetState(PlayerState.Moving, false);
             SetState(PlayerState.Running, false);
@@ -253,6 +254,7 @@ public class PlayerMovement : MonoBehaviour
             bool inCombatAction = playerCombat != null && 
                 (playerCombat.IsDodging() || playerCombat.IsDashing() || 
                  playerCombat.IsAttacking() || playerCombat.IsInHitReaction() ||
+                 playerCombat.IsGuarding() ||
                  Time.time - playerCombat.GetDodgeEndTime() < 0.5f);
             
             if (!inCombatAction)
@@ -327,7 +329,7 @@ public class PlayerMovement : MonoBehaviour
     
     #region Jump System
     private void TryJump()
-    {if (playerCombat != null && playerCombat.IsAttacking() && !playerCombat.IsAerialAttack()) return;
+    {if (playerCombat != null && (playerCombat.IsAttacking() && !playerCombat.IsAerialAttack() || playerCombat.IsGuarding())) return;
         // First jump
         if (jumpCount == 0 && (HasState(PlayerState.Grounded) || coyoteTimer > 0))
         {
@@ -420,7 +422,7 @@ public class PlayerMovement : MonoBehaviour
             return;
         
         // Don't update locomotion during attacks, dodge, or dash — combat layer handles it
-        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging() || playerCombat.IsDashing()))
+        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging() || playerCombat.IsDashing() || playerCombat.IsGuarding()))
             return;
         
         // Skip if jumping or landing
