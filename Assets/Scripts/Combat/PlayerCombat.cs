@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v12
+/// YORU Combat System — Phase 3C v14
 /// v11: Hit reaction animator.Play() → CrossFadeInFixedTime (prevents freeze under rapid hits)
 /// v12: Phase 3C guard/parry system (Sekiro-style Q hold guard + perfect parry window)
 ///   - Q hold = guard stance, 70% damage reduction, facing locks, no rotation
@@ -189,7 +189,9 @@ public class PlayerCombat : MonoBehaviour
     // Guard/Parry (Q)
     private bool isGuarding;
     private float guardStartTime;
+    private float guardEndTime;       // cooldown — prevents rapid Q tap from corrupting Animator
     private string currentGuardAnim;
+    private float lastCombatCrossFadeTime; // tracks last CrossFade on combat layer for health check
 
     // Pull
     private Coroutine pullCoroutine;
@@ -227,7 +229,7 @@ public class PlayerCombat : MonoBehaviour
         if (guardMovement == null)
             Debug.LogWarning("[Combat] WARNING: GuardMovementController not found! Add it to PlayerYoru_Def.");
 
-        DebugLog("PlayerCombat initialized — Phase 3C v12");
+        DebugLog("PlayerCombat initialized — Phase 3C v14");
     }
 
     private void Update()
@@ -263,6 +265,20 @@ public class PlayerCombat : MonoBehaviour
         {
             DebugLog("Safety: dash timeout");
             EndDash();
+        }
+
+        // Combat layer health check — catches permanent Animator corruption from rapid input
+        // If no combat state is active but the combat layer hasn't been touched in 1s, force idle
+        if (!isAttacking && !isInHitReaction && !isDodging && !isDashing && !isGuarding
+            && !isChargingHeavy && Time.time - lastCombatCrossFadeTime > 1.0f)
+        {
+            // Check if combat layer is actually stuck (not already in idle)
+            AnimatorStateInfo combatState = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            if (!combatState.IsName(combatIdleStateName) && !animator.IsInTransition(combatLayerIndex))
+            {
+                DebugLog("Safety: combat layer stuck — forcing idle");
+                ReturnToIdle();
+            }
         }
     }
 
@@ -307,10 +323,14 @@ public class PlayerCombat : MonoBehaviour
         if (isDodging || isDashing) return;
 
         // === GUARD INPUT (Q key) ===
-        if (Input.GetKeyDown(KeyCode.Q) && !isGuarding)
+        // Cooldown prevents rapid Q tap from corrupting Animator (same principle as dodge cooldown)
+        if (Input.GetKeyDown(KeyCode.Q) && !isGuarding && Time.time - guardEndTime > 0.2f)
         {
-            StartGuard();
-            return;
+            if (characterController != null && characterController.isGrounded)
+            {
+                StartGuard();
+                return;
+            }
         }
 
         // During guard: only dodge (C) and dash (MMB) allowed as exits
@@ -407,8 +427,18 @@ public class PlayerCombat : MonoBehaviour
 
         PlayGuardAnim(parryIdleState);
 
+        // Lock guard facing to the direction player is currently moving
+        // If pressing D → guard faces right. If no input → fall back to transform.forward.
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
+        Vector3 guardDir;
+        if (Mathf.Abs(h) > 0.1f || Mathf.Abs(v) > 0.1f)
+            guardDir = GetInputDirectionCameraRelative(h, v);
+        else
+            guardDir = cachedTransform.forward;
+
         if (guardMovement != null)
-            guardMovement.EnableGuard(cachedTransform.forward);
+            guardMovement.EnableGuard(guardDir);
 
         DebugLog($"Guard START (perfect parry window: {perfectParryWindow}s)");
     }
@@ -418,6 +448,7 @@ public class PlayerCombat : MonoBehaviour
         if (!isGuarding) return;
 
         isGuarding = false;
+        guardEndTime = Time.time;
         currentGuardAnim = "";
 
         if (guardMovement != null)
@@ -429,25 +460,42 @@ public class PlayerCombat : MonoBehaviour
 
     private void UpdateGuardAnimation()
     {
-        float v = Input.GetAxisRaw("Vertical");
+        // Use dot product of current input against locked direction
+        // If guard locked from D, pressing D = forward anim, A = backward anim
+        float projection = 0f;
+        if (guardMovement != null)
+            projection = guardMovement.GetGuardInputProjection();
+
         string targetAnim;
 
-        if (v > 0.1f)
+        if (projection > 0.3f)
             targetAnim = parryWalkForwardState;
-        else if (v < -0.1f)
+        else if (projection < -0.3f)
             targetAnim = parryWalkBackwardState;
         else
             targetAnim = parryIdleState;
 
         if (targetAnim != currentGuardAnim)
-            PlayGuardAnim(targetAnim);
+        {
+            // Longer blend when returning to idle — hides the "restart" feel
+            float blendTime = (targetAnim == parryIdleState) ? 0.25f : 0.15f;
+            currentGuardAnim = targetAnim;
+            if (animator != null)
+            {
+                animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex);
+                lastCombatCrossFadeTime = Time.time;
+            }
+        }
     }
 
     private void PlayGuardAnim(string stateName)
     {
         currentGuardAnim = stateName;
         if (animator != null)
+        {
             animator.CrossFadeInFixedTime(stateName, 0.15f, combatLayerIndex);
+            lastCombatCrossFadeTime = Time.time;
+        }
     }
 
     public bool IsInPerfectParryWindow()
@@ -586,6 +634,7 @@ public class PlayerCombat : MonoBehaviour
         float distance = is4Leg ? dodge4LegDistance : dodge2LegDistance;
 
         animator.CrossFadeInFixedTime(animState, 0.03f, combatLayerIndex);
+        lastCombatCrossFadeTime = Time.time;
 
         DebugLog($"Dodge: {animState} ({distance}m, {(is4Leg ? "4leg" : "2leg")})");
 
@@ -677,7 +726,10 @@ public class PlayerCombat : MonoBehaviour
         dodgeCoroutine = null;
         dodgeEndTime = Time.time;
         if (animator != null)
+        {
             animator.CrossFadeInFixedTime(combatIdleStateName, 0.1f, combatLayerIndex);
+            lastCombatCrossFadeTime = Time.time;
+        }
         DebugLog("Dodge ended");
     }
 
@@ -754,6 +806,7 @@ public class PlayerCombat : MonoBehaviour
         float distance = is4Leg ? dash4LegDistance : dash2LegDistance;
 
         animator.CrossFadeInFixedTime(animState, 0.03f, combatLayerIndex);
+        lastCombatCrossFadeTime = Time.time;
 
         DebugLog($"Dash: {animState} ({distance}m, {dashDamage} dmg, {(is4Leg ? "4leg" : "2leg")})");
 
@@ -856,7 +909,10 @@ public class PlayerCombat : MonoBehaviour
         dashCoroutine = null;
         dodgeEndTime = Time.time;
         if (animator != null)
+        {
             animator.CrossFadeInFixedTime(combatIdleStateName, 0.1f, combatLayerIndex);
+            lastCombatCrossFadeTime = Time.time;
+        }
         DebugLog("Dash ended");
     }
 
@@ -977,6 +1033,7 @@ public class PlayerCombat : MonoBehaviour
         if (animator != null)
         {
             animator.CrossFadeInFixedTime(animState, 0.02f, combatLayerIndex, 0f);
+            lastCombatCrossFadeTime = Time.time;
             DebugLog($"Hit react: {animState} ({duration}s)");
         }
 
@@ -1194,12 +1251,14 @@ public class PlayerCombat : MonoBehaviour
     {
         if (animator == null) return;
         animator.CrossFadeInFixedTime(stateName, 0.05f, combatLayerIndex);
+        lastCombatCrossFadeTime = Time.time;
     }
 
     private void ReturnToIdle()
     {
         if (animator == null) return;
         animator.CrossFadeInFixedTime(combatIdleStateName, 0.1f, combatLayerIndex);
+        lastCombatCrossFadeTime = Time.time;
     }
     #endregion
 

@@ -149,11 +149,25 @@ public class PlayerMovement : MonoBehaviour
         bool isDashingNow = playerCombat != null && playerCombat.IsDashing();
         bool isGuardingNow = playerCombat != null && playerCombat.IsGuarding();
         
-        // During dodge/dash/guard, another system handles ALL movement
+        // During dodge/dash, the coroutine handles ALL movement via CharacterController.Move()
         // We must NOT apply gravity or movement here or they fight each other = stutter
-        if (isDodgingNow || isDashingNow || isGuardingNow)
+        if (isDodgingNow || isDashingNow)
         {
             wasDodgingLastFrame = true;
+            return;
+        }
+        
+        // During guard: skip horizontal movement but KEEP gravity working with grounded reset
+        // GuardMovementController handles only horizontal movement + rotation
+        // Without the grounded reset, velocity.y accumulates to -50 causing ground oscillation
+        if (isGuardingNow)
+        {
+            if (controller.isGrounded)
+                velocity.y = -2f;
+            else
+                velocity.y += gravity * fallMultiplier * Time.fixedDeltaTime;
+            velocity.y = Mathf.Max(velocity.y, -50f);
+            controller.Move(velocity * Time.fixedDeltaTime);
             return;
         }
         
