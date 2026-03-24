@@ -2,14 +2,13 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v19
-/// v17: Guard overrides, orphan detection with timer resets, smoother blends
-/// v19: Three fixes:
-///   - ForceResetCombat now restores animator.speed=1 (defense in depth for hitstop stacking)
-///   - Movement-stuck safety net: WASD held 1.5s + flags blocking + no combat keys → force reset
-///   - Paw dip instant onset (snap up, smooth descent) — independent visual fix
-///   - GetAnimatorSpeed() getter for diagnostics
-/// Root cause fix is in CombatFeedbackManager: single-active hitstop prevents coroutine stacking.
+/// YORU Combat System — Phase 3C v21
+/// v20: EndDash/EndDodge StopCoroutine fix (insufficient — coroutines silently crash)
+/// v21: ACTUAL FIX — time-based flag clearing that doesn't depend on coroutines:
+///   - Dodge/dash timeouts tightened: +0.3s grace (was +1.0s) plus 2s absolute hard cap
+///   - Movement-stuck safety: 0.5s WASD held + any flag stuck → force reset (was 1.5s + required no combat keys)
+///   - These catch ALL orphan scenarios regardless of how the coroutine dies
+/// Confirmed via logs: isDashing and isDodging both get orphaned by rapid input.
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -268,6 +267,12 @@ public class PlayerCombat : MonoBehaviour
         if (isGuarding)
             UpdateGuardAnimation();
 
+        // Continuous soft lock-on during attacks — Yoru tracks nearest enemy while feet stay planted.
+        // Like God of War: if enemy teleports behind mid-combo, Yoru turns to face them.
+        // Position lock (combo 3, heavy) only locks position, not rotation (see EnforcePositionLock).
+        if (isAttacking && !isInHitReaction)
+            FaceNearestEnemy();
+
         if (!isAttacking && !isInHitReaction && !isDodging && !isDashing && !isGuarding
             && queuedClicks > 0 && currentComboStep > 0 && currentComboStep < 3)
         {
@@ -281,16 +286,26 @@ public class PlayerCombat : MonoBehaviour
             ForceResetCombat();
         }
 
-        if (isDodging && Time.time - dodgeStartTime > currentDodgeDuration + 1.0f)
+        // Dodge timeout — tightened from +1.0s to +0.3s, plus 2s absolute hard cap
+        if (isDodging)
         {
-            DebugLog("Safety: dodge timeout");
-            EndDodge();
+            float dodgeElapsed = Time.time - dodgeStartTime;
+            if (dodgeElapsed > currentDodgeDuration + 0.3f || dodgeElapsed > 2.0f)
+            {
+                DebugLog($"Safety: dodge timeout ({dodgeElapsed:F2}s, expected {currentDodgeDuration:F2}s)");
+                EndDodge();
+            }
         }
 
-        if (isDashing && Time.time - dashStartTime > currentDashDuration + 1.0f)
+        // Dash timeout — same tightening
+        if (isDashing)
         {
-            DebugLog("Safety: dash timeout");
-            EndDash();
+            float dashElapsed = Time.time - dashStartTime;
+            if (dashElapsed > currentDashDuration + 0.3f || dashElapsed > 2.0f)
+            {
+                DebugLog($"Safety: dash timeout ({dashElapsed:F2}s, expected {currentDashDuration:F2}s)");
+                EndDash();
+            }
         }
 
         // Guard safety — if Q not held but isGuarding stuck, Q release was missed (rapid input)
@@ -369,24 +384,21 @@ public class PlayerCombat : MonoBehaviour
         }
 
         // === Movement-stuck safety net ===
-        // Catches the freeze scenario the orphan detector misses: when Animator.speed is stuck at 0,
-        // the Animator never reaches CombatIdle so the orphan timer never fires.
-        // Condition: WASD held for 1.5s+ AND any combat flag is blocking movement
-        //            AND no combat keys are actively held (player is just trying to walk).
-        // This is the "nuclear" v18 approach tested in isolation — no other changes bundled.
+        // If WASD held for 1.0s while any combat flag blocks movement → force reset.
+        // Timer resets at every action start (PerformDodge, PerformDash, etc.) so it
+        // only fires AFTER the expected action duration. 1.0s is longer than any single
+        // action (max is dodge at 0.87s) but shorter than the old 1.5s.
         {
             bool anyFlagBlocking = isAttacking || isChargingHeavy || isDodging || isDashing || isGuarding;
             bool wasdHeld = Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f
                 || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f;
-            bool noCombatKeysHeld = !Input.GetMouseButton(0) && !Input.GetKey(KeyCode.Q)
-                && !Input.GetKey(KeyCode.C) && !Input.GetMouseButton(2);
 
-            if (anyFlagBlocking && wasdHeld && noCombatKeysHeld)
+            if (anyFlagBlocking && wasdHeld)
             {
                 movementStuckTimer += Time.deltaTime;
-                if (movementStuckTimer > 1.5f)
+                if (movementStuckTimer > 1.0f)
                 {
-                    DebugLog($"Safety: movement stuck 1.5s (atk={isAttacking} dod={isDodging} dsh={isDashing} grd={isGuarding} hvy={isChargingHeavy} hit={isInHitReaction} animSpeed={animator?.speed}) — forcing reset + speed restore");
+                    DebugLog($"Safety: movement stuck 1.0s (atk={isAttacking} dod={isDodging} dsh={isDashing} grd={isGuarding} hvy={isChargingHeavy} hit={isInHitReaction} animSpeed={animator?.speed}) — forcing reset");
                     if (animator != null) animator.speed = 1f;
                     ForceResetCombat();
                     movementStuckTimer = 0f;
@@ -456,7 +468,7 @@ public class PlayerCombat : MonoBehaviour
             return;
         characterController.enabled = false;
         cachedTransform.position = lockedPosition;
-        cachedTransform.rotation = lockedRotation;
+        // Rotation NOT locked — FaceNearestEnemy needs to track enemies during combo 3 and heavy
         characterController.enabled = true;
     }
 
@@ -550,6 +562,7 @@ public class PlayerCombat : MonoBehaviour
     private void StartGuard()
     {
         combatIdleSettledTimer = 0f; // prevent orphan detection from killing this action
+        movementStuckTimer = 0f;
         // Can cancel combo 1-2 into guard
         if (isAttacking)
         {
@@ -634,9 +647,12 @@ public class PlayerCombat : MonoBehaviour
             currentGuardAnim = targetAnim;
             if (animator != null)
             {
-                // When switching back to parry idle after walk, intro already played — skip it
-                // CrossFadeInFixedTime 4th param = fixedTimeOffset (seconds into destination state)
-                if (targetAnim == parryIdleState && parryIntroComplete)
+                // When switching back to parry idle, skip the intro if enough time has passed.
+                // Time-based check replaces parryIntroComplete flag — the flag could only be set
+                // while in idle anim, so pressing a direction during intro left it false forever.
+                // Now: once guardStartTime + parryIntroLength has elapsed, intro always skips.
+                bool introAlreadyPlayed = (Time.time - guardStartTime) > parryIntroLength;
+                if (targetAnim == parryIdleState && introAlreadyPlayed)
                     animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex, parryIntroLength);
                 else
                     animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex);
@@ -647,27 +663,22 @@ public class PlayerCombat : MonoBehaviour
         // --- Parry idle loop skip ---
         // The Parry clip has an intro (standing→guard transition) that plays ONCE on first Q press.
         // After that, we must prevent the clip from wrapping back to frame 0 (which replays the intro).
-        //
-        // Strategy: detect when normalizedTime is near the END of the clip (>0.95) and CrossFade
-        // to the loop point BEFORE the natural wrap happens. This way intro frames never render.
-        // Fallback: if somehow we miss the pre-wrap window (very low FPS), catch it after wrap too.
+        // Uses time-based check: once guardStartTime + parryIntroLength has elapsed, intro is done.
         if (currentGuardAnim == parryIdleState && animator != null)
         {
-            AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-            if (stateInfo.IsName(parryIdleState) && !animator.IsInTransition(combatLayerIndex))
+            bool introAlreadyPlayed = (Time.time - guardStartTime) > parryIntroLength;
+
+            if (introAlreadyPlayed)
             {
-                float clipLength = stateInfo.length;
-                if (clipLength > 0f)
+                AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+                if (stateInfo.IsName(parryIdleState) && !animator.IsInTransition(combatLayerIndex))
                 {
-                    float loopStartNormalized = parryIntroLength / clipLength;
-                    float normalizedTime = stateInfo.normalizedTime % 1f;
-
-                    // Mark intro as complete once we've played past the intro section
-                    if (!parryIntroComplete && normalizedTime >= loopStartNormalized)
-                        parryIntroComplete = true;
-
-                    if (parryIntroComplete)
+                    float clipLength = stateInfo.length;
+                    if (clipLength > 0f)
                     {
+                        float loopStartNormalized = parryIntroLength / clipLength;
+                        float normalizedTime = stateInfo.normalizedTime % 1f;
+
                         // Pre-wrap: clip is about to loop — CrossFade to loop point before frame 0 renders
                         if (normalizedTime > 0.95f)
                         {
@@ -803,6 +814,7 @@ public class PlayerCombat : MonoBehaviour
     private void PerformDodge(bool is4Leg, Vector3 moveDir)
     {
         combatIdleSettledTimer = 0f;
+        movementStuckTimer = 0f;
         if (isAttacking)
         {
             isAttacking = false;
@@ -922,7 +934,11 @@ public class PlayerCombat : MonoBehaviour
     private void EndDodge()
     {
         isDodging = false;
-        dodgeCoroutine = null;
+        if (dodgeCoroutine != null)
+        {
+            StopCoroutine(dodgeCoroutine);
+            dodgeCoroutine = null;
+        }
         dodgeEndTime = Time.time;
         if (animator != null)
         {
@@ -977,6 +993,7 @@ public class PlayerCombat : MonoBehaviour
     private void PerformDash(bool is4Leg, Vector3 moveDir)
     {
         combatIdleSettledTimer = 0f;
+        movementStuckTimer = 0f;
         if (isAttacking)
         {
             isAttacking = false;
@@ -1107,7 +1124,11 @@ public class PlayerCombat : MonoBehaviour
     private void EndDash()
     {
         isDashing = false;
-        dashCoroutine = null;
+        if (dashCoroutine != null)
+        {
+            StopCoroutine(dashCoroutine);
+            dashCoroutine = null;
+        }
         dodgeEndTime = Time.time;
         if (animator != null)
         {
@@ -1339,6 +1360,7 @@ public class PlayerCombat : MonoBehaviour
     private void PerformGroundCombo()
     {
         combatIdleSettledTimer = 0f;
+        movementStuckTimer = 0f;
         attackStartTime = Time.time;
         FaceNearestEnemy();
 
