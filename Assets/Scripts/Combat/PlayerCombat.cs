@@ -2,17 +2,13 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v15
-/// v11: Hit reaction animator.Play() → CrossFadeInFixedTime (prevents freeze under rapid hits)
-/// v12: Phase 3C guard/parry system (Sekiro-style Q hold guard + perfect parry window)
-///   - Q hold = guard stance, 70% damage reduction, facing locks, no rotation
-///   - Perfect parry = 0.2s window after Q press, zero damage, enemy staggers 1.2s
-///   - Guard movement handled by GuardMovementController (separate script)
-///   - Can dodge (C) or dash (MMB) out of guard
-///   - Guard forces 2-leg stance (stops sprint)
-/// v15: Parry animation loop skip (intro frames don't replay on loop or walk→idle transition)
-///   - parryIntroLength (Inspector) defines where the guard pose begins in the Parry clip
-///   - After intro plays once, loop restarts past intro; walk→idle also skips intro
+/// YORU Combat System — Phase 3C v16
+/// v12: Guard/parry system (Sekiro-style)
+/// v15: Parry loop skip, single-Move guard architecture, frozen camera at guard start
+/// v16: Three fixes:
+///   - Guard/heavy input-aware safety timeouts (isGuarding stuck when Q not held, etc.)
+///   - Parry loop skip fires BEFORE natural loop (prevents flash from intro frames rendering)
+///   - bodyYoru Y offset during guard/dash (paw tips no longer clip underground)
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -117,6 +113,12 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float parryCounterRange = 5f;
     [Tooltip("Length of Parry anim intro (standing→guard transition) in seconds. Loop restarts AFTER this point to avoid replaying the intro.")]
     [SerializeField] private float parryIntroLength = 1.26f;
+    [Tooltip("Y offset applied to bodyYoru during guard to lift paw tips off ground")]
+    [SerializeField] private float guardModelYOffset = 0.15f;
+    [Tooltip("Y offset applied to bodyYoru during dash to lift paw tips off ground")]
+    [SerializeField] private float dashModelYOffset = 0.1f;
+    [Tooltip("Visual model root (auto-finds bodyYoru). Offset during guard/dash for paw clipping fix.")]
+    [SerializeField] private Transform visualModelRoot;
 
     [Header("Hitbox")]
     [SerializeField] private float attackRange = 1.5f;
@@ -198,6 +200,10 @@ public class PlayerCombat : MonoBehaviour
     private string currentGuardAnim;
     private float lastCombatCrossFadeTime; // tracks last CrossFade on combat layer for health check
     private bool parryIntroComplete;       // true once Parry anim has played past the intro frames
+    private Vector3 originalModelLocalPos;  // cached to restore after guard/dash Y offset
+    private float guardStuckTimer;          // tracks how long isGuarding is true while Q not held
+    private float heavyStuckTimer;          // tracks how long isChargingHeavy is true while LMB not held
+    private bool modelOffsetActive;         // true when bodyYoru Y offset is applied
 
     // Pull
     private Coroutine pullCoroutine;
@@ -235,7 +241,17 @@ public class PlayerCombat : MonoBehaviour
         if (guardMovement == null)
             Debug.LogWarning("[Combat] WARNING: GuardMovementController not found! Add it to PlayerYoru_Def.");
 
-        DebugLog("PlayerCombat initialized — Phase 3C v15");
+        // Auto-find visual model root for guard/dash Y offset (paw clipping fix)
+        if (visualModelRoot == null)
+        {
+            visualModelRoot = cachedTransform.Find("bodyYoru");
+            if (visualModelRoot == null)
+                Debug.LogWarning("[Combat] WARNING: visualModelRoot (bodyYoru) not found! Assign in Inspector.");
+        }
+        if (visualModelRoot != null)
+            originalModelLocalPos = visualModelRoot.localPosition;
+
+        DebugLog("PlayerCombat initialized — Phase 3C v16");
     }
 
     private void Update()
@@ -273,6 +289,55 @@ public class PlayerCombat : MonoBehaviour
             EndDash();
         }
 
+        // Guard safety — if Q not held but isGuarding stuck, Q release was missed (rapid input)
+        // Uses accumulator instead of timestamp: only counts continuous frames where Q is up
+        if (isGuarding)
+        {
+            if (!Input.GetKey(KeyCode.Q))
+            {
+                guardStuckTimer += Time.deltaTime;
+                if (guardStuckTimer > 0.5f)
+                {
+                    DebugLog("Safety: guard stuck (Q released but isGuarding true) — forcing EndGuard");
+                    EndGuard();
+                    guardStuckTimer = 0f;
+                }
+            }
+            else
+            {
+                guardStuckTimer = 0f; // Q is held, not stuck
+            }
+        }
+        else
+        {
+            guardStuckTimer = 0f;
+        }
+
+        // Heavy charge safety — if LMB not held but isChargingHeavy stuck
+        if (isChargingHeavy)
+        {
+            if (!Input.GetMouseButton(0))
+            {
+                heavyStuckTimer += Time.deltaTime;
+                if (heavyStuckTimer > 0.5f)
+                {
+                    DebugLog("Safety: heavy charge stuck (LMB released but isChargingHeavy true) — resetting");
+                    isChargingHeavy = false;
+                    attackButtonHoldTime = 0f;
+                    ReturnToIdle();
+                    heavyStuckTimer = 0f;
+                }
+            }
+            else
+            {
+                heavyStuckTimer = 0f;
+            }
+        }
+        else
+        {
+            heavyStuckTimer = 0f;
+        }
+
         // Combat layer health check — catches permanent Animator corruption from rapid input
         // If no combat state is active but the combat layer hasn't been touched in 1s, force idle
         if (!isAttacking && !isInHitReaction && !isDodging && !isDashing && !isGuarding
@@ -295,6 +360,27 @@ public class PlayerCombat : MonoBehaviour
             cachedTransform.rotation = dodgeLockedRotation;
         if (isDashing)
             cachedTransform.rotation = dashLockedRotation;
+
+        // Per-frame model Y offset — prevents paw tips from clipping underground
+        // Runs in LateUpdate so it applies AFTER animation poses are set
+        // Uses flag to only write to transform on state transitions — avoids fighting Animator
+        if (visualModelRoot != null)
+        {
+            bool needsOffset = isGuarding || isDashing;
+            if (needsOffset)
+            {
+                float yOffset = isGuarding ? guardModelYOffset : dashModelYOffset;
+                Vector3 pos = originalModelLocalPos;
+                pos.y += yOffset;
+                visualModelRoot.localPosition = pos;
+                modelOffsetActive = true;
+            }
+            else if (modelOffsetActive)
+            {
+                visualModelRoot.localPosition = originalModelLocalPos;
+                modelOffsetActive = false;
+            }
+        }
     }
 
     private void EnforcePositionLock()
@@ -500,8 +586,12 @@ public class PlayerCombat : MonoBehaviour
         }
 
         // --- Parry idle loop skip ---
-        // The Parry clip has an intro (standing→guard transition) that should only play ONCE.
-        // When the clip naturally loops back to frame 0, we skip ahead past the intro.
+        // The Parry clip has an intro (standing→guard transition) that plays ONCE on first Q press.
+        // After that, we must prevent the clip from wrapping back to frame 0 (which replays the intro).
+        //
+        // Strategy: detect when normalizedTime is near the END of the clip (>0.95) and CrossFade
+        // to the loop point BEFORE the natural wrap happens. This way intro frames never render.
+        // Fallback: if somehow we miss the pre-wrap window (very low FPS), catch it after wrap too.
         if (currentGuardAnim == parryIdleState && animator != null)
         {
             AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
@@ -517,11 +607,20 @@ public class PlayerCombat : MonoBehaviour
                     if (!parryIntroComplete && normalizedTime >= loopStartNormalized)
                         parryIntroComplete = true;
 
-                    // If intro already played and clip looped back into the intro section, skip ahead
-                    if (parryIntroComplete && normalizedTime < loopStartNormalized)
+                    if (parryIntroComplete)
                     {
-                        animator.Play(parryIdleState, combatLayerIndex, loopStartNormalized);
-                        lastCombatCrossFadeTime = Time.time;
+                        // Pre-wrap: clip is about to loop — CrossFade to loop point before frame 0 renders
+                        if (normalizedTime > 0.95f)
+                        {
+                            animator.CrossFadeInFixedTime(parryIdleState, 0.1f, combatLayerIndex, parryIntroLength);
+                            lastCombatCrossFadeTime = Time.time;
+                        }
+                        // Fallback: if we missed the pre-wrap (extreme low FPS), catch it after wrap
+                        else if (normalizedTime < loopStartNormalized)
+                        {
+                            animator.CrossFadeInFixedTime(parryIdleState, 0.05f, combatLayerIndex, parryIntroLength);
+                            lastCombatCrossFadeTime = Time.time;
+                        }
                     }
                 }
             }
