@@ -32,6 +32,7 @@ public class PlayerMovement : MonoBehaviour
     #region Private Fields
     // Cached components (allocated once)
     private PlayerCombat playerCombat;
+    private GuardMovementController guardMovement;
 
     private CharacterController controller;
     private Animator animator;
@@ -90,6 +91,7 @@ public class PlayerMovement : MonoBehaviour
     #region Unity Lifecycle
     private void Awake()
     {playerCombat = GetComponent<PlayerCombat>();
+        guardMovement = GetComponent<GuardMovementController>();
         // Cache all components once
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
@@ -157,9 +159,10 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
         
-        // During guard: skip horizontal movement but KEEP gravity working with grounded reset
-        // GuardMovementController handles only horizontal movement + rotation
-        // Without the grounded reset, velocity.y accumulates to -50 causing ground oscillation
+        // During guard: combine horizontal (from GuardMovementController) + gravity into single Move
+        // v15 fix: v14 had TWO controller.Move() calls (GuardMovementController.Update + here)
+        // causing CharacterController grounded oscillation → feet underground + landing VFX spam.
+        // Now GuardMovementController only caches velocity; we do the single Move here.
         if (isGuardingNow)
         {
             if (controller.isGrounded)
@@ -167,7 +170,13 @@ public class PlayerMovement : MonoBehaviour
             else
                 velocity.y += gravity * fallMultiplier * Time.fixedDeltaTime;
             velocity.y = Mathf.Max(velocity.y, -50f);
-            controller.Move(velocity * Time.fixedDeltaTime);
+
+            Vector3 guardHorizontal = Vector3.zero;
+            if (guardMovement != null)
+                guardHorizontal = guardMovement.GetGuardHorizontalVelocity();
+
+            Vector3 guardMove = new Vector3(guardHorizontal.x, velocity.y, guardHorizontal.z);
+            controller.Move(guardMove * Time.fixedDeltaTime);
             return;
         }
         

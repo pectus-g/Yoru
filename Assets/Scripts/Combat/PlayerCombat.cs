@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v14
+/// YORU Combat System — Phase 3C v15
 /// v11: Hit reaction animator.Play() → CrossFadeInFixedTime (prevents freeze under rapid hits)
 /// v12: Phase 3C guard/parry system (Sekiro-style Q hold guard + perfect parry window)
 ///   - Q hold = guard stance, 70% damage reduction, facing locks, no rotation
@@ -10,6 +10,9 @@ using System.Collections;
 ///   - Guard movement handled by GuardMovementController (separate script)
 ///   - Can dodge (C) or dash (MMB) out of guard
 ///   - Guard forces 2-leg stance (stops sprint)
+/// v15: Parry animation loop skip (intro frames don't replay on loop or walk→idle transition)
+///   - parryIntroLength (Inspector) defines where the guard pose begins in the Parry clip
+///   - After intro plays once, loop restarts past intro; walk→idle also skips intro
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -112,6 +115,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float parryStaggerDuration = 1.2f;
     [Tooltip("Range to find closest attacking enemy for parry counter")]
     [SerializeField] private float parryCounterRange = 5f;
+    [Tooltip("Length of Parry anim intro (standing→guard transition) in seconds. Loop restarts AFTER this point to avoid replaying the intro.")]
+    [SerializeField] private float parryIntroLength = 1.26f;
 
     [Header("Hitbox")]
     [SerializeField] private float attackRange = 1.5f;
@@ -192,6 +197,7 @@ public class PlayerCombat : MonoBehaviour
     private float guardEndTime;       // cooldown — prevents rapid Q tap from corrupting Animator
     private string currentGuardAnim;
     private float lastCombatCrossFadeTime; // tracks last CrossFade on combat layer for health check
+    private bool parryIntroComplete;       // true once Parry anim has played past the intro frames
 
     // Pull
     private Coroutine pullCoroutine;
@@ -229,7 +235,7 @@ public class PlayerCombat : MonoBehaviour
         if (guardMovement == null)
             Debug.LogWarning("[Combat] WARNING: GuardMovementController not found! Add it to PlayerYoru_Def.");
 
-        DebugLog("PlayerCombat initialized — Phase 3C v14");
+        DebugLog("PlayerCombat initialized — Phase 3C v15");
     }
 
     private void Update()
@@ -424,6 +430,7 @@ public class PlayerCombat : MonoBehaviour
         isGuarding = true;
         guardStartTime = Time.time;
         currentGuardAnim = "";
+        parryIntroComplete = false;
 
         PlayGuardAnim(parryIdleState);
 
@@ -482,8 +489,41 @@ public class PlayerCombat : MonoBehaviour
             currentGuardAnim = targetAnim;
             if (animator != null)
             {
-                animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex);
+                // When switching back to parry idle after walk, intro already played — skip it
+                // CrossFadeInFixedTime 4th param = fixedTimeOffset (seconds into destination state)
+                if (targetAnim == parryIdleState && parryIntroComplete)
+                    animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex, parryIntroLength);
+                else
+                    animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex);
                 lastCombatCrossFadeTime = Time.time;
+            }
+        }
+
+        // --- Parry idle loop skip ---
+        // The Parry clip has an intro (standing→guard transition) that should only play ONCE.
+        // When the clip naturally loops back to frame 0, we skip ahead past the intro.
+        if (currentGuardAnim == parryIdleState && animator != null)
+        {
+            AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            if (stateInfo.IsName(parryIdleState) && !animator.IsInTransition(combatLayerIndex))
+            {
+                float clipLength = stateInfo.length;
+                if (clipLength > 0f)
+                {
+                    float loopStartNormalized = parryIntroLength / clipLength;
+                    float normalizedTime = stateInfo.normalizedTime % 1f;
+
+                    // Mark intro as complete once we've played past the intro section
+                    if (!parryIntroComplete && normalizedTime >= loopStartNormalized)
+                        parryIntroComplete = true;
+
+                    // If intro already played and clip looped back into the intro section, skip ahead
+                    if (parryIntroComplete && normalizedTime < loopStartNormalized)
+                    {
+                        animator.Play(parryIdleState, combatLayerIndex, loopStartNormalized);
+                        lastCombatCrossFadeTime = Time.time;
+                    }
+                }
             }
         }
     }

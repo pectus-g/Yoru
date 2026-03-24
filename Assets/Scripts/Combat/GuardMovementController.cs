@@ -1,9 +1,17 @@
 using UnityEngine;
 
 /// <summary>
-/// YORU Guard Movement Controller — Phase 3C v3
-/// Handles horizontal movement and rotation during Q guard.
-/// Gravity is handled by PlayerMovement.FixedUpdate (never skipped during guard).
+/// YORU Guard Movement Controller — Phase 3C v4
+/// Handles horizontal movement calculation and rotation during Q guard.
+/// Gravity AND the single controller.Move() are handled by PlayerMovement.FixedUpdate.
+///
+/// v4 CHANGE (feet underground fix):
+///   v3 called controller.Move() in Update for horizontal, while PlayerMovement called
+///   controller.Move() in FixedUpdate for gravity. Two Move calls per frame caused
+///   CharacterController grounded state to oscillate → feet clipping underground + landing VFX spam.
+///   v4 NEVER calls controller.Move(). It caches the desired horizontal velocity, and
+///   PlayerMovement reads it via GetGuardHorizontalVelocity() to combine with gravity
+///   into a SINGLE controller.Move() call.
 ///
 /// Key design:
 ///   - Facing direction locks to MOVEMENT DIRECTION at time Q is pressed
@@ -11,23 +19,22 @@ using UnityEngine;
 ///   - Input is projected onto locked direction via dot product
 ///     (if locked from D, then D=forward, A=backward, W/S=ignored)
 ///   - No rotation during guard
-///   - Horizontal movement only — gravity lives in PlayerMovement
+///   - Horizontal velocity calculated in Update (frame-rate input), consumed in FixedUpdate (physics)
 /// </summary>
 public class GuardMovementController : MonoBehaviour
 {
     [Header("Guard Movement")]
     [SerializeField] private float guardWalkSpeed = 0.75f;
 
-    private CharacterController controller;
     private Transform cachedTransform;
     private Camera mainCamera;
 
     private bool isGuardActive;
     private Vector3 lockedForward;
+    private Vector3 cachedHorizontalVelocity; // calculated in Update, read by PlayerMovement in FixedUpdate
 
     private void Awake()
     {
-        controller = GetComponent<CharacterController>();
         cachedTransform = transform;
     }
 
@@ -38,6 +45,7 @@ public class GuardMovementController : MonoBehaviour
     public void EnableGuard(Vector3 forwardDirection)
     {
         isGuardActive = true;
+        cachedHorizontalVelocity = Vector3.zero;
 
         lockedForward = forwardDirection;
         lockedForward.y = 0f;
@@ -53,34 +61,30 @@ public class GuardMovementController : MonoBehaviour
     public void DisableGuard()
     {
         isGuardActive = false;
+        cachedHorizontalVelocity = Vector3.zero;
     }
 
     private void Update()
     {
-        if (!isGuardActive || controller == null) return;
+        if (!isGuardActive) return;
 
         // Enforce locked rotation every frame
         if (lockedForward.sqrMagnitude > 0.01f)
             cachedTransform.rotation = Quaternion.LookRotation(lockedForward);
 
-        // Get camera-relative input direction from current WASD
+        // Calculate horizontal velocity from input — cached for PlayerMovement to read
         Vector3 inputDir = GetCameraRelativeInput();
-
-        // Project input onto locked direction — positive = forward, negative = backward
         float projection = Vector3.Dot(inputDir, lockedForward);
 
-        Vector3 move = Vector3.zero;
         if (projection > 0.3f)
-            move = lockedForward * guardWalkSpeed;
+            cachedHorizontalVelocity = lockedForward * guardWalkSpeed;
         else if (projection < -0.3f)
-            move = -lockedForward * guardWalkSpeed;
+            cachedHorizontalVelocity = -lockedForward * guardWalkSpeed;
+        else
+            cachedHorizontalVelocity = Vector3.zero;
 
-        // Horizontal movement only — no vertical component
-        // Gravity is handled by PlayerMovement.FixedUpdate
-        move.y = 0f;
-
-        if (move.sqrMagnitude > 0.001f)
-            controller.Move(move * Time.deltaTime);
+        // Ensure no vertical component ever leaks in
+        cachedHorizontalVelocity.y = 0f;
     }
 
     private void LateUpdate()
@@ -132,6 +136,16 @@ public class GuardMovementController : MonoBehaviour
         if (!isGuardActive) return 0f;
         Vector3 inputDir = GetCameraRelativeInput();
         return Vector3.Dot(inputDir, lockedForward);
+    }
+
+    /// <summary>
+    /// Returns the cached horizontal velocity for PlayerMovement to combine with gravity
+    /// in a single controller.Move() call. NEVER call controller.Move() from this script.
+    /// </summary>
+    public Vector3 GetGuardHorizontalVelocity()
+    {
+        if (!isGuardActive) return Vector3.zero;
+        return cachedHorizontalVelocity;
     }
 
     public bool IsGuardActive() => isGuardActive;
