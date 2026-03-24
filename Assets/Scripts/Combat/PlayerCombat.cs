@@ -203,6 +203,7 @@ public class PlayerCombat : MonoBehaviour
     private Vector3 originalModelLocalPos;  // cached to restore after guard/dash Y offset
     private float guardStuckTimer;          // tracks how long isGuarding is true while Q not held
     private float heavyStuckTimer;          // tracks how long isChargingHeavy is true while LMB not held
+    private float guardIdleDebounceTimer;   // prevents flicker during quick walk direction changes (W→S passes through 0)
     private bool modelOffsetActive;         // true when bodyYoru Y offset is applied
     private float currentModelYOffset;      // current interpolated offset for smooth transitions
     private float combatIdleSettledTimer;   // tracks how long Animator combat layer has been in idle
@@ -421,15 +422,17 @@ public class PlayerCombat : MonoBehaviour
 
         // Per-frame model Y offset — prevents paw tips from clipping underground
         // Runs in LateUpdate so it applies AFTER animation poses are set
-        // Guard: only offset during walk (W/S), NOT during idle stand — idle paws are fine
-        // Dash: always offset. Uses smooth interpolation to avoid jarring snaps.
+        // Guard: offset when walk anim is active. Uses currentGuardAnim (set in same Update frame
+        // as the CrossFade) instead of velocity (which has a 1-frame lag from GuardMovementController).
+        // This ensures the offset is applied on the exact frame the walk blend starts.
+        // Dash: always offset.
         if (visualModelRoot != null)
         {
             float targetOffset = 0f;
             if (isGuarding)
             {
-                bool isGuardWalking = guardMovement != null
-                    && guardMovement.GetGuardHorizontalVelocity().sqrMagnitude > 0.01f;
+                bool isGuardWalking = currentGuardAnim == parryWalkForwardState
+                    || currentGuardAnim == parryWalkBackwardState;
                 if (isGuardWalking)
                     targetOffset = guardModelYOffset;
             }
@@ -589,6 +592,7 @@ public class PlayerCombat : MonoBehaviour
         guardStartTime = Time.time;
         currentGuardAnim = "";
         parryIntroComplete = false;
+        guardIdleDebounceTimer = 0f;
 
         PlayGuardAnim(parryIdleState);
 
@@ -625,32 +629,77 @@ public class PlayerCombat : MonoBehaviour
 
     private void UpdateGuardAnimation()
     {
-        // Use dot product of current input against locked direction
-        // If guard locked from D, pressing D = forward anim, A = backward anim
+        // Projection onto locked guard direction — same threshold (0.3) as GuardMovementController
+        // so animation and movement always agree. Below 0.3 = no movement AND no anim switch.
         float projection = 0f;
         if (guardMovement != null)
             projection = guardMovement.GetGuardInputProjection();
 
+        bool anyDirectionHeld = Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f
+            || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f;
+
         string targetAnim;
 
         if (projection > 0.3f)
+        {
             targetAnim = parryWalkForwardState;
+            guardIdleDebounceTimer = 0f;
+        }
         else if (projection < -0.3f)
+        {
             targetAnim = parryWalkBackwardState;
+            guardIdleDebounceTimer = 0f;
+        }
+        else if (anyDirectionHeld)
+        {
+            // Keys held but perpendicular to guard axis (projection between -0.3 and 0.3).
+            // Keep whatever anim is currently playing — don't disrupt.
+            // If idle, stay idle (perpendicular from idle = no movement = stay idle).
+            targetAnim = currentGuardAnim;
+            if (targetAnim == "") targetAnim = parryIdleState;
+            guardIdleDebounceTimer = 0f;
+        }
         else
-            targetAnim = parryIdleState;
+        {
+            // No keys held at all. If currently walking, debounce before switching to idle.
+            // This prevents 1-2 frame flicker when switching W→S (projection passes through 0).
+            bool currentlyWalking = currentGuardAnim == parryWalkForwardState
+                || currentGuardAnim == parryWalkBackwardState;
+
+            if (currentlyWalking)
+            {
+                guardIdleDebounceTimer += Time.deltaTime;
+                if (guardIdleDebounceTimer > 0.1f)
+                {
+                    targetAnim = parryIdleState;
+                    guardIdleDebounceTimer = 0f;
+                }
+                else
+                {
+                    targetAnim = currentGuardAnim; // hold walk a bit longer
+                }
+            }
+            else
+            {
+                targetAnim = parryIdleState;
+                guardIdleDebounceTimer = 0f;
+            }
+        }
 
         if (targetAnim != currentGuardAnim)
         {
-            // Longer blend when returning to idle — hides the "restart" feel
-            float blendTime = (targetAnim == parryIdleState) ? 0.25f : 0.15f;
+            // Blend times tuned per transition type
+            float blendTime;
+            if (targetAnim == parryIdleState)
+                blendTime = 0.25f; // walk→idle: smooth return
+            else if (currentGuardAnim == parryIdleState || currentGuardAnim == "")
+                blendTime = 0.2f;  // idle→walk: slightly longer to cover foot transition
+            else
+                blendTime = 0.15f; // walk↔walk (forward↔backward): quick
+
             currentGuardAnim = targetAnim;
             if (animator != null)
             {
-                // When switching back to parry idle, skip the intro if enough time has passed.
-                // Time-based check replaces parryIntroComplete flag — the flag could only be set
-                // while in idle anim, so pressing a direction during intro left it false forever.
-                // Now: once guardStartTime + parryIntroLength has elapsed, intro always skips.
                 bool introAlreadyPlayed = (Time.time - guardStartTime) > parryIntroLength;
                 if (targetAnim == parryIdleState && introAlreadyPlayed)
                     animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex, parryIntroLength);
@@ -1626,6 +1675,7 @@ public class PlayerCombat : MonoBehaviour
         heavyStuckTimer = 0f;
         combatIdleSettledTimer = 0f;
         movementStuckTimer = 0f;
+        guardIdleDebounceTimer = 0f;
 
         if (isGuarding) EndGuard();
 
