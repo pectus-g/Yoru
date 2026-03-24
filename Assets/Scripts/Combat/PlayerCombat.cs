@@ -2,13 +2,14 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v16
-/// v12: Guard/parry system (Sekiro-style)
-/// v15: Parry loop skip, single-Move guard architecture, frozen camera at guard start
-/// v16: Three fixes:
-///   - Guard/heavy input-aware safety timeouts (isGuarding stuck when Q not held, etc.)
-///   - Parry loop skip fires BEFORE natural loop (prevents flash from intro frames rendering)
-///   - bodyYoru Y offset during guard/dash (paw tips no longer clip underground)
+/// YORU Combat System — Phase 3C v17
+/// v16: Guard/heavy safety timeouts, parry loop pre-wrap CrossFade, bodyYoru Y offset
+/// v17: Five fixes:
+///   - Guard overrides ALL combat input while Q held (Sekiro-style)
+///   - Guard Y offset only during walk, smoothly interpolated (no snap)
+///   - Animator-driven orphan flag detection with timer reset at every action start
+///   - Smoother EndDodge blend (0.1→0.2s) for frontflip→sprint transition
+///   - Smoother EndDash blend (0.1→0.2s) for dash→sprint transition
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -204,6 +205,8 @@ public class PlayerCombat : MonoBehaviour
     private float guardStuckTimer;          // tracks how long isGuarding is true while Q not held
     private float heavyStuckTimer;          // tracks how long isChargingHeavy is true while LMB not held
     private bool modelOffsetActive;         // true when bodyYoru Y offset is applied
+    private float currentModelYOffset;      // current interpolated offset for smooth transitions
+    private float combatIdleSettledTimer;   // tracks how long Animator combat layer has been in idle
 
     // Pull
     private Coroutine pullCoroutine;
@@ -251,7 +254,7 @@ public class PlayerCombat : MonoBehaviour
         if (visualModelRoot != null)
             originalModelLocalPos = visualModelRoot.localPosition;
 
-        DebugLog("PlayerCombat initialized — Phase 3C v16");
+        DebugLog("PlayerCombat initialized — Phase 3C v17");
     }
 
     private void Update()
@@ -338,17 +341,29 @@ public class PlayerCombat : MonoBehaviour
             heavyStuckTimer = 0f;
         }
 
-        // Combat layer health check — catches permanent Animator corruption from rapid input
-        // If no combat state is active but the combat layer hasn't been touched in 1s, force idle
-        if (!isAttacking && !isInHitReaction && !isDodging && !isDashing && !isGuarding
-            && !isChargingHeavy && Time.time - lastCombatCrossFadeTime > 1.0f)
+        // === Animator-driven orphan flag detection ===
+        // If the combat layer has settled in CombatIdle for 0.3s+ but any flag is stuck → reset.
+        // Timer is reset to 0 at every action start (StartGuard, PerformDodge, etc.) so it
+        // never false-positives during the CrossFade transition from idle into the action.
+        if (animator != null)
         {
-            // Check if combat layer is actually stuck (not already in idle)
             AnimatorStateInfo combatState = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-            if (!combatState.IsName(combatIdleStateName) && !animator.IsInTransition(combatLayerIndex))
+            bool animatorInIdle = combatState.IsName(combatIdleStateName)
+                && !animator.IsInTransition(combatLayerIndex);
+
+            if (animatorInIdle)
+                combatIdleSettledTimer += Time.deltaTime;
+            else
+                combatIdleSettledTimer = 0f;
+
+            bool anyFlagStuck = isAttacking || isDodging || isDashing || isGuarding
+                || isChargingHeavy || isInHitReaction;
+
+            if (combatIdleSettledTimer > 0.3f && anyFlagStuck)
             {
-                DebugLog("Safety: combat layer stuck — forcing idle");
-                ReturnToIdle();
+                DebugLog($"Safety: Animator idle but flags stuck (atk={isAttacking} dod={isDodging} dsh={isDashing} grd={isGuarding} hvy={isChargingHeavy} hit={isInHitReaction}) — forcing reset");
+                ForceResetCombat();
+                combatIdleSettledTimer = 0f;
             }
         }
     }
@@ -363,21 +378,38 @@ public class PlayerCombat : MonoBehaviour
 
         // Per-frame model Y offset — prevents paw tips from clipping underground
         // Runs in LateUpdate so it applies AFTER animation poses are set
-        // Uses flag to only write to transform on state transitions — avoids fighting Animator
+        // Guard: only offset during walk (W/S), NOT during idle stand — idle paws are fine
+        // Dash: always offset. Uses smooth interpolation to avoid jarring snaps.
         if (visualModelRoot != null)
         {
-            bool needsOffset = isGuarding || isDashing;
+            float targetOffset = 0f;
+            if (isGuarding)
+            {
+                bool isGuardWalking = guardMovement != null
+                    && guardMovement.GetGuardHorizontalVelocity().sqrMagnitude > 0.01f;
+                if (isGuardWalking)
+                    targetOffset = guardModelYOffset;
+            }
+            else if (isDashing)
+            {
+                targetOffset = dashModelYOffset;
+            }
+
+            // Smooth interpolation — 12f/s speed gives ~0.08s transition, no snap
+            currentModelYOffset = Mathf.MoveTowards(currentModelYOffset, targetOffset, Time.deltaTime * 12f);
+
+            bool needsOffset = currentModelYOffset > 0.001f;
             if (needsOffset)
             {
-                float yOffset = isGuarding ? guardModelYOffset : dashModelYOffset;
                 Vector3 pos = originalModelLocalPos;
-                pos.y += yOffset;
+                pos.y += currentModelYOffset;
                 visualModelRoot.localPosition = pos;
                 modelOffsetActive = true;
             }
             else if (modelOffsetActive)
             {
                 visualModelRoot.localPosition = originalModelLocalPos;
+                currentModelYOffset = 0f;
                 modelOffsetActive = false;
             }
         }
@@ -425,7 +457,8 @@ public class PlayerCombat : MonoBehaviour
             }
         }
 
-        // During guard: only dodge (C) and dash (MMB) allowed as exits
+        // During guard: Q overrides ALL combat actions. Only release Q ends guard.
+        // Same as Sekiro — hold block = hold block, nothing interrupts it.
         if (isGuarding)
         {
             if (Input.GetKeyUp(KeyCode.Q))
@@ -433,17 +466,7 @@ public class PlayerCombat : MonoBehaviour
                 EndGuard();
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.C))
-            {
-                EndGuard();
-                if (TryDodge()) return;
-            }
-            if (Input.GetMouseButtonDown(2))
-            {
-                EndGuard();
-                if (TryDash()) return;
-            }
-            return;
+            return; // Q held — guard overrides everything
         }
 
         // Dodge input (C key)
@@ -491,6 +514,7 @@ public class PlayerCombat : MonoBehaviour
     #region Guard/Parry System (Q — Sekiro-style)
     private void StartGuard()
     {
+        combatIdleSettledTimer = 0f; // prevent orphan detection from killing this action
         // Can cancel combo 1-2 into guard
         if (isAttacking)
         {
@@ -743,6 +767,7 @@ public class PlayerCombat : MonoBehaviour
 
     private void PerformDodge(bool is4Leg, Vector3 moveDir)
     {
+        combatIdleSettledTimer = 0f;
         if (isAttacking)
         {
             isAttacking = false;
@@ -866,7 +891,8 @@ public class PlayerCombat : MonoBehaviour
         dodgeEndTime = Time.time;
         if (animator != null)
         {
-            animator.CrossFadeInFixedTime(combatIdleStateName, 0.1f, combatLayerIndex);
+            // 0.2s blend for smoother frontflip→sprint/idle transition
+            animator.CrossFadeInFixedTime(combatIdleStateName, 0.2f, combatLayerIndex);
             lastCombatCrossFadeTime = Time.time;
         }
         DebugLog("Dodge ended");
@@ -915,6 +941,7 @@ public class PlayerCombat : MonoBehaviour
 
     private void PerformDash(bool is4Leg, Vector3 moveDir)
     {
+        combatIdleSettledTimer = 0f;
         if (isAttacking)
         {
             isAttacking = false;
@@ -1049,7 +1076,8 @@ public class PlayerCombat : MonoBehaviour
         dodgeEndTime = Time.time;
         if (animator != null)
         {
-            animator.CrossFadeInFixedTime(combatIdleStateName, 0.1f, combatLayerIndex);
+            // 0.2s blend for smoother dash→sprint/idle transition
+            animator.CrossFadeInFixedTime(combatIdleStateName, 0.2f, combatLayerIndex);
             lastCombatCrossFadeTime = Time.time;
         }
         DebugLog("Dash ended");
@@ -1098,6 +1126,7 @@ public class PlayerCombat : MonoBehaviour
 
     public void PlayHitReaction(bool isHeavy, Vector3 attackerPos)
     {
+        combatIdleSettledTimer = 0f;
         if (!gameObject.activeInHierarchy) return;
 
         bool is4Leg = playerMovement != null && playerMovement.IsRunning();
@@ -1274,6 +1303,7 @@ public class PlayerCombat : MonoBehaviour
 
     private void PerformGroundCombo()
     {
+        combatIdleSettledTimer = 0f;
         attackStartTime = Time.time;
         FaceNearestEnemy();
 
@@ -1335,6 +1365,7 @@ public class PlayerCombat : MonoBehaviour
 
     private void PerformAerialSpin()
     {
+        combatIdleSettledTimer = 0f;
         attackStartTime = Time.time;
         FaceNearestEnemy();
         hasUsedAerialAttack = true;
@@ -1355,6 +1386,7 @@ public class PlayerCombat : MonoBehaviour
     #region Heavy Attack
     private void StartHeavyCharge()
     {
+        combatIdleSettledTimer = 0f;
         isChargingHeavy = true;
         heavyChargeStartTime = Time.time;
         currentComboStep = 0;
@@ -1533,6 +1565,9 @@ public class PlayerCombat : MonoBehaviour
         storedHeavyChargePercent = 0f;
         isInHitReaction = false;
         dodgeEndTime = 0f;
+        guardStuckTimer = 0f;
+        heavyStuckTimer = 0f;
+        combatIdleSettledTimer = 0f;
 
         if (isGuarding) EndGuard();
 
