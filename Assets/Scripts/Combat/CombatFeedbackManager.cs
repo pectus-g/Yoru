@@ -80,6 +80,14 @@ public class CombatFeedbackManager : MonoBehaviour
     // Post-process references (assigned at runtime if available)
     // Using reflection-free approach: cache the post-process volume component if present
     private MonoBehaviour postProcessVolume;
+
+    // Hitstop stacking fix: track active coroutine + frozen animators
+    // Without this, overlapping HitStop calls corrupt the saved speed:
+    //   Hit1 saves speed=1, sets 0. Hit2 saves speed=0(!!), sets 0.
+    //   Hit1 restores 1. Hit2 restores 0 → permanently stuck.
+    private Coroutine activeHitStopCoroutine;
+    private Animator frozenPlayerAnim;
+    private Animator frozenEnemyAnim;
     #endregion
 
     #region Unity Lifecycle
@@ -166,42 +174,63 @@ public class CombatFeedbackManager : MonoBehaviour
     }
     #endregion
 
-    #region Hitstop — Animator.speed = 0
+    #region Hitstop — Animator.speed = 0 (single-active, no stacking)
 
     /// <summary>
     /// Freeze animators for a brief moment. Uses WaitForSecondsRealtime so it works during Flurry Rush.
+    /// CRITICAL: Only one hitstop can be active at a time. Starting a new one cancels the old one
+    /// and restores animators before re-freezing. This prevents the stacking bug where overlapping
+    /// coroutines corrupt the saved speed value (saving 0 instead of 1).
     /// </summary>
     public void HitStop(float duration, Animator playerAnimator, Animator enemyAnimator)
     {
         if (duration <= 0f) return;
-        StartCoroutine(HitStopCoroutine(duration, playerAnimator, enemyAnimator));
+
+        // Cancel previous hitstop and restore animators immediately
+        if (activeHitStopCoroutine != null)
+        {
+            StopCoroutine(activeHitStopCoroutine);
+            RestoreFrozenAnimators();
+        }
+
+        activeHitStopCoroutine = StartCoroutine(HitStopCoroutine(duration, playerAnimator, enemyAnimator));
     }
 
     private IEnumerator HitStopCoroutine(float duration, Animator playerAnim, Animator enemyAnim)
     {
-        // Freeze
-        float playerOriginalSpeed = 1f;
-        float enemyOriginalSpeed = 1f;
+        // Track which animators we froze so RestoreFrozenAnimators can clean up
+        frozenPlayerAnim = playerAnim;
+        frozenEnemyAnim = enemyAnim;
 
+        // Freeze
         if (playerAnim != null)
-        {
-            playerOriginalSpeed = playerAnim.speed;
             playerAnim.speed = 0f;
-        }
         if (enemyAnim != null)
-        {
-            enemyOriginalSpeed = enemyAnim.speed;
             enemyAnim.speed = 0f;
-        }
 
         // Wait real time — not affected by timeScale
         yield return new WaitForSecondsRealtime(duration);
 
-        // Restore
-        if (playerAnim != null)
-            playerAnim.speed = playerOriginalSpeed;
-        if (enemyAnim != null)
-            enemyAnim.speed = enemyOriginalSpeed;
+        // Restore — always to 1f, never to a captured value that could be 0
+        RestoreFrozenAnimators();
+        activeHitStopCoroutine = null;
+    }
+
+    /// <summary>
+    /// Restore any currently-frozen animators to speed 1. Safe to call multiple times.
+    /// </summary>
+    private void RestoreFrozenAnimators()
+    {
+        if (frozenPlayerAnim != null)
+        {
+            frozenPlayerAnim.speed = 1f;
+            frozenPlayerAnim = null;
+        }
+        if (frozenEnemyAnim != null)
+        {
+            frozenEnemyAnim.speed = 1f;
+            frozenEnemyAnim = null;
+        }
     }
     #endregion
 

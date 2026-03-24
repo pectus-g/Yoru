@@ -27,6 +27,10 @@ public class PlayerMovement : MonoBehaviour
     
     [Header("VFX")]
     [SerializeField] private bool enableVFX = true;
+
+    [Header("Debug — Freeze Diagnosis (temporary)")]
+    [Tooltip("Log which combat flags are blocking movement. Toggle OFF once freeze is confirmed fixed.")]
+    [SerializeField] private bool showFreezeDebug = true;
     #endregion
     
     #region Private Fields
@@ -217,6 +221,14 @@ public class PlayerMovement : MonoBehaviour
         // This just stops WASD from sliding Yoru while swinging.
         if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy() || playerCombat.IsDodging() || playerCombat.IsDashing() || playerCombat.IsGuarding()))
         {
+            // Temporary freeze diagnosis — toggle showFreezeDebug in Inspector
+            if (showFreezeDebug)
+            {
+                Debug.Log($"[FREEZE-DEBUG] atk={playerCombat.IsAttacking()} hvy={playerCombat.IsChargingHeavy()} " +
+                    $"dod={playerCombat.IsDodging()} dsh={playerCombat.IsDashing()} grd={playerCombat.IsGuarding()} " +
+                    $"hit={playerCombat.IsInHitReaction()} lock={playerCombat.IsPositionLocked()} " +
+                    $"animSpeed={playerCombat.GetAnimatorSpeed():F2}");
+            }
             SetState(PlayerState.Moving, false);
             SetState(PlayerState.Running, false);
             return;

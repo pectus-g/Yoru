@@ -2,14 +2,14 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v17
-/// v16: Guard/heavy safety timeouts, parry loop pre-wrap CrossFade, bodyYoru Y offset
-/// v17: Five fixes:
-///   - Guard overrides ALL combat input while Q held (Sekiro-style)
-///   - Guard Y offset only during walk, smoothly interpolated (no snap)
-///   - Animator-driven orphan flag detection with timer reset at every action start
-///   - Smoother EndDodge blend (0.1→0.2s) for frontflip→sprint transition
-///   - Smoother EndDash blend (0.1→0.2s) for dash→sprint transition
+/// YORU Combat System — Phase 3C v19
+/// v17: Guard overrides, orphan detection with timer resets, smoother blends
+/// v19: Three fixes:
+///   - ForceResetCombat now restores animator.speed=1 (defense in depth for hitstop stacking)
+///   - Movement-stuck safety net: WASD held 1.5s + flags blocking + no combat keys → force reset
+///   - Paw dip instant onset (snap up, smooth descent) — independent visual fix
+///   - GetAnimatorSpeed() getter for diagnostics
+/// Root cause fix is in CombatFeedbackManager: single-active hitstop prevents coroutine stacking.
 /// </summary>
 public class PlayerCombat : MonoBehaviour
 {
@@ -207,6 +207,7 @@ public class PlayerCombat : MonoBehaviour
     private bool modelOffsetActive;         // true when bodyYoru Y offset is applied
     private float currentModelYOffset;      // current interpolated offset for smooth transitions
     private float combatIdleSettledTimer;   // tracks how long Animator combat layer has been in idle
+    private float movementStuckTimer;       // tracks how long WASD held while movement blocked by combat flags
 
     // Pull
     private Coroutine pullCoroutine;
@@ -366,6 +367,36 @@ public class PlayerCombat : MonoBehaviour
                 combatIdleSettledTimer = 0f;
             }
         }
+
+        // === Movement-stuck safety net ===
+        // Catches the freeze scenario the orphan detector misses: when Animator.speed is stuck at 0,
+        // the Animator never reaches CombatIdle so the orphan timer never fires.
+        // Condition: WASD held for 1.5s+ AND any combat flag is blocking movement
+        //            AND no combat keys are actively held (player is just trying to walk).
+        // This is the "nuclear" v18 approach tested in isolation — no other changes bundled.
+        {
+            bool anyFlagBlocking = isAttacking || isChargingHeavy || isDodging || isDashing || isGuarding;
+            bool wasdHeld = Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f
+                || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f;
+            bool noCombatKeysHeld = !Input.GetMouseButton(0) && !Input.GetKey(KeyCode.Q)
+                && !Input.GetKey(KeyCode.C) && !Input.GetMouseButton(2);
+
+            if (anyFlagBlocking && wasdHeld && noCombatKeysHeld)
+            {
+                movementStuckTimer += Time.deltaTime;
+                if (movementStuckTimer > 1.5f)
+                {
+                    DebugLog($"Safety: movement stuck 1.5s (atk={isAttacking} dod={isDodging} dsh={isDashing} grd={isGuarding} hvy={isChargingHeavy} hit={isInHitReaction} animSpeed={animator?.speed}) — forcing reset + speed restore");
+                    if (animator != null) animator.speed = 1f;
+                    ForceResetCombat();
+                    movementStuckTimer = 0f;
+                }
+            }
+            else
+            {
+                movementStuckTimer = 0f;
+            }
+        }
     }
 
     private void LateUpdate()
@@ -395,8 +426,12 @@ public class PlayerCombat : MonoBehaviour
                 targetOffset = dashModelYOffset;
             }
 
-            // Smooth interpolation — 12f/s speed gives ~0.08s transition, no snap
-            currentModelYOffset = Mathf.MoveTowards(currentModelYOffset, targetOffset, Time.deltaTime * 12f);
+            // Instant onset (snap up), smooth descent (ease down)
+            // Prevents 1-2 frame paw dip when entering guard walk
+            if (targetOffset > currentModelYOffset)
+                currentModelYOffset = targetOffset; // instant snap up — no visible dip
+            else
+                currentModelYOffset = Mathf.MoveTowards(currentModelYOffset, targetOffset, Time.deltaTime * 10f);
 
             bool needsOffset = currentModelYOffset > 0.001f;
             if (needsOffset)
@@ -1568,6 +1603,7 @@ public class PlayerCombat : MonoBehaviour
         guardStuckTimer = 0f;
         heavyStuckTimer = 0f;
         combatIdleSettledTimer = 0f;
+        movementStuckTimer = 0f;
 
         if (isGuarding) EndGuard();
 
@@ -1601,6 +1637,7 @@ public class PlayerCombat : MonoBehaviour
 
         if (animator != null)
         {
+            animator.speed = 1f; // Defense in depth: always restore speed on combat reset
             animator.SetBool(HashIsAttacking, false);
             animator.SetInteger(HashComboStep, 0);
         }
@@ -1622,6 +1659,7 @@ public class PlayerCombat : MonoBehaviour
     public float GetGuardDamageReduction() => guardDamageReduction;
     public int GetParryCounterDamage() => parryCounterDamage;
     public Animator GetAnimator() => animator;
+    public float GetAnimatorSpeed() => animator != null ? animator.speed : -1f;
     #endregion
 
     #region Debug
