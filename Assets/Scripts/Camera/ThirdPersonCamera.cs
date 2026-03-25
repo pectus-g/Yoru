@@ -90,14 +90,12 @@ public class ThirdPersonCamera : MonoBehaviour
         }
         
         // === Double-tap right-click detection (zoom reset) ===
-        // Must be checked BEFORE the rotation block so we detect the tap
         if (Input.GetMouseButtonDown(1))
         {
             if (Time.unscaledTime - lastRightClickTime < doubleTapWindow)
             {
-                // Double-tap detected — reset zoom
                 targetDistance = defaultDistance;
-                lastRightClickTime = -1f; // reset so triple-click doesn't re-trigger
+                lastRightClickTime = -1f;
             }
             else
             {
@@ -105,7 +103,7 @@ public class ThirdPersonCamera : MonoBehaviour
             }
         }
         
-        // Right-click to rotate camera (unchanged from original)
+        // Right-click to rotate camera
         if (Input.GetMouseButton(1))
         {
             float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
@@ -116,29 +114,34 @@ public class ThirdPersonCamera : MonoBehaviour
             pitch = Mathf.Clamp(pitch, minVerticalAngle, maxVerticalAngle);
         }
         
-        // === Scroll wheel zoom ===
-        // Clamp raw scroll to ±1 — MX Master free-spin sends values up to 25+ per frame
-        float rawScroll = Input.mouseScrollDelta.y;
-        if (Mathf.Abs(rawScroll) > 0.01f)
+        // === Scroll wheel zoom — ONLY when right-click is NOT held ===
+        if (!Input.GetMouseButton(1))
         {
-            float scroll = Mathf.Clamp(rawScroll, -1f, 1f);
-            targetDistance -= scroll * zoomSpeed;
-            targetDistance = Mathf.Clamp(targetDistance, minZoomDistance, maxZoomDistance);
+            float rawScroll = Input.mouseScrollDelta.y;
+            if (Mathf.Abs(rawScroll) > 0.01f)
+            {
+                float scroll = Mathf.Clamp(rawScroll, -1f, 1f);
+                targetDistance -= scroll * zoomSpeed;
+                targetDistance = Mathf.Clamp(targetDistance, minZoomDistance, maxZoomDistance);
+            }
         }
         
         // Smooth zoom interpolation
         currentDistance = Mathf.SmoothDamp(currentDistance, targetDistance, ref zoomVelocity, zoomSmoothTime);
         
         // Calculate camera offset
+        // Horizontal distance stays CONSTANT regardless of pitch — prevents the
+        // "zoom in when looking up" effect caused by the old spherical orbit model.
+        // Only the vertical component changes with pitch.
         if (followComponent != null)
         {
-            Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
-            Vector3 direction = rotation * Vector3.back;
+            Vector3 horizontalBack = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
+            float pitchHeight = Mathf.Sin(pitch * Mathf.Deg2Rad) * currentDistance;
             
-            Vector3 offset = direction * currentDistance + Vector3.up * cameraHeight;
+            Vector3 offset = horizontalBack * currentDistance + Vector3.up * (cameraHeight + pitchHeight);
             
             // Ground collision: prevent camera from going underground
-            if (preventUnderground && playerTransform != null)
+            if (preventUnderground)
             {
                 Vector3 worldCamPos = playerTransform.position + offset;
                 
