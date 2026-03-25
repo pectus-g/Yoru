@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
 using Unity.Cinemachine;
 
 public class ThirdPersonCamera : MonoBehaviour
@@ -21,6 +22,12 @@ public class ThirdPersonCamera : MonoBehaviour
     [SerializeField] private float zoomSmoothTime = 0.15f;
     [Tooltip("Time window to detect double-tap right-click for zoom reset")]
     [SerializeField] private float doubleTapWindow = 0.3f;
+    
+    [Header("Depth of Field")]
+    [Tooltip("Automatically disable DOF when zoomed in closer than this distance")]
+    [SerializeField] private bool autoDofControl = true;
+    [Tooltip("DOF turns OFF below this distance, ON above it")]
+    [SerializeField] private float dofDisableDistance = 4f;
     
     [Header("Ground Collision")]
     [Tooltip("Prevent camera from going underground")]
@@ -48,6 +55,10 @@ public class ThirdPersonCamera : MonoBehaviour
     
     // Double-tap detection
     private float lastRightClickTime = -1f;
+    
+    // DOF
+    private DepthOfField dofSettings;
+    private bool dofWasActive;
     
     private void Start()
     {
@@ -78,6 +89,28 @@ public class ThirdPersonCamera : MonoBehaviour
         defaultDistance = cameraDistance;
         targetDistance = cameraDistance;
         currentDistance = cameraDistance;
+        
+        // Find DOF settings from any PostProcessVolume in the scene
+        if (autoDofControl)
+        {
+            PostProcessVolume volume = FindObjectOfType<PostProcessVolume>();
+            if (volume != null && volume.profile != null)
+            {
+                volume.profile.TryGetSettings(out dofSettings);
+                if (dofSettings != null)
+                {
+                    dofWasActive = dofSettings.active;
+                    Debug.Log("[Camera] DOF auto-control enabled — will disable when zoomed in");
+                }
+            }
+        }
+    }
+    
+    private void OnDestroy()
+    {
+        // Restore DOF to its original state when this script is destroyed (exiting play mode)
+        if (dofSettings != null)
+            dofSettings.active = dofWasActive;
     }
     
     private void LateUpdate()
@@ -129,10 +162,14 @@ public class ThirdPersonCamera : MonoBehaviour
         // Smooth zoom interpolation
         currentDistance = Mathf.SmoothDamp(currentDistance, targetDistance, ref zoomVelocity, zoomSmoothTime);
         
+        // === DOF control — OFF when zoomed in, ON when zoomed out ===
+        if (autoDofControl && dofSettings != null)
+        {
+            dofSettings.active = currentDistance >= dofDisableDistance;
+        }
+        
         // Calculate camera offset
-        // Horizontal distance stays CONSTANT regardless of pitch — prevents the
-        // "zoom in when looking up" effect caused by the old spherical orbit model.
-        // Only the vertical component changes with pitch.
+        // Horizontal distance stays CONSTANT regardless of pitch
         if (followComponent != null)
         {
             Vector3 horizontalBack = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
