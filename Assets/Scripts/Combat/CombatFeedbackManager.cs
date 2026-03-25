@@ -2,14 +2,16 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat Feedback — Phase 3B
-/// Singleton manager for all combat "juice": hitstop, camera shake, VFX at contact, post-process pulse.
+/// YORU Combat Feedback — Phase 3B → Game Feel v3
+/// Singleton manager for all combat "juice": hitstop, camera shake, VFX at contact, post-process pulse, FOV punch.
 /// All timing uses WaitForSecondsRealtime / unscaledTime so it works during Flurry Rush (timeScale 0.3).
 /// 
 /// HITSTOP: Animator.speed = 0, NOT Time.timeScale = 0 (kills VFX, camera, audio).
 /// CAMERA SHAKE: Perlin noise, not Random.insideUnitSphere (jittery). Accessibility slider ready.
 /// VFX: Spawned at actual contact point, not attackPoint.
 /// SFX: Delegated to CombatSFXManager (separate script).
+/// POST-PROCESS: Delegated to CombatPostProcessPulse (separate volume, priority 100).
+/// FOV PUNCH: Delegated to CameraGameFeel (additive, runs after Cinemachine).
 /// 
 /// Attach to a persistent GameObject in the scene (e.g. "CombatManagers").
 /// </summary>
@@ -74,12 +76,7 @@ public class CombatFeedbackManager : MonoBehaviour
     private Transform camTransform;
     private Vector3 originalCamLocalPos;
     private Coroutine shakeCoroutine;
-    private Coroutine pulseCoroutine;
     private YoruVFXManager vfxManager;
-
-    // Post-process references (assigned at runtime if available)
-    // Using reflection-free approach: cache the post-process volume component if present
-    private MonoBehaviour postProcessVolume;
 
     // Hitstop stacking fix: track active coroutine + frozen animators
     // Without this, overlapping HitStop calls corrupt the saved speed:
@@ -128,6 +125,10 @@ public class CombatFeedbackManager : MonoBehaviour
         if (isHeavy && enablePostProcessPulse)
             PostProcessPulse(pulseIntensity, pulseDuration);
 
+        // Game Feel v3: FOV punch on every hit (light = subtle, heavy = dramatic)
+        if (CameraGameFeel.Instance != null)
+            CameraGameFeel.Instance.PunchHit(isHeavy);
+
         DebugLog($"Hit feedback: {(isHeavy ? "HEAVY" : "light")} at {contactPoint}");
     }
 
@@ -141,6 +142,10 @@ public class CombatFeedbackManager : MonoBehaviour
         CameraShake(parryShakeIntensity, shakeDuration * 1.5f);
         SpawnHitVFX(contactPoint, true);
         PostProcessPulse(pulseIntensity * 1.2f, pulseDuration);
+
+        // Game Feel v3: FOV zoom in on parry (dramatic focus)
+        if (CameraGameFeel.Instance != null)
+            CameraGameFeel.Instance.PunchParry();
 
         DebugLog("Parry feedback triggered");
     }
@@ -167,8 +172,12 @@ public class CombatFeedbackManager : MonoBehaviour
         float intensity = isHeavy ? heavyShakeIntensity * 0.8f : lightShakeIntensity * 0.6f;
         CameraShake(intensity, shakeDuration);
 
-        if (isHeavy && enablePostProcessPulse)
-            PostProcessPulse(pulseIntensity * 0.7f, pulseDuration);
+        // Game Feel v3: damage-specific post-process (red vignette) + FOV flinch
+        // Replaces the old PostProcessPulse call — PulseDamage uses red vignette color
+        if (enablePostProcessPulse && CombatPostProcessPulse.Instance != null)
+            CombatPostProcessPulse.Instance.PulseDamage(isHeavy);
+        if (CameraGameFeel.Instance != null)
+            CameraGameFeel.Instance.PunchPlayerDamage(isHeavy);
 
         DebugLog($"Player hit feedback: {(isHeavy ? "heavy" : "light")}");
     }
@@ -299,48 +308,31 @@ public class CombatFeedbackManager : MonoBehaviour
     }
     #endregion
 
-    #region Post-Process Pulse
+    #region Post-Process Pulse — Delegated to CombatPostProcessPulse
     /// <summary>
-    /// Brief chromatic aberration / vignette pulse. 
-    /// Requires a PostProcessVolume on the camera or scene.
-    /// Currently logs the call — hook your post-process stack here.
+    /// Brief chromatic aberration / vignette pulse on heavy hits and parry.
+    /// Game Feel v3: delegates to CombatPostProcessPulse (separate volume, priority 100).
+    /// The intensity/duration params are kept for backward compatibility but the actual
+    /// values are tuned on CombatPostProcessPulse's Inspector.
     /// </summary>
     public void PostProcessPulse(float intensity, float duration)
     {
         if (!enablePostProcessPulse) return;
 
-        if (pulseCoroutine != null)
-            StopCoroutine(pulseCoroutine);
-        pulseCoroutine = StartCoroutine(PulseCoroutine(intensity, duration));
-    }
-
-    private IEnumerator PulseCoroutine(float intensity, float duration)
-    {
-        // HOOK POINT: Apply post-process effect here
-        // For BRP Post-Processing Stack v2:
-        //   chromaticAberration.intensity.value = intensity;
-        //   vignette.intensity.value = baseVignette + intensity * 0.3f;
-        // 
-        // For now, log the pulse so we know the system fires correctly.
-        // Hazel: replace this with your PostProcessController reference when ready.
-        DebugLog($"PostProcess pulse: intensity={intensity:F2} duration={duration:F3}s");
-
-        float elapsed = 0f;
-        while (elapsed < duration)
+        // Delegate to the dedicated pulse volume
+        if (CombatPostProcessPulse.Instance != null)
         {
-            elapsed += Time.unscaledDeltaTime;
-            float t = elapsed / duration;
-            float falloff = 1f - t; // Linear decay
-
-            // HOOK: lerp post-process values back to baseline here
-            // chromaticAberration.intensity.value = intensity * falloff;
-
-            yield return null;
+            // Determine pulse type from context:
+            // Called from PlayParryFeedback → intensity > pulseIntensity → parry
+            // Called from PlayHitFeedback → intensity == pulseIntensity → hit
+            // Called from PlayPlayerHitFeedback → intensity < pulseIntensity → damage (handled separately)
+            if (intensity > pulseIntensity)
+                CombatPostProcessPulse.Instance.PulseParry();
+            else
+                CombatPostProcessPulse.Instance.PulseHit();
         }
 
-        // HOOK: Reset post-process values to baseline
-        // chromaticAberration.intensity.value = 0f;
-        pulseCoroutine = null;
+        DebugLog($"PostProcess pulse delegated (intensity={intensity:F2})");
     }
     #endregion
 
