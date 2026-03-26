@@ -2,9 +2,22 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Camera Game Feel — Phase 1
+/// YORU Camera Game Feel — Phase 1 v2
 /// 
-/// FOV punch system: brief FOV shifts on combat events to add impact.
+/// All camera-side combat juice: position shake + FOV punch + sprint/charge FOV.
+/// 
+/// WHY THIS EXISTS:
+/// CinemachineBrain writes Camera.main's position/rotation every LateUpdate.
+/// Any direct camera.transform changes get overwritten immediately.
+/// This script runs at execution order 200 (AFTER Cinemachine ~100) and applies
+/// offsets ADDITIVELY — Cinemachine sets the base, we add on top. No fighting.
+/// 
+/// SHAKE:
+///   Perlin noise position offset. Applied each frame in LateUpdate.
+///   Intensity decays linearly over duration. Uses unscaledDeltaTime for Flurry Rush.
+///   Accessibility: shakeMultiplier (0 = off, 1 = full) — pass through from Settings.
+/// 
+/// FOV PUNCH:
 ///   - Heavy hit:    FOV OUT (+4°) — explosion outward
 ///   - Light hit:    FOV OUT (+1.5°) — subtle snap
 ///   - Parry:        FOV IN (-3°) — zoom INTO the moment
@@ -12,16 +25,10 @@ using System.Collections;
 ///   - Sprint:       FOV OUT (+2°) while running — speed feel
 ///   - Heavy charge: FOV IN (-2°) during hold — tension, snaps back on release
 /// 
-/// Runs at execution order 200 so it applies AFTER Cinemachine writes to Camera.main.
-/// Each frame: Cinemachine sets base FOV → this script adds punch + sprint offsets.
-/// Purely additive — no drift, no state corruption.
-/// 
-/// All timing uses unscaledDeltaTime — works during Flurry Rush (timeScale 0.3).
-/// 
 /// SETUP: Attach to the CinemachineCamera GameObject.
 ///        References auto-found at Start. No Inspector wiring needed.
 /// 
-/// DO NOT MODIFY: ThirdPersonCamera.cs (this is a separate addon).
+/// DO NOT MODIFY: ThirdPersonCamera.cs, PlayerMovement.cs
 /// </summary>
 [DefaultExecutionOrder(200)] // After Cinemachine (~100) and ThirdPersonCamera
 public class CameraGameFeel : MonoBehaviour
@@ -41,6 +48,13 @@ public class CameraGameFeel : MonoBehaviour
     #endregion
 
     #region Serialized Fields
+    [Header("Camera Shake")]
+    [Tooltip("Perlin noise frequency — higher = faster shake")]
+    [SerializeField] private float shakeFrequency = 25f;
+    [Tooltip("Global shake multiplier (0 = off, 1 = full). Hook to Settings slider.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float shakeMultiplier = 1f;
+
     [Header("FOV Punch — Combat")]
     [Tooltip("FOV degrees added on light hit (combo 1-2)")]
     [SerializeField] private float lightHitPunch = 1.5f;
@@ -72,10 +86,18 @@ public class CameraGameFeel : MonoBehaviour
 
     #region Private Fields
     private Camera mainCamera;
+    private Transform camTransform;
     private PlayerMovement playerMovement;
     private PlayerCombat playerCombat;
 
-    // Punch state (coroutine-driven, single-active)
+    // Shake state (driven per-frame in LateUpdate, not coroutine)
+    private float shakeIntensity;
+    private float shakeDurationTotal;
+    private float shakeElapsed;
+    private float shakeSeed;
+    private bool shakeActive;
+
+    // FOV Punch state (coroutine-driven, single-active)
     private float currentPunchOffset;
     private Coroutine activePunchCoroutine;
 
@@ -90,29 +112,58 @@ public class CameraGameFeel : MonoBehaviour
     private void Start()
     {
         mainCamera = Camera.main;
+        if (mainCamera != null)
+            camTransform = mainCamera.transform;
 
-        // Find player scripts — they live on the same GameObject (PlayerYoru_Def)
         playerMovement = FindObjectOfType<PlayerMovement>();
         playerCombat = FindObjectOfType<PlayerCombat>();
 
         if (mainCamera == null)
             Debug.LogWarning("[CameraGameFeel] Camera.main not found!");
 
-        DebugLog("CameraGameFeel initialized");
+        DebugLog("CameraGameFeel initialized (shake + FOV)");
     }
 
     /// <summary>
     /// Runs AFTER Cinemachine (execution order 200).
-    /// Cinemachine has already written its FOV to Camera.main this frame.
-    /// We read it, add our offsets, write it back. No drift — purely additive each frame.
+    /// Cinemachine has already written position + FOV to Camera.main this frame.
+    /// We add our offsets on top. No drift — purely additive each frame.
     /// </summary>
     private void LateUpdate()
     {
-        if (mainCamera == null) return;
+        if (mainCamera == null || camTransform == null) return;
 
-        // --- Sprint FOV (smooth lerp) ---
+        // === POSITION SHAKE ===
+        // Cinemachine set the camera's world position this frame.
+        // We add Perlin noise offset on top. Next frame Cinemachine resets position,
+        // then we add a new offset — no accumulation, no drift.
+        if (shakeActive && shakeMultiplier > 0f)
+        {
+            shakeElapsed += Time.unscaledDeltaTime;
+
+            if (shakeElapsed >= shakeDurationTotal)
+            {
+                shakeActive = false;
+            }
+            else
+            {
+                float t = shakeElapsed / shakeDurationTotal;
+                float decay = 1f - t; // Linear falloff
+
+                float x = (Mathf.PerlinNoise(shakeSeed, Time.unscaledTime * shakeFrequency) - 0.5f) * 2f;
+                float y = (Mathf.PerlinNoise(shakeSeed + 100f, Time.unscaledTime * shakeFrequency) - 0.5f) * 2f;
+
+                Vector3 offset = new Vector3(x, y, 0f) * shakeIntensity * shakeMultiplier * decay;
+
+                // Apply in camera's local orientation so shake is screen-relative
+                camTransform.position += camTransform.right * offset.x + camTransform.up * offset.y;
+            }
+        }
+
+        // === FOV OFFSETS ===
+
+        // Sprint FOV (smooth lerp)
         bool isSprinting = playerMovement != null && playerMovement.IsRunning();
-        // Don't apply sprint FOV during combat actions
         bool inCombatAction = playerCombat != null &&
             (playerCombat.IsAttacking() || playerCombat.IsGuarding() ||
              playerCombat.IsDodging() || playerCombat.IsDashing() ||
@@ -123,21 +174,52 @@ public class CameraGameFeel : MonoBehaviour
             currentSprintOffset, sprintTarget,
             sprintFOVSpeed * Time.unscaledDeltaTime);
 
-        // --- Heavy charge FOV (smooth lerp) ---
+        // Heavy charge FOV (smooth lerp)
         bool isCharging = playerCombat != null && playerCombat.IsChargingHeavy();
         float chargeTarget = isCharging ? heavyChargeFOV : 0f;
         currentChargeOffset = Mathf.MoveTowards(
             currentChargeOffset, chargeTarget,
             heavyChargeFOVSpeed * Time.unscaledDeltaTime);
 
-        // --- Apply total offset ---
-        float totalOffset = currentPunchOffset + currentSprintOffset + currentChargeOffset;
-        if (Mathf.Abs(totalOffset) > 0.01f)
-            mainCamera.fieldOfView += totalOffset;
+        // Apply total FOV offset
+        float totalFOVOffset = currentPunchOffset + currentSprintOffset + currentChargeOffset;
+        if (Mathf.Abs(totalFOVOffset) > 0.01f)
+            mainCamera.fieldOfView += totalFOVOffset;
     }
     #endregion
 
-    #region Public API — Called by CombatFeedbackManager
+    #region Public API — Camera Shake
+
+    /// <summary>
+    /// Trigger Perlin noise camera shake. Applied additively after Cinemachine each frame.
+    /// Replaces CombatFeedbackManager's old direct-write shake that Cinemachine was overriding.
+    /// </summary>
+    public void Shake(float intensity, float duration)
+    {
+        if (shakeMultiplier <= 0f || intensity < 0.01f) return;
+
+        // New shake overrides any in-progress shake (same behavior as old system)
+        shakeIntensity = intensity;
+        shakeDurationTotal = duration;
+        shakeElapsed = 0f;
+        shakeSeed = Time.unscaledTime * 100f;
+        shakeActive = true;
+
+        DebugLog($"Shake: intensity={intensity:F2} duration={duration:F3}s");
+    }
+
+    /// <summary>
+    /// Set shake intensity multiplier from Settings UI (0 = off, 1 = full).
+    /// </summary>
+    public void SetShakeMultiplier(float multiplier)
+    {
+        shakeMultiplier = Mathf.Clamp01(multiplier);
+    }
+
+    public float GetShakeMultiplier() => shakeMultiplier;
+    #endregion
+
+    #region Public API — FOV Punch
 
     /// <summary>
     /// FOV punch outward on hit. Positive = wider = explosive feel.
@@ -154,7 +236,7 @@ public class CameraGameFeel : MonoBehaviour
     /// </summary>
     public void PunchParry()
     {
-        StartPunch(parryPunch, punchDuration * 1.5f); // Parry holds slightly longer
+        StartPunch(parryPunch, punchDuration * 1.5f);
         DebugLog($"FOV punch: parry ({parryPunch:+0.0;-0.0}°)");
     }
 
@@ -186,7 +268,6 @@ public class CameraGameFeel : MonoBehaviour
         {
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
-            // Ease-out: snappy onset, smooth return
             currentPunchOffset = amount * (1f - t * t);
             yield return null;
         }

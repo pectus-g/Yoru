@@ -51,8 +51,6 @@ public class CombatFeedbackManager : MonoBehaviour
     [SerializeField] private float parryShakeIntensity = 0.50f;
     [Tooltip("Camera shake duration in seconds")]
     [SerializeField] private float shakeDuration = 0.15f;
-    [Tooltip("Perlin noise frequency — higher = faster shake")]
-    [SerializeField] private float shakeFrequency = 25f;
 
     [Header("Camera Shake Accessibility")]
     [Tooltip("Global shake multiplier (0 = off, 1 = full). Hook to Settings slider.")]
@@ -72,10 +70,6 @@ public class CombatFeedbackManager : MonoBehaviour
     #endregion
 
     #region Private Fields
-    private Camera mainCamera;
-    private Transform camTransform;
-    private Vector3 originalCamLocalPos;
-    private Coroutine shakeCoroutine;
     private YoruVFXManager vfxManager;
 
     // Hitstop stacking fix: track active coroutine + frozen animators
@@ -90,16 +84,8 @@ public class CombatFeedbackManager : MonoBehaviour
     #region Unity Lifecycle
     private void Start()
     {
-        mainCamera = Camera.main;
-        if (mainCamera != null)
-        {
-            camTransform = mainCamera.transform;
-            originalCamLocalPos = camTransform.localPosition;
-        }
-
-        DebugLog("CombatFeedbackManager initialized");
-
         vfxManager = FindObjectOfType<YoruVFXManager>();
+        DebugLog("CombatFeedbackManager initialized (v3 — shake/pulse delegated)");
     }
     #endregion
 
@@ -243,58 +229,22 @@ public class CombatFeedbackManager : MonoBehaviour
     }
     #endregion
 
-    #region Camera Shake — Perlin Noise
+    #region Camera Shake — Delegated to CameraGameFeel
 
     /// <summary>
-    /// Perlin noise camera shake. Uses unscaledDeltaTime for Flurry Rush compatibility.
-    /// Respects shakeIntensityMultiplier (accessibility slider).
+    /// Camera shake — delegated to CameraGameFeel which applies offsets AFTER Cinemachine.
+    /// The old implementation wrote to camTransform.localPosition directly, but Cinemachine
+    /// overwrote it every LateUpdate, so shake was never visible.
     /// </summary>
     public void CameraShake(float intensity, float duration)
     {
-        if (camTransform == null || shakeIntensityMultiplier <= 0f) return;
-
-        float adjustedIntensity = intensity * shakeIntensityMultiplier;
-        if (adjustedIntensity < 0.01f) return;
-
-        if (shakeCoroutine != null)
-            StopCoroutine(shakeCoroutine);
-        shakeCoroutine = StartCoroutine(ShakeCoroutine(adjustedIntensity, duration));
-    }
-
-    private IEnumerator ShakeCoroutine(float intensity, float duration)
-    {
-        float elapsed = 0f;
-        float seed = Time.unscaledTime * 100f;
-
-        while (elapsed < duration)
+        if (CameraGameFeel.Instance != null)
         {
-            elapsed += Time.unscaledDeltaTime;
-            float t = elapsed / duration;
-            float decay = 1f - t; // Linear falloff
-
-            float x = (Mathf.PerlinNoise(seed, Time.unscaledTime * shakeFrequency) - 0.5f) * 2f;
-            float y = (Mathf.PerlinNoise(seed + 100f, Time.unscaledTime * shakeFrequency) - 0.5f) * 2f;
-
-            Vector3 offset = new Vector3(x, y, 0f) * intensity * decay;
-            camTransform.localPosition = originalCamLocalPos + offset;
-
-            yield return null;
+            CameraGameFeel.Instance.Shake(intensity, duration);
         }
-
-        camTransform.localPosition = originalCamLocalPos;
-        shakeCoroutine = null;
-    }
-
-    /// <summary>
-    /// Call if camera changes (e.g. Cinemachine blend). Resets the reference position.
-    /// </summary>
-    public void UpdateCameraReference()
-    {
-        mainCamera = Camera.main;
-        if (mainCamera != null)
+        else
         {
-            camTransform = mainCamera.transform;
-            originalCamLocalPos = camTransform.localPosition;
+            DebugLog("WARNING: CameraGameFeel not found — shake skipped");
         }
     }
     #endregion
@@ -339,10 +289,13 @@ public class CombatFeedbackManager : MonoBehaviour
     #region Public Getters / Setters
     /// <summary>
     /// Set shake intensity multiplier from Settings UI (0 = off, 1 = full).
+    /// Forwards to CameraGameFeel where the actual shake lives.
     /// </summary>
     public void SetShakeMultiplier(float multiplier)
     {
         shakeIntensityMultiplier = Mathf.Clamp01(multiplier);
+        if (CameraGameFeel.Instance != null)
+            CameraGameFeel.Instance.SetShakeMultiplier(multiplier);
     }
 
     public float GetShakeMultiplier() => shakeIntensityMultiplier;
