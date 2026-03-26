@@ -1567,7 +1567,7 @@ public class PlayerCombat : MonoBehaviour
     public void DealDamage()
     {
         int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
-        bool isFinisher = !isAerialAttack && currentComboStep == 3;
+        bool isFinisher = isAerialAttack || currentComboStep == 3;
         DealDamageInRange(damage, isFinisher);
     }
 

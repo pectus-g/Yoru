@@ -88,6 +88,10 @@ public class EnemyCombat : MonoBehaviour
     [Header("Current State (Debug)")]
     [SerializeField] private EnemyState currentState = EnemyState.LostSoul;
     
+    [Header("Enemy Tier")]
+    [Tooltip("1 = final boss, 2 = major boss, 3 = mid-boss (Nopperabō), 4 = minion (Kodoma). Tiers 1-3 show screen-top health bar. Tier 4 uses overhead bar.")]
+    [SerializeField] [Range(1, 4)] private int enemyTier = 4;
+    
     [Header("Detection")]
     [SerializeField] private float detectionRange = 10f;
     [SerializeField] private float attackRange = 3.5f;
@@ -528,6 +532,16 @@ public class EnemyCombat : MonoBehaviour
                 PlayAnimation(alertAnim);
                 SetAnimSpeed(1f);
                 PlayVFX(alertVFX);
+                // Game Feel: notify combat music system
+                if (CombatMusicManager.Instance != null)
+                    CombatMusicManager.Instance.NotifyEnemyAggro(this);
+                // Tier 1-2-3: show screen-top boss health bar
+                if (enemyTier <= 3 && BossHealthBarUI.Instance != null)
+                {
+                    EnemyHealth eh = GetComponent<EnemyHealth>();
+                    if (eh != null)
+                        BossHealthBarUI.Instance.Show(eh, gameObject.name);
+                }
                 break;
                 
             case EnemyState.Telegraph:
@@ -589,6 +603,16 @@ public class EnemyCombat : MonoBehaviour
                 PlayAnimation(deathAnim);
                 SetAnimSpeed(1f);
                 PlayVFX(deathVFX);
+                // Game Feel: notify combat music system
+                if (CombatMusicManager.Instance != null)
+                    CombatMusicManager.Instance.NotifyEnemyDead(this);
+                // Tier 1-2-3: notify boss health bar
+                if (enemyTier <= 3 && BossHealthBarUI.Instance != null)
+                {
+                    EnemyHealth eh = GetComponent<EnemyHealth>();
+                    if (eh != null)
+                        BossHealthBarUI.Instance.NotifyEnemyDead(eh);
+                }
                 break;
                 
             case EnemyState.Chase:
@@ -959,6 +983,7 @@ private void TriggerHitFlash()
     public EnemyState GetCurrentState() => currentState;
     public bool IsPhase2() => isPhase2;
     public bool IsInCombat() => currentState >= EnemyState.Idle && currentState <= EnemyState.Teleport;
+    public int GetEnemyTier() => enemyTier;
 
     /// <summary>
     /// Public Animator access — CombatFeedbackManager uses this for hitstop.

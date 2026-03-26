@@ -115,6 +115,10 @@ public class CombatFeedbackManager : MonoBehaviour
         if (CameraGameFeel.Instance != null)
             CameraGameFeel.Instance.PunchHit(isHeavy);
 
+        // Keep combat music alive during active fighting
+        if (CombatMusicManager.Instance != null)
+            CombatMusicManager.Instance.NotifyCombatActivity();
+
         DebugLog($"Hit feedback: {(isHeavy ? "HEAVY" : "light")} at {contactPoint}");
     }
 
@@ -133,6 +137,10 @@ public class CombatFeedbackManager : MonoBehaviour
         if (CameraGameFeel.Instance != null)
             CameraGameFeel.Instance.PunchParry();
 
+        // Keep combat music alive during active fighting
+        if (CombatMusicManager.Instance != null)
+            CombatMusicManager.Instance.NotifyCombatActivity();
+
         DebugLog("Parry feedback triggered");
     }
 
@@ -145,6 +153,10 @@ public class CombatFeedbackManager : MonoBehaviour
         // Guard uses global hitstop (no specific animator targets needed)
         HitStop(guardHitStopDuration, null, null);
         CameraShake(lightShakeIntensity * 0.5f, shakeDuration * 0.5f);
+
+        // Keep combat music alive during active fighting
+        if (CombatMusicManager.Instance != null)
+            CombatMusicManager.Instance.NotifyCombatActivity();
 
         DebugLog("Guard feedback triggered");
     }
@@ -164,6 +176,10 @@ public class CombatFeedbackManager : MonoBehaviour
             CombatPostProcessPulse.Instance.PulseDamage(isHeavy);
         if (CameraGameFeel.Instance != null)
             CameraGameFeel.Instance.PunchPlayerDamage(isHeavy);
+
+        // Keep combat music alive during active fighting
+        if (CombatMusicManager.Instance != null)
+            CombatMusicManager.Instance.NotifyCombatActivity();
 
         DebugLog($"Player hit feedback: {(isHeavy ? "heavy" : "light")}");
     }
