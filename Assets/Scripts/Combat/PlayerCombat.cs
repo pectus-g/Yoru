@@ -479,6 +479,18 @@ public class PlayerCombat : MonoBehaviour
     {
         if (characterController != null && characterController.isGrounded)
         {
+            // Force-end aerial attacks on landing.
+            // OnAttackEnd() is an animation event on the Combo3 clip, but when Yoru lands
+            // mid-clip the base layer crossfade can interrupt combat layer playback, causing
+            // the event to never fire → isAttacking stuck permanently → movement frozen.
+            // 0.15s grace prevents false trigger on the frame right after jump (isGrounded
+            // can be stale for 1-2 frames before CharacterController.Move applies velocity).
+            if (isAerialAttack && isAttacking && Time.time - attackStartTime > 0.15f)
+            {
+                DebugLog("Aerial spin: force-ending on landing (animation event unreliable mid-air)");
+                OnAttackEnd();
+            }
+
             if (hasUsedAerialAttack && !isAttacking)
             {
                 hasUsedAerialAttack = false;
@@ -893,7 +905,7 @@ public class PlayerCombat : MonoBehaviour
         string animState = is4Leg ? dodge4LegState : dodge2LegState;
         float distance = is4Leg ? dodge4LegDistance : dodge2LegDistance;
 
-        animator.CrossFadeInFixedTime(animState, 0.03f, combatLayerIndex);
+        animator.CrossFadeInFixedTime(animState, 0.12f, combatLayerIndex);
         lastCombatCrossFadeTime = Time.time;
 
         DebugLog($"Dodge: {animState} ({distance}m, {(is4Leg ? "4leg" : "2leg")})");
@@ -950,7 +962,10 @@ public class PlayerCombat : MonoBehaviour
 
                 if (dodgeHeight > 0f)
                 {
-                    float arc = Mathf.Sin(t * Mathf.PI) * dodgeHeight;
+                    // Use eased t (not raw t) for zero-velocity arc endpoints:
+                    // sin(smoothstep(t) * PI) has derivative=0 at t=0 and t=1,
+                    // eliminating sudden Y jolts that cause camera overshoot
+                    float arc = Mathf.Sin(eased * Mathf.PI) * dodgeHeight;
                     float arcDelta = arc - previousArc;
                     previousArc = arc;
                     move.y += arcDelta;
@@ -991,8 +1006,8 @@ public class PlayerCombat : MonoBehaviour
         dodgeEndTime = Time.time;
         if (animator != null)
         {
-            // 0.2s blend for smoother frontflip→sprint/idle transition
-            animator.CrossFadeInFixedTime(combatIdleStateName, 0.2f, combatLayerIndex);
+            // 0.25s blend for smoother frontflip→sprint/idle transition
+            animator.CrossFadeInFixedTime(combatIdleStateName, 0.25f, combatLayerIndex);
             lastCombatCrossFadeTime = Time.time;
         }
         DebugLog("Dodge ended");
@@ -1472,6 +1487,7 @@ public class PlayerCombat : MonoBehaviour
     private void PerformAerialSpin()
     {
         combatIdleSettledTimer = 0f;
+        movementStuckTimer = 0f;
         attackStartTime = Time.time;
         FaceNearestEnemy();
         hasUsedAerialAttack = true;
@@ -1567,7 +1583,7 @@ public class PlayerCombat : MonoBehaviour
     public void DealDamage()
     {
         int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
-        bool isFinisher = isAerialAttack || currentComboStep == 3;
+        bool isFinisher = !isAerialAttack && currentComboStep == 3;
         DealDamageInRange(damage, isFinisher);
     }
 
@@ -1718,14 +1734,49 @@ public class PlayerCombat : MonoBehaviour
     #endregion
 
     #region Public Getters
-    public bool IsAttacking() => isAttacking;
+    public bool IsAttacking()
+    {
+        // Self-heal: if isAttacking stuck longer than maxAttackDuration, force-clear.
+        // Covers aerial spin landing where OnAttackEnd animation event may not fire
+        // (e.g. combat layer crossfade interrupts the clip before the event frame).
+        if (isAttacking && Time.time - attackStartTime > maxAttackDuration)
+        {
+            DebugLog("[Self-heal] isAttacking force-cleared (exceeded maxAttackDuration)");
+            ForceResetCombat();
+            return false;
+        }
+        return isAttacking;
+    }
     public bool IsChargingHeavy() => isChargingHeavy;
     public int GetCurrentComboStep() => currentComboStep;
     public bool IsAerialAttack() => isAerialAttack;
     public bool IsPositionLocked() => lockPosition;
     public bool IsInHitReaction() => isInHitReaction;
-    public bool IsDodging() => isDodging;
-    public bool IsDashing() => isDashing;
+    public bool IsDodging()
+    {
+        // Self-heal: if isDodging stuck past expected duration + 0.5s grace, force-clear.
+        // Coroutines can die silently (rapid input, component disable, etc.) without
+        // reaching EndDodge(). This getter is called every frame by PlayerMovement line 222,
+        // so the flag self-corrects within one frame of exceeding the deadline.
+        if (isDodging && Time.time - dodgeStartTime > currentDodgeDuration + 0.5f)
+        {
+            DebugLog($"[Self-heal] isDodging force-cleared ({Time.time - dodgeStartTime:F2}s, expected {currentDodgeDuration:F2}s)");
+            EndDodge();
+            return false;
+        }
+        return isDodging;
+    }
+    public bool IsDashing()
+    {
+        // Self-heal: same pattern as IsDodging.
+        if (isDashing && Time.time - dashStartTime > currentDashDuration + 0.5f)
+        {
+            DebugLog($"[Self-heal] isDashing force-cleared ({Time.time - dashStartTime:F2}s, expected {currentDashDuration:F2}s)");
+            EndDash();
+            return false;
+        }
+        return isDashing;
+    }
     public bool IsGuarding() => isGuarding;
     public float GetDodgeEndTime() => dodgeEndTime;
     public float GetGuardDamageReduction() => guardDamageReduction;
