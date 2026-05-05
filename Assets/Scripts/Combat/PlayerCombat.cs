@@ -2,12 +2,21 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v21
+/// YORU Combat System — Phase 3C v22
 /// v20: EndDash/EndDodge StopCoroutine fix (insufficient — coroutines silently crash)
 /// v21: ACTUAL FIX — time-based flag clearing that doesn't depend on coroutines:
 ///   - Dodge/dash timeouts tightened: +0.3s grace (was +1.0s) plus 2s absolute hard cap
 ///   - Movement-stuck safety: 0.5s WASD held + any flag stuck → force reset (was 1.5s + required no combat keys)
 ///   - These catch ALL orphan scenarios regardless of how the coroutine dies
+/// v22: Guard movement-stuck false positive fix.
+///   - Movement-stuck safety previously included isGuarding in the blocking-flag set.
+///   - Holding Q + WASD to guard-walk (legitimate 0.75x speed via GuardMovementController)
+///     after 1s caused the safety to ForceResetCombat → EndGuard, killing guard even
+///     though Q was still held.
+///   - Guard is excluded from the blocking-flag set. Three other safeties remain in place:
+///     Q-released stuck check (lines ~312), animator-orphan detection (lines ~365),
+///     and PlayerMovement's guard-routing in FixedUpdate. No protection is lost.
+///   - Also caught up the init-log version string (was stuck at "v17").
 /// Confirmed via logs: isDashing and isDodging both get orphaned by rapid input.
 /// </summary>
 public class PlayerCombat : MonoBehaviour
@@ -255,7 +264,7 @@ public class PlayerCombat : MonoBehaviour
         if (visualModelRoot != null)
             originalModelLocalPos = visualModelRoot.localPosition;
 
-        DebugLog("PlayerCombat initialized — Phase 3C v17");
+        DebugLog("PlayerCombat initialized — Phase 3C v22");
     }
 
     private void Update()
@@ -389,8 +398,13 @@ public class PlayerCombat : MonoBehaviour
         // Timer resets at every action start (PerformDodge, PerformDash, etc.) so it
         // only fires AFTER the expected action duration. 1.0s is longer than any single
         // action (max is dodge at 0.87s) but shorter than the old 1.5s.
+        //
+        // GUARD IS EXCLUDED. Guard allows legitimate movement at 0.75x via
+        // GuardMovementController, so holding Q+WASD is normal play, not a stuck state.
+        // Guard has its own safeties: the Q-released stuck check above (lines ~312)
+        // and the animator-orphan detection (lines ~365) catch real stuck-guard cases.
         {
-            bool anyFlagBlocking = isAttacking || isChargingHeavy || isDodging || isDashing || isGuarding;
+            bool anyFlagBlocking = isAttacking || isChargingHeavy || isDodging || isDashing;
             bool wasdHeld = Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f
                 || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f;
 
@@ -399,7 +413,7 @@ public class PlayerCombat : MonoBehaviour
                 movementStuckTimer += Time.deltaTime;
                 if (movementStuckTimer > 1.0f)
                 {
-                    DebugLog($"Safety: movement stuck 1.0s (atk={isAttacking} dod={isDodging} dsh={isDashing} grd={isGuarding} hvy={isChargingHeavy} hit={isInHitReaction} animSpeed={animator?.speed}) — forcing reset");
+                    DebugLog($"Safety: movement stuck 1.0s (atk={isAttacking} dod={isDodging} dsh={isDashing} hvy={isChargingHeavy} hit={isInHitReaction} animSpeed={animator?.speed}) — forcing reset");
                     if (animator != null) animator.speed = 1f;
                     ForceResetCombat();
                     movementStuckTimer = 0f;
