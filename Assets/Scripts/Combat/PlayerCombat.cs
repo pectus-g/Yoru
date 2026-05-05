@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v22
+/// YORU Combat System — Phase 3C v23
 /// v20: EndDash/EndDodge StopCoroutine fix (insufficient — coroutines silently crash)
 /// v21: ACTUAL FIX — time-based flag clearing that doesn't depend on coroutines:
 ///   - Dodge/dash timeouts tightened: +0.3s grace (was +1.0s) plus 2s absolute hard cap
@@ -17,6 +17,22 @@ using System.Collections;
 ///     Q-released stuck check (lines ~312), animator-orphan detection (lines ~365),
 ///     and PlayerMovement's guard-routing in FixedUpdate. No protection is lost.
 ///   - Also caught up the init-log version string (was stuck at "v17").
+/// v23: Parry animation restructure — separate Parry_Start clip from Parry idle loop.
+///   - New parryStartState SerializeField (default "Parry_Start") — plays once when Q is pressed.
+///   - parryIdleState is now a clean loop (no baked intro).
+///   - parryIntroLength field repurposed: was "intro length within combined clip", now means
+///     "duration of Parry_Start clip in seconds". Same field — Inspector value preserved.
+///   - parryIntroComplete now genuinely flips false→true when start clip finishes
+///     (previously only ever set to false in StartGuard, never used).
+///   - UpdateGuardAnimation gains a Phase 1 / Phase 2 split:
+///     Phase 1 = wait for Parry_Start to complete; Phase 2 = normal idle/walk selection.
+///   - REMOVED: ~35-line "Parry idle loop skip" block (no longer needed with clean idle loop).
+///   - REMOVED: special introAlreadyPlayed CrossFade with normalizedTimeOffset arg
+///     (plain CrossFadeInFixedTime is correct for the new design).
+///   - New blend-time case for parryStartState → idle/walk: 0.1s short blend
+///     (start clip ends in parry pose, idle/walk begin in parry pose, so the blend is tight).
+///   - Inspector action required: verify parryStartState matches your Animator state name,
+///     and update parryIntroLength to match the actual duration of your Parry_Start clip.
 /// Confirmed via logs: isDashing and isDodging both get orphaned by rapid input.
 /// </summary>
 public class PlayerCombat : MonoBehaviour
@@ -48,6 +64,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private string dash4LegState = "DodgeDash_4Leg";
 
     [Header("Animation State Names — Guard/Parry")]
+    [SerializeField] private string parryStartState = "Parry_Start";
     [SerializeField] private string parryIdleState = "Parry";
     [SerializeField] private string parryWalkForwardState = "Parry_WalkForward";
     [SerializeField] private string parryWalkBackwardState = "Parry_WalkBackward";
@@ -120,7 +137,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float parryStaggerDuration = 1.2f;
     [Tooltip("Range to find closest attacking enemy for parry counter")]
     [SerializeField] private float parryCounterRange = 5f;
-    [Tooltip("Length of Parry anim intro (standing→guard transition) in seconds. Loop restarts AFTER this point to avoid replaying the intro.")]
+    [Tooltip("Duration of Parry_Start clip in seconds. After this elapses, idle/walk anims take over based on current input. Set this to match the actual length of your Parry_Start animation clip.")]
     [SerializeField] private float parryIntroLength = 1.26f;
     [Tooltip("Y offset applied to bodyYoru during guard to lift paw tips off ground")]
     [SerializeField] private float guardModelYOffset = 0.15f;
@@ -264,7 +281,7 @@ public class PlayerCombat : MonoBehaviour
         if (visualModelRoot != null)
             originalModelLocalPos = visualModelRoot.localPosition;
 
-        DebugLog("PlayerCombat initialized — Phase 3C v22");
+        DebugLog("PlayerCombat initialized — Phase 3C v23");
     }
 
     private void Update()
@@ -620,7 +637,7 @@ public class PlayerCombat : MonoBehaviour
         parryIntroComplete = false;
         guardIdleDebounceTimer = 0f;
 
-        PlayGuardAnim(parryIdleState);
+        PlayGuardAnim(parryStartState);
 
         // Lock guard facing to the direction player is currently moving
         // If pressing D → guard faces right. If no input → fall back to transform.forward.
@@ -655,6 +672,28 @@ public class PlayerCombat : MonoBehaviour
 
     private void UpdateGuardAnimation()
     {
+        // === Phase 1: Start animation ===
+        // While Parry_Start is still playing, leave it alone — don't override with idle/walk.
+        // Once start clip completes, parryIntroComplete flips true and Phase 2 takes over.
+        // Time-based detection: simpler than animator state polling, matches existing parryIntroLength field.
+        // Note: hitstop (animator.speed=0) pauses animation playback but Time.time keeps ticking,
+        // so a perfect-parry triggered during the start phase may slightly truncate the start clip.
+        // That's an acceptable tradeoff — perfect parry is a dramatic moment, the start phase has
+        // already played partially, and gameplay flow matters more than animation purity.
+        if (!parryIntroComplete)
+        {
+            if (Time.time - guardStartTime >= parryIntroLength)
+            {
+                parryIntroComplete = true;
+                // Fall through to Phase 2 — pick idle/walk based on current input
+            }
+            else
+            {
+                return; // Start clip still playing; do nothing
+            }
+        }
+
+        // === Phase 2: Idle / walk selection ===
         // Projection onto locked guard direction — same threshold (0.3) as GuardMovementController
         // so animation and movement always agree. Below 0.3 = no movement AND no anim switch.
         float projection = 0f;
@@ -680,9 +719,9 @@ public class PlayerCombat : MonoBehaviour
         {
             // Keys held but perpendicular to guard axis (projection between -0.3 and 0.3).
             // Keep whatever anim is currently playing — don't disrupt.
-            // If idle, stay idle (perpendicular from idle = no movement = stay idle).
+            // If still on parryStartState (just finished this frame), default to idle.
             targetAnim = currentGuardAnim;
-            if (targetAnim == "") targetAnim = parryIdleState;
+            if (targetAnim == "" || targetAnim == parryStartState) targetAnim = parryIdleState;
             guardIdleDebounceTimer = 0f;
         }
         else
@@ -716,60 +755,30 @@ public class PlayerCombat : MonoBehaviour
         {
             // Blend times tuned per transition type
             float blendTime;
-            if (targetAnim == parryIdleState)
-                blendTime = 0.25f; // walk→idle: smooth return
+            if (currentGuardAnim == parryStartState)
+                blendTime = 0.1f; // start → idle/walk: short blend (start clip ends in parry pose, idle begins in parry pose)
+            else if (targetAnim == parryIdleState)
+                blendTime = 0.25f; // walk → idle: smooth return
             else if (currentGuardAnim == parryIdleState || currentGuardAnim == "")
-                blendTime = 0.2f;  // idle→walk: slightly longer to cover foot transition
+                blendTime = 0.2f;  // idle → walk: slightly longer to cover foot transition
             else
-                blendTime = 0.15f; // walk↔walk (forward↔backward): quick
+                blendTime = 0.15f; // walk ↔ walk (forward ↔ backward): quick
 
             currentGuardAnim = targetAnim;
             if (animator != null)
             {
-                bool introAlreadyPlayed = (Time.time - guardStartTime) > parryIntroLength;
-                if (targetAnim == parryIdleState && introAlreadyPlayed)
-                    animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex, parryIntroLength);
-                else
-                    animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex);
+                // Plain CrossFade — no normalizedTimeOffset needed since the new parryIdleState
+                // is a clean loop (no baked intro to skip past).
+                animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex);
                 lastCombatCrossFadeTime = Time.time;
             }
         }
 
-        // --- Parry idle loop skip ---
-        // The Parry clip has an intro (standing→guard transition) that plays ONCE on first Q press.
-        // After that, we must prevent the clip from wrapping back to frame 0 (which replays the intro).
-        // Uses time-based check: once guardStartTime + parryIntroLength has elapsed, intro is done.
-        if (currentGuardAnim == parryIdleState && animator != null)
-        {
-            bool introAlreadyPlayed = (Time.time - guardStartTime) > parryIntroLength;
-
-            if (introAlreadyPlayed)
-            {
-                AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-                if (stateInfo.IsName(parryIdleState) && !animator.IsInTransition(combatLayerIndex))
-                {
-                    float clipLength = stateInfo.length;
-                    if (clipLength > 0f)
-                    {
-                        float loopStartNormalized = parryIntroLength / clipLength;
-                        float normalizedTime = stateInfo.normalizedTime % 1f;
-
-                        // Pre-wrap: clip is about to loop — CrossFade to loop point before frame 0 renders
-                        if (normalizedTime > 0.95f)
-                        {
-                            animator.CrossFadeInFixedTime(parryIdleState, 0.1f, combatLayerIndex, parryIntroLength);
-                            lastCombatCrossFadeTime = Time.time;
-                        }
-                        // Fallback: if we missed the pre-wrap (extreme low FPS), catch it after wrap
-                        else if (normalizedTime < loopStartNormalized)
-                        {
-                            animator.CrossFadeInFixedTime(parryIdleState, 0.05f, combatLayerIndex, parryIntroLength);
-                            lastCombatCrossFadeTime = Time.time;
-                        }
-                    }
-                }
-            }
-        }
+        // NOTE: The old "Parry idle loop skip" block (~35 lines) has been removed in v23.
+        // It was a workaround for the previous design where parryIdleState contained both
+        // the intro and the looping idle, and we had to prevent the clip from wrapping back
+        // to frame 0 (which would replay the intro). With the new Parry_Start as a separate
+        // one-shot clip, parryIdleState is now a clean loop and needs no intervention.
     }
 
     private void PlayGuardAnim(string stateName)
