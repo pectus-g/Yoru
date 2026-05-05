@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v23
+/// YORU Combat System — Phase 3C v24
 /// v20: EndDash/EndDodge StopCoroutine fix (insufficient — coroutines silently crash)
 /// v21: ACTUAL FIX — time-based flag clearing that doesn't depend on coroutines:
 ///   - Dodge/dash timeouts tightened: +0.3s grace (was +1.0s) plus 2s absolute hard cap
@@ -14,7 +14,7 @@ using System.Collections;
 ///     after 1s caused the safety to ForceResetCombat → EndGuard, killing guard even
 ///     though Q was still held.
 ///   - Guard is excluded from the blocking-flag set. Three other safeties remain in place:
-///     Q-released stuck check (lines ~312), animator-orphan detection (lines ~365),
+///     Q-released stuck check (lines ~342), animator-orphan detection (lines ~365),
 ///     and PlayerMovement's guard-routing in FixedUpdate. No protection is lost.
 ///   - Also caught up the init-log version string (was stuck at "v17").
 /// v23: Parry animation restructure — separate Parry_Start clip from Parry idle loop.
@@ -33,6 +33,18 @@ using System.Collections;
 ///     (start clip ends in parry pose, idle/walk begin in parry pose, so the blend is tight).
 ///   - Inspector action required: verify parryStartState matches your Animator state name,
 ///     and update parryIntroLength to match the actual duration of your Parry_Start clip.
+/// v24: Q-release grace window — fixes parry breaking when pressing A/D while Q is held.
+///   - Root cause: keyboard ghosting / N-key rollover. On many keyboards, pressing Q + A
+///     or Q + D simultaneously causes the hardware to drop Q for 1+ frames. Unity sees
+///     this as Input.GetKeyUp(Q) firing and ends guard, even though Q is still held.
+///   - Fix: replace Input.GetKeyUp(Q) with polling-based detection plus an 80ms grace.
+///     If Q reports as released but comes back within 80ms, treat as continuous hold.
+///     If Q stays released past 80ms, end guard normally.
+///   - Two new fields: qReleaseGraceTime (Inspector tunable, default 0.08s) and
+///     qReleaseStartTime (runtime, tracks when Q first appeared released).
+///   - 80ms is below human key-tap perception (~100ms) so guard doesn't feel sticky.
+///     Above any keyboard ghost blip (typically 17-50ms at 60fps).
+///   - The 0.5s guardStuckTimer safety net is unchanged and still catches true stuck cases.
 /// Confirmed via logs: isDashing and isDodging both get orphaned by rapid input.
 /// </summary>
 public class PlayerCombat : MonoBehaviour
@@ -139,6 +151,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float parryCounterRange = 5f;
     [Tooltip("Duration of Parry_Start clip in seconds. After this elapses, idle/walk anims take over based on current input. Set this to match the actual length of your Parry_Start animation clip.")]
     [SerializeField] private float parryIntroLength = 1.26f;
+    [Tooltip("Grace window for Q-release detection. If Q reports as released but is pressed back down within this time, treat as continuous hold. Mitigates keyboard ghosting (Q dropped for 1+ frames when pressing A/D simultaneously). 0.08s default — below human key-tap perception (~0.1s) so guard doesn't feel sticky, above any keyboard ghost blip (~0.02-0.05s). Bump to 0.12 if interruptions still occur.")]
+    [SerializeField] private float qReleaseGraceTime = 0.08f;
     [Tooltip("Y offset applied to bodyYoru during guard to lift paw tips off ground")]
     [SerializeField] private float guardModelYOffset = 0.15f;
     [Tooltip("Y offset applied to bodyYoru during dash to lift paw tips off ground")]
@@ -228,6 +242,7 @@ public class PlayerCombat : MonoBehaviour
     private bool parryIntroComplete;       // true once Parry anim has played past the intro frames
     private Vector3 originalModelLocalPos;  // cached to restore after guard/dash Y offset
     private float guardStuckTimer;          // tracks how long isGuarding is true while Q not held
+    private float qReleaseStartTime = -1f;  // -1 = Q held; >=0 = timestamp when Q first appeared released (v24 grace window)
     private float heavyStuckTimer;          // tracks how long isChargingHeavy is true while LMB not held
     private float guardIdleDebounceTimer;   // prevents flicker during quick walk direction changes (W→S passes through 0)
     private bool modelOffsetActive;         // true when bodyYoru Y offset is applied
@@ -281,7 +296,7 @@ public class PlayerCombat : MonoBehaviour
         if (visualModelRoot != null)
             originalModelLocalPos = visualModelRoot.localPosition;
 
-        DebugLog("PlayerCombat initialized — Phase 3C v23");
+        DebugLog("PlayerCombat initialized — Phase 3C v24");
     }
 
     private void Update()
@@ -552,14 +567,35 @@ public class PlayerCombat : MonoBehaviour
 
         // During guard: Q overrides ALL combat actions. Only release Q ends guard.
         // Same as Sekiro — hold block = hold block, nothing interrupts it.
+        //
+        // v24: Q-release uses grace-period polling instead of GetKeyUp.
+        // Reason: keyboard ghosting / N-key rollover on many keyboards drops Q for 1+
+        // frames when A or D is pressed simultaneously. GetKeyUp fires on that single
+        // dropped frame, ending guard even though Q is still physically held.
+        // Polling with grace: only end guard if Q has been continuously released for
+        // qReleaseGraceTime (default 0.08s). Brief ghost blips (typically <0.05s) are
+        // ignored; intentional releases (>0.08s, well below ~0.1s human tap perception)
+        // end guard normally.
         if (isGuarding)
         {
-            if (Input.GetKeyUp(KeyCode.Q))
+            if (Input.GetKey(KeyCode.Q))
             {
-                EndGuard();
-                return;
+                qReleaseStartTime = -1f; // Q is held, clear any pending release
             }
-            return; // Q held — guard overrides everything
+            else
+            {
+                if (qReleaseStartTime < 0f)
+                {
+                    qReleaseStartTime = Time.time; // first frame Q reported released — start grace
+                }
+                else if (Time.time - qReleaseStartTime >= qReleaseGraceTime)
+                {
+                    EndGuard();
+                    qReleaseStartTime = -1f;
+                    return;
+                }
+            }
+            return; // Q held (or pending release within grace) — guard overrides everything
         }
 
         // Dodge input (C key)
@@ -636,6 +672,7 @@ public class PlayerCombat : MonoBehaviour
         currentGuardAnim = "";
         parryIntroComplete = false;
         guardIdleDebounceTimer = 0f;
+        qReleaseStartTime = -1f; // v24: clear any stale grace state from prior guard
 
         PlayGuardAnim(parryStartState);
 
@@ -662,6 +699,7 @@ public class PlayerCombat : MonoBehaviour
         isGuarding = false;
         guardEndTime = Time.time;
         currentGuardAnim = "";
+        qReleaseStartTime = -1f; // v24: clear grace state on exit
 
         if (guardMovement != null)
             guardMovement.DisableGuard();
