@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v24
+/// YORU Combat System — Phase 3C v26
 /// v20: EndDash/EndDodge StopCoroutine fix (insufficient — coroutines silently crash)
 /// v21: ACTUAL FIX — time-based flag clearing that doesn't depend on coroutines:
 ///   - Dodge/dash timeouts tightened: +0.3s grace (was +1.0s) plus 2s absolute hard cap
@@ -45,6 +45,65 @@ using System.Collections;
 ///   - 80ms is below human key-tap perception (~100ms) so guard doesn't feel sticky.
 ///     Above any keyboard ghost blip (typically 17-50ms at 60fps).
 ///   - The 0.5s guardStuckTimer safety net is unchanged and still catches true stuck cases.
+/// v25: Parry guard offset smooth ramp on BOTH directions — fixes visible level snap on
+///      idle->walk and the abrupt body drop on guard exit.
+///   - Root cause: v22 used instant snap-up plus a 10-units-per-second descent. With any
+///     non-trivial guardModelYOffset value, the body Y change happens in a single frame
+///     while the animator CrossFade blends the pose over 0.1-0.25s. Body and animation
+///     were moving on different timelines: at walk start the body would pop up before the
+///     pose finished blending in (visible level change), and at guard exit the body would
+///     drop out under the model in functionally one frame (abrupt pop). Trying to
+///     compensate by lowering the offset value also lowered the lift below what the walk
+///     clip actually needed, leaving paw tips clipping the ground.
+///   - Fix: ramp the offset smoothly on both directions at a duration that approximately
+///     matches the parry CrossFade blend times. Body Y and animation pose now move on the
+///     same timeline. Once the ramp is smooth, guardModelYOffset can be tuned up to match
+///     the walk clip's actual baked paw depth without the level change being visible.
+///   - New Inspector field: guardOffsetRampDuration (default 0.2s). Speed is computed
+///     dynamically as guardModelYOffset / guardOffsetRampDuration per second so the
+///     visible ramp time stays constant regardless of the offset value chosen.
+///   - Tuning order after applying:
+///       1. Leave guardOffsetRampDuration at 0.2s for first test.
+///       2. Bump guardModelYOffset up until paw tips visibly clear the ground during walk.
+///          Likely target range 0.10-0.15 based on screenshot evidence at offset=0.05.
+///       3. If walk-start still feels like a pop, raise guardOffsetRampDuration to 0.25s.
+///          If guard-exit feels floaty, lower it to 0.15s.
+///       4. Watch the idle->walk and guard-end transitions: body and paws should look like
+///          one continuous motion, not a body pop with a separate paw shift.
+///   - Nothing else in v22, v23 or v24 logic is touched. Single-block edit in LateUpdate.
+/// v26: Parry guard offset gating fix — apply the lift across the ENTIRE guard envelope,
+///      not just during walk states. Fixes the visible body rise at idle->walk transition.
+///   - Root cause: v22 (carried into v25) gated guardModelYOffset on the walk states only
+///     (parryWalkForwardState / parryWalkBackwardState). That gating was correct for the OLD
+///     combined parry clip design where the idle pose had paws planted at ground level and
+///     only the walk pose had paws baked low. With the v23 clean-clip rebuild, BOTH the
+///     Parry_Start and Parry Idle clips have paws baked below the body root at the same
+///     depth as the walk clips. So while idle, body was at original Y and paws were buried.
+///     When walking started, body lifted to original Y + 0.10-0.15. The lift was correct
+///     for walk but wrong for idle, so the player saw idle-clip paws clipping through
+///     terrain followed by a body rise the moment WASD was pressed. That body rise was
+///     the "getting up too early" symptom — body was anticipating the walk a fraction
+///     ahead of the pose blend.
+///   - Fix: gate guardModelYOffset on isGuarding (the whole guard envelope) instead of
+///     on isGuardWalking (walks only). Body now sits at the lifted Y from Q-press through
+///     Q-release. No visible level change between Parry_Start, Parry Idle, and the walks.
+///     The smooth ramp introduced in v25 is unchanged and now does the work it was
+///     designed for: covering the entry transition (Q press, ramp from 0 to offset over
+///     guardOffsetRampDuration) and the exit transition (Q release, ramp back to 0).
+///   - The walk-state detection variable (isGuardWalking) is removed from the LateUpdate
+///     block since it's no longer needed there. currentGuardAnim is still used elsewhere
+///     in UpdateGuardAnimation for state selection, so that field stays.
+///   - Tuning context for guardOffsetRampDuration after this change:
+///       Guard entry CrossFade is 0.15s (PlayGuardAnim). Guard exit CrossFade is 0.1s
+///       (ReturnToIdle). Setting guardOffsetRampDuration around 0.10-0.15s keeps body Y
+///       and pose blend roughly synchronized in both directions. Lower than 0.1 = body
+///       drops faster than pose on exit (Yoru rises out of parry early). Higher than
+///       ~0.2 = body lingers up after pose has settled (Yoru stays floating briefly).
+///   - guardModelYOffset must equal the actual depth the parry clips bake the paws below
+///     the body root. Likely 0.10-0.15 based on the screenshot evidence. Tune until paw
+///     tips visibly clear the terrain in idle, walk, and Parry_Start.
+///   - Nothing else in v22, v23, v24, or v25 logic is touched. Single-block edit in
+///     LateUpdate plus a tooltip update on guardModelYOffset.
 /// Confirmed via logs: isDashing and isDodging both get orphaned by rapid input.
 /// </summary>
 public class PlayerCombat : MonoBehaviour
@@ -153,8 +212,10 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float parryIntroLength = 1.26f;
     [Tooltip("Grace window for Q-release detection. If Q reports as released but is pressed back down within this time, treat as continuous hold. Mitigates keyboard ghosting (Q dropped for 1+ frames when pressing A/D simultaneously). 0.08s default — below human key-tap perception (~0.1s) so guard doesn't feel sticky, above any keyboard ghost blip (~0.02-0.05s). Bump to 0.12 if interruptions still occur.")]
     [SerializeField] private float qReleaseGraceTime = 0.08f;
-    [Tooltip("Y offset applied to bodyYoru during guard to lift paw tips off ground")]
+    [Tooltip("Y offset applied to bodyYoru during the ENTIRE guard envelope (Parry_Start + Parry Idle + parry walks) to lift paw tips off the ground. The v23 parry clips bake paw tips slightly below the body root in all three states at the same depth, so this single value covers all of them. Set this to the actual depth the clips bake the paws below the body root. Likely range 0.10-0.15. Set to 0 to disable. Pair with guardOffsetRampDuration so body and animation pose move together on guard entry and exit. v26: was previously gated on walk states only, which produced a visible body rise at idle->walk.")]
     [SerializeField] private float guardModelYOffset = 0.15f;
+    [Tooltip("Duration in seconds for guardModelYOffset to ramp up (entering walk) or ramp down (exiting walk/guard). Should approximately match the parry CrossFade blend times (0.1s for start->walk, 0.2s for idle->walk, 0.25s for walk->idle). 0.2s is a sensible default that covers most transitions. Lower = snappier transition, higher = floatier transition. v25 fix: replaced the old instant-up + 10-units/sec-descent behavior with this single tunable ramp on both directions.")]
+    [SerializeField] private float guardOffsetRampDuration = 0.2f;
     [Tooltip("Y offset applied to bodyYoru during dash to lift paw tips off ground")]
     [SerializeField] private float dashModelYOffset = 0.1f;
     [Tooltip("Visual model root (auto-finds bodyYoru). Offset during guard/dash for paw clipping fix.")]
@@ -296,7 +357,7 @@ public class PlayerCombat : MonoBehaviour
         if (visualModelRoot != null)
             originalModelLocalPos = visualModelRoot.localPosition;
 
-        DebugLog("PlayerCombat initialized — Phase 3C v24");
+        DebugLog("PlayerCombat initialized — Phase 3C v26");
     }
 
     private void Update()
@@ -466,33 +527,45 @@ public class PlayerCombat : MonoBehaviour
         if (isDashing)
             cachedTransform.rotation = dashLockedRotation;
 
-        // Per-frame model Y offset — prevents paw tips from clipping underground
-        // Runs in LateUpdate so it applies AFTER animation poses are set
-        // Guard: offset when walk anim is active. Uses currentGuardAnim (set in same Update frame
-        // as the CrossFade) instead of velocity (which has a 1-frame lag from GuardMovementController).
-        // This ensures the offset is applied on the exact frame the walk blend starts.
-        // Dash: always offset.
+        // Per-frame model Y offset — prevents paw tips from clipping underground.
+        // Runs in LateUpdate so it applies AFTER animation poses are set.
+        // Guard: offset applied for the entire isGuarding window (v26 — was walk-only in v22-v25).
+        // Dash: offset applied for the isDashing window.
+        // Both use the smooth ramp introduced in v25 (single MoveTowards on entry and exit).
         if (visualModelRoot != null)
         {
+            // v26: offset applies during the ENTIRE guard envelope, not just walks.
+            // The v23 clean parry clips have paws baked below the body root in Parry_Start,
+            // Parry Idle, AND the walks at the same depth. v22's walk-only gating produced
+            // a visible body rise at idle->walk because idle was at original Y and walk was
+            // at original + offset. Body now sits at lifted Y from Q-press through Q-release,
+            // so there's no level change within the guard envelope. The smooth ramp from v25
+            // (the MoveTowards block below) handles the entry and exit transitions only.
             float targetOffset = 0f;
             if (isGuarding)
             {
-                bool isGuardWalking = currentGuardAnim == parryWalkForwardState
-                    || currentGuardAnim == parryWalkBackwardState;
-                if (isGuardWalking)
-                    targetOffset = guardModelYOffset;
+                targetOffset = guardModelYOffset;
             }
             else if (isDashing)
             {
                 targetOffset = dashModelYOffset;
             }
 
-            // Instant onset (snap up), smooth descent (ease down)
-            // Prevents 1-2 frame paw dip when entering guard walk
-            if (targetOffset > currentModelYOffset)
-                currentModelYOffset = targetOffset; // instant snap up — no visible dip
-            else
-                currentModelYOffset = Mathf.MoveTowards(currentModelYOffset, targetOffset, Time.deltaTime * 10f);
+            // v25: Smooth ramp on BOTH directions (was: instant up, fast descent at 10 units/sec).
+            // The old design tried to prevent a 1-2 frame paw dip at walk-start by snapping the body
+            // up instantly, but with the v23 clean walk clips the snap itself became the visible
+            // problem: body popped up while the animation pose was still blending in idle, producing
+            // a visible level change. The 10-units/sec descent at walk-end was so fast it
+            // functionally snapped down too, producing an abrupt body drop on guard exit.
+            // Ramp duration matches the parry CrossFade blend times (0.1-0.25s) so body Y and the
+            // animation pose move on the same timeline. Speed is computed as offset / duration so
+            // the visible ramp time stays constant regardless of the offset value chosen.
+            // Fallback to the old fast rate if either field is configured at zero, so the behavior
+            // degrades gracefully rather than getting stuck mid-ramp.
+            float rampSpeed = (guardModelYOffset > 0.001f && guardOffsetRampDuration > 0.001f)
+                ? guardModelYOffset / guardOffsetRampDuration
+                : 10f;
+            currentModelYOffset = Mathf.MoveTowards(currentModelYOffset, targetOffset, Time.deltaTime * rampSpeed);
 
             bool needsOffset = currentModelYOffset > 0.001f;
             if (needsOffset)
