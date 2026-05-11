@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v26
+/// YORU Combat System — Phase 3C v27
 /// v20: EndDash/EndDodge StopCoroutine fix (insufficient — coroutines silently crash)
 /// v21: ACTUAL FIX — time-based flag clearing that doesn't depend on coroutines:
 ///   - Dodge/dash timeouts tightened: +0.3s grace (was +1.0s) plus 2s absolute hard cap
@@ -104,6 +104,36 @@ using System.Collections;
 ///     tips visibly clear the terrain in idle, walk, and Parry_Start.
 ///   - Nothing else in v22, v23, v24, or v25 logic is touched. Single-block edit in
 ///     LateUpdate plus a tooltip update on guardModelYOffset.
+/// v27: Configurable guard exit blend time — fixes the abrupt parry-to-standing pose
+///      snap when releasing Q.
+///   - Root cause: ReturnToIdle() (line 1648) crossfades to combatIdleStateName with a
+///     hardcoded 0.1s blend. EndGuard() called ReturnToIdle() on Q release. 0.1s = 6
+///     frames at 60fps, which is brutally fast for a quadruped rising out of a low
+///     defensive stance. The body Y offset descent (v25-v26) couldn't smooth this
+///     because the offset is a 10-15cm vertical adjustment ON TOP of a much larger
+///     pose change (crouch -> standing) happening in those 6 frames. Hazel correctly
+///     reported that no value of guardOffsetRampDuration fixed the abrupt exit.
+///   - Fix: add guardExitBlendTime SerializeField (default 0.3s, tunable). EndGuard()
+///     now bypasses ReturnToIdle() and calls CrossFadeInFixedTime directly with this
+///     duration. The shared ReturnToIdle() is left untouched so attack/dodge/dash
+///     exits keep their existing 0.1s snap behavior, which is correct for those
+///     fast-paced action recoveries.
+///   - Tooltip on guardOffsetRampDuration updated: recommend matching guardExitBlendTime
+///     so body Y descent and pose blend finish at the same moment. Mismatch leaves
+///     the body either floating (ramp longer than blend) or clipping (ramp shorter
+///     than blend) for the difference window.
+///   - Combat responsiveness note: the longer pose blend does NOT block input. Yoru
+///     can be commanded to attack/dodge during the 0.3s blend; the new action's
+///     CrossFade will simply override the in-progress parry-to-idle blend. So this
+///     change is purely visual and has no gameplay-feel cost.
+///   - Tuning order after applying:
+///       1. Set Guard Offset Ramp Duration to 0.3s (matches new exit blend default).
+///       2. Test guard exit. Yoru should rise from parry crouch to standing over ~0.3s,
+///          smoothly, like a cat unfolding from a tense pose.
+///       3. If the exit feels too lazy/slow, lower both fields to 0.25 or 0.2.
+///       4. If the exit still feels abrupt at 0.3s, the issue is somewhere else and
+///          we keep digging (could be the parry-idle clip ending at a non-rest pose,
+///          or the GuardMovementController disable having a side-effect).
 /// Confirmed via logs: isDashing and isDodging both get orphaned by rapid input.
 /// </summary>
 public class PlayerCombat : MonoBehaviour
@@ -210,12 +240,14 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float parryCounterRange = 5f;
     [Tooltip("Duration of Parry_Start clip in seconds. After this elapses, idle/walk anims take over based on current input. Set this to match the actual length of your Parry_Start animation clip.")]
     [SerializeField] private float parryIntroLength = 1.26f;
+    [Tooltip("CrossFade duration in seconds when guard ends (Q release) and Yoru transitions from parry pose back to combatIdleStateName. v27 default 0.3s. The previous behavior used the shared ReturnToIdle() with its hardcoded 0.1s blend, which was visibly too fast for a quadruped rising out of a low defensive stance. Range 0.25-0.4s typically reads as smooth and cat-like; lower values feel snappy/abrupt; higher values feel lazy. Does NOT block input — Yoru can attack/dodge mid-blend and the new action will override the in-progress crossfade, so this is a purely visual setting with no gameplay-feel cost.")]
+    [SerializeField] private float guardExitBlendTime = 0.3f;
     [Tooltip("Grace window for Q-release detection. If Q reports as released but is pressed back down within this time, treat as continuous hold. Mitigates keyboard ghosting (Q dropped for 1+ frames when pressing A/D simultaneously). 0.08s default — below human key-tap perception (~0.1s) so guard doesn't feel sticky, above any keyboard ghost blip (~0.02-0.05s). Bump to 0.12 if interruptions still occur.")]
     [SerializeField] private float qReleaseGraceTime = 0.08f;
     [Tooltip("Y offset applied to bodyYoru during the ENTIRE guard envelope (Parry_Start + Parry Idle + parry walks) to lift paw tips off the ground. The v23 parry clips bake paw tips slightly below the body root in all three states at the same depth, so this single value covers all of them. Set this to the actual depth the clips bake the paws below the body root. Likely range 0.10-0.15. Set to 0 to disable. Pair with guardOffsetRampDuration so body and animation pose move together on guard entry and exit. v26: was previously gated on walk states only, which produced a visible body rise at idle->walk.")]
     [SerializeField] private float guardModelYOffset = 0.15f;
-    [Tooltip("Duration in seconds for guardModelYOffset to ramp up (entering walk) or ramp down (exiting walk/guard). Should approximately match the parry CrossFade blend times (0.1s for start->walk, 0.2s for idle->walk, 0.25s for walk->idle). 0.2s is a sensible default that covers most transitions. Lower = snappier transition, higher = floatier transition. v25 fix: replaced the old instant-up + 10-units/sec-descent behavior with this single tunable ramp on both directions.")]
-    [SerializeField] private float guardOffsetRampDuration = 0.2f;
+    [Tooltip("Duration in seconds for guardModelYOffset to ramp up (Q press / guard entry) or ramp down (Q release / guard exit). v27 recommendation: match this to guardExitBlendTime so the body Y offset descent finishes at the same moment as the parry-to-standing pose blend. Mismatch produces either a brief float (ramp longer than blend) or brief paw clipping (ramp shorter than blend) for the difference window. Default 0.3s matches the v27 default for guardExitBlendTime.")]
+    [SerializeField] private float guardOffsetRampDuration = 0.3f;
     [Tooltip("Y offset applied to bodyYoru during dash to lift paw tips off ground")]
     [SerializeField] private float dashModelYOffset = 0.1f;
     [Tooltip("Visual model root (auto-finds bodyYoru). Offset during guard/dash for paw clipping fix.")]
@@ -357,7 +389,7 @@ public class PlayerCombat : MonoBehaviour
         if (visualModelRoot != null)
             originalModelLocalPos = visualModelRoot.localPosition;
 
-        DebugLog("PlayerCombat initialized — Phase 3C v26");
+        DebugLog("PlayerCombat initialized — Phase 3C v27");
     }
 
     private void Update()
@@ -777,7 +809,18 @@ public class PlayerCombat : MonoBehaviour
         if (guardMovement != null)
             guardMovement.DisableGuard();
 
-        ReturnToIdle();
+        // v27: bypass ReturnToIdle()'s hardcoded 0.1s CrossFade and use the tunable
+        // guardExitBlendTime instead. The shared ReturnToIdle() is correct for fast
+        // action recoveries (attack/dodge/dash end) but too snappy for guard exit,
+        // where Yoru is rising from a deep crouch and needs more frames to read as
+        // smooth. Direct CrossFade matches the rest of ReturnToIdle's behavior
+        // (single CrossFadeInFixedTime call to combatIdleStateName on combat layer).
+        if (animator != null)
+        {
+            animator.CrossFadeInFixedTime(combatIdleStateName, guardExitBlendTime, combatLayerIndex);
+            lastCombatCrossFadeTime = Time.time;
+        }
+
         DebugLog("Guard END");
     }
 
