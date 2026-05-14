@@ -308,6 +308,7 @@ public class PlayerCombat : MonoBehaviour
     // Hit reaction
     private bool isInHitReaction;
     private float hitReactionEndTime;
+    private Coroutine hitReactSafetyCoroutine; // Backup force-clear (independent of UpdateHitReaction)
 
     // Dodge (frontflip — C)
     private bool isDodging;
@@ -1509,6 +1510,14 @@ public class PlayerCombat : MonoBehaviour
 
         isInHitReaction = true;
         hitReactionEndTime = Time.time + duration;
+
+        // Backup force-clear coroutine — independent of UpdateHitReaction's Time.time check.
+        // Mirrors the aerial-spin "force-ending on landing" pattern: when the primary clear
+        // mechanism is unreliable (animation events for aerial; observed stuck-flag for hit
+        // react in May 2026 logs), a second independent timer guarantees the flag clears.
+        // 0.1s buffer past the expected duration lets UpdateHitReaction win in the normal case.
+        if (hitReactSafetyCoroutine != null) StopCoroutine(hitReactSafetyCoroutine);
+        hitReactSafetyCoroutine = StartCoroutine(HitReactSafetyTimer(duration + 0.1f));
     }
 
     private IEnumerator SmoothPull(Vector3 direction, float distance, float duration)
@@ -1538,6 +1547,23 @@ public class PlayerCombat : MonoBehaviour
             isInHitReaction = false;
             ReturnToIdle();
         }
+    }
+
+    // Backup safety: WaitForSeconds-based clear that runs independently of UpdateHitReaction.
+    // If UpdateHitReaction's Time.time >= hitReactionEndTime check fires first (normal case),
+    // this coroutine finds isInHitReaction already false and no-ops. If UpdateHitReaction
+    // fails to clear for any reason (the May 2026 stuck-flag bug), this catches it.
+    // ForceResetCombat stops this coroutine to avoid double-fire after a manual reset.
+    private IEnumerator HitReactSafetyTimer(float duration)
+    {
+        yield return new WaitForSeconds(duration);
+        if (isInHitReaction)
+        {
+            DebugLog($"Hit react: safety coroutine force-clearing isInHitReaction (UpdateHitReaction timer failed)");
+            isInHitReaction = false;
+            ReturnToIdle();
+        }
+        hitReactSafetyCoroutine = null;
     }
     #endregion
 
@@ -1894,6 +1920,11 @@ public class PlayerCombat : MonoBehaviour
         {
             StopCoroutine(pullCoroutine);
             pullCoroutine = null;
+        }
+        if (hitReactSafetyCoroutine != null)
+        {
+            StopCoroutine(hitReactSafetyCoroutine);
+            hitReactSafetyCoroutine = null;
         }
 
         UnlockPosition();
