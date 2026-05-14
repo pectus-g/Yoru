@@ -87,6 +87,12 @@ public class PlayerMovement : MonoBehaviour
     
     // Ground flicker fix
     private float airborneTimer;
+    // Deferred landing: when CharacterController grounds while a combat action is active,
+    // OnLanded is skipped (combat animations would be interrupted). But the !wasGrounded
+    // edge condition won't retrigger, so PlayerState.Jumping stays stuck forever and
+    // ApplyMovement (line 335) is blocked. Setting this flag re-tries OnLanded every
+    // frame until the combat action ends and a clean landing can fire.
+    private bool pendingLanding;
     
     // Fall safety net
     private Vector3 lastSafePosition;
@@ -286,14 +292,12 @@ public class PlayerMovement : MonoBehaviour
         // Also skip during dodge/attack — combat layer handles those animations
         if (!wasGrounded && isGrounded && airborneTimer >= MIN_AIRBORNE_FOR_LANDING)
         {
-            bool inCombatAction = playerCombat != null && 
-                (playerCombat.IsDodging() || playerCombat.IsDashing() || 
-                 playerCombat.IsAttacking() || playerCombat.IsInHitReaction() ||
-                 playerCombat.IsGuarding() ||
-                 Time.time - playerCombat.GetDodgeEndTime() < 0.5f);
+            bool inCombatAction = IsInCombatActionForLanding();
             
             if (!inCombatAction)
                 OnLanded();
+            else
+                pendingLanding = true; // Defer until combat action ends
             
             airborneTimer = 0f;
         }
@@ -305,6 +309,17 @@ public class PlayerMovement : MonoBehaviour
         else if (wasGrounded && !isGrounded)
         {
             coyoteTimer = coyoteTime;
+            // If we left the ground again, cancel any deferred landing — Yoru is airborne again
+            pendingLanding = false;
+        }
+        
+        // Retry deferred landing once combat action clears.
+        // Without this, the !wasGrounded edge condition above would never re-fire,
+        // leaving PlayerState.Jumping stuck and ApplyMovement (line 335) blocked.
+        if (pendingLanding && isGrounded && !IsInCombatActionForLanding())
+        {
+            OnLanded();
+            pendingLanding = false;
         }
         
         // Update timers
@@ -502,6 +517,21 @@ public class PlayerMovement : MonoBehaviour
     private bool HasState(PlayerState state)
     {
         return (currentState & state) != 0;
+    }
+    
+    /// <summary>
+    /// Combat-action gate used by landing detection. If any of these are active when
+    /// Yoru becomes grounded, OnLanded is deferred until they clear (see pendingLanding).
+    /// Mirrors the legacy inCombatAction inline check — extracted so the landing detection
+    /// and the deferred-landing retry share one source of truth.
+    /// </summary>
+    private bool IsInCombatActionForLanding()
+    {
+        return playerCombat != null && 
+            (playerCombat.IsDodging() || playerCombat.IsDashing() || 
+             playerCombat.IsAttacking() || playerCombat.IsInHitReaction() ||
+             playerCombat.IsGuarding() ||
+             Time.time - playerCombat.GetDodgeEndTime() < 0.5f);
     }
     
     /// <summary>Returns true if the player is currently in a running state.</summary>
