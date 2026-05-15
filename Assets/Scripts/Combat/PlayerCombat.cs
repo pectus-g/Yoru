@@ -198,8 +198,10 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private int combo3Damage = 35;
     [Tooltip("Max bonus damage added at 100% charge. Base damage IS combo1Damage (the regular punch). Final = combo1Damage + chargePercent × this value. Default 100 → uncharged release = 10 dmg, fully charged = 110 dmg.")]
     [SerializeField] private int heavyChargeBonusMax = 100;
-    [Tooltip("Duration in seconds for charge to fill from 0% to 100%. Should match the HeavyCharge_WindUp clip length (currently 2.1s).")]
+    [Tooltip("Duration in seconds for charge to fill from 0% to 100%. Should match the HeavyCharge_WindUp clip length (currently 2.1s) for visual sync, or set higher if you want the ring to fill slower than the wind-up plays.")]
     [SerializeField] private float heavyChargeTimeMax = 2.1f;
+    [Tooltip("Length of the HeavyCharge_Release clip in seconds. ReleaseHeavyAttack schedules OnAttackEnd via Invoke at (clipLength - 0.1s) so Yoru returns to idle smoothly even if the animation event is missing from the clip. Same self-healing pattern as parryIntroLength.")]
+    [SerializeField] private float heavyReleaseClipLength = 0.8f;
     [SerializeField] private int aerialSpinDamage = 25;
 
     [Header("Dodge — Distances (frontflip)")]
@@ -1765,6 +1767,14 @@ public class PlayerCombat : MonoBehaviour
         isAttacking = true;
         lastAttackTime = Time.time;
         currentComboStep = 0;
+
+        // Self-healing return-to-idle: schedule OnAttackEnd at clip length - 0.1s buffer
+        // (small buffer lets the return-to-idle CrossFade start before the clip hits its last
+        // frame). Works whether or not the OnAttackEnd animation event is set on the Release
+        // clip — the event will fire OnAttackEnd directly if present, and the Invoke fires it
+        // as a fallback. OnAttackEnd's "if (!isAttacking) return" guard prevents double-fire.
+        float invokeDelay = Mathf.Max(0.1f, heavyReleaseClipLength - 0.1f);
+        Invoke(nameof(OnAttackEnd), invokeDelay);
     }
 
     /// <summary>

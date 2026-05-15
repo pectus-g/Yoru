@@ -58,12 +58,12 @@ public class HeavyChargeUI : MonoBehaviour
     [Header("Glow")]
     [Tooltip("Peak alpha of the glow halo at 100% charge.")]
     [Range(0f, 1f)]
-    [SerializeField] private float glowPeakAlpha = 0.85f;
+    [SerializeField] private float glowPeakAlpha = 1.0f;
     [Tooltip("Pulse speed of the glow once 100% is reached.")]
     [SerializeField] private float glowPulseSpeed = 4f;
-    [Tooltip("How much larger the glow halo is than the fill ring (1.0 = same size, 1.2 = 20% bigger halo).")]
-    [Range(1.0f, 1.5f)]
-    [SerializeField] private float glowSizeMultiplier = 1.15f;
+    [Tooltip("How much larger the glow halo is than the fill ring. 1.3 = 30% bigger halo, looks like real bloom.")]
+    [Range(1.0f, 1.8f)]
+    [SerializeField] private float glowSizeMultiplier = 1.35f;
 
     [Header("Fade")]
     [SerializeField] private float fadeInDuration = 0.15f;
@@ -85,6 +85,7 @@ public class HeavyChargeUI : MonoBehaviour
     private Image glowImage;
     private Image backgroundImage;
     private Sprite ringSprite;
+    private Sprite glowSprite;
     private float currentAlpha;
     private bool hasFiredReadyFlash;
     #endregion
@@ -216,20 +217,24 @@ public class HeavyChargeUI : MonoBehaviour
         canvasGroup.interactable = false;
         canvasGroup.blocksRaycasts = false;
 
-        // === GENERATE DONUT SPRITE ===
-        ringSprite = GenerateRingSprite(textureResolution, ringOuterRadius, ringInnerRadius);
+        // === GENERATE SPRITES ===
+        // Two textures: sharp donut for the fill/background, soft-edged donut for the glow halo.
+        // The soft texture has much wider falloff (16px) so it reads as a real glow rather than
+        // a hard ring at low alpha.
+        ringSprite = GenerateRingSprite(textureResolution, ringOuterRadius, ringInnerRadius, 1.5f);
+        glowSprite = GenerateRingSprite(textureResolution, ringOuterRadius, ringInnerRadius, 18f);
 
         // === BACKGROUND RING (the empty track behind the fill) ===
-        backgroundImage = CreateRingImage("BackgroundRing", canvasObj.transform, backgroundColor, false, 1f);
+        backgroundImage = CreateRingImage("BackgroundRing", canvasObj.transform, backgroundColor, false, 1f, ringSprite);
 
         // === FILL RING (the radial fill that grows as charge fills) ===
-        fillImage = CreateRingImage("FillRing", canvasObj.transform, ringColorLow, true, 1f);
+        fillImage = CreateRingImage("FillRing", canvasObj.transform, ringColorLow, true, 1f, ringSprite);
 
-        // === GLOW HALO (slightly bigger, sits on top, alpha animated by UpdateGlow) ===
-        glowImage = CreateRingImage("GlowHalo", canvasObj.transform, glowFullColor, false, glowSizeMultiplier);
+        // === GLOW HALO (soft-edged sprite, slightly bigger, alpha animated by UpdateGlow) ===
+        glowImage = CreateRingImage("GlowHalo", canvasObj.transform, glowFullColor, false, glowSizeMultiplier, glowSprite);
     }
 
-    private Image CreateRingImage(string name, Transform parent, Color color, bool filled, float sizeMultiplier)
+    private Image CreateRingImage(string name, Transform parent, Color color, bool filled, float sizeMultiplier, Sprite sprite)
     {
         GameObject obj = new GameObject(name);
         obj.transform.SetParent(parent, false);
@@ -242,7 +247,7 @@ public class HeavyChargeUI : MonoBehaviour
         rect.sizeDelta = new Vector2(textureResolution * sizeMultiplier, textureResolution * sizeMultiplier);
 
         Image img = obj.AddComponent<Image>();
-        img.sprite = ringSprite;
+        img.sprite = sprite;
         img.color = color;
         img.raycastTarget = false;
 
@@ -261,9 +266,10 @@ public class HeavyChargeUI : MonoBehaviour
     /// <summary>
     /// Generate an anti-aliased donut sprite at runtime using a Texture2D.
     /// outerR and innerR are radii as fractions of texture size (0..0.5).
-    /// Avoids needing any sprite asset in the project.
+    /// edgeSoftness controls the falloff width in pixels — 1-2 for a sharp ring,
+    /// 12-20 for a soft glow halo. Higher values produce a wider blur falloff.
     /// </summary>
-    private Sprite GenerateRingSprite(int size, float outerR, float innerR)
+    private Sprite GenerateRingSprite(int size, float outerR, float innerR, float edgeSoftness)
     {
         Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
         tex.filterMode = FilterMode.Bilinear;
@@ -273,7 +279,6 @@ public class HeavyChargeUI : MonoBehaviour
         Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
         float outerPx = size * outerR;
         float innerPx = size * innerR;
-        const float edgeSoftness = 1.5f; // pixels of anti-alias falloff per edge
 
         for (int y = 0; y < size; y++)
         {
