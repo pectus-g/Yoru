@@ -302,7 +302,8 @@ public class PlayerCombat : MonoBehaviour
     private bool isChargingHeavy;
     private float heavyChargeStartTime;
     private float storedHeavyChargePercent;
-    private bool chargeHoldStarted;        // true once chargePercent reached 1.0 and Hold state has been crossfaded in (single-fire per charge)
+    private bool chargeHoldStarted;        // true once the WindUp animation clip has finished and Hold loop has been crossfaded in (single-fire per charge)
+    private bool chargeReadyAnnounced;     // true once chargePercent crossed 1.0 and the ready audio/UI cue fired (separate from animation transition)
 
     // Input
     private float attackButtonHoldTime;
@@ -482,16 +483,29 @@ public class PlayerCombat : MonoBehaviour
         // Heavy charge safety — if LMB not held but isChargingHeavy stuck
         if (isChargingHeavy)
         {
-            // Code-driven WindUp → Hold transition. Same pattern as parryIntroComplete (line ~838):
-            // single-fire flag flips once chargePercent crosses 1.0, then CrossFade to Hold loop.
-            // No animator transitions involved — single source of truth is heavyChargeTimeMax.
-            if (!chargeHoldStarted && GetHeavyChargePercent() >= 1f)
+            // Animation transition: WindUp clip end → Hold loop.
+            // Detected via animator state info (normalizedTime >= 1.0 on the WindUp state)
+            // so the held pose plays for the entire wait regardless of heavyChargeTimeMax.
+            // Decoupled from chargePercent — same single-fire pattern as parryIntroComplete.
+            if (!chargeHoldStarted)
             {
-                chargeHoldStarted = true;
-                PlayCombatAnimation(heavyChargeHoldState);
+                AnimatorStateInfo currentState = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+                if (currentState.IsName(heavyChargeWindUpState) && currentState.normalizedTime >= 1f)
+                {
+                    chargeHoldStarted = true;
+                    PlayCombatAnimation(heavyChargeHoldState);
+                    DebugLog("WindUp clip ended — crossfaded to Hold");
+                }
+            }
+
+            // UI / audio cue: charge ready at 100%. Separate from animation transition above —
+            // this fires whenever the percent crosses 1.0, regardless of animation state.
+            if (!chargeReadyAnnounced && GetHeavyChargePercent() >= 1f)
+            {
+                chargeReadyAnnounced = true;
                 if (CombatSFXManager.Instance != null)
                     CombatSFXManager.Instance.PlayHeavyChargeReady();
-                DebugLog("Heavy charge full — crossfaded to Hold");
+                DebugLog("Heavy charge ready (100%)");
             }
 
             if (!Input.GetMouseButton(0))
@@ -1442,6 +1456,7 @@ public class PlayerCombat : MonoBehaviour
         isAttacking = false;
         isChargingHeavy = false;
         chargeHoldStarted = false;
+        chargeReadyAnnounced = false;
         canQueueNextAttack = false;
         queuedClicks = 0;
         currentComboStep = 0;
@@ -1731,6 +1746,7 @@ public class PlayerCombat : MonoBehaviour
         combatIdleSettledTimer = 0f;
         isChargingHeavy = true;
         chargeHoldStarted = false;
+        chargeReadyAnnounced = false;
         heavyChargeStartTime = Time.time;
         currentComboStep = 0;
 
@@ -1764,6 +1780,7 @@ public class PlayerCombat : MonoBehaviour
         animator.SetBool(HashIsAttacking, true);
         isChargingHeavy = false;
         chargeHoldStarted = false;
+        chargeReadyAnnounced = false;
         isAttacking = true;
         lastAttackTime = Time.time;
         currentComboStep = 0;
@@ -1787,6 +1804,7 @@ public class PlayerCombat : MonoBehaviour
     {
         isChargingHeavy = false;
         chargeHoldStarted = false;
+        chargeReadyAnnounced = false;
         attackButtonHoldTime = 0f;
         storedHeavyChargePercent = 0f;
         if (CombatSFXManager.Instance != null)
@@ -1939,6 +1957,7 @@ public class PlayerCombat : MonoBehaviour
         isAttacking = false;
         isChargingHeavy = false;
         chargeHoldStarted = false;
+        chargeReadyAnnounced = false;
         canQueueNextAttack = false;
         queuedClicks = 0;
         currentComboStep = 0;

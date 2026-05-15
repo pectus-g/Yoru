@@ -86,6 +86,7 @@ public class HeavyChargeUI : MonoBehaviour
     private Image backgroundImage;
     private Sprite ringSprite;
     private Sprite glowSprite;
+    private Material alwaysOnTopMaterial;   // UI material with ZTest=Always so the ring renders on top of Yoru's mesh and environment (BotW stamina ring style)
     private float currentAlpha;
     private bool hasFiredReadyFlash;
     #endregion
@@ -126,6 +127,15 @@ public class HeavyChargeUI : MonoBehaviour
         Vector3 toCamera = mainCamera.transform.position - transform.position;
         if (toCamera.sqrMagnitude < 0.0001f) return;
         transform.rotation = Quaternion.LookRotation(-toCamera, Vector3.up);
+    }
+
+    private void OnDestroy()
+    {
+        // Procedurally created assets aren't tracked by the scene — destroy explicitly to
+        // avoid leaking when the player object is destroyed (scene reload, play-mode exit).
+        if (ringSprite != null) { Destroy(ringSprite.texture); Destroy(ringSprite); }
+        if (glowSprite != null) { Destroy(glowSprite.texture); Destroy(glowSprite); }
+        if (alwaysOnTopMaterial != null) Destroy(alwaysOnTopMaterial);
     }
     #endregion
 
@@ -217,9 +227,18 @@ public class HeavyChargeUI : MonoBehaviour
         canvasGroup.interactable = false;
         canvasGroup.blocksRaycasts = false;
 
+        // === ALWAYS-ON-TOP MATERIAL ===
+        // World-space UI defaults to depth-tested rendering, which means the ring gets
+        // occluded by Yoru's mesh when the canvas is positioned inside her body. Setting
+        // ZTest=Always on the UI shader makes the ring render on top regardless of geometry.
+        // Same approach BotW uses for the stamina wheel — UI must always be visible.
+        alwaysOnTopMaterial = new Material(Shader.Find("UI/Default"));
+        alwaysOnTopMaterial.SetInt("unity_GUIZTestMode", (int)UnityEngine.Rendering.CompareFunction.Always);
+        alwaysOnTopMaterial.name = "HeavyChargeUI_AlwaysOnTop";
+
         // === GENERATE SPRITES ===
         // Two textures: sharp donut for the fill/background, soft-edged donut for the glow halo.
-        // The soft texture has much wider falloff (16px) so it reads as a real glow rather than
+        // The soft texture has much wider falloff (18px) so it reads as a real glow rather than
         // a hard ring at low alpha.
         ringSprite = GenerateRingSprite(textureResolution, ringOuterRadius, ringInnerRadius, 1.5f);
         glowSprite = GenerateRingSprite(textureResolution, ringOuterRadius, ringInnerRadius, 18f);
@@ -249,6 +268,7 @@ public class HeavyChargeUI : MonoBehaviour
         Image img = obj.AddComponent<Image>();
         img.sprite = sprite;
         img.color = color;
+        img.material = alwaysOnTopMaterial;
         img.raycastTarget = false;
 
         if (filled)
