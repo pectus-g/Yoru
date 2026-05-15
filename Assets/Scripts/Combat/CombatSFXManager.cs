@@ -50,6 +50,15 @@ public class CombatSFXManager : MonoBehaviour
     [SerializeField] private AudioClip enemyDeathVocal;
     [SerializeField] private AudioClip enemyAttackVocal;
 
+    [Header("Heavy Charge")]
+    [Tooltip("One-shot played when LMB hold passes the 0.3s gate and the charge begins.")]
+    [SerializeField] private AudioClip heavyChargeStart;
+    [Tooltip("Looping rumble/hum played for the duration of the charge. Stops on release, cancel, or hit.")]
+    [SerializeField] private AudioClip heavyChargeLoop;
+    [Tooltip("One-shot played when chargePercent crosses 100% — pairs with the UI ring glow flash.")]
+    [SerializeField] private AudioClip heavyChargeReady;
+    [SerializeField] [Range(0f, 1f)] private float heavyChargeLoopVolume = 0.6f;
+
     [Header("Volume")]
     [SerializeField] [Range(0f, 1f)] private float sfxVolume = 0.8f;
     [SerializeField] [Range(0f, 1f)] private float swingVolume = 0.5f;
@@ -67,6 +76,7 @@ public class CombatSFXManager : MonoBehaviour
     private AudioSource[] audioSources;
     private int currentSourceIndex;
     private const int POOL_SIZE = 4;
+    private AudioSource heavyChargeLoopSource; // Dedicated source for the looping charge rumble — separate from the pool so it doesn't get stolen by round-robin.
     #endregion
 
     #region Unity Lifecycle
@@ -80,6 +90,13 @@ public class CombatSFXManager : MonoBehaviour
             audioSources[i].playOnAwake = false;
             audioSources[i].spatialBlend = 0f; // 2D for combat SFX — always audible
         }
+
+        // Dedicated source for the heavy charge loop (kept out of the pool so round-robin
+        // can't steal it mid-charge). Configured for sustained looping playback.
+        heavyChargeLoopSource = gameObject.AddComponent<AudioSource>();
+        heavyChargeLoopSource.playOnAwake = false;
+        heavyChargeLoopSource.spatialBlend = 0f;
+        heavyChargeLoopSource.loop = true;
 
         DebugLog("CombatSFXManager initialized");
     }
@@ -182,6 +199,52 @@ public class CombatSFXManager : MonoBehaviour
     public void PlayEnemyAttackVocal()
     {
         PlayClip(enemyAttackVocal, sfxVolume * 0.7f);
+    }
+
+    /// <summary>
+    /// One-shot played when heavy charge begins (LMB hold passes the 0.3s gate).
+    /// Pairs with PlayHeavyChargeLoop which starts at the same moment.
+    /// </summary>
+    public void PlayHeavyChargeStart()
+    {
+        PlayClip(heavyChargeStart, sfxVolume);
+        DebugLog("Heavy charge start");
+    }
+
+    /// <summary>
+    /// Start the looping charge rumble. Plays on dedicated AudioSource so the pool
+    /// can't steal it. Idempotent — calling twice in a row is safe.
+    /// </summary>
+    public void PlayHeavyChargeLoop()
+    {
+        if (heavyChargeLoop == null || heavyChargeLoopSource == null) return;
+        if (heavyChargeLoopSource.isPlaying) return;
+        heavyChargeLoopSource.clip = heavyChargeLoop;
+        heavyChargeLoopSource.volume = heavyChargeLoopVolume * sfxVolume;
+        heavyChargeLoopSource.Play();
+        DebugLog("Heavy charge loop START");
+    }
+
+    /// <summary>
+    /// Stop the looping charge rumble. Called on release, cancel, hit, or any safety reset.
+    /// Idempotent — calling when already stopped is safe.
+    /// </summary>
+    public void StopHeavyChargeLoop()
+    {
+        if (heavyChargeLoopSource == null) return;
+        if (!heavyChargeLoopSource.isPlaying) return;
+        heavyChargeLoopSource.Stop();
+        DebugLog("Heavy charge loop STOP");
+    }
+
+    /// <summary>
+    /// One-shot played when chargePercent crosses 100%.
+    /// Pairs with the HeavyChargeUI ring glow flash.
+    /// </summary>
+    public void PlayHeavyChargeReady()
+    {
+        PlayClip(heavyChargeReady, sfxVolume);
+        DebugLog("Heavy charge ready (100%)");
     }
 
     /// <summary>

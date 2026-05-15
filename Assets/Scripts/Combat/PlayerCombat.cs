@@ -147,8 +147,15 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private string combo1StateName = "Combo1";
     [SerializeField] private string combo2StateName = "Combo2";
     [SerializeField] private string combo3StateName = "Combo3";
-    [SerializeField] private string heavyStateName = "HeavyAttack";
     [SerializeField] private string combatIdleStateName = "Combat_Idle";
+
+    [Header("Animation State Names — Heavy Charge")]
+    [Tooltip("Pull-back animation. Plays once when LMB hold passes the 0.3s gate.")]
+    [SerializeField] private string heavyChargeWindUpState = "HeavyCharge_WindUp";
+    [Tooltip("Held tension idle. Code crossfades into this once chargePercent reaches 1.0 — same pattern as parryIntroComplete.")]
+    [SerializeField] private string heavyChargeHoldState = "HeavyCharge_Hold";
+    [Tooltip("Release/strike animation. Plays when LMB is released at any charge level.")]
+    [SerializeField] private string heavyReleaseState = "HeavyCharge_Release";
 
     [Header("Animation State Names — Hit Reaction")]
     [SerializeField] private string hitReactLight2Leg = "HitReact_Light_2Leg";
@@ -189,9 +196,10 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private int combo1Damage = 10;
     [SerializeField] private int combo2Damage = 20;
     [SerializeField] private int combo3Damage = 35;
-    [SerializeField] private int heavyDamageMin = 50;
-    [SerializeField] private int heavyDamageMax = 80;
-    [SerializeField] private float heavyChargeTimeMax = 1.5f;
+    [Tooltip("Max bonus damage added at 100% charge. Base damage IS combo1Damage (the regular punch). Final = combo1Damage + chargePercent × this value. Default 100 → uncharged release = 10 dmg, fully charged = 110 dmg.")]
+    [SerializeField] private int heavyChargeBonusMax = 100;
+    [Tooltip("Duration in seconds for charge to fill from 0% to 100%. Should match the HeavyCharge_WindUp clip length (currently 2.1s).")]
+    [SerializeField] private float heavyChargeTimeMax = 2.1f;
     [SerializeField] private int aerialSpinDamage = 25;
 
     [Header("Dodge — Distances (frontflip)")]
@@ -292,6 +300,7 @@ public class PlayerCombat : MonoBehaviour
     private bool isChargingHeavy;
     private float heavyChargeStartTime;
     private float storedHeavyChargePercent;
+    private bool chargeHoldStarted;        // true once chargePercent reached 1.0 and Hold state has been crossfaded in (single-fire per charge)
 
     // Input
     private float attackButtonHoldTime;
@@ -471,14 +480,25 @@ public class PlayerCombat : MonoBehaviour
         // Heavy charge safety — if LMB not held but isChargingHeavy stuck
         if (isChargingHeavy)
         {
+            // Code-driven WindUp → Hold transition. Same pattern as parryIntroComplete (line ~838):
+            // single-fire flag flips once chargePercent crosses 1.0, then CrossFade to Hold loop.
+            // No animator transitions involved — single source of truth is heavyChargeTimeMax.
+            if (!chargeHoldStarted && GetHeavyChargePercent() >= 1f)
+            {
+                chargeHoldStarted = true;
+                PlayCombatAnimation(heavyChargeHoldState);
+                if (CombatSFXManager.Instance != null)
+                    CombatSFXManager.Instance.PlayHeavyChargeReady();
+                DebugLog("Heavy charge full — crossfaded to Hold");
+            }
+
             if (!Input.GetMouseButton(0))
             {
                 heavyStuckTimer += Time.deltaTime;
                 if (heavyStuckTimer > 0.5f)
                 {
                     DebugLog("Safety: heavy charge stuck (LMB released but isChargingHeavy true) — resetting");
-                    isChargingHeavy = false;
-                    attackButtonHoldTime = 0f;
+                    CancelHeavyCharge();
                     ReturnToIdle();
                     heavyStuckTimer = 0f;
                 }
@@ -765,11 +785,7 @@ public class PlayerCombat : MonoBehaviour
             animator.SetInteger(HashComboStep, 0);
         }
 
-        if (isChargingHeavy)
-        {
-            isChargingHeavy = false;
-            attackButtonHoldTime = 0f;
-        }
+        if (isChargingHeavy) CancelHeavyCharge();
 
         UnlockPosition();
 
@@ -1065,11 +1081,7 @@ public class PlayerCombat : MonoBehaviour
             animator.SetInteger(HashComboStep, 0);
         }
 
-        if (isChargingHeavy)
-        {
-            isChargingHeavy = false;
-            attackButtonHoldTime = 0f;
-        }
+        if (isChargingHeavy) CancelHeavyCharge();
 
         UnlockPosition();
 
@@ -1247,11 +1259,7 @@ public class PlayerCombat : MonoBehaviour
             animator.SetInteger(HashComboStep, 0);
         }
 
-        if (isChargingHeavy)
-        {
-            isChargingHeavy = false;
-            attackButtonHoldTime = 0f;
-        }
+        if (isChargingHeavy) CancelHeavyCharge();
 
         UnlockPosition();
 
@@ -1431,6 +1439,7 @@ public class PlayerCombat : MonoBehaviour
 
         isAttacking = false;
         isChargingHeavy = false;
+        chargeHoldStarted = false;
         canQueueNextAttack = false;
         queuedClicks = 0;
         currentComboStep = 0;
@@ -1439,6 +1448,7 @@ public class PlayerCombat : MonoBehaviour
         storedHeavyChargePercent = 0f;
         UnlockPosition();
         if (vfxManager != null) vfxManager.PlaySpinStop();
+        if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.StopHeavyChargeLoop();
 
         if (isGuarding) EndGuard();
 
@@ -1709,30 +1719,68 @@ public class PlayerCombat : MonoBehaviour
     #endregion
 
     #region Heavy Attack
+    /// <summary>
+    /// Begin charging the heavy punch. Plays the WindUp animation (pull-back), fires the
+    /// charge-start audio cue, and starts the charge-loop SFX. The WindUp → Hold crossfade
+    /// is handled by Update() when chargePercent crosses 1.0 (same pattern as parryIntroComplete).
+    /// </summary>
     private void StartHeavyCharge()
     {
         combatIdleSettledTimer = 0f;
         isChargingHeavy = true;
+        chargeHoldStarted = false;
         heavyChargeStartTime = Time.time;
         currentComboStep = 0;
+
+        PlayCombatAnimation(heavyChargeWindUpState);
+
+        if (CombatSFXManager.Instance != null)
+        {
+            CombatSFXManager.Instance.PlayHeavyChargeStart();
+            CombatSFXManager.Instance.PlayHeavyChargeLoop();
+        }
+
         DebugLog("Charging heavy...");
     }
 
+    /// <summary>
+    /// Release the held charge as a strike. Damage = combo1Damage + Mathf.RoundToInt(chargePercent × heavyChargeBonusMax).
+    /// Uncharged release does combo1Damage (10) — same as a regular punch, by design.
+    /// Fully charged release does combo1Damage + heavyChargeBonusMax (110 at defaults).
+    /// </summary>
     private void ReleaseHeavyAttack()
     {
         attackStartTime = Time.time;
         FaceNearestEnemy();
         storedHeavyChargePercent = Mathf.Clamp01((Time.time - heavyChargeStartTime) / heavyChargeTimeMax);
-        int damage = Mathf.RoundToInt(Mathf.Lerp(heavyDamageMin, heavyDamageMax, storedHeavyChargePercent));
+        int damage = combo1Damage + Mathf.RoundToInt(storedHeavyChargePercent * heavyChargeBonusMax);
         DebugLog($"Heavy — {storedHeavyChargePercent * 100f:F0}% = {damage} dmg");
         LockPositionNow();
-        PlayCombatAnimation(heavyStateName);
+        PlayCombatAnimation(heavyReleaseState);
         if (vfxManager != null) vfxManager.PlayHeavyAttackVFX();
+        if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.StopHeavyChargeLoop();
         animator.SetBool(HashIsAttacking, true);
         isChargingHeavy = false;
+        chargeHoldStarted = false;
         isAttacking = true;
         lastAttackTime = Time.time;
         currentComboStep = 0;
+    }
+
+    /// <summary>
+    /// Cancel an in-progress charge without firing the strike. Used by guard, dodge, dash,
+    /// and the LMB-released-but-flag-stuck safety. Resets all charge state and stops audio.
+    /// Caller is responsible for any animation crossfade (e.g. ReturnToIdle) if needed —
+    /// guard/dodge/dash play their own next-state animation immediately after.
+    /// </summary>
+    private void CancelHeavyCharge()
+    {
+        isChargingHeavy = false;
+        chargeHoldStarted = false;
+        attackButtonHoldTime = 0f;
+        storedHeavyChargePercent = 0f;
+        if (CombatSFXManager.Instance != null)
+            CombatSFXManager.Instance.StopHeavyChargeLoop();
     }
 
     public float GetHeavyChargePercent()
@@ -1792,7 +1840,7 @@ public class PlayerCombat : MonoBehaviour
 
     public void DealHeavyDamage()
     {
-        int damage = Mathf.RoundToInt(Mathf.Lerp(heavyDamageMin, heavyDamageMax, storedHeavyChargePercent));
+        int damage = combo1Damage + Mathf.RoundToInt(storedHeavyChargePercent * heavyChargeBonusMax);
         DealDamageInRange(damage, true);
     }
 
@@ -1880,6 +1928,7 @@ public class PlayerCombat : MonoBehaviour
     {
         isAttacking = false;
         isChargingHeavy = false;
+        chargeHoldStarted = false;
         canQueueNextAttack = false;
         queuedClicks = 0;
         currentComboStep = 0;
@@ -1895,6 +1944,9 @@ public class PlayerCombat : MonoBehaviour
         combatIdleSettledTimer = 0f;
         movementStuckTimer = 0f;
         guardIdleDebounceTimer = 0f;
+
+        if (CombatSFXManager.Instance != null)
+            CombatSFXManager.Instance.StopHeavyChargeLoop();
 
         if (isGuarding) EndGuard();
 
