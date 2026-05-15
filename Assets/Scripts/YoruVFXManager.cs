@@ -18,7 +18,10 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private ParticleSystem combo1VFX;
     [SerializeField] private ParticleSystem combo2VFX;
     [SerializeField] private ParticleSystem combo3VFX;
-    [SerializeField] private ParticleSystem heavyAttackVFX;
+    [Tooltip("Prefab spawned at rightPaw on heavy release. Same prefab+spawn pattern as heavyChargeBuildupPrefab and pawAttack1Prefab.")]
+    [SerializeField] private GameObject heavyAttackPrefab;
+    [Tooltip("Prefab spawned at leftPaw on charge start, destroyed on release/cancel/hit. Same prefab+spawn pattern as pawAttack1Prefab. (Buildup uses leftPaw; release uses rightPaw — matches the punch animation.)")]
+    [SerializeField] private GameObject heavyChargeBuildupPrefab;
     [SerializeField] private ParticleSystem spinVFX;
     
     [Header("=== HIT SPARK VFX (spawned at contact point) ===")]
@@ -563,10 +566,70 @@ public void OnJump(int jumpNumber)
         }
     }
 
-    /// <summary>Play heavy attack VFX.</summary>
+    /// <summary>Spawn the heavy release VFX prefab at rightPaw. Same spawn-at-paw
+    /// pattern as PlayHeavyChargeBuildupVFX — one consistent mechanism for all heavy attack VFX.
+    /// Auto-destroyed after effectLifetime seconds (no manual stop needed — it's a one-shot).</summary>
     public void PlayHeavyAttackVFX()
     {
-        if (heavyAttackVFX != null) heavyAttackVFX.Play();
+        if (heavyAttackPrefab == null)
+        {
+            if (debugMode) Debug.LogWarning("🐾⚡ Heavy attack prefab is NULL — assign it in YoruVFXManager Inspector");
+            return;
+        }
+
+        Transform spawnPoint = rightPaw ? rightPaw : transform;
+        GameObject instance = Instantiate(heavyAttackPrefab, spawnPoint.position, spawnPoint.rotation, spawnPoint);
+        instance.SetActive(true);
+
+        ParticleSystem ps = instance.GetComponent<ParticleSystem>();
+        if (ps == null) ps = instance.GetComponentInChildren<ParticleSystem>();
+        if (ps != null) ps.Play();
+
+        Destroy(instance, effectLifetime);
+
+        if (debugMode) Debug.Log($"🐾⚡ Heavy release VFX spawned at {spawnPoint.name}. PS found: {ps != null}");
+    }
+
+    // Tracks the currently spawned charge buildup instance so StopHeavyChargeBuildupVFX
+    // can tear it down. Null when nothing is charging.
+    private GameObject activeChargeBuildupInstance;
+
+    /// <summary>Spawn the charge buildup prefab at rightPaw and parent it to the bone
+    /// so it follows the paw through the wind-up. Same SpawnEffect/rightPaw pattern as
+    /// VFX_AttackPaw, just persistent (not destroyed by effectLifetime).</summary>
+    public void PlayHeavyChargeBuildupVFX()
+    {
+        if (heavyChargeBuildupPrefab == null)
+        {
+            if (debugMode) Debug.LogWarning("🐾⚡ Heavy charge buildup prefab is NULL — assign it in YoruVFXManager Inspector");
+            return;
+        }
+        if (activeChargeBuildupInstance != null) return; // already active — don't double-spawn
+
+        Transform spawnPoint = leftPaw ? leftPaw : transform;
+        activeChargeBuildupInstance = Instantiate(heavyChargeBuildupPrefab, spawnPoint.position, spawnPoint.rotation, spawnPoint);
+        activeChargeBuildupInstance.SetActive(true); // in case the prefab was saved disabled
+
+        ParticleSystem ps = activeChargeBuildupInstance.GetComponent<ParticleSystem>();
+        if (ps == null) ps = activeChargeBuildupInstance.GetComponentInChildren<ParticleSystem>();
+        if (ps != null) ps.Play();
+
+        if (debugMode) Debug.Log($"🐾⚡ Heavy charge buildup spawned at {spawnPoint.name} (pos {spawnPoint.position}). PS found: {ps != null}");
+    }
+
+    /// <summary>Stop the buildup and destroy the spawned instance.</summary>
+    public void StopHeavyChargeBuildupVFX()
+    {
+        if (activeChargeBuildupInstance == null) return;
+
+        ParticleSystem ps = activeChargeBuildupInstance.GetComponent<ParticleSystem>();
+        if (ps == null) ps = activeChargeBuildupInstance.GetComponentInChildren<ParticleSystem>();
+        if (ps != null) ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+
+        Destroy(activeChargeBuildupInstance, 0.5f);
+        activeChargeBuildupInstance = null;
+
+        if (debugMode) Debug.Log("🐾⚡ Heavy charge buildup stopped");
     }
 
     /// <summary>Play spin VFX (combo 3 / aerial).</summary>

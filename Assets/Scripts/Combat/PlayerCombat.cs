@@ -1464,7 +1464,11 @@ public class PlayerCombat : MonoBehaviour
         isAerialAttack = false;
         storedHeavyChargePercent = 0f;
         UnlockPosition();
-        if (vfxManager != null) vfxManager.PlaySpinStop();
+        if (vfxManager != null)
+        {
+            vfxManager.PlaySpinStop();
+            vfxManager.StopHeavyChargeBuildupVFX();
+        }
         if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.StopHeavyChargeLoop();
 
         if (isGuarding) EndGuard();
@@ -1752,6 +1756,8 @@ public class PlayerCombat : MonoBehaviour
 
         PlayCombatAnimation(heavyChargeWindUpState);
 
+        if (vfxManager != null) vfxManager.PlayHeavyChargeBuildupVFX();
+
         if (CombatSFXManager.Instance != null)
         {
             CombatSFXManager.Instance.PlayHeavyChargeStart();
@@ -1775,7 +1781,11 @@ public class PlayerCombat : MonoBehaviour
         DebugLog($"Heavy — {storedHeavyChargePercent * 100f:F0}% = {damage} dmg");
         LockPositionNow();
         PlayCombatAnimation(heavyReleaseState);
-        if (vfxManager != null) vfxManager.PlayHeavyAttackVFX();
+        if (vfxManager != null)
+        {
+            vfxManager.StopHeavyChargeBuildupVFX();
+            vfxManager.PlayHeavyAttackVFX();
+        }
         if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.StopHeavyChargeLoop();
         animator.SetBool(HashIsAttacking, true);
         isChargingHeavy = false;
@@ -1807,6 +1817,7 @@ public class PlayerCombat : MonoBehaviour
         chargeReadyAnnounced = false;
         attackButtonHoldTime = 0f;
         storedHeavyChargePercent = 0f;
+        if (vfxManager != null) vfxManager.StopHeavyChargeBuildupVFX();
         if (CombatSFXManager.Instance != null)
             CombatSFXManager.Instance.StopHeavyChargeLoop();
     }
