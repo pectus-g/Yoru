@@ -57,6 +57,8 @@ public class CombatSFXManager : MonoBehaviour
     [SerializeField] private AudioClip heavyChargeLoop;
     [Tooltip("One-shot played when chargePercent crosses 100% — pairs with the UI ring glow flash.")]
     [SerializeField] private AudioClip heavyChargeReady;
+    [Tooltip("One-shot played at the moment of release (when the release animation triggers). The impact/strike sound.")]
+    [SerializeField] private AudioClip heavyChargeRelease;
     [SerializeField] [Range(0f, 1f)] private float heavyChargeLoopVolume = 0.6f;
 
     [Header("Volume")]
@@ -245,6 +247,16 @@ public class CombatSFXManager : MonoBehaviour
     {
         PlayClip(heavyChargeReady, sfxVolume);
         DebugLog("Heavy charge ready (100%)");
+    }
+
+    /// <summary>
+    /// One-shot played at the moment of release — the strike/impact sound.
+    /// Called by PlayerCombat.ReleaseHeavyAttack alongside StopHeavyChargeLoop.
+    /// </summary>
+    public void PlayHeavyChargeRelease()
+    {
+        PlayClip(heavyChargeRelease, sfxVolume);
+        DebugLog("Heavy charge release");
     }
 
     /// <summary>

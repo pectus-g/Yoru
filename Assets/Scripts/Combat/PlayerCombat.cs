@@ -1786,7 +1786,11 @@ public class PlayerCombat : MonoBehaviour
             vfxManager.StopHeavyChargeBuildupVFX();
             vfxManager.PlayHeavyAttackVFX();
         }
-        if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.StopHeavyChargeLoop();
+        if (CombatSFXManager.Instance != null)
+        {
+            CombatSFXManager.Instance.StopHeavyChargeLoop();
+            CombatSFXManager.Instance.PlayHeavyChargeRelease();
+        }
         animator.SetBool(HashIsAttacking, true);
         isChargingHeavy = false;
         chargeHoldStarted = false;
