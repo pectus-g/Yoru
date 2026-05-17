@@ -47,6 +47,10 @@ public class ThirdPersonCamera : MonoBehaviour
     
     private CinemachineFollow followComponent;
     
+    // Form height offset: written by FormController on transform to lift the camera for Granny's
+    // taller silhouette. Cat form uses 0. See SetFormHeightOffset.
+    private float formHeightOffset = 0f;
+    
     // Zoom state
     private float defaultDistance;
     private float targetDistance;
@@ -175,7 +179,7 @@ public class ThirdPersonCamera : MonoBehaviour
             Vector3 horizontalBack = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
             float pitchHeight = Mathf.Sin(pitch * Mathf.Deg2Rad) * currentDistance;
             
-            Vector3 offset = horizontalBack * currentDistance + Vector3.up * (cameraHeight + pitchHeight);
+            Vector3 offset = horizontalBack * currentDistance + Vector3.up * (cameraHeight + formHeightOffset + pitchHeight);
             
             // Ground collision: prevent camera from going underground
             if (preventUnderground)
@@ -212,5 +216,15 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         Vector3 right = Quaternion.Euler(0f, yaw, 0f) * Vector3.right;
         return right;
+    }
+    
+    /// <summary>
+    /// Adjust camera follow height by a runtime offset (added to cameraHeight in the offset calc).
+    /// Called by FormController on cat ↔ Granny transform so Granny's taller silhouette frames
+    /// the same way as cat-Yoru. Pass 0 to reset (cat form).
+    /// </summary>
+    public void SetFormHeightOffset(float offset)
+    {
+        formHeightOffset = offset;
     }
 }

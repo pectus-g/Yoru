@@ -11,7 +11,7 @@ public class AnimationTester : MonoBehaviour
     [SerializeField] private KeyCode attackPawKey = KeyCode.Q;
     [SerializeField] private KeyCode leftTailCastKey = KeyCode.E;
     [SerializeField] private KeyCode rightTailCastKey = KeyCode.R;
-    [SerializeField] private KeyCode towPawKey = KeyCode.T;
+    [SerializeField] private KeyCode towPawKey = KeyCode.G;
     
     [Header("Cinematic Layer Settings")]
     [SerializeField] private KeyCode cinematicLayerToggle = KeyCode.V;

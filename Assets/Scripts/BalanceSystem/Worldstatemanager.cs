@@ -34,9 +34,13 @@ using UnityEngine.Events;
 /// 
 /// DEBUG HOTKEYS:
 /// - Shift + 1-0: Set left rings (1-10)
-/// - Shift + Q,W,E,R,T,Y,U,I,O,P: Set right rings (1-10)
+/// - Alt + 1-0: Set right rings (1-10) — Alt = Option key on Mac
 /// - Shift + F1: Eclipse (5L + 5R)
 /// - Shift + Backspace: Reset to 0 rings
+/// - Shift + F2-F5: Preset test combinations
+/// 
+/// NOTE: Q-P keys are reserved for player combat (Q=parry, R=tail, T=transform, etc).
+/// Ring debug uses Alt+number to avoid collision with the live control scheme.
 /// </summary>
 public class WorldStateManager : MonoBehaviour
 {
@@ -387,44 +391,54 @@ public class WorldStateManager : MonoBehaviour
     
     void HandleDebugInput()
     {
-        if (!Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
-            return;
+        bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
         
-        // Left rings: Shift + 1-0
-        if (Input.GetKeyDown(KeyCode.Alpha1)) SetRings(1, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha2)) SetRings(2, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha3)) SetRings(3, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha4)) SetRings(4, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha5)) SetRings(5, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha6)) SetRings(6, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha7)) SetRings(7, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha8)) SetRings(8, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha9)) SetRings(9, rightRings);
-        if (Input.GetKeyDown(KeyCode.Alpha0)) SetRings(10, rightRings);
+        if (!shift && !alt) return;
         
-        // Right rings: Shift + Q,W,E,R,T,Y,U,I,O,P
-        if (Input.GetKeyDown(KeyCode.Q)) SetRings(leftRings, 1);
-        if (Input.GetKeyDown(KeyCode.W)) SetRings(leftRings, 2);
-        if (Input.GetKeyDown(KeyCode.E)) SetRings(leftRings, 3);
-        if (Input.GetKeyDown(KeyCode.R)) SetRings(leftRings, 4);
-        if (Input.GetKeyDown(KeyCode.T)) SetRings(leftRings, 5);
-        if (Input.GetKeyDown(KeyCode.Y)) SetRings(leftRings, 6);
-        if (Input.GetKeyDown(KeyCode.U)) SetRings(leftRings, 7);
-        if (Input.GetKeyDown(KeyCode.I)) SetRings(leftRings, 8);
-        if (Input.GetKeyDown(KeyCode.O)) SetRings(leftRings, 9);
-        if (Input.GetKeyDown(KeyCode.P)) SetRings(leftRings, 10);
+        // Shift block: left rings + eclipse + reset + preset tests
+        if (shift)
+        {
+            // Left rings: Shift + 1-0
+            if (Input.GetKeyDown(KeyCode.Alpha1)) SetRings(1, rightRings);
+            if (Input.GetKeyDown(KeyCode.Alpha2)) SetRings(2, rightRings);
+            if (Input.GetKeyDown(KeyCode.Alpha3)) SetRings(3, rightRings);
+            if (Input.GetKeyDown(KeyCode.Alpha4)) SetRings(4, rightRings);
+            if (Input.GetKeyDown(KeyCode.Alpha5)) SetRings(5, rightRings);
+            if (Input.GetKeyDown(KeyCode.Alpha6)) SetRings(6, rightRings);
+            if (Input.GetKeyDown(KeyCode.Alpha7)) SetRings(7, rightRings);
+            if (Input.GetKeyDown(KeyCode.Alpha8)) SetRings(8, rightRings);
+            if (Input.GetKeyDown(KeyCode.Alpha9)) SetRings(9, rightRings);
+            if (Input.GetKeyDown(KeyCode.Alpha0)) SetRings(10, rightRings);
+            
+            // Eclipse: Shift + F1
+            if (Input.GetKeyDown(KeyCode.F1)) SetRings(5, 5);
+            
+            // Reset: Shift + Backspace
+            if (Input.GetKeyDown(KeyCode.Backspace)) Reset();
+            
+            // Test combinations: Shift + F2-F5
+            if (Input.GetKeyDown(KeyCode.F2)) SetRings(1, 9);  // 9R 1L → Light5+Stage5
+            if (Input.GetKeyDown(KeyCode.F3)) SetRings(9, 1);  // 9L 1R → Dark5+Stage5
+            if (Input.GetKeyDown(KeyCode.F4)) SetRings(3, 7);  // 7R 3L → Light4 (no escalation!)
+            if (Input.GetKeyDown(KeyCode.F5)) SetRings(0, 8);  // 8R 0L → Light5+Stage3
+        }
         
-        // Eclipse: Shift + F1
-        if (Input.GetKeyDown(KeyCode.F1)) SetRings(5, 5);
-        
-        // Reset: Shift + Backspace
-        if (Input.GetKeyDown(KeyCode.Backspace)) Reset();
-        
-        // Test combinations: Shift + F2-F5
-        if (Input.GetKeyDown(KeyCode.F2)) SetRings(1, 9);  // 9R 1L → Light5+Stage5
-        if (Input.GetKeyDown(KeyCode.F3)) SetRings(9, 1);  // 9L 1R → Dark5+Stage5
-        if (Input.GetKeyDown(KeyCode.F4)) SetRings(3, 7);  // 7R 3L → Light4 (no escalation!)
-        if (Input.GetKeyDown(KeyCode.F5)) SetRings(0, 8);  // 8R 0L → Light5+Stage3
+        // Alt block: right rings (Alt = Option on Mac)
+        if (alt)
+        {
+            // Right rings: Alt + 1-0
+            if (Input.GetKeyDown(KeyCode.Alpha1)) SetRings(leftRings, 1);
+            if (Input.GetKeyDown(KeyCode.Alpha2)) SetRings(leftRings, 2);
+            if (Input.GetKeyDown(KeyCode.Alpha3)) SetRings(leftRings, 3);
+            if (Input.GetKeyDown(KeyCode.Alpha4)) SetRings(leftRings, 4);
+            if (Input.GetKeyDown(KeyCode.Alpha5)) SetRings(leftRings, 5);
+            if (Input.GetKeyDown(KeyCode.Alpha6)) SetRings(leftRings, 6);
+            if (Input.GetKeyDown(KeyCode.Alpha7)) SetRings(leftRings, 7);
+            if (Input.GetKeyDown(KeyCode.Alpha8)) SetRings(leftRings, 8);
+            if (Input.GetKeyDown(KeyCode.Alpha9)) SetRings(leftRings, 9);
+            if (Input.GetKeyDown(KeyCode.Alpha0)) SetRings(leftRings, 10);
+        }
     }
     
     #endregion
