@@ -65,6 +65,10 @@ public class FormController : MonoBehaviour
     [Tooltip("Extra height (world units) added to camera FollowOffset when in Granny form, to compensate for her taller silhouette. Cat form uses 0.")]
     [SerializeField] private float grannyCameraHeightOffset = 0.8f;
     
+    [Header("Animation")]
+    [Tooltip("Damping time (seconds) for smoothing the Speed value sent to Granny's animator. Smooths transitions between Idle/Walk/Run so they ease rather than snap. Higher = smoother but less responsive. Lower = snappier but can show micro-jitter. Typical 0.1-0.25. Mirrors PlayerMovement's speedDampTime for the cat.")]
+    [SerializeField] private float speedSmoothTime = 0.15f;
+    
     [Header("Debug")]
     [Tooltip("Log a message to the console on every form transform.")]
     [SerializeField] private bool logTransforms = true;
@@ -87,6 +91,11 @@ public class FormController : MonoBehaviour
     // that it changed. More robust than reading controller.velocity directly.
     private Vector3 lastPosition;
     private bool lastPositionInitialized;
+    
+    // Smoothed-speed tracking so Idle/Walk/Run transitions ease rather than snap.
+    // SmoothDamp pattern matches PlayerMovement's currentSpeed/speedVelocity for the cat.
+    private float currentSmoothedSpeed;
+    private float speedSmoothVelocity;
     
     #endregion
     
@@ -163,9 +172,12 @@ public class FormController : MonoBehaviour
     {
         isHuman = toHuman;
         
-        // Reset position-delta baseline so the first frame in Granny form doesn't
-        // produce a huge speed reading from a stale lastPosition
+        // Reset position-delta + smoothing baselines so the first frame in Granny form
+        // doesn't produce a huge speed reading from a stale lastPosition, and the smoothed
+        // value doesn't carry over from the previous form session.
         lastPositionInitialized = false;
+        currentSmoothedSpeed = 0f;
+        speedSmoothVelocity = 0f;
         
         // Visual body swap (snap-swap — phase 1)
         if (catBody != null) catBody.SetActive(!toHuman);
@@ -214,6 +226,8 @@ public class FormController : MonoBehaviour
     /// Drive Granny's animator from physics-rate position delta. Called from FixedUpdate so
     /// the sample rate matches PlayerMovement's controller.Move() rate. Speed = motion-per-
     /// FixedUpdate / Time.fixedDeltaTime, which produces stable walkSpeed/runSpeed readings.
+    /// SmoothDamp then eases transitions between Idle/Walk/Run so blend changes feel natural
+    /// rather than snapping.
     /// 
     /// We deliberately use transform.position delta rather than CharacterController.velocity —
     /// velocity has shown unreliable readings in this project after runtime capsule resize.
@@ -233,18 +247,17 @@ public class FormController : MonoBehaviour
         
         Vector3 delta = currentPosition - lastPosition;
         delta.y = 0f;
-        float speed = delta.magnitude / Time.fixedDeltaTime;
+        float rawSpeed = delta.magnitude / Time.fixedDeltaTime;
         lastPosition = currentPosition;
         
-        grannyAnimator.SetFloat(speedHash, speed);
-        if (controller != null) grannyAnimator.SetBool(isGroundedHash, controller.isGrounded);
+        // Smooth the raw speed so the blend tree eases between Idle/Walk/Run rather than
+        // step-snapping. Time.fixedDeltaTime is passed explicitly since we're in FixedUpdate.
+        currentSmoothedSpeed = Mathf.SmoothDamp(
+            currentSmoothedSpeed, rawSpeed, ref speedSmoothVelocity,
+            speedSmoothTime, Mathf.Infinity, Time.fixedDeltaTime);
         
-        // DIAGNOSTIC — fires twice per second to verify speed is stable.
-        // Remove this entire if-block once walk/run animations are confirmed working.
-        if (logTransforms && Time.frameCount % 30 == 0)
-        {
-            Debug.Log($"[FC-DIAG] pos={currentPosition} delta={delta} speed={speed:F2}");
-        }
+        grannyAnimator.SetFloat(speedHash, currentSmoothedSpeed);
+        if (controller != null) grannyAnimator.SetBool(isGroundedHash, controller.isGrounded);
     }
     
     #endregion
