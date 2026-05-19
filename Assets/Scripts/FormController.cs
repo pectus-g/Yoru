@@ -6,18 +6,20 @@ using UnityEngine;
 /// Handles the cat ↔ Granny transform on T-press.
 /// 
 /// Phase 1 scope:
-///   - T toggles between the cat visual body (bodyYoru) and the Granny visual body
-///   - Snap-swap via GameObject.SetActive — no fade or dissolve yet (Phase 1.5)
-///   - CharacterController capsule dimensions swap on transform (cat capsule vs human capsule)
+///   - T toggles between the cat visual body and the Granny visual body via GameObject.SetActive
+///   - CharacterController capsule dimensions swap on transform (cat capsule vs human capsule),
+///     bracketed by enabled=false/true so Unity safely recomputes collision state for the new
+///     capsule. Without this bracket, runtime resize can leave the controller wedged: Move()
+///     succeeds in code but produces zero actual motion. Known Unity quirk.
 ///   - Granny's animator is driven by a parallel state mirror in Update — reads
 ///     CharacterController velocity + isGrounded directly so PlayerMovement is not touched
 ///   - Camera FollowOffset gets a height offset in Granny form to compensate for her taller silhouette
 /// 
 /// Phase 1 caveats (intentional — these layers belong to phase 2+):
 ///   - No -30% speed: Granny inherits cat speed
-///   - No combat-input lockout in Granny form
+///   - No combat-input lockout in Granny form: she can still jump/dash/attack via cat controls
 ///   - No "outside combat only" gate on transform
-///   - Listen/Talk animator states wired but not triggered (no dialogue system yet)
+///   - Listen/Talk animator states wired into Granny controller but not triggered (no dialogue system yet)
 /// 
 /// Architectural notes:
 ///   - PlayerMovement.cs is DO NOT TOUCH. It keeps driving the cat animator. When Granny
@@ -32,9 +34,9 @@ public class FormController : MonoBehaviour
     #region Serialized Fields
     
     [Header("Form Bodies")]
-    [Tooltip("Cat visual body GameObject. Auto-finds the child named 'bodyYoru' if left empty.")]
+    [Tooltip("Cat visual body GameObject. Auto-finds the child named 'bodyYoru' if left empty, but explicit assignment is more reliable.")]
     [SerializeField] private GameObject catBody;
-    [Tooltip("Granny visual body GameObject. After parenting GrannyFINAL under PlayerYoru_Def, drag the instance here.")]
+    [Tooltip("Granny visual body GameObject. Drag the Granny instance from the hierarchy here.")]
     [SerializeField] private GameObject grannyBody;
     [Tooltip("Animator component on the Granny body. Must use Granny_Animator_Controller with Speed (float) and IsGrounded (bool) params.")]
     [SerializeField] private Animator grannyAnimator;
@@ -52,15 +54,15 @@ public class FormController : MonoBehaviour
     [SerializeField] private float catCapsuleRadius = 0f;
     
     [Header("CharacterController Dimensions — Granny")]
-    [Tooltip("Capsule height in Granny form. Typical humanoid value 1.7-1.8. Tune in-engine.")]
-    [SerializeField] private float grannyCapsuleHeight = 1.8f;
-    [Tooltip("Capsule center Y in Granny form. Typically half of height so feet sit at the parent's Y.")]
-    [SerializeField] private float grannyCapsuleCenterY = 0.9f;
-    [Tooltip("Capsule radius in Granny form. Typical humanoid value 0.3-0.4. Tune in-engine.")]
-    [SerializeField] private float grannyCapsuleRadius = 0.35f;
+    [Tooltip("Capsule height in Granny form. Should match Granny's actual standing height.")]
+    [SerializeField] private float grannyCapsuleHeight = 3.5f;
+    [Tooltip("Capsule center Y in Granny form. Should be half of height so capsule bottom sits at the parent's Y.")]
+    [SerializeField] private float grannyCapsuleCenterY = 1.75f;
+    [Tooltip("Capsule radius in Granny form.")]
+    [SerializeField] private float grannyCapsuleRadius = 0.5f;
     
     [Header("Camera")]
-    [Tooltip("Extra height (world units) added to camera FollowOffset when in Granny form, to compensate for her taller silhouette. Cat form uses 0. Tune in-engine — typical range 0.5-1.2.")]
+    [Tooltip("Extra height (world units) added to camera FollowOffset when in Granny form, to compensate for her taller silhouette. Cat form uses 0.")]
     [SerializeField] private float grannyCameraHeightOffset = 0.8f;
     
     [Header("Debug")]
@@ -78,6 +80,13 @@ public class FormController : MonoBehaviour
     // Cached animator hashes (faster than strings). Match the Granny controller's parameter names.
     private readonly int speedHash = Animator.StringToHash("Speed");
     private readonly int isGroundedHash = Animator.StringToHash("IsGrounded");
+    
+    // Position-delta speed tracking. Computing speed from transform.position changes
+    // between frames sidesteps Unity's CharacterController.velocity quirks — it doesn't
+    // matter HOW the position changed (Move(), direct transform assignment, etc), only
+    // that it changed. More robust than reading controller.velocity directly.
+    private Vector3 lastPosition;
+    private bool lastPositionInitialized;
     
     #endregion
     
@@ -129,7 +138,15 @@ public class FormController : MonoBehaviour
         {
             ToggleForm();
         }
-        
+    }
+    
+    private void FixedUpdate()
+    {
+        // Drive Granny's animator here — at physics rate — because PlayerMovement calls
+        // controller.Move() in its FixedUpdate. Sampling position delta at the same rate
+        // gives stable speed (walkSpeed exactly when walking, runSpeed exactly when running).
+        // Sampling in Update gave wildly variable readings: zero on frames between FixedUpdates,
+        // doubled on frames where two FixedUpdates ran (frame catch-up).
         DriveGrannyAnimator();
     }
     
@@ -146,13 +163,22 @@ public class FormController : MonoBehaviour
     {
         isHuman = toHuman;
         
+        // Reset position-delta baseline so the first frame in Granny form doesn't
+        // produce a huge speed reading from a stale lastPosition
+        lastPositionInitialized = false;
+        
         // Visual body swap (snap-swap — phase 1)
         if (catBody != null) catBody.SetActive(!toHuman);
         if (grannyBody != null) grannyBody.SetActive(toHuman);
         
-        // CharacterController capsule swap so collision matches the active form's silhouette
+        // CharacterController capsule swap. Bracketed by enabled=false/true so Unity
+        // recomputes collision state cleanly for the new capsule shape. Without this,
+        // runtime resize can leave the controller in a wedged state where Move()
+        // succeeds in code but produces zero actual motion (especially when the
+        // new capsule is significantly larger than the old).
         if (controller != null)
         {
+            controller.enabled = false;
             if (toHuman)
             {
                 controller.height = grannyCapsuleHeight;
@@ -165,6 +191,7 @@ public class FormController : MonoBehaviour
                 controller.center = new Vector3(controller.center.x, catCapsuleCenterY, controller.center.z);
                 controller.radius = catCapsuleRadius;
             }
+            controller.enabled = true;
         }
         
         // Camera vertical adjust so Granny doesn't push out of frame
@@ -184,20 +211,40 @@ public class FormController : MonoBehaviour
     #region Animator Mirror
     
     /// <summary>
-    /// Parallel state mirror: when Granny is active, drive her animator's locomotion params
-    /// from the CharacterController directly. PlayerMovement is untouched and still drives
-    /// the cat animator — that animator is dormant under the disabled cat body so its writes
-    /// are no-ops while Granny is up.
+    /// Drive Granny's animator from physics-rate position delta. Called from FixedUpdate so
+    /// the sample rate matches PlayerMovement's controller.Move() rate. Speed = motion-per-
+    /// FixedUpdate / Time.fixedDeltaTime, which produces stable walkSpeed/runSpeed readings.
+    /// 
+    /// We deliberately use transform.position delta rather than CharacterController.velocity —
+    /// velocity has shown unreliable readings in this project after runtime capsule resize.
+    /// Position is ground truth.
     /// </summary>
     private void DriveGrannyAnimator()
     {
-        if (!isHuman || grannyAnimator == null || controller == null) return;
+        if (!isHuman || grannyAnimator == null) return;
         
-        Vector3 horizontalVel = controller.velocity;
-        horizontalVel.y = 0f;
+        Vector3 currentPosition = transform.position;
+        if (!lastPositionInitialized)
+        {
+            lastPosition = currentPosition;
+            lastPositionInitialized = true;
+            return;
+        }
         
-        grannyAnimator.SetFloat(speedHash, horizontalVel.magnitude);
-        grannyAnimator.SetBool(isGroundedHash, controller.isGrounded);
+        Vector3 delta = currentPosition - lastPosition;
+        delta.y = 0f;
+        float speed = delta.magnitude / Time.fixedDeltaTime;
+        lastPosition = currentPosition;
+        
+        grannyAnimator.SetFloat(speedHash, speed);
+        if (controller != null) grannyAnimator.SetBool(isGroundedHash, controller.isGrounded);
+        
+        // DIAGNOSTIC — fires twice per second to verify speed is stable.
+        // Remove this entire if-block once walk/run animations are confirmed working.
+        if (logTransforms && Time.frameCount % 30 == 0)
+        {
+            Debug.Log($"[FC-DIAG] pos={currentPosition} delta={delta} speed={speed:F2}");
+        }
     }
     
     #endregion
