@@ -224,6 +224,7 @@ public class EnemyCombat : MonoBehaviour
     
     // Disengage — cached spawn position for return-to-spawn behaviour.
     private Vector3 spawnPosition;
+    private Quaternion spawnRotation;
     private float returnStartTime;
     private bool returnWalkStarted;
     
@@ -261,8 +262,9 @@ public class EnemyCombat : MonoBehaviour
         if (attacks == null || attacks.Length == 0)
             Debug.LogWarning($"{gameObject.name}: No attacks defined!");
         
-        // Cache spawn position so Returning state can walk the enemy home after disengage.
+        // Cache spawn pose so Returning state can walk the enemy home AND restore its original facing.
         spawnPosition = transform.position;
+        spawnRotation = transform.rotation;
         
         SetState(EnemyState.LostSoul);
         DebugLog("Initialized");
@@ -416,8 +418,26 @@ public class EnemyCombat : MonoBehaviour
         
         if (arrivedByNav || arrivedByDistance)
         {
-            DebugLog("Arrived at spawn — entering Idle");
-            SetState(EnemyState.Idle);
+            // 4. SETTLING — arrived at spawn, but rotation may be off. Stop nav, play idle,
+            //    slerp toward the cached spawnRotation. Only transition to Idle once aligned.
+            //    Runs every frame after arrival until alignment threshold is met.
+            if (navAgent != null && navAgent.isOnNavMesh && !navAgent.isStopped)
+            {
+                DebugLog("Arrived at spawn — settling to original facing");
+                navAgent.isStopped = true;
+                navAgent.velocity = Vector3.zero;
+                PlayAnimation(idleAnim);
+            }
+            
+            transform.rotation = Quaternion.Slerp(transform.rotation, spawnRotation,
+                Time.deltaTime * rotationSpeed);
+            
+            if (Quaternion.Angle(transform.rotation, spawnRotation) < 1f)
+            {
+                // Snap to exact spawn rotation so the enemy locks to its original pose.
+                transform.rotation = spawnRotation;
+                SetState(EnemyState.Idle);
+            }
             return;
         }
         
