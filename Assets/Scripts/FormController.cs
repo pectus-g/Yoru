@@ -169,23 +169,22 @@ public class FormController : MonoBehaviour
     
     private void ToggleForm()
     {
-        // GDD Doc 04 §4a: cannot transform during active combat. Active = a combat
-        // action is in flight in either direction (Yoru attacking, dodging, dashing,
-        // guarding, charging heavy, or recovering from a hit). Pre-combat transform IS
-        // allowed — if no combat flag is set, the transform goes through. Environmental
-        // damage (fall, poison, hazards) doesn't set these flags, so it doesn't lock the
-        // transform either, which matches the GDD's explicit carve-out.
+        // GDD Doc 04 §4a: cannot transform during active combat. Active = a hit has been
+        // exchanged in either direction (Yoru hits enemy, or enemy hits Yoru) within the
+        // last engagedInCombatDuration seconds (~5s, tunable on PlayerCombat). Pre-combat
+        // transform IS allowed — no hit yet = flag is false = transform goes through.
+        // Environmental damage doesn't trip this flag, matching the GDD carve-out.
+        //
+        // Uses PlayerCombat.IsEngagedInCombat() rather than the 6 action flags
+        // (IsAttacking/IsDodging/etc) because those accessors have self-heal logic that
+        // returns false when a flag has been stuck — masking the "real" state at the worst
+        // possible moment (a T-press during a freeze).
         var combat = GetComponent<PlayerCombat>();
-        if (combat != null)
+        if (combat != null && combat.IsEngagedInCombat())
         {
-            if (combat.IsAttacking() || combat.IsChargingHeavy()
-                || combat.IsDodging() || combat.IsDashing()
-                || combat.IsGuarding() || combat.IsInHitReaction())
-            {
-                if (logTransforms)
-                    Debug.Log("[FormController] Transform BLOCKED — active combat (GDD Doc 04 §4a).");
-                return;
-            }
+            if (logTransforms)
+                Debug.Log("[FormController] Transform BLOCKED — combat engaged (GDD Doc 04 §4a).");
+            return;
         }
 
         ApplyForm(!isHuman);

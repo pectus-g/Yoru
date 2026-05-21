@@ -270,6 +270,10 @@ public class PlayerCombat : MonoBehaviour
     [Header("Safety")]
     [SerializeField] private float maxAttackDuration = 2f;
 
+    [Header("Combat Engagement (Form Transform Lock)")]
+    [Tooltip("Seconds the player is considered 'engaged in combat' after the last hit exchanged either way (Yoru hits enemy, or enemy hits Yoru). Form transform is blocked during this window per GDD Doc 04 §4a. Same flag is the foundation for the deferred 'enemies remember combat' anti-exploit rule (5-10s per GDD).")]
+    [SerializeField] private float engagedInCombatDuration = 5f;
+
     [Header("Combat Targeting (Soft Lock-On)")]
     [SerializeField] private float targetingRange = 8f;
     [SerializeField] private float targetingAngle = 90f;
@@ -311,6 +315,9 @@ public class PlayerCombat : MonoBehaviour
 
     // Safety
     private float attackStartTime;
+
+    // Combat engagement — see engagedInCombatDuration serialized field above
+    private float engagedInCombatUntil;
 
     // Position lock
     private bool lockPosition;
@@ -1926,6 +1933,10 @@ public class PlayerCombat : MonoBehaviour
                 enemyHealth.TakeDamage(damage, isHeavy);
                 DebugLog($"Hit {enemy.name} for {damage}{(isHeavy ? " (heavy)" : "")}");
 
+                // Mark combat engaged — Yoru-to-enemy half of "hit exchanged either way"
+                // per GDD Doc 04 §4a. Locks form transform for engagedInCombatDuration seconds.
+                engagedInCombatUntil = Time.time + engagedInCombatDuration;
+
                 Vector3 contactPoint = enemy.ClosestPoint(attackPoint.position);
                 if (CombatFeedbackManager.Instance != null)
                 {
@@ -2115,6 +2126,21 @@ public class PlayerCombat : MonoBehaviour
     public int GetParryCounterDamage() => parryCounterDamage;
     public Animator GetAnimator() => animator;
     public float GetAnimatorSpeed() => animator != null ? animator.speed : -1f;
+
+    /// <summary>
+    /// True if a hit has been exchanged (Yoru→enemy or enemy→Yoru) within engagedInCombatDuration
+    /// seconds (default 5s). Used by FormController to block form transform during active combat
+    /// per GDD Doc 04 §4a. Independent of action-flag state (isAttacking etc) — does not get
+    /// masked by accessor self-heal logic. Also the intended foundation for the deferred
+    /// "enemies remember combat for 5-10s" anti-exploit rule.
+    /// </summary>
+    public bool IsEngagedInCombat() => Time.time < engagedInCombatUntil;
+
+    /// <summary>
+    /// Called by PlayerHealth.TakeDamage when an enemy attack lands on Yoru's hitbox (the
+    /// enemy→Yoru half of "hit exchanged either way"). Refreshes the engagement window.
+    /// </summary>
+    public void MarkCombatEngaged() => engagedInCombatUntil = Time.time + engagedInCombatDuration;
     #endregion
 
     #region Debug

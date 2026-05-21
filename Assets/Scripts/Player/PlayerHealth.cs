@@ -77,6 +77,13 @@ public class PlayerHealth : MonoBehaviour
         if (formController != null && formController.IsHuman)
             return;
 
+        // Mark combat engaged — enemy→Yoru half of "hit exchanged either way" per
+        // GDD Doc 04 §4a. Registered as soon as the hit reaches Yoru's hitbox in
+        // cat form, even if i-frames/parry/guard absorb the damage — the contact
+        // itself is the combat engagement. Locks form transform for ~5s.
+        if (playerCombat != null)
+            playerCombat.MarkCombatEngaged();
+
         // GATE 1: Post-hit i-frames — brief invincibility after last hit
         if (iFrameTimer > 0f)
             return;
