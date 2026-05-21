@@ -30,7 +30,10 @@ public class EnemyCombat : MonoBehaviour
         HitReact,
         Stagger,
         Teleport,
-        Dead
+        Dead,
+        
+        // Disengage — appended last so existing serialized currentState indices don't shift.
+        Returning
     }
     
     public enum AttackPhase
@@ -179,10 +182,19 @@ public class EnemyCombat : MonoBehaviour
     [Header("Damage")]
     [Tooltip("Damage at or above this threshold is treated as a heavy hit")]
     [SerializeField] private int heavyHitThreshold = 2;
+    
+    [Header("Disengage")]
+    [Tooltip("When the enemy loses its target (player became Tomoe, or escaped beyond escapeRange), walk back to spawn position instead of idling in place. GDD Doc 07 universal rule — continue normal behaviour at home.")]
+    [SerializeField] private bool returnToSpawnOnDisengage = true;
+    [Tooltip("Seconds the enemy stands still in idle (rotating to face spawn) before starting the walk home. The 'beat' between losing target and committing to walk-home.")]
+    [SerializeField] private float returnPauseDuration = 2f;
+    [Tooltip("Planar (XZ) distance from spawn position considered 'home' — once within this range, transition to Idle. Slightly larger than navAgent.stoppingDistance for slope/platform robustness.")]
+    [SerializeField] private float returnArrivalThreshold = 1.0f;
     #endregion
     
     #region Private Fields
     private Transform player;
+    private FormController playerFormController;
     private EnemyHealth enemyHealth;
     private Animator animator;
     private NavMeshAgent navAgent;
@@ -206,6 +218,11 @@ public class EnemyCombat : MonoBehaviour
     // Chase timer — teleport if chasing too long without attacking
     private float chaseTimer;
     
+    // Disengage — cached spawn position for return-to-spawn behaviour.
+    private Vector3 spawnPosition;
+    private float returnStartTime;
+    private bool returnWalkStarted;
+    
     // Animation tracking — prevents CrossFade from restarting every frame
     private string currentPlayingAnim = "";
     
@@ -220,6 +237,12 @@ public class EnemyCombat : MonoBehaviour
         if (player == null)
             Debug.LogError($"{gameObject.name}: No Player found! Tag your player 'Player'.");
         
+        // Phase 3 — cache FormController on the player. Per GDD Doc 07 universal rule,
+        // enemies never attack Tomoe. Cached once; queried inline (no per-frame GetComponent).
+        playerFormController = player != null ? player.GetComponent<FormController>() : null;
+        if (player != null && playerFormController == null)
+            Debug.LogWarning($"{gameObject.name}: FormController not found on Player. Tomoe-ignore gate will be INACTIVE — this enemy will attack Tomoe.");
+        
         enemyHealth = GetComponent<EnemyHealth>();
         animator = GetComponent<Animator>();
         navAgent = GetComponent<NavMeshAgent>();
@@ -233,6 +256,9 @@ public class EnemyCombat : MonoBehaviour
         
         if (attacks == null || attacks.Length == 0)
             Debug.LogWarning($"{gameObject.name}: No attacks defined!");
+        
+        // Cache spawn position so Returning state can walk the enemy home after disengage.
+        spawnPosition = transform.position;
         
         SetState(EnemyState.LostSoul);
         DebugLog("Initialized");
@@ -266,6 +292,7 @@ public class EnemyCombat : MonoBehaviour
             case EnemyState.Dialogue: HandleDialogue(); break;
             case EnemyState.Peaceful: HandlePeaceful(); break;
             case EnemyState.Idle: HandleIdle(); break;
+            case EnemyState.Returning: HandleReturning(); break;
             case EnemyState.Alert: HandleAlert(); break;
             case EnemyState.Chase: HandleChase(); break;
             case EnemyState.Telegraph: HandleTelegraph(); break;
@@ -288,8 +315,8 @@ public class EnemyCombat : MonoBehaviour
         StopNav();
         PlayAnimation(idleAnim);
         
-        // Transition to combat when player is in range
-        if (player != null && DistanceToPlayer() <= detectionRange)
+        // Transition to combat when player is in range — but never engage Tomoe (GDD Doc 07).
+        if (player != null && !PlayerIsTomoe() && DistanceToPlayer() <= detectionRange)
         {
             SetState(EnemyState.Alert);
         }
@@ -313,6 +340,9 @@ public class EnemyCombat : MonoBehaviour
         
         if (player == null) return;
         
+        // GDD Doc 07: enemies ignore Tomoe — no engagement from Idle while she is in human form.
+        if (PlayerIsTomoe()) return;
+        
         float dist = DistanceToPlayer();
         
         if (dist <= detectionRange)
@@ -326,6 +356,69 @@ public class EnemyCombat : MonoBehaviour
                 SetState(EnemyState.Chase);
             }
         }
+    }
+    
+    /// <summary>
+    /// Walking back to spawn after disengage (Tomoe-form or escape-range).
+    /// Two phases: (1) pause + idle for returnPauseDuration, rotating smoothly to face spawn.
+    /// (2) walk to spawn at patrolSpeed, no timeout — keeps going until arrived.
+    /// Interruptible at any phase — if Yoru re-enters detection range, drop everything and chase.
+    /// On arrival the Idle SetState fires PlayAnimation(idleAnim) immediately so the walk anim
+    /// can never persist past arrival. Future stare-at-Granny behaviour will live inside the
+    /// idle animation itself.
+    /// </summary>
+    private void HandleReturning()
+    {
+        if (player == null) return;
+        
+        // 1. INTERRUPT — Yoru is back and in range. Overrides everything (pause, walk, rotation).
+        if (!PlayerIsTomoe() && DistanceToPlayer() <= detectionRange)
+        {
+            SetState(EnemyState.Chase);
+            return;
+        }
+        
+        float elapsed = Time.time - returnStartTime;
+        
+        // 2. PHASE 1 — Pause. Idle anim is already playing (set in SetState).
+        //    Smoothly rotate to face spawn so the body is aligned when walking begins.
+        if (!returnWalkStarted)
+        {
+            FaceTowardsSpawnOrVelocity();
+            
+            if (elapsed >= returnPauseDuration)
+            {
+                // Kick off the walk phase.
+                returnWalkStarted = true;
+                if (navAgent != null && navAgent.isOnNavMesh)
+                {
+                    navAgent.isStopped = false;
+                    navAgent.speed = patrolSpeed;
+                    navAgent.SetDestination(spawnPosition);
+                }
+                PlayAnimation(walkAnim);
+                DebugLog("Pause complete — walking home");
+            }
+            return;
+        }
+        
+        // 3. PHASE 2 — Walking home. Arrival checked via navAgent AND planar XZ distance
+        //    (full 3D Vector3.Distance would miss arrival on slopes/platforms where y differs).
+        bool arrivedByNav = navAgent != null && navAgent.isOnNavMesh && !navAgent.pathPending
+                            && navAgent.remainingDistance <= navAgent.stoppingDistance + 0.05f;
+        Vector3 toSpawn = spawnPosition - transform.position;
+        toSpawn.y = 0f;
+        bool arrivedByDistance = toSpawn.sqrMagnitude <= returnArrivalThreshold * returnArrivalThreshold;
+        
+        if (arrivedByNav || arrivedByDistance)
+        {
+            DebugLog("Arrived at spawn — entering Idle");
+            SetState(EnemyState.Idle);
+            return;
+        }
+        
+        // Continue facing direction of travel.
+        FaceTowardsSpawnOrVelocity();
     }
     
     private void HandleAlert()
@@ -343,6 +436,16 @@ public class EnemyCombat : MonoBehaviour
     private void HandleChase()
     {
         if (player == null) return;
+        
+        // GDD Doc 07: drop combat the moment the player is Tomoe.
+        // Defensive catch-all — Phase 2 transform lock should prevent mid-combat transform,
+        // but this also resolves wrong-choice BecomeHostile() chains (Alert → Chase → here → Idle/Returning)
+        // and covers any scripted force-transform or dev hot-reload edge case.
+        if (PlayerIsTomoe())
+        {
+            SetState(returnToSpawnOnDisengage ? EnemyState.Returning : EnemyState.Idle);
+            return;
+        }
 
         float dist = DistanceToPlayer();
         
@@ -397,10 +500,10 @@ public class EnemyCombat : MonoBehaviour
             return;
         }
 
-        // Player beyond escape range and no teleport — return to idle
+        // Player beyond escape range and no teleport — disengage.
         if (!canTeleport && dist > escapeRange)
         {
-            SetState(EnemyState.Idle);
+            SetState(returnToSpawnOnDisengage ? EnemyState.Returning : EnemyState.Idle);
             return;
         }
 
@@ -598,7 +701,17 @@ public class EnemyCombat : MonoBehaviour
                 
             case EnemyState.Idle:
                 StopNav();
+                PlayAnimation(idleAnim);
                 SetAnimSpeed(1f);
+                break;
+                
+            case EnemyState.Returning:
+                returnStartTime = Time.time;
+                returnWalkStarted = false;
+                StopNav();
+                PlayAnimation(idleAnim);
+                SetAnimSpeed(1f);
+                DebugLog("Disengaging — pausing before return walk");
                 break;
                 
             case EnemyState.Teleport:
@@ -881,6 +994,15 @@ private void TriggerHitFlash()
     }
     #endregion
     
+    #region Form Gate
+    /// <summary>
+    /// Returns true when the player is in Tomoe (human) form.
+    /// Used by combat state transitions to enforce GDD Doc 07 universal rule —
+    /// enemies never attack Tomoe. Cheap inline check (null + bool read).
+    /// </summary>
+    private bool PlayerIsTomoe() => playerFormController != null && playerFormController.IsHuman;
+    #endregion
+    
     #region Navigation Helpers
     private void StopNav()
     {
@@ -899,6 +1021,31 @@ private void TriggerHitFlash()
         dir.y = 0;
         
         if (dir != Vector3.zero)
+        {
+            Quaternion target = Quaternion.LookRotation(dir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * rotationSpeed);
+        }
+    }
+    
+    /// <summary>
+    /// Rotation helper for the Returning state. Faces nav velocity direction while walking
+    /// (so the body follows path bends around obstacles), falls back to spawn-direction when
+    /// the agent is stopped (phase 1 pause). Smooth Slerp — never snaps.
+    /// </summary>
+    private void FaceTowardsSpawnOrVelocity()
+    {
+        Vector3 dir;
+        if (navAgent != null && navAgent.velocity.sqrMagnitude > 0.01f)
+        {
+            dir = navAgent.velocity;
+        }
+        else
+        {
+            dir = spawnPosition - transform.position;
+        }
+        dir.y = 0f;
+        
+        if (dir.sqrMagnitude > 0.001f)
         {
             Quaternion target = Quaternion.LookRotation(dir);
             transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * rotationSpeed);
