@@ -26,11 +26,13 @@ public class PlayerHealth : MonoBehaviour
 
     private PeachHealthUI peachHealthUI;
     private PlayerCombat playerCombat;
+    private FormController formController;
 
     private void Start()
     {
         currentHealth = maxHealth;
         playerCombat = GetComponent<PlayerCombat>();
+        formController = GetComponent<FormController>();
         peachHealthUI = FindObjectOfType<PeachHealthUI>();
 
         if (peachHealthUI != null)
@@ -68,6 +70,13 @@ public class PlayerHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(int damage, bool isHeavy, Vector3 attackerPos)
     {
+        // GATE 0: Tomoe (human form) is never damaged. GDD Doc 04 §4b:
+        // "Damage taken: 0x — Tomoe is never attacked. Enemies ignore her."
+        // The "enemies ignore her" AI rule is deferred to a later phase — enemies may
+        // still swing at Granny visually, but no damage lands and no i-frames trigger.
+        if (formController != null && formController.IsHuman)
+            return;
+
         // GATE 1: Post-hit i-frames — brief invincibility after last hit
         if (iFrameTimer > 0f)
             return;

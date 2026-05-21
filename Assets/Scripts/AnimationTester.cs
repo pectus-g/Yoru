@@ -33,6 +33,9 @@ public class AnimationTester : MonoBehaviour
     private bool combatLayerActive = false;
     private bool cinematicLayerActive = false;
     private string lastTriggeredAnimation = "";
+
+    // Phase 2 lockout — AnimationTester's E/R/V/G/1-7 keys are Yoru-form only
+    private FormController formController;
     
     void Start()
     {
@@ -44,12 +47,18 @@ public class AnimationTester : MonoBehaviour
         // Ensure layers start at 0 weight
         animator.SetLayerWeight(1, 0f); // Combat Layer
         animator.SetLayerWeight(2, 0f); // Cinematic Layer
-        
+
+        formController = FindObjectOfType<FormController>();
+
         ShowControls();
     }
     
     void Update()
     {
+        // Phase 2 lockout: in Tomoe (human) form, all AnimationTester input disabled.
+        // E/R tail abilities, V/G/1-7 cinematic triggers are Yoru-only combat actions.
+        if (formController != null && formController.IsHuman) return;
+
         // Toggle layer weights
         if (Input.GetKeyDown(combatLayerToggle))
         {

@@ -64,6 +64,10 @@ public class FormController : MonoBehaviour
     [Header("Camera")]
     [Tooltip("Extra height (world units) added to camera FollowOffset when in Granny form, to compensate for her taller silhouette. Cat form uses 0.")]
     [SerializeField] private float grannyCameraHeightOffset = 0.8f;
+    [Tooltip("CinemachineHardLookAt vertical aim offset for cat form. Should match Yoru's head height above the player root pivot. Default 1.0 matches the camera prefab's authored value.")]
+    [SerializeField] private float catCameraLookAtYOffset = 1.0f;
+    [Tooltip("CinemachineHardLookAt vertical aim offset for Granny form. Should match Granny's head height above the player root pivot. Granny capsule is ~3.5 tall — head sits around 3.0. Tune in Inspector until RMB-zoom converges on her head, not her chest.")]
+    [SerializeField] private float grannyCameraLookAtYOffset = 3.0f;
     
     [Header("Animation")]
     [Tooltip("Damping time (seconds) for smoothing the Speed value sent to Granny's animator. Smooths transitions between Idle/Walk/Run so they ease rather than snap. Higher = smoother but less responsive. Lower = snappier but can show micro-jitter. Typical 0.1-0.25. Mirrors PlayerMovement's speedDampTime for the cat.")]
@@ -165,6 +169,25 @@ public class FormController : MonoBehaviour
     
     private void ToggleForm()
     {
+        // GDD Doc 04 §4a: cannot transform during active combat. Active = a combat
+        // action is in flight in either direction (Yoru attacking, dodging, dashing,
+        // guarding, charging heavy, or recovering from a hit). Pre-combat transform IS
+        // allowed — if no combat flag is set, the transform goes through. Environmental
+        // damage (fall, poison, hazards) doesn't set these flags, so it doesn't lock the
+        // transform either, which matches the GDD's explicit carve-out.
+        var combat = GetComponent<PlayerCombat>();
+        if (combat != null)
+        {
+            if (combat.IsAttacking() || combat.IsChargingHeavy()
+                || combat.IsDodging() || combat.IsDashing()
+                || combat.IsGuarding() || combat.IsInHitReaction())
+            {
+                if (logTransforms)
+                    Debug.Log("[FormController] Transform BLOCKED — active combat (GDD Doc 04 §4a).");
+                return;
+            }
+        }
+
         ApplyForm(!isHuman);
     }
     
@@ -210,6 +233,10 @@ public class FormController : MonoBehaviour
         if (cameraController != null)
         {
             cameraController.SetFormHeightOffset(toHuman ? grannyCameraHeightOffset : 0f);
+            // Camera aim offset: Yoru's invisible head sits ~1.0 above pivot; Granny's
+            // head sits ~3.0 above pivot. Without this update, zooming in (RMB or scroll)
+            // converges on Granny's chest because the aim point is still at Yoru's head.
+            cameraController.SetFormLookAtOffset(toHuman ? grannyCameraLookAtYOffset : catCameraLookAtYOffset);
         }
         
         if (logTransforms)

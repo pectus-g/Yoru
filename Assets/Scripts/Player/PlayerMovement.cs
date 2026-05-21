@@ -37,6 +37,7 @@ public class PlayerMovement : MonoBehaviour
     // Cached components (allocated once)
     private PlayerCombat playerCombat;
     private GuardMovementController guardMovement;
+    private FormController formController;
 
     private CharacterController controller;
     private Animator animator;
@@ -102,6 +103,7 @@ public class PlayerMovement : MonoBehaviour
     private void Awake()
     {playerCombat = GetComponent<PlayerCombat>();
         guardMovement = GetComponent<GuardMovementController>();
+        formController = GetComponent<FormController>();
         // Cache all components once
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
@@ -270,8 +272,9 @@ public class PlayerMovement : MonoBehaviour
             SetState(PlayerState.Running, false);
         }
         
-        // Jump input
-        if (Input.GetKeyDown(KeyCode.Space))
+        // Jump input — Phase 2: blocked in Tomoe (human) form per GDD Doc 04 §4b
+        // ("no dodge, dash, jump, or aerial moves — walks and runs only")
+        if (Input.GetKeyDown(KeyCode.Space) && (formController == null || !formController.IsHuman))
         {
             TryJump();
         }

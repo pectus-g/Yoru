@@ -46,6 +46,7 @@ public class ThirdPersonCamera : MonoBehaviour
     private bool cameraEnabled = true;
     
     private CinemachineFollow followComponent;
+    private CinemachineHardLookAt lookAtComponent;
     
     // Form height offset: written by FormController on transform to lift the camera for Granny's
     // taller silhouette. Cat form uses 0. See SetFormHeightOffset.
@@ -83,6 +84,7 @@ public class ThirdPersonCamera : MonoBehaviour
         if (virtualCamera != null)
         {
             followComponent = virtualCamera.GetComponent<CinemachineFollow>();
+            lookAtComponent = virtualCamera.GetComponent<CinemachineHardLookAt>();
         }
         
         if (playerTransform != null)
@@ -226,5 +228,22 @@ public class ThirdPersonCamera : MonoBehaviour
     public void SetFormHeightOffset(float offset)
     {
         formHeightOffset = offset;
+    }
+
+    /// <summary>
+    /// Adjust the CinemachineHardLookAt vertical aim offset for the active form.
+    /// The aim point is (target.position + LookAtOffset). In cat form this should sit at
+    /// Yoru's head (~1.0 above the player root pivot). In Granny form Yoru's head is well
+    /// below Granny's head, so without this update the camera converges on Granny's chest
+    /// when zooming in. Called by FormController on cat ↔ Granny transform.
+    /// </summary>
+    public void SetFormLookAtOffset(float yOffset)
+    {
+        if (lookAtComponent != null)
+        {
+            Vector3 offset = lookAtComponent.LookAtOffset;
+            offset.y = yOffset;
+            lookAtComponent.LookAtOffset = offset;
+        }
     }
 }

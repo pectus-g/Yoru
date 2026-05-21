@@ -286,6 +286,7 @@ public class PlayerCombat : MonoBehaviour
     private YoruVFXManager vfxManager;
     private GuardMovementController guardMovement;
     private Camera mainCamera;
+    private FormController formController;
 
     // Combo
     private int currentComboStep;
@@ -376,6 +377,13 @@ public class PlayerCombat : MonoBehaviour
         vfxManager = GetComponent<YoruVFXManager>();
         guardMovement = GetComponent<GuardMovementController>();
         mainCamera = Camera.main;
+        formController = GetComponent<FormController>();
+
+        // Phase 2 diagnostic — print ONCE so we can verify the gate is connected.
+        if (formController != null)
+            Debug.Log("[PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).");
+        else
+            Debug.LogError("[PlayerCombat] Phase 2 form gate NOT CONNECTED — FormController is NULL on this GameObject. Combat input WILL fire in Granny form. Check that FormController is on the same GameObject as PlayerCombat.");
 
         if (attackPoint == null)
         {
@@ -693,6 +701,26 @@ public class PlayerCombat : MonoBehaviour
     #region Input
     private void HandleInput()
     {
+        // Phase 2 lockout: in Tomoe (human) form, all combat input is disabled.
+        // Per GDD Doc 04 §4b and Doc 09 §8c. Tomoe is the persuasion form — no attacks,
+        // no dodge, no dash, no guard, no tail abilities. Only walking, running, and
+        // form transform (T, handled by FormController separately) respond.
+        if (formController != null && formController.IsHuman)
+        {
+            // Diagnostic — log ONLY on actual input frames, not every Update tick.
+            // If you press C/MMB/LMB in Granny form and see THIS log, the gate is working
+            // and any VFX you see is leftover particles from a prior Yoru action (not a new attack).
+            // If you press these keys in Granny form and DON'T see this log, the gate is broken.
+            if (Input.GetKeyDown(KeyCode.C)
+                || Input.GetMouseButtonDown(0)
+                || Input.GetMouseButtonDown(2)
+                || Input.GetKeyDown(KeyCode.Q))
+            {
+                Debug.Log("[PlayerCombat] Combat input BLOCKED in Granny form (Phase 2 gate active).");
+            }
+            return;
+        }
+
         if (isInHitReaction) return;
         if (isDodging || isDashing) return;
 
