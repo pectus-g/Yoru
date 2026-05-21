@@ -95,6 +95,8 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float detectionRange = 10f;
     [SerializeField] private float attackRange = 3.5f;
     [SerializeField] private float escapeRange = 15f;
+    [Tooltip("Full vision-cone width in degrees (e.g. 120 = 60° each side of forward). Player must be within this cone AND within detectionRange to be seen. Only gates INITIAL detection and re-detection — once chasing, the enemy tracks without FOV check.")]
+    [SerializeField, Range(30f, 360f)] private float visionAngle = 120f;
     
     [Header("Timing")]
     [SerializeField] private float alertDuration = 0.5f;
@@ -190,6 +192,8 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float returnPauseDuration = 2f;
     [Tooltip("Planar (XZ) distance from spawn position considered 'home' — once within this range, transition to Idle. Slightly larger than navAgent.stoppingDistance for slope/platform robustness.")]
     [SerializeField] private float returnArrivalThreshold = 1.0f;
+    [Tooltip("Multiplier on rotationSpeed during the disengage pause — used to snap-pivot toward Granny when transform is detected. 8x normal completes a 180° turn in ~0.2s.")]
+    [SerializeField] private float disengageRotationSpeedMultiplier = 8f;
     #endregion
     
     #region Private Fields
@@ -315,8 +319,8 @@ public class EnemyCombat : MonoBehaviour
         StopNav();
         PlayAnimation(idleAnim);
         
-        // Transition to combat when player is in range — but never engage Tomoe (GDD Doc 07).
-        if (player != null && !PlayerIsTomoe() && DistanceToPlayer() <= detectionRange)
+        // Transition to combat when player is in vision cone — but never engage Tomoe (GDD Doc 07).
+        if (player != null && !PlayerIsTomoe() && PlayerInVision())
         {
             SetState(EnemyState.Alert);
         }
@@ -343,9 +347,7 @@ public class EnemyCombat : MonoBehaviour
         // GDD Doc 07: enemies ignore Tomoe — no engagement from Idle while she is in human form.
         if (PlayerIsTomoe()) return;
         
-        float dist = DistanceToPlayer();
-        
-        if (dist <= detectionRange)
+        if (PlayerInVision())
         {
             if (!hasAlerted)
             {
@@ -371,8 +373,9 @@ public class EnemyCombat : MonoBehaviour
     {
         if (player == null) return;
         
-        // 1. INTERRUPT — Yoru is back and in range. Overrides everything (pause, walk, rotation).
-        if (!PlayerIsTomoe() && DistanceToPlayer() <= detectionRange)
+        // 1. INTERRUPT — Yoru is back and in vision cone. Overrides everything (pause, walk, rotation).
+        //    Vision check applies here so Yoru can sneak around an enemy's back during return.
+        if (!PlayerIsTomoe() && PlayerInVision())
         {
             SetState(EnemyState.Chase);
             return;
@@ -381,10 +384,11 @@ public class EnemyCombat : MonoBehaviour
         float elapsed = Time.time - returnStartTime;
         
         // 2. PHASE 1 — Pause. Idle anim is already playing (set in SetState).
-        //    Smoothly rotate to face spawn so the body is aligned when walking begins.
+        //    Snap-pivot to face the player (Granny) — "confused stare" beat per GDD-aligned design.
+        //    Uses disengageRotationSpeedMultiplier for a sharp turn (~0.2s for 180°).
         if (!returnWalkStarted)
         {
-            FaceTowardsSpawnOrVelocity();
+            FaceTowardsPlayerFast();
             
             if (elapsed >= returnPauseDuration)
             {
@@ -1001,6 +1005,33 @@ private void TriggerHitFlash()
     /// enemies never attack Tomoe. Cheap inline check (null + bool read).
     /// </summary>
     private bool PlayerIsTomoe() => playerFormController != null && playerFormController.IsHuman;
+    
+    /// <summary>
+    /// Vision-based detection — player is in this enemy's forward cone AND within range.
+    /// Used for INITIAL detection (LostSoul → Alert, Idle → Chase) and re-engage from Returning.
+    /// NOT checked during active Chase — once committed, the enemy tracks regardless of facing.
+    /// Cheap: one distance check + one angle check, both planar (XZ). No allocations.
+    /// </summary>
+    private bool PlayerInVision()
+    {
+        if (player == null) return false;
+        
+        Vector3 toPlayer = player.position - transform.position;
+        toPlayer.y = 0f;
+        float sqrDist = toPlayer.sqrMagnitude;
+        
+        // Range gate (squared compare — avoids sqrt).
+        if (sqrDist > detectionRange * detectionRange) return false;
+        
+        // Player on top of enemy — always seen.
+        if (sqrDist < 0.001f) return true;
+        
+        // Cone gate.
+        Vector3 forward = transform.forward;
+        forward.y = 0f;
+        float angle = Vector3.Angle(forward, toPlayer);
+        return angle <= visionAngle * 0.5f;
+    }
     #endregion
     
     #region Navigation Helpers
@@ -1049,6 +1080,26 @@ private void TriggerHitFlash()
         {
             Quaternion target = Quaternion.LookRotation(dir);
             transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * rotationSpeed);
+        }
+    }
+    
+    /// <summary>
+    /// Fast rotation toward the player — the "confused stare" pivot used in phase 1 of Returning.
+    /// Multiplies rotationSpeed by disengageRotationSpeedMultiplier so a 180° turn finishes
+    /// in roughly 0.2s at default values. Still a Slerp (no snap) — looks sharp, not jarring.
+    /// </summary>
+    private void FaceTowardsPlayerFast()
+    {
+        if (player == null) return;
+        
+        Vector3 dir = player.position - transform.position;
+        dir.y = 0f;
+        
+        if (dir.sqrMagnitude > 0.001f)
+        {
+            Quaternion target = Quaternion.LookRotation(dir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, target,
+                Time.deltaTime * rotationSpeed * disengageRotationSpeedMultiplier);
         }
     }
     
