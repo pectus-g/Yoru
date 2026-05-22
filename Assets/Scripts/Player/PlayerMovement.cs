@@ -74,12 +74,12 @@ public class PlayerMovement : MonoBehaviour
     private float coyoteTimer;
     private bool wasRunningForJump; // Track if running when started jumping
     
-    // Phase 3 Option A — Granny speed multiplier per GDD Doc 04 §4b. Set externally by
-    // FormController.SetSpeedMultiplier on form transform. Cat form = 1.0 (no effect),
-    // Granny form = whatever's tuned on FormController's Inspector sliders (default 0.7
-    // for -30%). Applied to the single speed-calculation line in the ground-movement block.
-    private float walkSpeedMultiplier = 1f;
-    private float runSpeedMultiplier = 1f;
+    // Phase 3 Option A — Granny absolute speed overrides per GDD Doc 04 §4b. Set externally
+    // by FormController.SetGrannySpeed on form transform. Value of 0 means "no override, use
+    // cat default speed" — used in cat form. Granny form supplies the explicit speed values
+    // (tuned in FormController Inspector to match Granny's animation stride for foot-locking).
+    private float grannyWalkSpeedOverride = 0f;
+    private float grannyRunSpeedOverride = 0f;
     
     // Animation state
     private float currentSpeed;
@@ -370,8 +370,8 @@ public class PlayerMovement : MonoBehaviour
         if (HasState(PlayerState.Grounded) && !HasState(PlayerState.Jumping))
         {
             float speed = HasState(PlayerState.Running) 
-                ? runSpeed * runSpeedMultiplier 
-                : walkSpeed * walkSpeedMultiplier;
+                ? (grannyRunSpeedOverride > 0f ? grannyRunSpeedOverride : runSpeed) 
+                : (grannyWalkSpeedOverride > 0f ? grannyWalkSpeedOverride : walkSpeed);
             Vector3 movement = moveDirection * speed * Time.fixedDeltaTime;
             controller.Move(movement);
             
@@ -562,16 +562,25 @@ public class PlayerMovement : MonoBehaviour
     /// <summary>Returns remaining time in the jump window. Used by PlayerCombat for air dodge/dash timing.</summary>
     public float GetJumpWindowTimer() => jumpWindowTimer;
     
+    /// <summary>Cat's walk speed value, read by FormController to send the correct intent
+    /// value to Granny's animator blend tree (which was calibrated against cat's speed).</summary>
+    public float WalkSpeed => walkSpeed;
+    
+    /// <summary>Cat's run speed value, read by FormController to send the correct intent
+    /// value to Granny's animator blend tree (which was calibrated against cat's speed).</summary>
+    public float RunSpeed => runSpeed;
+    
     /// <summary>
-    /// Set walk and run speed multipliers. Called by FormController on cat ↔ Granny transform
-    /// to apply the GDD Doc 04 §4b -30% Granny speed reduction (or whatever values are tuned
-    /// on FormController's grannyWalkSpeedMultiplier / grannyRunSpeedMultiplier sliders).
-    /// Cat form passes (1, 1) which is a no-op on the ground movement calculation.
+    /// Set absolute walk and run speeds for Granny form. Called by FormController on
+    /// cat ↔ Granny transform. Pass 0 to clear the override (cat form falls back to
+    /// the authored walkSpeed/runSpeed values). Granny form passes the tuned absolute
+    /// values from FormController's Inspector (grannyWalkSpeed, grannyRunSpeed) which
+    /// should match the speed her animation was authored at for clean foot-locking.
     /// </summary>
-    public void SetSpeedMultiplier(float walkMul, float runMul)
+    public void SetGrannySpeed(float walkOverride, float runOverride)
     {
-        walkSpeedMultiplier = walkMul;
-        runSpeedMultiplier = runMul;
+        grannyWalkSpeedOverride = walkOverride;
+        grannyRunSpeedOverride = runOverride;
     }
     #endregion
     

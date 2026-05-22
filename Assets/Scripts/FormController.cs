@@ -72,10 +72,10 @@ public class FormController : MonoBehaviour
     [SerializeField] private float grannyCameraLookAtYOffset = 3.0f;
     
     [Header("Granny Movement")]
-    [Tooltip("Walk-speed multiplier when in Granny form, per GDD Doc 04 §4b (Granny moves at -30% of Yoru's speed). 0.7 = 30% slower. Range 0.1-2.0 so you can tune for a more somber pace (lower) or slightly less plodding (higher). Cat form is always 1.0 (no effect).")]
-    [SerializeField, Range(0.1f, 2.0f)] private float grannyWalkSpeedMultiplier = 0.7f;
-    [Tooltip("Run-speed multiplier when in Granny form. Independent from walk so you can tune them separately — e.g. walk at 0.6 (somber) but run at 0.75 (urgency still reads when she breaks into a hurry).")]
-    [SerializeField, Range(0.1f, 2.0f)] private float grannyRunSpeedMultiplier = 0.7f;
+    [Tooltip("Absolute walk speed (m/s) for Granny form. Tune this LIVE in Play mode while watching her feet — find the value where her feet plant cleanly on the ground without sliding or skating. That value is the speed her walk animation was authored at. Starting guess: 1.5. The cat's walk speed is untouched, this only affects Granny.")]
+    [SerializeField] private float grannyWalkSpeed = 1.5f;
+    [Tooltip("Absolute run speed (m/s) for Granny form. Same tuning workflow: hold Shift in Granny form, watch her feet while she runs, adjust this value until feet plant cleanly. Starting guess: 4.0.")]
+    [SerializeField] private float grannyRunSpeed = 4.0f;
     
     [Header("Animation")]
     [Tooltip("Damping time (seconds) for smoothing the Speed value sent to Granny's animator. Smooths transitions between Idle/Walk/Run so they ease rather than snap. Higher = smoother but less responsive. Lower = snappier but can show micro-jitter. Typical 0.1-0.25. Mirrors PlayerMovement's speedDampTime for the cat.")]
@@ -111,13 +111,6 @@ public class FormController : MonoBehaviour
     // Cached animator hashes (faster than strings). Match the Granny controller's parameter names.
     private readonly int speedHash = Animator.StringToHash("Speed");
     private readonly int isGroundedHash = Animator.StringToHash("IsGrounded");
-    
-    // Position-delta speed tracking. Computing speed from transform.position changes
-    // between frames sidesteps Unity's CharacterController.velocity quirks — it doesn't
-    // matter HOW the position changed (Move(), direct transform assignment, etc), only
-    // that it changed. More robust than reading controller.velocity directly.
-    private Vector3 lastPosition;
-    private bool lastPositionInitialized;
     
     // Smoothed-speed tracking so Idle/Walk/Run transitions ease rather than snap.
     // SmoothDamp pattern matches PlayerMovement's currentSpeed/speedVelocity for the cat.
@@ -309,10 +302,8 @@ public class FormController : MonoBehaviour
     {
         isHuman = toHuman;
         
-        // Reset position-delta + smoothing baselines so the first frame in Granny form
-        // doesn't produce a huge speed reading from a stale lastPosition, and the smoothed
-        // value doesn't carry over from the previous form session.
-        lastPositionInitialized = false;
+        // Reset smoothing baseline so the first frame in Granny form doesn't carry over
+        // a stale smoothed value from the previous form session.
         currentSmoothedSpeed = 0f;
         speedSmoothVelocity = 0f;
         
@@ -370,15 +361,17 @@ public class FormController : MonoBehaviour
             cameraController.SetFormLookAtOffset(toHuman ? grannyCameraLookAtYOffset : catCameraLookAtYOffset);
         }
         
-        // Granny speed multiplier per GDD Doc 04 §4b. Cat form gets (1, 1) which is a no-op
-        // on PlayerMovement's speed application. Granny form gets the tuned Inspector values.
+        // Granny speed override per GDD Doc 04 §4b. Cat form passes (0, 0) which clears
+        // the override on PlayerMovement, falling back to the authored walkSpeed/runSpeed.
+        // Granny form passes the tuned absolute values that match her animation's stride
+        // length — when those match, her feet plant cleanly without sliding.
         // Called from both the snap-swap path (Start init) and the fade-coroutine midpoint
-        // so the speed change is always in sync with the visual + capsule change.
+        // so the speed override is always in sync with the visual + capsule change.
         if (playerMovement != null)
         {
-            playerMovement.SetSpeedMultiplier(
-                toHuman ? grannyWalkSpeedMultiplier : 1f,
-                toHuman ? grannyRunSpeedMultiplier : 1f);
+            playerMovement.SetGrannySpeed(
+                toHuman ? grannyWalkSpeed : 0f,
+                toHuman ? grannyRunSpeed : 0f);
         }
     }
     
@@ -403,9 +396,8 @@ public class FormController : MonoBehaviour
         isTransforming = true;
         isHuman = toHuman;
         
-        // Reset position-delta + smoothing baselines so Granny's first animator-drive
-        // sample isn't contaminated by stale cat-form position data.
-        lastPositionInitialized = false;
+        // Reset smoothing baseline so Granny's first animator-drive sample isn't
+        // contaminated by stale smoothed value from the previous form session.
         currentSmoothedSpeed = 0f;
         speedSmoothVelocity = 0f;
         
@@ -586,58 +578,79 @@ public class FormController : MonoBehaviour
     #region Animator Mirror
     
     /// <summary>
-    /// Drive Granny's animator from physics-rate position delta. Called from FixedUpdate so
-    /// the sample rate matches PlayerMovement's controller.Move() rate. Speed = motion-per-
-    /// FixedUpdate / Time.fixedDeltaTime, which produces stable walkSpeed/runSpeed readings.
-    /// SmoothDamp then eases transitions between Idle/Walk/Run so blend changes feel natural
-    /// rather than snapping.
+    /// Drive Granny's animator using INPUT INTENT (not raw position-delta velocity).
     /// 
-    /// We deliberately use transform.position delta rather than CharacterController.velocity —
-    /// velocity has shown unreliable readings in this project after runtime capsule resize.
-    /// Position is ground truth.
+    /// Why intent-based: Granny's blend tree thresholds were calibrated for cat's walkSpeed
+    /// and runSpeed (the position-delta values it originally received when Granny moved at
+    /// cat speeds). Now that Granny's world speed is an explicit Inspector value tuned to
+    /// match her animation stride, sending raw position-delta would be wrong — a position-
+    /// delta of (e.g.) 1.5 would fall between idle and walk thresholds, giving partial
+    /// blend. Instead we send cat's walkSpeed / runSpeed values directly when input fires,
+    /// so the blend tree always picks the right clip at full weight.
+    /// 
+    /// Mirror of PlayerMovement's intent-based cat animator drive (targetSpeed = 0/1/2 flags).
+    /// 
+    /// ALSO pushes the absolute Granny speed values to PlayerMovement every FixedUpdate
+    /// while in Granny form, so Inspector tuning changes propagate immediately without
+    /// requiring a form transform re-press.
     /// </summary>
     private void DriveGrannyAnimator()
     {
         if (!isHuman || grannyAnimator == null) return;
         
-        Vector3 currentPosition = transform.position;
-        if (!lastPositionInitialized)
+        // Push current Inspector values to PlayerMovement EVERY frame in Granny form. This
+        // makes runtime Inspector tuning take effect immediately — change Granny Walk Speed
+        // from 4 to 0.2 mid-play and the next FixedUpdate uses 0.2. Without this, the
+        // override is only refreshed on form transform (ApplyCapsuleAndCameraSwap).
+        if (playerMovement != null)
         {
-            lastPosition = currentPosition;
-            lastPositionInitialized = true;
-            return;
+            playerMovement.SetGrannySpeed(grannyWalkSpeed, grannyRunSpeed);
         }
         
-        Vector3 delta = currentPosition - lastPosition;
-        delta.y = 0f;
-        float rawSpeed = delta.magnitude / Time.fixedDeltaTime;
-        lastPosition = currentPosition;
-        
-        // Compensate for the Granny speed multiplier so the animator's blend tree receives
-        // the INTENT speed (full walkSpeed or runSpeed), not the slowed actual velocity.
-        // The multiplier slows Granny's world movement (applied in PlayerMovement line 372-374)
-        // but her walk/run animation should still play at its authored pace, exactly how
-        // PlayerMovement drives the cat animator from intent (targetSpeed = 1f/2f flags)
-        // rather than from real velocity.
-        //
-        // Walk example: world moves at walkSpeed*0.7 = 1.4; rawSpeed=1.4; compensated = 1.4/0.7 = 2 = walkSpeed
-        // Run example:  world moves at runSpeed*0.7  = 4.9; rawSpeed=4.9; compensated = 4.9/0.7 = 7 = runSpeed
-        // Idle: rawSpeed=0, compensated=0, animator picks idle clip. Unchanged.
-        //
-        // The > 0.01f guard prevents divide-by-zero if a multiplier is ever set to 0 on the
-        // Inspector slider (allowed by the Range(0.1, 2.0) min of 0.1, but defensive anyway).
+        // Read input directly. We can't use PlayerMovement's PlayerState flags because
+        // PlayerMovement's HandleInput early-returns during the transform-fade lock, so
+        // those flags stay stale for a moment. Reading raw input here gives current intent.
+        bool hasMoveInput = Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f
+                         || Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f;
         bool isRunning = Input.GetKey(KeyCode.LeftShift);
-        float currentMultiplier = isRunning ? grannyRunSpeedMultiplier : grannyWalkSpeedMultiplier;
-        float compensatedSpeed = currentMultiplier > 0.01f ? rawSpeed / currentMultiplier : rawSpeed;
+        bool isGrounded = controller != null && controller.isGrounded;
         
-        // Smooth the compensated speed so the blend tree eases between Idle/Walk/Run rather than
-        // step-snapping. Time.fixedDeltaTime is passed explicitly since we're in FixedUpdate.
+        // Determine target intent. Cat's walkSpeed/runSpeed are what the blend tree was
+        // calibrated against. Falls back to (2, 7) defaults if PlayerMovement is missing.
+        float targetIntent;
+        if (!isGrounded || !hasMoveInput)
+        {
+            targetIntent = 0f;
+        }
+        else if (isRunning)
+        {
+            targetIntent = playerMovement != null ? playerMovement.RunSpeed : 7f;
+        }
+        else
+        {
+            targetIntent = playerMovement != null ? playerMovement.WalkSpeed : 2f;
+        }
+        
+        // Smooth the intent toward the target so blend tree transitions ease between
+        // Idle/Walk/Run rather than step-snapping. Time.fixedDeltaTime is passed explicitly
+        // since we're in FixedUpdate.
         currentSmoothedSpeed = Mathf.SmoothDamp(
-            currentSmoothedSpeed, compensatedSpeed, ref speedSmoothVelocity,
+            currentSmoothedSpeed, targetIntent, ref speedSmoothVelocity,
             speedSmoothTime, Mathf.Infinity, Time.fixedDeltaTime);
         
         grannyAnimator.SetFloat(speedHash, currentSmoothedSpeed);
-        if (controller != null) grannyAnimator.SetBool(isGroundedHash, controller.isGrounded);
+        grannyAnimator.SetBool(isGroundedHash, isGrounded);
+        
+        // Diagnostic log — fires once per second while Granny is moving so you can verify
+        // in console that the override values are being applied. If Inspector value is 0.2
+        // but log shows "actual speed = 7" or similar, something else is overriding movement.
+        if (logTransforms && hasMoveInput && Time.frameCount % 60 == 0)
+        {
+            float expectedSpeed = isRunning ? grannyRunSpeed : grannyWalkSpeed;
+            Vector3 vel = controller != null ? controller.velocity : Vector3.zero;
+            vel.y = 0f;
+            Debug.Log($"[FormController DIAG] Granny moving | Inspector: walk={grannyWalkSpeed} run={grannyRunSpeed} | Mode: {(isRunning ? "RUN" : "WALK")} | Expected: {expectedSpeed:F2} m/s | Actual: {vel.magnitude:F2} m/s");
+        }
     }
     
     #endregion
