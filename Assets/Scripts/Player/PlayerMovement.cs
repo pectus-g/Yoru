@@ -74,6 +74,13 @@ public class PlayerMovement : MonoBehaviour
     private float coyoteTimer;
     private bool wasRunningForJump; // Track if running when started jumping
     
+    // Phase 3 Option A — Granny speed multiplier per GDD Doc 04 §4b. Set externally by
+    // FormController.SetSpeedMultiplier on form transform. Cat form = 1.0 (no effect),
+    // Granny form = whatever's tuned on FormController's Inspector sliders (default 0.7
+    // for -30%). Applied to the single speed-calculation line in the ground-movement block.
+    private float walkSpeedMultiplier = 1f;
+    private float runSpeedMultiplier = 1f;
+    
     // Animation state
     private float currentSpeed;
     private float speedVelocity;
@@ -217,6 +224,16 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
         
+        // Phase 3 — input locked during form transform fade window (FormController coroutine).
+        // The fade is 0.6s (Inspector-tunable); during it, neither cat nor Granny should
+        // accept WASD/jump/etc input so the transformation reads as a deliberate moment
+        // rather than the player fighting controls through a half-rendered state.
+        if (formController != null && formController.IsTransforming)
+        {
+            SetState(PlayerState.Moving, false);
+            return;
+        }
+        
         // Block movement during hit reaction
         if (playerCombat != null && playerCombat.IsInHitReaction())
         {
@@ -352,7 +369,9 @@ public class PlayerMovement : MonoBehaviour
         // Only calculate when needed
         if (HasState(PlayerState.Grounded) && !HasState(PlayerState.Jumping))
         {
-            float speed = HasState(PlayerState.Running) ? runSpeed : walkSpeed;
+            float speed = HasState(PlayerState.Running) 
+                ? runSpeed * runSpeedMultiplier 
+                : walkSpeed * walkSpeedMultiplier;
             Vector3 movement = moveDirection * speed * Time.fixedDeltaTime;
             controller.Move(movement);
             
@@ -542,6 +561,18 @@ public class PlayerMovement : MonoBehaviour
     
     /// <summary>Returns remaining time in the jump window. Used by PlayerCombat for air dodge/dash timing.</summary>
     public float GetJumpWindowTimer() => jumpWindowTimer;
+    
+    /// <summary>
+    /// Set walk and run speed multipliers. Called by FormController on cat ↔ Granny transform
+    /// to apply the GDD Doc 04 §4b -30% Granny speed reduction (or whatever values are tuned
+    /// on FormController's grannyWalkSpeedMultiplier / grannyRunSpeedMultiplier sliders).
+    /// Cat form passes (1, 1) which is a no-op on the ground movement calculation.
+    /// </summary>
+    public void SetSpeedMultiplier(float walkMul, float runMul)
+    {
+        walkSpeedMultiplier = walkMul;
+        runSpeedMultiplier = runMul;
+    }
     #endregion
     
     #region Debug
