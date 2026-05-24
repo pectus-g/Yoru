@@ -640,17 +640,6 @@ public class FormController : MonoBehaviour
         
         grannyAnimator.SetFloat(speedHash, currentSmoothedSpeed);
         grannyAnimator.SetBool(isGroundedHash, isGrounded);
-        
-        // Diagnostic log — fires once per second while Granny is moving so you can verify
-        // in console that the override values are being applied. If Inspector value is 0.2
-        // but log shows "actual speed = 7" or similar, something else is overriding movement.
-        if (logTransforms && hasMoveInput && Time.frameCount % 60 == 0)
-        {
-            float expectedSpeed = isRunning ? grannyRunSpeed : grannyWalkSpeed;
-            Vector3 vel = controller != null ? controller.velocity : Vector3.zero;
-            vel.y = 0f;
-            Debug.Log($"[FormController DIAG] Granny moving | Inspector: walk={grannyWalkSpeed} run={grannyRunSpeed} | Mode: {(isRunning ? "RUN" : "WALK")} | Expected: {expectedSpeed:F2} m/s | Actual: {vel.magnitude:F2} m/s");
-        }
     }
     
     #endregion

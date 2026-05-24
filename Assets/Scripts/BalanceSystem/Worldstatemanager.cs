@@ -4,42 +4,59 @@ using UnityEngine.Events;
 /// <summary>
 /// YORU: World State Manager V3 - COMPLETE RING COMBINATION SYSTEM
 /// 
-/// This is the CORE component that ALL controllers depend on.
-/// It calculates the correct state for EVERY possible ring combination.
+/// Source of truth for all atmospheric state resolution. All other controllers
+/// (PostProcess, Fog, Lighting, Ambience, RingMesh, Cozy, Music, LightPathFX)
+/// subscribe to events fired here.
 /// 
 /// RING SYSTEM:
-/// - Left Rings: 0-10 (dark/chaos choices)
-/// - Right Rings: 0-10 (light/order choices)  
-/// - Total Maximum: Left + Right ≤ 10
+/// - Left Rings: 0-10 (dark / chaos / combat path)
+/// - Right Rings: 0-10 (light / order / persuasion path)
+/// - Total Maximum: Left + Right less than or equal to 10
 /// 
-/// STATE CALCULATION:
-/// - Balance = Right - Left (ranges -10 to +10)
-/// - ClampedBalance = clamp(Balance, -5, +5) → determines AtmosphereState
-/// - WeatherStage = (|Balance| >= 5 AND Total > 5) ? (Total - 5) : 0
+/// STATE RESOLUTION - GDD 03_BALANCE_SYSTEM v2.0, Section 4 priority cascade.
+/// First match wins; all lower priorities are ignored.
+/// 
+///   1. Eclipse     min(L,R) >= 2  AND  abs(L-R) less than or equal to 1   (7-stage, see GDD Section 5)
+///   2. Sunset      (1L/0R)  OR  (diff=2, dark wins, both have rings, max less than or equal to 4)
+///   3. Sunrise     (0L/1R)  OR  (diff=2, light wins, both have rings, max less than or equal to 4)
+///   4. Escalation  abs(L-R) >= 6      stage = abs(L-R) - 5
+///   5. Path        1 less than or equal to abs(L-R) less than or equal to 5     stage = abs(L-R)
+///   6. Neutral     default (0L/0R, 1L/1R)
+/// 
+/// CORE PRINCIPLE: state is determined by abs(L - R) alone, with Eclipse and
+/// Sunset/Sunrise as priority overrides at specific combos. Right rings cancel
+/// left rings symmetrically: 6L/4R has diff=2, same state as 5L/3R (both Dark2).
 /// 
 /// EXAMPLE CALCULATIONS:
-/// | Left | Right | Balance | Total | ClampedBal | WeatherStage | Result State |
-/// |------|-------|---------|-------|------------|--------------|--------------|
-/// | 1    | 9     | +8      | 10    | +5         | 5            | Light5+Stage5 |
-/// | 9    | 1     | -8      | 10    | -5         | 5            | Dark5+Stage5 |
-/// | 3    | 7     | +4      | 10    | +4         | 0            | Light4 (no escalation!) |
-/// | 0    | 8     | +8      | 8     | +5         | 3            | Light5+Stage3 |
-/// | 5    | 5     | 0       | 10    | 0          | 0 (special)  | Eclipse |
-/// | 0    | 5     | +5      | 5     | +5         | 0            | Light5 (no escalation, total=5) |
-/// | 0    | 6     | +6      | 6     | +5         | 1            | Light5+Stage1 |
+/// | Left | Right | Diff | State                                       |
+/// |------|-------|------|---------------------------------------------|
+/// | 0    | 0     | 0    | Neutral                                     |
+/// | 1    | 1     | 0    | Neutral                                     |
+/// | 1    | 0     | 1    | Sunset       (priority override)            |
+/// | 0    | 1     | 1    | Sunrise      (priority override)            |
+/// | 2    | 2     | 0    | Eclipse 15%  (priority override)            |
+/// | 3    | 3     | 0    | Eclipse 40%                                 |
+/// | 5    | 5     | 0    | Eclipse 100% (Secret Realm portal)          |
+/// | 6    | 1     | 5    | Dark5         (right rings cancel)          |
+/// | 7    | 2     | 5    | Dark5         (same as 6L/1R)               |
+/// | 6    | 4     | 2    | Dark2         (right rings cancel)          |
+/// | 6    | 0     | 6    | Dark5 + Stage 1 = DarkStage1                |
+/// | 7    | 1     | 6    | DarkStage1    (same as 6L/0R)               |
+/// | 10   | 0     | 10   | Dark5 + Stage 5 = DarkStage5                |
 /// 
-/// WHY 7R-3L HAS NO ESCALATION:
-/// Balance = +4, which is NOT >= 5, so no escalation even though Total = 10.
-/// Escalation ONLY happens when you're STRONGLY committed to one path (|Balance| >= 5).
+/// ESCALATION RULE: diff >= 6 means at least 6 more of one ring than the other.
+/// weatherStage = diff - 5 (diff=6 -> stage 1, diff=10 -> stage 5). Worker
+/// controllers compose currentState (Dark5/Light5) with weatherStage to render
+/// DarkStage1-5 / LightStage1-5 visuals.
 /// 
 /// DEBUG HOTKEYS:
-/// - Shift + 1-0: Set left rings (1-10)
-/// - Alt + 1-0: Set right rings (1-10) — Alt = Option key on Mac
-/// - Shift + F1: Eclipse (5L + 5R)
+/// - Shift + 1-0:       Set left rings (1-10)
+/// - Alt + 1-0:         Set right rings (1-10) (Alt = Option on Mac)
+/// - Shift + F1:        Eclipse 100% (5L + 5R)
 /// - Shift + Backspace: Reset to 0 rings
-/// - Shift + F2-F5: Preset test combinations
+/// - Shift + F2-F5:     Preset test combinations
 /// 
-/// NOTE: Q-P keys are reserved for player combat (Q=parry, R=tail, T=transform, etc).
+/// NOTE: Q-P keys are reserved for player combat (Q=parry, R=tail, T=transform).
 /// Ring debug uses Alt+number to avoid collision with the live control scheme.
 /// </summary>
 public class WorldStateManager : MonoBehaviour
@@ -69,18 +86,20 @@ public class WorldStateManager : MonoBehaviour
     /// </summary>
     public enum AtmosphereState
     {
-        Eclipse,  // Special: 5L + 5R (balance 0, total 10)
-        Dark5,    // Balance -5 or beyond
-        Dark4,    // Balance -4
-        Dark3,    // Balance -3
-        Dark2,    // Balance -2
-        Dark1,    // Balance -1
-        Neutral,  // Balance 0
-        Light1,   // Balance +1
-        Light2,   // Balance +2
-        Light3,   // Balance +3
-        Light4,   // Balance +4
-        Light5    // Balance +5 or beyond
+        Eclipse,  // min(L,R) >= 2 AND |L-R| <= 1 (7-stage gradient, see GDD Section 5)
+        Sunset,   // (1L/0R) OR (diff=2, dark wins, both have rings, max <= 4)
+        Sunrise,  // (0L/1R) OR (diff=2, light wins, both have rings, max <= 4)
+        Dark5,    // diff = 5 (path); escalation handled via WeatherStage
+        Dark4,    // diff = 4
+        Dark3,    // diff = 3
+        Dark2,    // diff = 2
+        Dark1,    // diff = 1
+        Neutral,  // 0L/0R, 1L/1R
+        Light1,   // diff = 1
+        Light2,   // diff = 2
+        Light3,   // diff = 3
+        Light4,   // diff = 4
+        Light5    // diff = 5 (path); escalation handled via WeatherStage
     }
     
     #endregion
@@ -266,62 +285,76 @@ public class WorldStateManager : MonoBehaviour
         // Calculate basic values
         balance = rightRings - leftRings;
         totalRings = leftRings + rightRings;
-        
-        // Check for Eclipse and Eclipse Process
-        // FULL Eclipse: exactly 5L + 5R
-        // PARTIAL Eclipse: When rings are close (diff ≤ 1) AND total is high enough
         int diff = Mathf.Abs(leftRings - rightRings);
+        int minOneSide = Mathf.Min(leftRings, rightRings);
+        int maxOneSide = Mathf.Max(leftRings, rightRings);
+        bool darkWinning = leftRings > rightRings;
+        bool lightWinning = rightRings > leftRings;
+        bool bothHaveRings = leftRings > 0 && rightRings > 0;
         
-        // Full eclipse at 5L+5R
-        isEclipse = (leftRings == 5 && rightRings == 5);
-        
-        // Calculate eclipse AMOUNT for gradual visibility
-        // Show eclipse process when: total >= 5 AND diff <= 1
-        if (totalRings >= 5 && diff <= 1)
+        // === PRIORITY 1: ECLIPSE (GDD §4) ===
+        // Trigger: min(L,R) >= 2 AND diff <= 1
+        if (minOneSide >= 2 && diff <= 1)
         {
-            // Higher total = more intense eclipse
-            // diff=0 = full eclipse (1.0), diff=1 = partial eclipse (0.7)
-            float baseAmount = diff == 0 ? 1.0f : 0.7f;
+            currentState = AtmosphereState.Eclipse;
+            isEclipse = (leftRings == 5 && rightRings == 5);
+            weatherStage = 0;
+            clampedBalance = 0;
             
-            // Scale by total rings (5 rings = 50%, 10 rings = 100%)
-            float totalScale = Mathf.Clamp01((totalRings - 4f) / 6f);  // 5→0.17, 10→1.0
-            
-            eclipseAmount = baseAmount * Mathf.Max(0.5f, totalScale);
-            
-            if (logStateChanges && eclipseAmount > 0)
-            {
-                Debug.Log($"[WorldStateManager] Eclipse Process: {eclipseAmount:F2} (diff={diff}, total={totalRings})");
-            }
+            // Eclipse amount per 7-stage gradient (GDD §5)
+            if (leftRings == 5 && rightRings == 5)         eclipseAmount = 1.00f;
+            else if (minOneSide == 4 && maxOneSide == 5)   eclipseAmount = 0.85f;
+            else if (leftRings == 4 && rightRings == 4)    eclipseAmount = 0.70f;
+            else if (minOneSide == 3 && maxOneSide == 4)   eclipseAmount = 0.55f;
+            else if (leftRings == 3 && rightRings == 3)    eclipseAmount = 0.40f;
+            else if (minOneSide == 2 && maxOneSide == 3)   eclipseAmount = 0.25f;
+            else if (leftRings == 2 && rightRings == 2)    eclipseAmount = 0.15f;
+            else                                            eclipseAmount = 0f;
         }
-        else
+        // === PRIORITY 2: SUNSET (GDD §4) ===
+        // Trigger: (1L/0R) OR (diff=2, darkWinning, both have rings, max<=4)
+        else if ((leftRings == 1 && rightRings == 0) ||
+                 (diff == 2 && darkWinning && bothHaveRings && maxOneSide <= 4))
         {
+            currentState = AtmosphereState.Sunset;
+            weatherStage = 0;
+            isEclipse = false;
             eclipseAmount = 0f;
+            clampedBalance = balance;
         }
-        
-        // Clamp balance for atmosphere (-5 to +5)
-        clampedBalance = Mathf.Clamp(balance, -5, 5);
-        
-        // Calculate weather stage (escalation beyond ±5)
-        // CRITICAL: Only escalate when STRONGLY committed to one path
-        // |Balance| >= 5 means you need at least 5 more of one type than the other
-        if (Mathf.Abs(balance) >= 5 && totalRings > 5)
+        // === PRIORITY 3: SUNRISE (GDD §4) ===
+        // Trigger: (0L/1R) OR (diff=2, lightWinning, both have rings, max<=4)
+        else if ((leftRings == 0 && rightRings == 1) ||
+                 (diff == 2 && lightWinning && bothHaveRings && maxOneSide <= 4))
         {
-            weatherStage = totalRings - 5;  // 1 to 5
-            weatherStage = Mathf.Clamp(weatherStage, 0, 5);
+            currentState = AtmosphereState.Sunrise;
+            weatherStage = 0;
+            isEclipse = false;
+            eclipseAmount = 0f;
+            clampedBalance = balance;
         }
+        // === PRIORITY 4: ESCALATION (GDD §4) ===
+        // Trigger: diff >= 6, stage = diff - 5
+        // State is driven by |L - R| alone. Right rings cancel left symmetrically.
+        else if (diff >= 6)
+        {
+            weatherStage = Mathf.Clamp(diff - 5, 1, 5);
+            currentState = darkWinning 
+                ? AtmosphereState.Dark5 
+                : AtmosphereState.Light5;
+            isEclipse = false;
+            eclipseAmount = 0f;
+            clampedBalance = darkWinning ? -5 : 5;
+        }
+        // === PRIORITY 5-6: PATH or NEUTRAL ===
+        // Diff 1-5 → Dark/Light by diff value. Diff 0 → Neutral.
         else
         {
             weatherStage = 0;
-        }
-        
-        // Determine atmosphere state
-        if (isEclipse)
-        {
-            currentState = AtmosphereState.Eclipse;
-        }
-        else
-        {
+            clampedBalance = Mathf.Clamp(balance, -5, 5);
             currentState = GetAtmosphereFromBalance(clampedBalance);
+            isEclipse = false;
+            eclipseAmount = 0f;
         }
         
         // Log changes
@@ -448,32 +481,62 @@ public class WorldStateManager : MonoBehaviour
     [ContextMenu("Log All Ring Combinations")]
     void LogAllCombinations()
     {
-        Debug.Log("=== ALL RING COMBINATIONS WITH ESCALATION ===");
-        Debug.Log("Left | Right | Balance | Total | Clamped | Stage | State");
-        Debug.Log("-----|-------|---------|-------|---------|-------|------");
+        Debug.Log("=== ALL RING COMBINATIONS (per GDD §4 priority cascade) ===");
+        Debug.Log("Left | Right | Diff | Stage | EclipseAmt | State");
+        Debug.Log("-----|-------|------|-------|------------|------");
         
         for (int left = 0; left <= 10; left++)
         {
             for (int right = 0; right <= 10 - left; right++)
             {
-                int bal = right - left;
-                int total = left + right;
-                int clamped = Mathf.Clamp(bal, -5, 5);
+                // Mirror of cascade in RecalculateState — keep in sync with GDD §4
+                int diff = Mathf.Abs(left - right);
+                int minSide = Mathf.Min(left, right);
+                int maxSide = Mathf.Max(left, right);
+                bool darkWins = left > right;
+                bool lightWins = right > left;
+                bool both = left > 0 && right > 0;
                 
+                AtmosphereState state;
                 int stage = 0;
-                if (Mathf.Abs(bal) >= 5 && total > 5)
+                float eclipseAmt = 0f;
+                
+                if (minSide >= 2 && diff <= 1)
                 {
-                    stage = total - 5;
+                    state = AtmosphereState.Eclipse;
+                    if (left == 5 && right == 5)              eclipseAmt = 1.00f;
+                    else if (minSide == 4 && maxSide == 5)    eclipseAmt = 0.85f;
+                    else if (left == 4 && right == 4)         eclipseAmt = 0.70f;
+                    else if (minSide == 3 && maxSide == 4)    eclipseAmt = 0.55f;
+                    else if (left == 3 && right == 3)         eclipseAmt = 0.40f;
+                    else if (minSide == 2 && maxSide == 3)    eclipseAmt = 0.25f;
+                    else if (left == 2 && right == 2)         eclipseAmt = 0.15f;
+                }
+                else if ((left == 1 && right == 0) ||
+                         (diff == 2 && darkWins && both && maxSide <= 4))
+                {
+                    state = AtmosphereState.Sunset;
+                }
+                else if ((left == 0 && right == 1) ||
+                         (diff == 2 && lightWins && both && maxSide <= 4))
+                {
+                    state = AtmosphereState.Sunrise;
+                }
+                else if (diff >= 6)
+                {
+                    stage = Mathf.Clamp(diff - 5, 1, 5);
+                    state = darkWins ? AtmosphereState.Dark5 : AtmosphereState.Light5;
+                }
+                else
+                {
+                    state = GetAtmosphereFromBalance(Mathf.Clamp(right - left, -5, 5));
                 }
                 
-                bool eclipse = (left == 5 && right == 5);
-                string state = eclipse ? "Eclipse" : GetAtmosphereFromBalance(clamped).ToString();
-                if (stage > 0) state += $"+S{stage}";
+                string stateName = state.ToString();
+                if (stage > 0) stateName += $"+S{stage}";
+                if (state == AtmosphereState.Eclipse) stateName += $" ({eclipseAmt:P0})";
                 
-                if (stage > 0 || eclipse)
-                {
-                    Debug.Log($"{left,4} | {right,5} | {bal,7} | {total,5} | {clamped,7} | {stage,5} | {state}");
-                }
+                Debug.Log($"{left,4} | {right,5} | {diff,4} | {stage,5} | {eclipseAmt,10:F2} | {stateName}");
             }
         }
     }
