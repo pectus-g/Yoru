@@ -1,21 +1,33 @@
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
+using UnityEngine.Serialization;
 using System;
 
 /// <summary>
-/// YORU: Post-Process Controller V4 - COMPLETE 27-PRESET SYSTEM
+/// YORU: Post-Process Controller V5 - DIFF-BASED CASCADE (matches WorldStateManager)
 /// 
-/// Covers ALL 66 possible ring combinations with 27 presets.
+/// Covers ALL 66 possible ring combinations with 28 presets.
+/// State resolution is determined by abs(L - R) (the diff), with Eclipse and
+/// Sunset/Sunrise as priority overrides at specific combos. Right rings cancel
+/// left symmetrically.
+/// 
+/// CASCADE (first match wins):
+///   1. Eclipse     min(L,R) >= 2 AND diff <= 1                (7-stage: 15/25/40/55/70/85/100)
+///   2. Sunset      (1L/0R) OR (diff=2, dark wins, both have rings, max <= 4)
+///   3. Sunrise     (0L/1R) OR (diff=2, light wins, both have rings, max <= 4)
+///   4. Escalation  diff >= 6  -> DarkStage(diff-5) or LightStage(diff-5)
+///   5. Path        diff 1-5   -> Dark(diff) or Light(diff)
+///   6. Neutral     L == R (and not eclipse)
 /// 
 /// CATEGORIES:
-/// - Neutral (1): 0L/0R, 1L/1R, 2L/2R
-/// - Sunset (1): 1L/0R, 3L/1R, 4L/2R, 5L/3R, 6L/4R
-/// - Sunrise (1): 1L/3R, 2L/4R, 3L/5R, 4L/6R
-/// - Dark Path (4): Dark1-2, Dark3-5
-/// - Dark Escalation (5): DarkStage1-5
-/// - Light Path (4): Light1-2, Light3-5
-/// - Light Escalation (5): LightStage1-5
-/// - Eclipse Gradual (6): Eclipse_20, 40, 50, 60, 75, Full
+/// - Neutral (1):           0L/0R, 1L/1R
+/// - Sunset (1):            1L/0R, 3L/1R, 4L/2R
+/// - Sunrise (1):           0L/1R, 1L/3R, 2L/4R
+/// - Dark Path (5):         Dark1-5 (diff 1-5, dark winning)
+/// - Dark Escalation (5):   DarkStage1-5 (diff 6-10, dark winning)
+/// - Light Path (5):        Light1-5 (diff 1-5, light winning)
+/// - Light Escalation (5):  LightStage1-5 (diff 6-10, light winning)
+/// - Eclipse Gradual (7):   Eclipse 15, 25, 40, 55, 70, 85, Full
 /// 
 /// Requires: Post Processing Stack v2 (Built-in Pipeline)
 /// </summary>
@@ -95,12 +107,13 @@ public class PostProcessController : MonoBehaviour
     
     // ==========================================
     // NEUTRAL (1 preset)
-    // Combos: 0L/0R, 1L/1R, 2L/2R
+    // Combos: 0L/0R, 1L/1R
+    // Note: 2L/2R is now Eclipse Stage 1 (15%), not Neutral.
     // ==========================================
     [Header("=== NEUTRAL ===")]
     [SerializeField] private PostProcessPreset neutralPreset = new PostProcessPreset
     {
-        stateName = "Neutral (0L/0R, 1L/1R, 2L/2R)",
+        stateName = "Neutral (0L/0R, 1L/1R)",
         temperature = 0, tint = 0, saturation = 0, contrast = 0,
         bloomIntensity = 0.3f, bloomThreshold = 1f,
         vignetteIntensity = 0.25f, vignetteColor = Color.black
@@ -108,13 +121,13 @@ public class PostProcessController : MonoBehaviour
     
     // ==========================================
     // SUNSET (1 preset)
-    // Combos: 1L/0R, 3L/1R, 4L/2R, 5L/3R, 6L/4R
+    // Combos: 1L/0R, 3L/1R, 4L/2R (max <= 4 cap)
     // Warm oranges, golden hour feel
     // ==========================================
     [Header("=== SUNSET ===")]
     [SerializeField] private PostProcessPreset sunsetPreset = new PostProcessPreset
     {
-        stateName = "Sunset (1L/0R, 3L/1R, 4L/2R, 5L/3R, 6L/4R)",
+        stateName = "Sunset (1L/0R, 3L/1R, 4L/2R)",
         temperature = 35, tint = 15, saturation = 10, contrast = 8,
         bloomIntensity = 0.5f, bloomThreshold = 0.8f, bloomColor = new Color(1f, 0.85f, 0.6f),
         vignetteIntensity = 0.3f, vignetteColor = new Color(0.3f, 0.1f, 0.05f)
@@ -122,31 +135,49 @@ public class PostProcessController : MonoBehaviour
     
     // ==========================================
     // SUNRISE (1 preset)
-    // Combos: 1L/3R, 2L/4R, 3L/5R, 4L/6R
+    // Combos: 0L/1R, 1L/3R, 2L/4R (max <= 4 cap)
     // Soft pinks and golds, hopeful
     // ==========================================
     [Header("=== SUNRISE ===")]
     [SerializeField] private PostProcessPreset sunrisePreset = new PostProcessPreset
     {
-        stateName = "Sunrise (1L/3R, 2L/4R, 3L/5R, 4L/6R)",
+        stateName = "Sunrise (0L/1R, 1L/3R, 2L/4R)",
         temperature = 25, tint = -8, saturation = 12, contrast = 5,
         bloomIntensity = 0.45f, bloomThreshold = 0.85f, bloomColor = new Color(1f, 0.9f, 0.8f),
         vignetteIntensity = 0.22f, vignetteColor = new Color(0.2f, 0.1f, 0.15f)
     };
     
     // ==========================================
-    // ECLIPSE - GRADUAL (6 presets)
-    // Building mystical/supernatural atmosphere
+    // ECLIPSE - 7-STAGE GRADUAL (7 presets)
+    // Stage 1 (15%): 2L/2R                                  - subtle purple wash
+    // Stage 2 (25%): 2L/3R, 3L/2R                           - mystical hint
+    // Stage 3 (40%): 3L/3R                                  - clear eclipse
+    // Stage 4 (55%): 3L/4R, 4L/3R                           - strong eclipse
+    // Stage 5 (70%): 4L/4R                                  - deepening
+    // Stage 6 (85%): 4L/5R, 5L/4R                           - near total
+    // Stage 7 (100%): 5L/5R                                 - full eclipse
     // ==========================================
-    [Header("=== ECLIPSE - GRADUAL ===")]
-    [SerializeField] private PostProcessPreset eclipse20Preset = new PostProcessPreset
+    [Header("=== ECLIPSE - 7-STAGE GRADUAL ===")]
+    [Tooltip("Stage 1 (15%) - 2L/2R - subtle mystical wash")]
+    [SerializeField] private PostProcessPreset eclipse15Preset = new PostProcessPreset
     {
-        stateName = "Eclipse 20% (2L/3R, 3L/2R)",
+        stateName = "Eclipse 15% (2L/2R)",
+        temperature = 8, tint = -3, saturation = 0, contrast = 3,
+        bloomIntensity = 0.32f, bloomThreshold = 0.95f, bloomColor = new Color(0.92f, 0.88f, 1f),
+        vignetteIntensity = 0.26f, vignetteColor = new Color(0.08f, 0.06f, 0.12f)
+    };
+    
+    [FormerlySerializedAs("eclipse20Preset")]
+    [Tooltip("Stage 2 (25%) - 2L/3R or 3L/2R")]
+    [SerializeField] private PostProcessPreset eclipse25Preset = new PostProcessPreset
+    {
+        stateName = "Eclipse 25% (2L/3R, 3L/2R)",
         temperature = 5, tint = -5, saturation = -2, contrast = 5,
         bloomIntensity = 0.35f, bloomThreshold = 0.9f, bloomColor = new Color(0.9f, 0.85f, 1f),
         vignetteIntensity = 0.28f, vignetteColor = new Color(0.1f, 0.05f, 0.12f)
     };
     
+    [Tooltip("Stage 3 (40%) - 3L/3R")]
     [SerializeField] private PostProcessPreset eclipse40Preset = new PostProcessPreset
     {
         stateName = "Eclipse 40% (3L/3R)",
@@ -156,33 +187,40 @@ public class PostProcessController : MonoBehaviour
         chromaticEnabled = true, chromaticIntensity = 0.03f
     };
     
-    [SerializeField] private PostProcessPreset eclipse50Preset = new PostProcessPreset
+    [FormerlySerializedAs("eclipse50Preset")]
+    [Tooltip("Stage 4 (55%) - 3L/4R or 4L/3R")]
+    [SerializeField] private PostProcessPreset eclipse55Preset = new PostProcessPreset
     {
-        stateName = "Eclipse 50% (3L/4R, 4L/3R)",
+        stateName = "Eclipse 55% (3L/4R, 4L/3R)",
         temperature = 0, tint = -10, saturation = -8, contrast = 12,
         bloomIntensity = 0.45f, bloomThreshold = 0.75f, bloomColor = new Color(0.8f, 0.65f, 1f),
         vignetteIntensity = 0.36f, vignetteColor = new Color(0.12f, 0.04f, 0.16f),
         chromaticEnabled = true, chromaticIntensity = 0.05f
     };
     
-    [SerializeField] private PostProcessPreset eclipse60Preset = new PostProcessPreset
+    [FormerlySerializedAs("eclipse60Preset")]
+    [Tooltip("Stage 5 (70%) - 4L/4R")]
+    [SerializeField] private PostProcessPreset eclipse70Preset = new PostProcessPreset
     {
-        stateName = "Eclipse 60% (4L/4R)",
+        stateName = "Eclipse 70% (4L/4R)",
         temperature = -2, tint = -12, saturation = -10, contrast = 15,
         bloomIntensity = 0.5f, bloomThreshold = 0.7f, bloomColor = new Color(0.75f, 0.55f, 1f),
         vignetteIntensity = 0.4f, vignetteColor = new Color(0.12f, 0.04f, 0.18f),
         chromaticEnabled = true, chromaticIntensity = 0.06f
     };
     
-    [SerializeField] private PostProcessPreset eclipse75Preset = new PostProcessPreset
+    [FormerlySerializedAs("eclipse75Preset")]
+    [Tooltip("Stage 6 (85%) - 4L/5R or 5L/4R")]
+    [SerializeField] private PostProcessPreset eclipse85Preset = new PostProcessPreset
     {
-        stateName = "Eclipse 75% (4L/5R, 5L/4R)",
+        stateName = "Eclipse 85% (4L/5R, 5L/4R)",
         temperature = 2, tint = -14, saturation = -10, contrast = 18,
         bloomIntensity = 0.55f, bloomThreshold = 0.65f, bloomColor = new Color(0.78f, 0.58f, 1f),
         vignetteIntensity = 0.42f, vignetteColor = new Color(0.12f, 0.04f, 0.18f),
         chromaticEnabled = true, chromaticIntensity = 0.07f
     };
     
+    [Tooltip("Stage 7 (100%) - 5L/5R - full eclipse, Secret Realm portal")]
     [SerializeField] private PostProcessPreset eclipseFullPreset = new PostProcessPreset
     {
         stateName = "Eclipse FULL 100% (5L/5R)",
@@ -523,6 +561,16 @@ public class PostProcessController : MonoBehaviour
     
     #region State Resolution - THE BRAIN
     
+    /// <summary>
+    /// Resolve a preset from raw ring counts.
+    /// Cascade matches WorldStateManager exactly (first match wins):
+    /// 1. Eclipse (min>=2 AND diff<=1) -> stage 1-7
+    /// 2. Sunset  ((1L/0R) OR (diff=2, dark wins, both, max<=4))
+    /// 3. Sunrise ((0L/1R) OR (diff=2, light wins, both, max<=4))
+    /// 4. Escalation (diff>=6) -> DarkStage/LightStage by (diff-5)
+    /// 5. Path (diff 1-5) -> Dark/Light by diff
+    /// 6. Neutral (L==R, not eclipse)
+    /// </summary>
     PostProcessPreset GetPresetForRings(int L, int R)
     {
         int diff = Mathf.Abs(L - R);
@@ -533,128 +581,103 @@ public class PostProcessController : MonoBehaviour
         bool bothHaveRings = L > 0 && R > 0;
         
         // ========================================
-        // 1. ECLIPSE STATES (diff ≤ 1, both ≥ 2/3)
+        // PRIORITY 1: ECLIPSE (7 stages, see GDD §5)
+        // Trigger: min(L,R) >= 2 AND diff <= 1
         // ========================================
-        if (diff <= 1 && minRings >= 2 && maxRings >= 3)
+        if (minRings >= 2 && diff <= 1)
         {
-            // 5L/5R = Full
-            if (minRings == 5 && maxRings == 5)
-                return eclipseFullPreset;
-            
-            // 5L/4R or 4L/5R = 75%
-            if (minRings == 4 && maxRings == 5)
-                return eclipse75Preset;
-            
-            // 4L/4R = 60%
-            if (minRings == 4 && maxRings == 4)
-                return eclipse60Preset;
-            
-            // 4L/3R or 3L/4R = 50%
-            if (minRings == 3 && maxRings == 4)
-                return eclipse50Preset;
-            
-            // 3L/3R = 40%
-            if (minRings == 3 && maxRings == 3)
-                return eclipse40Preset;
-            
-            // 3L/2R or 2L/3R = 20%
-            if (minRings == 2 && maxRings == 3)
-                return eclipse20Preset;
+            if (L == 5 && R == 5)                       return eclipseFullPreset; // Stage 7 (100%)
+            if (minRings == 4 && maxRings == 5)         return eclipse85Preset;   // Stage 6 (85%)
+            if (L == 4 && R == 4)                       return eclipse70Preset;   // Stage 5 (70%)
+            if (minRings == 3 && maxRings == 4)         return eclipse55Preset;   // Stage 4 (55%)
+            if (L == 3 && R == 3)                       return eclipse40Preset;   // Stage 3 (40%)
+            if (minRings == 2 && maxRings == 3)         return eclipse25Preset;   // Stage 2 (25%)
+            if (L == 2 && R == 2)                       return eclipse15Preset;   // Stage 1 (15%)
         }
         
         // ========================================
-        // 2. SUNSET (1L/0R OR diff=2 + dark winning + both have rings)
+        // PRIORITY 2: SUNSET
+        // Trigger: (1L/0R) OR (diff=2, darkWinning, bothHaveRings, max<=4)
         // ========================================
-        if (L == 1 && R == 0)
+        if ((L == 1 && R == 0) ||
+            (diff == 2 && darkWinning && bothHaveRings && maxRings <= 4))
+        {
             return sunsetPreset;
-        
-        if (diff == 2 && darkWinning && bothHaveRings)
-            return sunsetPreset;
+        }
         
         // ========================================
-        // 3. SUNRISE (diff=2 + light winning + both have rings)
+        // PRIORITY 3: SUNRISE
+        // Trigger: (0L/1R) OR (diff=2, lightWinning, bothHaveRings, max<=4)
         // ========================================
-        if (diff == 2 && lightWinning && bothHaveRings)
+        if ((L == 0 && R == 1) ||
+            (diff == 2 && lightWinning && bothHaveRings && maxRings <= 4))
+        {
             return sunrisePreset;
+        }
         
         // ========================================
-        // 4. DARK ESCALATION (L ≥ 6, committed to dark)
+        // PRIORITY 4: ESCALATION (diff >= 6)
+        // Stage = diff - 5, clamped 1-5
         // ========================================
-        if (L >= 6 && darkWinning)
+        if (diff >= 6)
         {
-            int stage = L - 5; // 6L=stage1, 7L=stage2, etc.
-            switch (stage)
+            int stage = Mathf.Clamp(diff - 5, 1, 5);
+            if (darkWinning)
             {
-                case 1: return darkStage1Preset;
-                case 2: return darkStage2Preset;
-                case 3: return darkStage3Preset;
-                case 4: return darkStage4Preset;
-                default: return darkStage5Preset;
+                switch (stage)
+                {
+                    case 1: return darkStage1Preset;
+                    case 2: return darkStage2Preset;
+                    case 3: return darkStage3Preset;
+                    case 4: return darkStage4Preset;
+                    default: return darkStage5Preset;
+                }
+            }
+            else // lightWinning (diff >= 6 guarantees L != R)
+            {
+                switch (stage)
+                {
+                    case 1: return lightStage1Preset;
+                    case 2: return lightStage2Preset;
+                    case 3: return lightStage3Preset;
+                    case 4: return lightStage4Preset;
+                    default: return lightStage5Preset;
+                }
             }
         }
         
         // ========================================
-        // 5. LIGHT ESCALATION (R ≥ 6, committed to light)
+        // PRIORITY 5: PATH (diff 1-5)
+        // State driven by diff alone. Right rings cancel left symmetrically.
         // ========================================
-        if (R >= 6 && lightWinning)
+        if (diff >= 1)
         {
-            int stage = R - 5; // 6R=stage1, 7R=stage2, etc.
-            switch (stage)
+            if (darkWinning)
             {
-                case 1: return lightStage1Preset;
-                case 2: return lightStage2Preset;
-                case 3: return lightStage3Preset;
-                case 4: return lightStage4Preset;
-                default: return lightStage5Preset;
+                switch (diff)
+                {
+                    case 1: return dark1Preset;
+                    case 2: return dark2Preset;
+                    case 3: return dark3Preset;
+                    case 4: return dark4Preset;
+                    default: return dark5Preset; // diff == 5
+                }
+            }
+            else // lightWinning
+            {
+                switch (diff)
+                {
+                    case 1: return light1Preset;
+                    case 2: return light2Preset;
+                    case 3: return light3Preset;
+                    case 4: return light4Preset;
+                    default: return light5Preset; // diff == 5
+                }
             }
         }
         
         // ========================================
-        // 6. DARK PATH (diff > 2, dark winning) - NIGHT
-        // ========================================
-        if (darkWinning && diff > 2)
-        {
-            // Map to Dark3-5 based on how dark
-            if (L >= 5) return dark5Preset;
-            if (L >= 4) return dark4Preset;
-            return dark3Preset;
-        }
-        
-        // ========================================
-        // 7. LIGHT PATH (diff > 2, light winning) - BRIGHT DAY
-        // ========================================
-        if (lightWinning && diff > 2)
-        {
-            // Map to Light3-5 based on how bright
-            if (R >= 5) return light5Preset;
-            if (R >= 4) return light4Preset;
-            return light3Preset;
-        }
-        
-        // ========================================
-        // 8. MILD DARK (diff 1-2, dark winning, no eclipse)
-        // ========================================
-        if (darkWinning)
-        {
-            if (L >= 4) return dark4Preset;
-            if (L >= 3) return dark3Preset;
-            if (L >= 2) return dark2Preset;
-            return dark1Preset;
-        }
-        
-        // ========================================
-        // 9. MILD LIGHT (diff 1-2, light winning, no eclipse)
-        // ========================================
-        if (lightWinning)
-        {
-            if (R >= 4) return light4Preset;
-            if (R >= 3) return light3Preset;
-            if (R >= 2) return light2Preset;
-            return light1Preset;
-        }
-        
-        // ========================================
-        // 10. NEUTRAL (L == R, no eclipse triggered)
+        // PRIORITY 6: NEUTRAL (L == R, eclipse already handled above)
         // ========================================
         return neutralPreset;
     }
@@ -716,20 +739,23 @@ public class PostProcessController : MonoBehaviour
     [ContextMenu("Test: Sunrise")]
     void TestSunrise() { PreviewPreset(sunrisePreset); }
     
-    [ContextMenu("Test: Eclipse 20%")]
-    void TestEclipse20() { PreviewPreset(eclipse20Preset); }
+    [ContextMenu("Test: Eclipse 15%")]
+    void TestEclipse15() { PreviewPreset(eclipse15Preset); }
+    
+    [ContextMenu("Test: Eclipse 25%")]
+    void TestEclipse25() { PreviewPreset(eclipse25Preset); }
     
     [ContextMenu("Test: Eclipse 40%")]
     void TestEclipse40() { PreviewPreset(eclipse40Preset); }
     
-    [ContextMenu("Test: Eclipse 50%")]
-    void TestEclipse50() { PreviewPreset(eclipse50Preset); }
+    [ContextMenu("Test: Eclipse 55%")]
+    void TestEclipse55() { PreviewPreset(eclipse55Preset); }
     
-    [ContextMenu("Test: Eclipse 60%")]
-    void TestEclipse60() { PreviewPreset(eclipse60Preset); }
+    [ContextMenu("Test: Eclipse 70%")]
+    void TestEclipse70() { PreviewPreset(eclipse70Preset); }
     
-    [ContextMenu("Test: Eclipse 75%")]
-    void TestEclipse75() { PreviewPreset(eclipse75Preset); }
+    [ContextMenu("Test: Eclipse 85%")]
+    void TestEclipse85() { PreviewPreset(eclipse85Preset); }
     
     [ContextMenu("Test: Eclipse FULL")]
     void TestEclipseFull() { PreviewPreset(eclipseFullPreset); }
@@ -760,36 +786,37 @@ public class PostProcessController : MonoBehaviour
     [ContextMenu("Print All Presets")]
     void PrintAllPresets()
     {
-        Debug.Log("=== ALL 27 POST-PROCESS PRESETS ===");
+        Debug.Log("=== ALL 28 POST-PROCESS PRESETS ===");
         Debug.Log($"1. {neutralPreset.stateName}");
         Debug.Log($"2. {sunsetPreset.stateName}");
         Debug.Log($"3. {sunrisePreset.stateName}");
-        Debug.Log($"4. {eclipse20Preset.stateName}");
-        Debug.Log($"5. {eclipse40Preset.stateName}");
-        Debug.Log($"6. {eclipse50Preset.stateName}");
-        Debug.Log($"7. {eclipse60Preset.stateName}");
-        Debug.Log($"8. {eclipse75Preset.stateName}");
-        Debug.Log($"9. {eclipseFullPreset.stateName}");
-        Debug.Log($"10. {light1Preset.stateName}");
-        Debug.Log($"11. {light2Preset.stateName}");
-        Debug.Log($"12. {light3Preset.stateName}");
-        Debug.Log($"13. {light4Preset.stateName}");
-        Debug.Log($"14. {light5Preset.stateName}");
-        Debug.Log($"15. {lightStage1Preset.stateName}");
-        Debug.Log($"16. {lightStage2Preset.stateName}");
-        Debug.Log($"17. {lightStage3Preset.stateName}");
-        Debug.Log($"18. {lightStage4Preset.stateName}");
-        Debug.Log($"19. {lightStage5Preset.stateName}");
-        Debug.Log($"20. {dark1Preset.stateName}");
-        Debug.Log($"21. {dark2Preset.stateName}");
-        Debug.Log($"22. {dark3Preset.stateName}");
-        Debug.Log($"23. {dark4Preset.stateName}");
-        Debug.Log($"24. {dark5Preset.stateName}");
-        Debug.Log($"25. {darkStage1Preset.stateName}");
-        Debug.Log($"26. {darkStage2Preset.stateName}");
-        Debug.Log($"27. {darkStage3Preset.stateName}");
-        Debug.Log($"28. {darkStage4Preset.stateName}");
-        Debug.Log($"29. {darkStage5Preset.stateName}");
+        Debug.Log($"4. {eclipse15Preset.stateName}");
+        Debug.Log($"5. {eclipse25Preset.stateName}");
+        Debug.Log($"6. {eclipse40Preset.stateName}");
+        Debug.Log($"7. {eclipse55Preset.stateName}");
+        Debug.Log($"8. {eclipse70Preset.stateName}");
+        Debug.Log($"9. {eclipse85Preset.stateName}");
+        Debug.Log($"10. {eclipseFullPreset.stateName}");
+        Debug.Log($"11. {light1Preset.stateName}");
+        Debug.Log($"12. {light2Preset.stateName}");
+        Debug.Log($"13. {light3Preset.stateName}");
+        Debug.Log($"14. {light4Preset.stateName}");
+        Debug.Log($"15. {light5Preset.stateName}");
+        Debug.Log($"16. {lightStage1Preset.stateName}");
+        Debug.Log($"17. {lightStage2Preset.stateName}");
+        Debug.Log($"18. {lightStage3Preset.stateName}");
+        Debug.Log($"19. {lightStage4Preset.stateName}");
+        Debug.Log($"20. {lightStage5Preset.stateName}");
+        Debug.Log($"21. {dark1Preset.stateName}");
+        Debug.Log($"22. {dark2Preset.stateName}");
+        Debug.Log($"23. {dark3Preset.stateName}");
+        Debug.Log($"24. {dark4Preset.stateName}");
+        Debug.Log($"25. {dark5Preset.stateName}");
+        Debug.Log($"26. {darkStage1Preset.stateName}");
+        Debug.Log($"27. {darkStage2Preset.stateName}");
+        Debug.Log($"28. {darkStage3Preset.stateName}");
+        Debug.Log($"29. {darkStage4Preset.stateName}");
+        Debug.Log($"30. {darkStage5Preset.stateName}");
         Debug.Log("===================================");
     }
     

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using DistantLands.Cozy;
 using DistantLands.Cozy.Data;
 using System;
@@ -139,12 +140,24 @@ public class AmbienceController : MonoBehaviour
     [SerializeField] private AmbiencePreset lightStage4Preset = new AmbiencePreset { stateName = "Light+Stage4" };
     [SerializeField] private AmbiencePreset lightStage5Preset = new AmbiencePreset { stateName = "Light+Stage5 (DIVINE)" };
     
-    [Header("=== ECLIPSE STATES ===")]
-    [SerializeField] private AmbiencePreset eclipse20Preset = new AmbiencePreset { stateName = "Eclipse 20%" };
+    [Header("=== ECLIPSE STATES (7-stage gradient, see GDD §5) ===")]
+    [Tooltip("Stage 1 (15%) - 2L/2R - subtle eclipse hint")]
+    [SerializeField] private AmbiencePreset eclipse15Preset = new AmbiencePreset { stateName = "Eclipse 15%" };
+    [FormerlySerializedAs("eclipse20Preset")]
+    [Tooltip("Stage 2 (25%) - 2L/3R or 3L/2R")]
+    [SerializeField] private AmbiencePreset eclipse25Preset = new AmbiencePreset { stateName = "Eclipse 25%" };
+    [Tooltip("Stage 3 (40%) - 3L/3R")]
     [SerializeField] private AmbiencePreset eclipse40Preset = new AmbiencePreset { stateName = "Eclipse 40%" };
-    [SerializeField] private AmbiencePreset eclipse50Preset = new AmbiencePreset { stateName = "Eclipse 50%" };
-    [SerializeField] private AmbiencePreset eclipse60Preset = new AmbiencePreset { stateName = "Eclipse 60%" };
-    [SerializeField] private AmbiencePreset eclipse75Preset = new AmbiencePreset { stateName = "Eclipse 75%" };
+    [FormerlySerializedAs("eclipse50Preset")]
+    [Tooltip("Stage 4 (55%) - 3L/4R or 4L/3R")]
+    [SerializeField] private AmbiencePreset eclipse55Preset = new AmbiencePreset { stateName = "Eclipse 55%" };
+    [FormerlySerializedAs("eclipse60Preset")]
+    [Tooltip("Stage 5 (70%) - 4L/4R")]
+    [SerializeField] private AmbiencePreset eclipse70Preset = new AmbiencePreset { stateName = "Eclipse 70%" };
+    [FormerlySerializedAs("eclipse75Preset")]
+    [Tooltip("Stage 6 (85%) - 4L/5R or 5L/4R")]
+    [SerializeField] private AmbiencePreset eclipse85Preset = new AmbiencePreset { stateName = "Eclipse 85%" };
+    [Tooltip("Stage 7 (100%) - 5L/5R - full eclipse")]
     [SerializeField] private AmbiencePreset eclipseFullPreset = new AmbiencePreset { stateName = "Eclipse FULL 100%" };
     
     [Header("=== DEBUG ===")]
@@ -255,7 +268,7 @@ public class AmbienceController : MonoBehaviour
         sunrisePreset.particlePrefabs = CreateList(birdsPrefab, dayBugsPrefab);
         sunrisePreset.audioProfile = birdsongProfile;
         
-        // DARK PATH
+        // DARK PATH (weather starts gathering at Dark4)
         dark1Preset.particlePrefabs = CreateList(dayBugsPrefab);
         dark1Preset.audioProfile = quietProfile;
         
@@ -265,26 +278,33 @@ public class AmbienceController : MonoBehaviour
         dark3Preset.particlePrefabs = CreateList(firefliesPrefab);
         dark3Preset.audioProfile = owlSoundsProfile;
         
-        dark4Preset.particlePrefabs = CreateList(firefliesPrefab, wispsPrefab);
+        // Dark4 - clouds start gathering slightly. Wind particles + fireflies for visibility.
+        dark4Preset.particlePrefabs = CreateList(firefliesPrefab, blusteryPrefab);
         dark4Preset.audioProfile = owlSoundsProfile;
         
-        dark5Preset.particlePrefabs = CreateList(firefliesPrefab, wispsPrefab);
+        // Dark5 - more clouds. Wind + dust hint.
+        dark5Preset.particlePrefabs = CreateList(firefliesPrefab, blusteryPrefab, dustStormPrefab);
         dark5Preset.audioProfile = owlSoundsProfile;
         
-        // DARK ESCALATION (Storms)
-        darkStage1Preset.particlePrefabs = CreateList(wispsPrefab, blusteryPrefab);
+        // DARK ESCALATION (shifted: clouds full -> light rain -> heavy rain -> snow -> snow+storm)
+        // DarkStage1 - fully covered clouds. Wind + dust, no rain yet.
+        darkStage1Preset.particlePrefabs = CreateList(blusteryPrefab, dustStormPrefab);
         darkStage1Preset.audioProfile = blusteryAudioProfile;
         
-        darkStage2Preset.particlePrefabs = CreateList(wispsPrefab, dustStormPrefab);
-        darkStage2Preset.audioProfile = blusteryAudioProfile;
+        // DarkStage2 - light rain begins.
+        darkStage2Preset.particlePrefabs = CreateList(lightRainPrefab, swirlingPrefab);
+        darkStage2Preset.audioProfile = swirlingAudioProfile;
         
-        darkStage3Preset.particlePrefabs = CreateList(lightRainPrefab, swirlingPrefab);
+        // DarkStage3 - heavy rain.
+        darkStage3Preset.particlePrefabs = CreateList(heavyRainPrefab, swirlingPrefab, dustStormPrefab);
         darkStage3Preset.audioProfile = swirlingAudioProfile;
         
-        darkStage4Preset.particlePrefabs = CreateList(heavyRainPrefab, swirlingPrefab, dustStormPrefab);
+        // DarkStage4 - snow.
+        darkStage4Preset.particlePrefabs = CreateList(thunderSnowPrefab, swirlingPrefab);
         darkStage4Preset.audioProfile = swirlingAudioProfile;
         
-        darkStage5Preset.particlePrefabs = CreateList(thunderPrefab, heavyRainPrefab, dustStormPrefab);
+        // DarkStage5 - heavy snow + storm.
+        darkStage5Preset.particlePrefabs = CreateList(thunderSnowPrefab, thunderPrefab, dustStormPrefab);
         darkStage5Preset.audioProfile = swirlingAudioProfile;
         darkStage5Preset.masterVolume = 1.2f;
         
@@ -321,27 +341,38 @@ public class AmbienceController : MonoBehaviour
         lightStage5Preset.audioProfile = birdsongProfile;
         lightStage5Preset.masterVolume = 1.2f;
         
-        // ECLIPSE
-        eclipse20Preset.particlePrefabs = CreateList(wispsPrefab);
-        eclipse20Preset.audioProfile = quietProfile;
-        eclipse20Preset.masterVolume = 0.4f;
+        // ECLIPSE (7-stage)
+        // Stage 1 (15%) - 2L/2R - subtlest hint
+        eclipse15Preset.particlePrefabs = CreateList(firefliesPrefab);
+        eclipse15Preset.audioProfile = quietProfile;
+        eclipse15Preset.masterVolume = 0.45f;
         
+        // Stage 2 (25%) - 2L/3R or 3L/2R
+        eclipse25Preset.particlePrefabs = CreateList(wispsPrefab);
+        eclipse25Preset.audioProfile = quietProfile;
+        eclipse25Preset.masterVolume = 0.4f;
+        
+        // Stage 3 (40%) - 3L/3R
         eclipse40Preset.particlePrefabs = CreateList(wispsPrefab, firefliesPrefab);
         eclipse40Preset.audioProfile = quietProfile;
         eclipse40Preset.masterVolume = 0.35f;
         
-        eclipse50Preset.particlePrefabs = CreateList(wispsPrefab, auroraPrefab);
-        eclipse50Preset.audioProfile = quietProfile;
-        eclipse50Preset.masterVolume = 0.3f;
+        // Stage 4 (55%) - 3L/4R or 4L/3R
+        eclipse55Preset.particlePrefabs = CreateList(wispsPrefab, auroraPrefab);
+        eclipse55Preset.audioProfile = quietProfile;
+        eclipse55Preset.masterVolume = 0.3f;
         
-        eclipse60Preset.particlePrefabs = CreateList(auroraPrefab, wispsPrefab);
-        eclipse60Preset.audioProfile = quietProfile;
-        eclipse60Preset.masterVolume = 0.28f;
+        // Stage 5 (70%) - 4L/4R
+        eclipse70Preset.particlePrefabs = CreateList(auroraPrefab, wispsPrefab);
+        eclipse70Preset.audioProfile = quietProfile;
+        eclipse70Preset.masterVolume = 0.28f;
         
-        eclipse75Preset.particlePrefabs = CreateList(auroraPrefab, auroraAltPrefab, wispsPrefab);
-        eclipse75Preset.audioProfile = quietProfile;
-        eclipse75Preset.masterVolume = 0.25f;
+        // Stage 6 (85%) - 4L/5R or 5L/4R
+        eclipse85Preset.particlePrefabs = CreateList(auroraPrefab, auroraAltPrefab, wispsPrefab);
+        eclipse85Preset.audioProfile = quietProfile;
+        eclipse85Preset.masterVolume = 0.25f;
         
+        // Stage 7 (100%) - 5L/5R - full eclipse
         eclipseFullPreset.particlePrefabs = CreateList(auroraPrefab, auroraAltPrefab, meteorPrefab, wispsPrefab);
         eclipseFullPreset.audioProfile = quietProfile;
         eclipseFullPreset.masterVolume = 0.2f; // Near silence for awe
@@ -407,90 +438,107 @@ public class AmbienceController : MonoBehaviour
     
     #region State Resolution (same logic as PostProcessController)
     
+    /// <summary>
+    /// Resolve a preset from raw ring counts.
+    /// Cascade matches WorldStateManager exactly (first match wins):
+    /// 1. Eclipse (min>=2 AND diff<=1) -> stage 1-7
+    /// 2. Sunset  ((1L/0R) OR (diff=2, dark wins, both, max<=4))
+    /// 3. Sunrise ((0L/1R) OR (diff=2, light wins, both, max<=4))
+    /// 4. Escalation (diff>=6) -> DarkStage/LightStage by (diff-5)
+    /// 5. Path (diff 1-5) -> Dark/Light by diff
+    /// 6. Neutral (L==R, not eclipse)
+    /// </summary>
     AmbiencePreset GetPresetForRings(int L, int R)
     {
-        int diff = L - R;
-        int absDiff = Mathf.Abs(diff);
+        int diff = Mathf.Abs(L - R);
         int minRings = Mathf.Min(L, R);
+        int maxRings = Mathf.Max(L, R);
+        bool darkWinning = L > R;
+        bool lightWinning = R > L;
+        bool bothHaveRings = L > 0 && R > 0;
         
-        // === ECLIPSE STATES ===
-        if (absDiff <= 1 && minRings >= 2)
+        // === PRIORITY 1: ECLIPSE (7 stages, see GDD §5) ===
+        if (minRings >= 2 && diff <= 1)
         {
-            if (L == 5 && R == 5) return eclipseFullPreset;
-            if ((L == 5 && R == 4) || (L == 4 && R == 5)) return eclipse75Preset;
-            if (L == 4 && R == 4) return eclipse60Preset;
-            if ((L == 4 && R == 3) || (L == 3 && R == 4)) return eclipse50Preset;
-            if (L == 3 && R == 3) return eclipse40Preset;
-            if ((L == 3 && R == 2) || (L == 2 && R == 3)) return eclipse20Preset;
+            if (L == 5 && R == 5)                       return eclipseFullPreset; // Stage 7
+            if (minRings == 4 && maxRings == 5)         return eclipse85Preset;   // Stage 6
+            if (L == 4 && R == 4)                       return eclipse70Preset;   // Stage 5
+            if (minRings == 3 && maxRings == 4)         return eclipse55Preset;   // Stage 4
+            if (L == 3 && R == 3)                       return eclipse40Preset;   // Stage 3
+            if (minRings == 2 && maxRings == 3)         return eclipse25Preset;   // Stage 2
+            if (L == 2 && R == 2)                       return eclipse15Preset;   // Stage 1
         }
         
-        // === SUNSET ===
-        if (L == 1 && R == 0) return sunsetPreset;
-        if (diff == 2 && L > 0 && R > 0) return sunsetPreset;
-        
-        // === SUNRISE ===
-        if (diff == -2 && L > 0 && R > 0) return sunrisePreset;
-        
-        // === DARK ESCALATION ===
-        if (L >= 6 && diff > 0)
+        // === PRIORITY 2: SUNSET ===
+        if ((L == 1 && R == 0) ||
+            (diff == 2 && darkWinning && bothHaveRings && maxRings <= 4))
         {
-            int stage = L - 5;
-            switch (stage)
+            return sunsetPreset;
+        }
+        
+        // === PRIORITY 3: SUNRISE ===
+        if ((L == 0 && R == 1) ||
+            (diff == 2 && lightWinning && bothHaveRings && maxRings <= 4))
+        {
+            return sunrisePreset;
+        }
+        
+        // === PRIORITY 4: ESCALATION (diff >= 6) ===
+        if (diff >= 6)
+        {
+            int stage = Mathf.Clamp(diff - 5, 1, 5);
+            if (darkWinning)
             {
-                case 1: return darkStage1Preset;
-                case 2: return darkStage2Preset;
-                case 3: return darkStage3Preset;
-                case 4: return darkStage4Preset;
-                default: return darkStage5Preset;
+                switch (stage)
+                {
+                    case 1: return darkStage1Preset;
+                    case 2: return darkStage2Preset;
+                    case 3: return darkStage3Preset;
+                    case 4: return darkStage4Preset;
+                    default: return darkStage5Preset;
+                }
+            }
+            else // lightWinning (diff >= 6 guarantees L != R)
+            {
+                switch (stage)
+                {
+                    case 1: return lightStage1Preset;
+                    case 2: return lightStage2Preset;
+                    case 3: return lightStage3Preset;
+                    case 4: return lightStage4Preset;
+                    default: return lightStage5Preset;
+                }
             }
         }
         
-        // === LIGHT ESCALATION ===
-        if (R >= 6 && diff < 0)
+        // === PRIORITY 5: PATH (diff 1-5) ===
+        if (diff >= 1)
         {
-            int stage = R - 5;
-            switch (stage)
+            if (darkWinning)
             {
-                case 1: return lightStage1Preset;
-                case 2: return lightStage2Preset;
-                case 3: return lightStage3Preset;
-                case 4: return lightStage4Preset;
-                default: return lightStage5Preset;
+                switch (diff)
+                {
+                    case 1: return dark1Preset;
+                    case 2: return dark2Preset;
+                    case 3: return dark3Preset;
+                    case 4: return dark4Preset;
+                    default: return dark5Preset; // diff == 5
+                }
+            }
+            else // lightWinning
+            {
+                switch (diff)
+                {
+                    case 1: return light1Preset;
+                    case 2: return light2Preset;
+                    case 3: return light3Preset;
+                    case 4: return light4Preset;
+                    default: return light5Preset; // diff == 5
+                }
             }
         }
         
-        // === DARK PATH ===
-        if (diff > 2)
-        {
-            if (L >= 5) return dark5Preset;
-            if (L >= 4) return dark4Preset;
-            if (L >= 3) return dark3Preset;
-            if (L >= 2) return dark2Preset;
-            return dark1Preset;
-        }
-        
-        // === LIGHT PATH ===
-        if (diff < -2)
-        {
-            if (R >= 5) return light5Preset;
-            if (R >= 4) return light4Preset;
-            if (R >= 3) return light3Preset;
-            if (R >= 2) return light2Preset;
-            return light1Preset;
-        }
-        
-        // === MILD DARK ===
-        if (diff > 0 && diff <= 2 && minRings < 2)
-        {
-            return dark1Preset;
-        }
-        
-        // === MILD LIGHT ===
-        if (diff < 0 && absDiff <= 2 && minRings < 2)
-        {
-            return light1Preset;
-        }
-        
+        // === PRIORITY 6: NEUTRAL ===
         return neutralPreset;
     }
     

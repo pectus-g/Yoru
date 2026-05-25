@@ -5,13 +5,13 @@ using System.Collections.Generic;
 using System.Reflection;
 
 /// <summary>
-/// YORU: Complete COZY 3 Integration - V10 (FIXED SATELLITE MODULE)
+/// YORU: Complete COZY 3 Integration - V11 (DIFF-BASED CASCADE)
 /// 
-/// FIXES IN V10:
-/// - Proper COZY module naming: CozySatelliteModule
-/// - Access satellite profiles array for moon phase control
-/// - Comprehensive reflection search for all possible moon offset fields
-/// - Better debug output for troubleshooting
+/// FIXES IN V11:
+/// - GetTimeForRings() and CalculateGradualEclipse() now mirror WorldStateManager cascade.
+/// - Added 2L/2R as Eclipse Stage 1 (15%) - eclipse2L2R field.
+/// - Sunset/Sunrise time honors max <= 4 cap (5L/3R is Dark2 time, not Sunset).
+/// - 1L/0R returns sunsetHour (not dark1Hour); 0L/1R returns sunriseHour.
 /// 
 /// MOON PHASES (Dark Path):
 ///   1L = Crescent moon
@@ -20,10 +20,14 @@ using System.Reflection;
 ///   4L = Nearly full
 ///   5L = Full moon (but 6L+ has clouds covering it)
 ///   
-/// GRADUAL ECLIPSE (when diff ≤ 1 and total ≥ threshold):
-///   3L/3R, 3L/4R, 4L/3R → Slight eclipse
-///   4L/4R, 4L/5R, 5L/4R → Strong eclipse  
-///   5L/5R → FULL eclipse
+/// GRADUAL ECLIPSE (when min(L,R) >= 2 AND diff <= 1):
+///   2L/2R                  -> Stage 1 (15%) - subtle hint
+///   2L/3R, 3L/2R           -> Stage 2 (25%)
+///   3L/3R                  -> Stage 3 (40%)
+///   3L/4R, 4L/3R           -> Stage 4 (55%)
+///   4L/4R                  -> Stage 5 (70%)
+///   4L/5R, 5L/4R           -> Stage 6 (85%)
+///   5L/5R                  -> Stage 7 (100%) FULL
 /// </summary>
 public class YoruCozyIntegration : MonoBehaviour
 {
@@ -35,6 +39,10 @@ public class YoruCozyIntegration : MonoBehaviour
     public WeatherProfile lightRainWeather;
     public WeatherProfile heavyRainWeather;
     public WeatherProfile thunderStormWeather;
+    [Tooltip("Snow profile for DarkStage4 (9L diff=9). If null, falls back to heavyRain.")]
+    public WeatherProfile snowWeather;
+    [Tooltip("Heavy snow + storm profile for DarkStage5 (10L diff=10). If null, falls back to thunderStorm.")]
+    public WeatherProfile snowStormWeather;
     
     [Header("=== TIME SETTINGS (Dark Path) ===")]
     [Tooltip("Balance 0 = 9 AM (neutral morning)")]
@@ -72,20 +80,23 @@ public class YoruCozyIntegration : MonoBehaviour
     [SerializeField] private float moonOffset5PlusRings = 14f; // Full moon
     
     [Header("=== GRADUAL ECLIPSE SETTINGS ===")]
-    // Eclipse requires BOTH tails to have rings AND be close (diff ≤ 1)
+    // Eclipse requires BOTH tails to have rings AND be balanced (diff ≤ 1)
+    // 7-stage gradient (see GDD §5): 15 / 25 / 40 / 55 / 70 / 85 / 100
     
     [Header("Eclipse Intensity by Combination")]
-    [Tooltip("3L/2R or 2L/3R (total=5, diff=1)")]
-    [SerializeField, Range(0f, 1f)] private float eclipse3L2R = 0.20f;
-    [Tooltip("3L/3R (total=6, diff=0)")]
+    [Tooltip("2L/2R (total=4, diff=0) - Stage 1, subtlest hint")]
+    [SerializeField, Range(0f, 1f)] private float eclipse2L2R = 0.15f;
+    [Tooltip("3L/2R or 2L/3R (total=5, diff=1) - Stage 2")]
+    [SerializeField, Range(0f, 1f)] private float eclipse3L2R = 0.25f;
+    [Tooltip("3L/3R (total=6, diff=0) - Stage 3")]
     [SerializeField, Range(0f, 1f)] private float eclipse3L3R = 0.40f;
-    [Tooltip("3L/4R or 4L/3R (total=7, diff=1)")]
-    [SerializeField, Range(0f, 1f)] private float eclipse4L3R = 0.50f;
-    [Tooltip("4L/4R (total=8, diff=0)")]
-    [SerializeField, Range(0f, 1f)] private float eclipse4L4R = 0.60f;
-    [Tooltip("5L/4R or 4L/5R (total=9, diff=1)")]
-    [SerializeField, Range(0f, 1f)] private float eclipse5L4R = 0.75f;
-    [Tooltip("5L/5R - FULL Eclipse")]
+    [Tooltip("3L/4R or 4L/3R (total=7, diff=1) - Stage 4")]
+    [SerializeField, Range(0f, 1f)] private float eclipse4L3R = 0.55f;
+    [Tooltip("4L/4R (total=8, diff=0) - Stage 5")]
+    [SerializeField, Range(0f, 1f)] private float eclipse4L4R = 0.70f;
+    [Tooltip("5L/4R or 4L/5R (total=9, diff=1) - Stage 6")]
+    [SerializeField, Range(0f, 1f)] private float eclipse5L4R = 0.85f;
+    [Tooltip("5L/5R - Stage 7, FULL Eclipse")]
     [SerializeField, Range(0f, 1f)] private float eclipseFull = 1.0f;
     
     [Header("=== NEW TIME SETTINGS ===")]
@@ -355,43 +366,47 @@ public class YoruCozyIntegration : MonoBehaviour
     
     float CalculateGradualEclipse(int leftRings, int rightRings)
     {
-        // Eclipse requires BOTH tails to have rings AND be balanced (diff ≤ 1)
-        // Minimum: both need at least 2 rings (smallest combo is 3L/2R or 2L/3R)
+        // Eclipse requires BOTH tails to have rings AND be balanced (diff ≤ 1).
+        // 7-stage gradient (see GDD §5). Smallest qualifying combo is 2L/2R.
         
         int minRings = Mathf.Min(leftRings, rightRings);
         int maxRings = Mathf.Max(leftRings, rightRings);
         int diff = maxRings - minRings;
         
-        // Must have diff ≤ 1 for eclipse
-        if (diff > 1)
+        // Must have min >= 2 AND diff <= 1 for eclipse (matches WSM cascade priority 1)
+        if (minRings < 2 || diff > 1)
             return 0f;
         
-        // Check specific combinations (ordered by intensity)
-        // 5L/5R = 100% full eclipse
+        // Check specific combinations (ordered by intensity, highest first)
+        // 5L/5R = Stage 7 (100%)
         if (minRings == 5 && maxRings == 5)
             return eclipseFull;
         
-        // 5L/4R or 4L/5R = 75%
+        // 5L/4R or 4L/5R = Stage 6 (85%)
         if (minRings == 4 && maxRings == 5)
             return eclipse5L4R;
         
-        // 4L/4R = 60%
+        // 4L/4R = Stage 5 (70%)
         if (minRings == 4 && maxRings == 4)
             return eclipse4L4R;
         
-        // 4L/3R or 3L/4R = 50%
+        // 4L/3R or 3L/4R = Stage 4 (55%)
         if (minRings == 3 && maxRings == 4)
             return eclipse4L3R;
         
-        // 3L/3R = 40%
+        // 3L/3R = Stage 3 (40%)
         if (minRings == 3 && maxRings == 3)
             return eclipse3L3R;
         
-        // 3L/2R or 2L/3R = 20%
+        // 3L/2R or 2L/3R = Stage 2 (25%)
         if (minRings == 2 && maxRings == 3)
             return eclipse3L2R;
         
-        // No eclipse for lower combinations
+        // 2L/2R = Stage 1 (15%) - subtlest hint
+        if (minRings == 2 && maxRings == 2)
+            return eclipse2L2R;
+        
+        // Fallback (should not reach here given gate above)
         return 0f;
     }
     
@@ -642,6 +657,13 @@ public class YoruCozyIntegration : MonoBehaviour
     
     float GetTimeForRings(int leftRings, int rightRings, float eclipseIntensity)
     {
+        // NOTE: Time-of-day mapping is intentionally NOT aligned with the cascade.
+        // The visual "sunset" look at 1L/0R depends on COZY's sun being high (4 PM)
+        // with the post-process Sunset warm-orange filter on top. Lowering the time
+        // to 6:30 PM dims COZY's sun and the warm filter reads as "dark" instead.
+        // Until LightingController gets a real Sunset/Sunrise case (flag for manager),
+        // keep this on the original "balance maps to time" behavior.
+        
         int diff = Mathf.Abs(leftRings - rightRings);
         bool darkWinning = leftRings > rightRings;
         bool lightWinning = rightRings > leftRings;
@@ -724,24 +746,36 @@ public class YoruCozyIntegration : MonoBehaviour
         if (isEclipse)
             return clearWeather;
         
-        if (weatherStage == 0)
-            return clearWeather;
+        // Escalation tier (DarkStage1-5 / LightStage1-5, diff >= 6)
+        if (weatherStage > 0)
+        {
+            if (balance < 0)
+                return GetDarkWeatherForStage(weatherStage);
+            else
+                return GetLightWeatherForStage(weatherStage);
+        }
         
-        if (balance < 0)
-            return GetDarkWeatherForStage(weatherStage);
-        else
-            return GetLightWeatherForStage(weatherStage);
+        // Path tier (Dark1-5 / Light1-5, diff 1-5)
+        // Dark side gets clouds gathering at balance -4 (Dark4) and -5 (Dark5)
+        // so weather builds up before escalation kicks in.
+        if (balance == -4) return partlyCloudyWeather ?? clearWeather;  // Dark4 - clouds start gathering
+        if (balance == -5) return overcastWeather ?? partlyCloudyWeather ?? clearWeather;  // Dark5 - more clouds
+        
+        // Everything else (Dark1-3, Light1-5, Neutral) stays clear
+        return clearWeather;
     }
     
     WeatherProfile GetDarkWeatherForStage(int stage)
     {
+        // Shifted progression: starts at "fully covered clouds" since Dark4/Dark5 already
+        // showed gathering clouds, and ends at heavy-snow-storm.
         switch (stage)
         {
-            case 1: return partlyCloudyWeather ?? clearWeather;
-            case 2: return overcastWeather ?? partlyCloudyWeather ?? clearWeather;
-            case 3: return lightRainWeather ?? overcastWeather ?? clearWeather;
-            case 4: return heavyRainWeather ?? lightRainWeather ?? clearWeather;
-            case 5: return thunderStormWeather ?? heavyRainWeather ?? clearWeather;
+            case 1: return overcastWeather ?? partlyCloudyWeather ?? clearWeather;          // DarkStage1 - fully covered clouds
+            case 2: return lightRainWeather ?? overcastWeather ?? clearWeather;             // DarkStage2 - light rain
+            case 3: return heavyRainWeather ?? lightRainWeather ?? clearWeather;            // DarkStage3 - heavy rain
+            case 4: return snowWeather ?? heavyRainWeather ?? clearWeather;                 // DarkStage4 - snow
+            case 5: return snowStormWeather ?? thunderStormWeather ?? heavyRainWeather ?? clearWeather; // DarkStage5 - heavy snow + storm
             default: return clearWeather;
         }
     }

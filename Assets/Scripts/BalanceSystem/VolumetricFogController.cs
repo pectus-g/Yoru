@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using System;
 
 /// <summary>
@@ -106,7 +107,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset neutralPreset = new FogPreset
     {
         stateName = "Neutral",
-        triggerCondition = "0L/0R, 1L/1R, 2L/2R",
+        triggerCondition = "0L/0R, 1L/1R",
         density = 0.15f,
         height = 150f,
         baselineHeight = 0f,
@@ -124,7 +125,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset sunsetPreset = new FogPreset
     {
         stateName = "Sunset",
-        triggerCondition = "1L/0R, 3L/1R, 4L/2R, 5L/3R, 6L/4R",
+        triggerCondition = "1L/0R, 3L/1R, 4L/2R (max <= 4)",
         density = 0.20f,
         height = 180f,
         baselineHeight = 0f,
@@ -142,7 +143,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset sunrisePreset = new FogPreset
     {
         stateName = "Sunrise",
-        triggerCondition = "0L/1R, 1L/3R, 2L/4R, 3L/5R, 4L/6R",
+        triggerCondition = "0L/1R, 1L/3R, 2L/4R (max <= 4)",
         density = 0.18f,
         height = 180f,
         baselineHeight = 0f,
@@ -160,7 +161,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset dark1Preset = new FogPreset
     {
         stateName = "Dark1",
-        triggerCondition = "diff > 2, dark winning, L small",
+        triggerCondition = "diff = 1, dark winning",
         density = 0.22f,
         height = 160f,
         baselineHeight = 0f,
@@ -177,7 +178,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset dark2Preset = new FogPreset
     {
         stateName = "Dark2",
-        triggerCondition = "diff > 2, L >= 2",
+        triggerCondition = "diff = 2, dark winning",
         density = 0.28f,
         height = 170f,
         baselineHeight = 0f,
@@ -194,7 +195,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset dark3Preset = new FogPreset
     {
         stateName = "Dark3",
-        triggerCondition = "diff > 2, L >= 3",
+        triggerCondition = "diff = 3, dark winning",
         density = 0.35f,
         height = 180f,
         baselineHeight = 0f,
@@ -211,7 +212,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset dark4Preset = new FogPreset
     {
         stateName = "Dark4",
-        triggerCondition = "diff > 2, L >= 4",
+        triggerCondition = "diff = 4, dark winning",
         density = 0.42f,
         height = 200f,
         baselineHeight = 0f,
@@ -228,7 +229,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset dark5Preset = new FogPreset
     {
         stateName = "Dark5 (Midnight)",
-        triggerCondition = "diff > 2, L >= 5",
+        triggerCondition = "diff = 5, dark winning",
         density = 0.50f,
         height = 220f,
         baselineHeight = 0f,
@@ -246,7 +247,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset darkStage1Preset = new FogPreset
     {
         stateName = "Dark+Stage1 (Partly Cloudy)",
-        triggerCondition = "L >= 6, dark committed",
+        triggerCondition = "diff = 6, dark committed",
         density = 0.55f,
         height = 250f,
         baselineHeight = 0f,
@@ -263,7 +264,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset darkStage2Preset = new FogPreset
     {
         stateName = "Dark+Stage2 (Overcast)",
-        triggerCondition = "L >= 7",
+        triggerCondition = "diff = 7",
         density = 0.60f,
         height = 280f,
         baselineHeight = 0f,
@@ -280,7 +281,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset darkStage3Preset = new FogPreset
     {
         stateName = "Dark+Stage3 (Light Rain)",
-        triggerCondition = "L >= 8",
+        triggerCondition = "diff = 8",
         density = 0.68f,
         height = 300f,
         baselineHeight = 0f,
@@ -297,7 +298,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset darkStage4Preset = new FogPreset
     {
         stateName = "Dark+Stage4 (Heavy Rain)",
-        triggerCondition = "L >= 9",
+        triggerCondition = "diff = 9",
         density = 0.75f,
         height = 350f,
         baselineHeight = 0f,
@@ -314,7 +315,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset darkStage5Preset = new FogPreset
     {
         stateName = "Dark+Stage5 (THUNDERSTORM)",
-        triggerCondition = "L = 10",
+        triggerCondition = "diff = 10",
         density = 0.85f,
         height = 400f,
         baselineHeight = 0f,
@@ -332,7 +333,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset light1Preset = new FogPreset
     {
         stateName = "Light1",
-        triggerCondition = "diff < -2, light winning, R small",
+        triggerCondition = "diff = 1, light winning",
         density = 0.12f,
         height = 160f,
         baselineHeight = 0f,
@@ -349,7 +350,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset light2Preset = new FogPreset
     {
         stateName = "Light2",
-        triggerCondition = "diff < -2, R >= 2",
+        triggerCondition = "diff = 2, light winning",
         density = 0.10f,
         height = 170f,
         baselineHeight = 0f,
@@ -366,7 +367,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset light3Preset = new FogPreset
     {
         stateName = "Light3",
-        triggerCondition = "diff < -2, R >= 3",
+        triggerCondition = "diff = 3, light winning",
         density = 0.08f,
         height = 180f,
         baselineHeight = 0f,
@@ -383,7 +384,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset light4Preset = new FogPreset
     {
         stateName = "Light4",
-        triggerCondition = "diff < -2, R >= 4",
+        triggerCondition = "diff = 4, light winning",
         density = 0.06f,
         height = 200f,
         baselineHeight = 0f,
@@ -400,7 +401,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset light5Preset = new FogPreset
     {
         stateName = "Light5 (Heavenly)",
-        triggerCondition = "diff < -2, R >= 5",
+        triggerCondition = "diff = 5, light winning",
         density = 0.05f,
         height = 220f,
         baselineHeight = 0f,
@@ -418,7 +419,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset lightStage1Preset = new FogPreset
     {
         stateName = "Light+Stage1 (Blessed)",
-        triggerCondition = "R >= 6, light committed",
+        triggerCondition = "diff = 6, light committed",
         density = 0.04f,
         height = 250f,
         baselineHeight = 0f,
@@ -435,7 +436,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset lightStage2Preset = new FogPreset
     {
         stateName = "Light+Stage2 (Sacred)",
-        triggerCondition = "R >= 7",
+        triggerCondition = "diff = 7",
         density = 0.03f,
         height = 280f,
         baselineHeight = 0f,
@@ -452,7 +453,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset lightStage3Preset = new FogPreset
     {
         stateName = "Light+Stage3 (Radiant)",
-        triggerCondition = "R >= 8",
+        triggerCondition = "diff = 8",
         density = 0.025f,
         height = 300f,
         baselineHeight = 0f,
@@ -469,7 +470,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset lightStage4Preset = new FogPreset
     {
         stateName = "Light+Stage4 (Transcendent)",
-        triggerCondition = "R >= 9",
+        triggerCondition = "diff = 9",
         density = 0.02f,
         height = 350f,
         baselineHeight = 0f,
@@ -486,7 +487,7 @@ public class VolumetricFogController : MonoBehaviour
     [SerializeField] private FogPreset lightStage5Preset = new FogPreset
     {
         stateName = "Light+Stage5 (DIVINE)",
-        triggerCondition = "R = 10",
+        triggerCondition = "diff = 10",
         density = 0.015f,
         height = 400f,
         baselineHeight = 0f,
@@ -500,10 +501,30 @@ public class VolumetricFogController : MonoBehaviour
         lightScatteringExposure = 0.2f
     };
     
-    [Header("=== ECLIPSE STATES (Mystical balance) ===")]
-    [SerializeField] private FogPreset eclipse20Preset = new FogPreset
+    [Header("=== ECLIPSE STATES (7-stage gradient, see GDD §5) ===")]
+    [Tooltip("Stage 1 (15%) - 2L/2R - subtle eclipse hint")]
+    [SerializeField] private FogPreset eclipse15Preset = new FogPreset
     {
-        stateName = "Eclipse 20%",
+        stateName = "Eclipse 15%",
+        triggerCondition = "2L/2R",
+        density = 0.22f,
+        height = 190f,
+        baselineHeight = 0f,
+        fogColor = new Color(0.65f, 0.60f, 0.68f),
+        alpha = 1f,
+        noiseStrength = 0.48f,
+        skyHaze = 27f,
+        skyAlpha = 0.68f,
+        enableLightScattering = true,
+        lightScatteringDiffusion = 0.52f,
+        lightScatteringExposure = 0.045f
+    };
+    
+    [FormerlySerializedAs("eclipse20Preset")]
+    [Tooltip("Stage 2 (25%) - 2L/3R or 3L/2R")]
+    [SerializeField] private FogPreset eclipse25Preset = new FogPreset
+    {
+        stateName = "Eclipse 25%",
         triggerCondition = "2L/3R or 3L/2R",
         density = 0.25f,
         height = 200f,
@@ -518,6 +539,7 @@ public class VolumetricFogController : MonoBehaviour
         lightScatteringExposure = 0.04f
     };
     
+    [Tooltip("Stage 3 (40%) - 3L/3R")]
     [SerializeField] private FogPreset eclipse40Preset = new FogPreset
     {
         stateName = "Eclipse 40%",
@@ -535,9 +557,11 @@ public class VolumetricFogController : MonoBehaviour
         lightScatteringExposure = 0.035f
     };
     
-    [SerializeField] private FogPreset eclipse50Preset = new FogPreset
+    [FormerlySerializedAs("eclipse50Preset")]
+    [Tooltip("Stage 4 (55%) - 3L/4R or 4L/3R")]
+    [SerializeField] private FogPreset eclipse55Preset = new FogPreset
     {
-        stateName = "Eclipse 50%",
+        stateName = "Eclipse 55%",
         triggerCondition = "3L/4R or 4L/3R",
         density = 0.38f,
         height = 250f,
@@ -552,9 +576,11 @@ public class VolumetricFogController : MonoBehaviour
         lightScatteringExposure = 0.03f
     };
     
-    [SerializeField] private FogPreset eclipse60Preset = new FogPreset
+    [FormerlySerializedAs("eclipse60Preset")]
+    [Tooltip("Stage 5 (70%) - 4L/4R")]
+    [SerializeField] private FogPreset eclipse70Preset = new FogPreset
     {
-        stateName = "Eclipse 60%",
+        stateName = "Eclipse 70%",
         triggerCondition = "4L/4R",
         density = 0.45f,
         height = 280f,
@@ -569,9 +595,11 @@ public class VolumetricFogController : MonoBehaviour
         lightScatteringExposure = 0.025f
     };
     
-    [SerializeField] private FogPreset eclipse75Preset = new FogPreset
+    [FormerlySerializedAs("eclipse75Preset")]
+    [Tooltip("Stage 6 (85%) - 4L/5R or 5L/4R")]
+    [SerializeField] private FogPreset eclipse85Preset = new FogPreset
     {
-        stateName = "Eclipse 75%",
+        stateName = "Eclipse 85%",
         triggerCondition = "4L/5R or 5L/4R",
         density = 0.55f,
         height = 320f,
@@ -586,6 +614,7 @@ public class VolumetricFogController : MonoBehaviour
         lightScatteringExposure = 0.02f
     };
     
+    [Tooltip("Stage 7 (100%) - 5L/5R - full eclipse")]
     [SerializeField] private FogPreset eclipseFullPreset = new FogPreset
     {
         stateName = "Eclipse FULL (5L/5R)",
@@ -797,91 +826,107 @@ public class VolumetricFogController : MonoBehaviour
     
     #region State Resolution
     
+    /// <summary>
+    /// Resolve a preset from raw ring counts.
+    /// Cascade matches WorldStateManager exactly (first match wins):
+    /// 1. Eclipse (min>=2 AND diff<=1) -> stage 1-7
+    /// 2. Sunset  ((1L/0R) OR (diff=2, dark wins, both, max<=4))
+    /// 3. Sunrise ((0L/1R) OR (diff=2, light wins, both, max<=4))
+    /// 4. Escalation (diff>=6) -> DarkStage/LightStage by (diff-5)
+    /// 5. Path (diff 1-5) -> Dark/Light by diff
+    /// 6. Neutral (L==R, not eclipse)
+    /// </summary>
     FogPreset GetPresetForRings(int L, int R)
     {
-        int diff = L - R;
-        int absDiff = Mathf.Abs(diff);
+        int diff = Mathf.Abs(L - R);
         int minRings = Mathf.Min(L, R);
+        int maxRings = Mathf.Max(L, R);
+        bool darkWinning = L > R;
+        bool lightWinning = R > L;
+        bool bothHaveRings = L > 0 && R > 0;
         
-        // === ECLIPSE STATES (Both tails high, balanced) ===
-        if (absDiff <= 1 && minRings >= 2)
+        // === PRIORITY 1: ECLIPSE (7 stages, see GDD §5) ===
+        if (minRings >= 2 && diff <= 1)
         {
-            if (L == 5 && R == 5) return eclipseFullPreset;
-            if ((L == 5 && R == 4) || (L == 4 && R == 5)) return eclipse75Preset;
-            if (L == 4 && R == 4) return eclipse60Preset;
-            if ((L == 4 && R == 3) || (L == 3 && R == 4)) return eclipse50Preset;
-            if (L == 3 && R == 3) return eclipse40Preset;
-            if ((L == 3 && R == 2) || (L == 2 && R == 3)) return eclipse20Preset;
+            if (L == 5 && R == 5)                       return eclipseFullPreset; // Stage 7
+            if (minRings == 4 && maxRings == 5)         return eclipse85Preset;   // Stage 6
+            if (L == 4 && R == 4)                       return eclipse70Preset;   // Stage 5
+            if (minRings == 3 && maxRings == 4)         return eclipse55Preset;   // Stage 4
+            if (L == 3 && R == 3)                       return eclipse40Preset;   // Stage 3
+            if (minRings == 2 && maxRings == 3)         return eclipse25Preset;   // Stage 2
+            if (L == 2 && R == 2)                       return eclipse15Preset;   // Stage 1
         }
         
-        // === SUNSET (1L/0R OR diff=2, dark winning, both have rings) ===
-        if (L == 1 && R == 0) return sunsetPreset;
-        if (diff == 2 && L > 0 && R > 0) return sunsetPreset;
-        
-        // === SUNRISE (diff=-2, light winning, both have rings) ===
-        if (diff == -2 && L > 0 && R > 0) return sunrisePreset;
-        
-        // === DARK ESCALATION (L >= 6, committed to dark) ===
-        if (L >= 6 && diff > 0)
+        // === PRIORITY 2: SUNSET ===
+        if ((L == 1 && R == 0) ||
+            (diff == 2 && darkWinning && bothHaveRings && maxRings <= 4))
         {
-            int stage = L - 5;
-            switch (stage)
+            return sunsetPreset;
+        }
+        
+        // === PRIORITY 3: SUNRISE ===
+        if ((L == 0 && R == 1) ||
+            (diff == 2 && lightWinning && bothHaveRings && maxRings <= 4))
+        {
+            return sunrisePreset;
+        }
+        
+        // === PRIORITY 4: ESCALATION (diff >= 6) ===
+        if (diff >= 6)
+        {
+            int stage = Mathf.Clamp(diff - 5, 1, 5);
+            if (darkWinning)
             {
-                case 1: return darkStage1Preset;
-                case 2: return darkStage2Preset;
-                case 3: return darkStage3Preset;
-                case 4: return darkStage4Preset;
-                default: return darkStage5Preset;
+                switch (stage)
+                {
+                    case 1: return darkStage1Preset;
+                    case 2: return darkStage2Preset;
+                    case 3: return darkStage3Preset;
+                    case 4: return darkStage4Preset;
+                    default: return darkStage5Preset;
+                }
+            }
+            else // lightWinning (diff >= 6 guarantees L != R)
+            {
+                switch (stage)
+                {
+                    case 1: return lightStage1Preset;
+                    case 2: return lightStage2Preset;
+                    case 3: return lightStage3Preset;
+                    case 4: return lightStage4Preset;
+                    default: return lightStage5Preset;
+                }
             }
         }
         
-        // === LIGHT ESCALATION (R >= 6, committed to light) ===
-        if (R >= 6 && diff < 0)
+        // === PRIORITY 5: PATH (diff 1-5) ===
+        if (diff >= 1)
         {
-            int stage = R - 5;
-            switch (stage)
+            if (darkWinning)
             {
-                case 1: return lightStage1Preset;
-                case 2: return lightStage2Preset;
-                case 3: return lightStage3Preset;
-                case 4: return lightStage4Preset;
-                default: return lightStage5Preset;
+                switch (diff)
+                {
+                    case 1: return dark1Preset;
+                    case 2: return dark2Preset;
+                    case 3: return dark3Preset;
+                    case 4: return dark4Preset;
+                    default: return dark5Preset; // diff == 5
+                }
+            }
+            else // lightWinning
+            {
+                switch (diff)
+                {
+                    case 1: return light1Preset;
+                    case 2: return light2Preset;
+                    case 3: return light3Preset;
+                    case 4: return light4Preset;
+                    default: return light5Preset; // diff == 5
+                }
             }
         }
         
-        // === DARK PATH (diff > 2, dark winning) ===
-        if (diff > 2)
-        {
-            if (L >= 5) return dark5Preset;
-            if (L >= 4) return dark4Preset;
-            if (L >= 3) return dark3Preset;
-            if (L >= 2) return dark2Preset;
-            return dark1Preset;
-        }
-        
-        // === LIGHT PATH (diff < -2, light winning) ===
-        if (diff < -2)
-        {
-            if (R >= 5) return light5Preset;
-            if (R >= 4) return light4Preset;
-            if (R >= 3) return light3Preset;
-            if (R >= 2) return light2Preset;
-            return light1Preset;
-        }
-        
-        // === MILD DARK (diff 1-2, dark winning, no eclipse) ===
-        if (diff > 0 && diff <= 2 && minRings < 2)
-        {
-            return dark1Preset;
-        }
-        
-        // === MILD LIGHT (diff 1-2, light winning, no eclipse) ===
-        if (diff < 0 && absDiff <= 2 && minRings < 2)
-        {
-            return light1Preset;
-        }
-        
-        // === NEUTRAL (default) ===
+        // === PRIORITY 6: NEUTRAL ===
         return neutralPreset;
     }
     
