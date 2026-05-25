@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38039b016c60f49ef856ef184eaeb59e, type: 3}
+  m_Name: Kodama_Dialogue
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  enemyDisplayName: Kodama
+  initialDialogue: You came closer than the others. Most run before I turn my head.
+    A merchant last moon. A little girl two nights ago, no older than five, who called
+    for her grandmother as she fled. They scream when I turn. They call me a thing,
+    a haunting, a face that was not a face. So tell me, traveler. What do you see
+    standing here? A person? Or only what is missing?
+  options:
+  - choiceText: '[YOUR TREE IS REMEMBERED]'
+    responseText: Remembered. You say the word as if it is a small thing. It is not.
+      The woodcutters forgot the rope. The villagers forgot the prayers. I thought
+      the forest itself had forgotten. But you stopped in this clearing. You listened.
+      The echo can rest now. A sapling has grown three paces from the stump. I will
+      try to learn its voice.
+    isCorrect: 1
+  - choiceText: '[IT WAS JUST A TREE]'
+    responseText: Just. Just a tree. Just a thousand years of holding the rain. Just
+      every bird that nested in my branches and every child who once slept against
+      my bark. Go. Take your small words and go. The next storm that breaks a roof
+      in your village, listen for the echo. It will be mine.
+    isCorrect: 0
+  - choiceText: '[LEAVE]'
+    responseText: Yes. Walk back through the moss. The clearing always returns travelers
+      to where they came from. I will be here. I am always here. There is nowhere
+      else for what I am.
+    isCorrect: 0

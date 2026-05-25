@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38039b016c60f49ef856ef184eaeb59e, type: 3}
+  m_Name: Nopperabo_Dialogue
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  enemyDisplayName: "Nopperab\u014D"
+  initialDialogue: You came closer than the others. Most run before I turn my head.
+    A merchant last moon. A little girl two nights ago, no older than five, who called
+    for her grandmother as she fled. They scream when I turn. They call me a thing,
+    a haunting, a face that was not a face. So tell me, traveler. What do you see
+    standing here? A person? Or only what is missing?
+  options:
+  - choiceText: '[I SEE YOU]'
+    responseText: You looked. You did not look away. No one has said those words
+      to me since the lantern-maker's wife. I had a name once. I had hands she would
+      warm in the winter. Take this peace with you, traveler. The slope is quieter
+      now.
+    isCorrect: 1
+  - choiceText: '[WHAT ARE YOU]'
+    responseText: A thing. So that is all I am. Then I will be the thing you fear.
+      Run, traveler. Run until your throat tears. The next face you see will be mine.
+    isCorrect: 0
+  - choiceText: '[LEAVE]'
+    responseText: Yes. Walk away. Like the merchant. Like the child who called for
+      her grandmother. Like every soft footstep before yours. I will weep here a
+      while longer. And when you reach the soba stall at the bottom of the hill,
+      do not ask the vendor about his face.
+    isCorrect: 0
