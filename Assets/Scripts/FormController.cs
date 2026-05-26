@@ -94,6 +94,12 @@ public class FormController : MonoBehaviour
     [SerializeField] private AudioClip grannyToCatSFX;
     [Tooltip("Y offset from the player root for spawning the VFX prefab. 1.0 puts the burst around chest height which reads well from the default camera framing. Adjust if the VFX prefab has its own pivot offset baked in.")]
     [SerializeField] private float vfxSpawnHeightOffset = 1.0f;
+    [Tooltip("Uniform scale multiplier applied to the spawned VFX instance's localScale. Combat-tuned VFX prefabs (e.g. Mirza Beig hit bursts) are typically scaled 0.3-0.5 for melee feedback, which reads tiny on a full-body transformation moment. Bump this until both bursts read clearly on camera at default framing. Start at 2.5, expect to land between 2.0 and 4.0 depending on the prefab's baked scale.")]
+    [SerializeField] private float vfxScale = 2.5f;
+    [Tooltip("When true, the spawned VFX is parented to the player root so it tracks the character through the fade beat. Recommended for body-anchored bursts (smoke, sparkles, swirls) since the transformation moment lasts long enough for unparented VFX to visibly desync from the body if the player is moving. Toggle off only for world-anchored effects where a fixed-position burst reads better.")]
+    [SerializeField] private bool parentVFXToPlayer = true;
+    [Tooltip("Euler rotation (degrees, XYZ) applied to the spawned VFX instance. Rotation set on the prefab asset itself is NOT respected — the spawn forces this rotation so the orientation is controlled from one place. Common case: flat disc-shaped bursts ship oriented along Y (lying flat on the ground); set X=90 to stand them upright facing the camera. Leave at zero if the prefab already orients correctly.")]
+    [SerializeField] private Vector3 vfxRotationEuler = Vector3.zero;
     
     [Header("Debug")]
     [Tooltip("Log a message to the console on every form transform.")]
@@ -553,12 +559,18 @@ public class FormController : MonoBehaviour
     /// Spawn the transform VFX prefab at chest height on the player root. The prefab is
     /// responsible for its own lifetime (Particle System Stop Action = Destroy, or an
     /// attached timeline/script that disables/destroys the GameObject when finished).
+    /// Optionally parents to the player so the burst tracks the body through the fade,
+    /// applies a uniform scale multiplier so combat-tuned prefabs can read larger for
+    /// the transformation beat, and forces an Inspector-controlled rotation so prefab
+    /// rotation tweaks aren't silently overridden by Quaternion.identity on spawn.
     /// </summary>
     private void SpawnTransformVFX(GameObject vfxPrefab)
     {
         if (vfxPrefab == null) return;
         Vector3 spawnPos = transform.position + new Vector3(0f, vfxSpawnHeightOffset, 0f);
-        Instantiate(vfxPrefab, spawnPos, Quaternion.identity);
+        Transform parent = parentVFXToPlayer ? transform : null;
+        GameObject instance = Instantiate(vfxPrefab, spawnPos, Quaternion.Euler(vfxRotationEuler), parent);
+        instance.transform.localScale *= vfxScale;
     }
     
     /// <summary>
