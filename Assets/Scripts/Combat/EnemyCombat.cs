@@ -164,22 +164,24 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private bool showGizmos = true;
     
     [Header("VFX")]
-    [Tooltip("Particle effect for telegraph wind-up")]
-    [SerializeField] private ParticleSystem telegraphVFX;
-    [Tooltip("Particle effect for attack strike")]
-    [SerializeField] private ParticleSystem attackVFX;
-    [Tooltip("Particle effect for stagger")]
-    [SerializeField] private ParticleSystem staggerVFX;
-    [Tooltip("Particle effect for hit reaction")]
-    [SerializeField] private ParticleSystem hitReactVFX;
-    [Tooltip("Particle effect for teleport out")]
-    [SerializeField] private ParticleSystem teleportOutVFX;
-    [Tooltip("Particle effect for teleport in")]
-    [SerializeField] private ParticleSystem teleportInVFX;
-    [Tooltip("Particle effect for death")]
-    [SerializeField] private ParticleSystem deathVFX;
-    [Tooltip("Particle effect for alert/notice")]
-    [SerializeField] private ParticleSystem alertVFX;
+    [Tooltip("Seconds before instantiated VFX is auto-destroyed. Set higher than your longest particle lifetime.")]
+    [SerializeField] private float vfxLifetime = 3f;
+    [Tooltip("Prefab spawned during telegraph wind-up. Drag prefab from Project window.")]
+    [SerializeField] private GameObject telegraphVFX;
+    [Tooltip("Prefab spawned on attack strike. Drag prefab from Project window.")]
+    [SerializeField] private GameObject attackVFX;
+    [Tooltip("Prefab spawned on stagger. Drag prefab from Project window.")]
+    [SerializeField] private GameObject staggerVFX;
+    [Tooltip("Prefab spawned on hit reaction. Drag prefab from Project window.")]
+    [SerializeField] private GameObject hitReactVFX;
+    [Tooltip("Prefab spawned at teleport-out position (old location). Drag prefab from Project window.")]
+    [SerializeField] private GameObject teleportOutVFX;
+    [Tooltip("Prefab spawned at teleport-in position (new location). Drag prefab from Project window.")]
+    [SerializeField] private GameObject teleportInVFX;
+    [Tooltip("Prefab spawned on death. Drag prefab from Project window.")]
+    [SerializeField] private GameObject deathVFX;
+    [Tooltip("Prefab spawned on alert/notice. Drag prefab from Project window.")]
+    [SerializeField] private GameObject alertVFX;
     
     [Header("Damage")]
     [Tooltip("Damage at or above this threshold is treated as a heavy hit")]
@@ -1158,9 +1160,22 @@ private void TriggerHitFlash()
         animator.SetFloat(HashAnimSpeed, speed);
     }
     
-    private void PlayVFX(ParticleSystem vfx)
+    /// <summary>
+    /// Instantiates a VFX prefab at the enemy's current position and rotation, plays its
+    /// ParticleSystem, and schedules auto-destroy. Mirrors YoruVFXManager.SpawnEffect.
+    /// Null-safe — silently no-ops if the prefab slot is unassigned.
+    /// </summary>
+    private void PlayVFX(GameObject vfxPrefab)
     {
-        if (vfx != null) vfx.Play();
+        if (vfxPrefab == null) return;
+        
+        GameObject effect = Instantiate(vfxPrefab, transform.position, transform.rotation);
+        
+        ParticleSystem ps = effect.GetComponent<ParticleSystem>();
+        if (ps != null && !ps.isPlaying)
+            ps.Play();
+        
+        Destroy(effect, vfxLifetime);
     }
     #endregion
     
