@@ -82,6 +82,8 @@ public class EnemyCombat : MonoBehaviour
         [Header("Hallucination Mechanic")]
         [Tooltip("Seconds the magic-mushroom hallucination runs when this attack lands. 0 = no hallucination. While active, HallucinationEffect.IsActive gates ALL of Yoru's outgoing damage to 0 (see EnemyHealth.TakeDamage).")]
         public float hallucinationDuration = 0f;
+        [Tooltip("If true, trigger hallucination during TELEGRAPH phase instead of Attack. Use for HairLash_Telegraph mushroom effect.")]
+        public bool hallucinationOnTelegraph = false;
         
         [Header("Pull Mechanic")]
         [Tooltip("If true, this attack drags Yoru toward the enemy while it plays (HairLash hair-grab). The pull is applied through PlayerMovement.ApplyExternalPull so it never fights normal locomotion.")]
@@ -699,12 +701,15 @@ public class EnemyCombat : MonoBehaviour
     {
         StopNav();
 
+        // Face player during attack — especially important for skipTelegraph attacks that
+        // didn't go through Telegraph state where LookAtPlayer is normally called
+        LookAtPlayer();
+
         // HairLash pull — while a pulling attack plays, drag Yoru toward the enemy via
         // PlayerMovement (single-Move owner). Stops at pullStopDistance so it snaps to melee
-        // range without overshoot. Faces the player so the yank reads as deliberate.
+        // range without overshoot.
         if (currentAttack != null && currentAttack.pullsPlayer && playerMovement != null && player != null)
         {
-            LookAtPlayer();
             Vector3 toEnemy = transform.position - player.position;
             toEnemy.y = 0f;
             float dist = toEnemy.magnitude;
@@ -823,6 +828,14 @@ public class EnemyCombat : MonoBehaviour
                     SetAnimSpeed(speed);
                     PlayVFX(telegraphVFX);
                     DebugLog($"Telegraph: {currentAttack.attackName} ({duration:F2}s)");
+
+                    // Hallucination on telegraph — for HairLash_Telegraph mushroom effect
+                    if (currentAttack.hallucinationOnTelegraph && currentAttack.hallucinationDuration > 0f
+                        && HallucinationEffect.Instance != null)
+                    {
+                        HallucinationEffect.Instance.Trigger(currentAttack.hallucinationDuration);
+                        DebugLog($"Hallucination triggered on telegraph: {currentAttack.hallucinationDuration}s");
+                    }
                 }
                 break;
                 
@@ -849,7 +862,9 @@ public class EnemyCombat : MonoBehaviour
                     // Magic-mushroom hallucination — fires the standalone post-process effect and
                     // raises HallucinationEffect.IsActive, which gates Yoru's outgoing damage to 0
                     // for its duration (gate lives in EnemyHealth.TakeDamage). No player code touched.
-                    if (currentAttack.hallucinationDuration > 0f && HallucinationEffect.Instance != null)
+                    // Skip if hallucinationOnTelegraph is true — already triggered during telegraph.
+                    if (currentAttack.hallucinationDuration > 0f && !currentAttack.hallucinationOnTelegraph
+                        && HallucinationEffect.Instance != null)
                     {
                         HallucinationEffect.Instance.Trigger(currentAttack.hallucinationDuration);
                         DebugLog($"Hallucination triggered: {currentAttack.hallucinationDuration}s");
@@ -1408,11 +1423,29 @@ private void TriggerHitFlash()
     #region Animation Helpers
     private void PlayAnimation(string stateName, bool forceRestart = false)
     {
-        if (animator == null || string.IsNullOrEmpty(stateName)) return;
-        if (!forceRestart && stateName == currentPlayingAnim) return; // Already playing — don't restart
+        if (animator == null || string.IsNullOrEmpty(stateName))
+        {
+            if (showDebugLogs && string.IsNullOrEmpty(stateName))
+                Debug.LogWarning($"[{gameObject.name}] PlayAnimation called with EMPTY state name!");
+            return;
+        }
+        if (!forceRestart && stateName == currentPlayingAnim) return;
+
+        // Check if state exists in animator
+        int stateHash = Animator.StringToHash(stateName);
+        bool stateExists = animator.HasState(combatLayerIndex, stateHash);
+
+        if (!stateExists)
+        {
+            Debug.LogError($"[{gameObject.name}] ANIMATION STATE NOT FOUND: '{stateName}' on layer {combatLayerIndex}! Check animator controller.");
+            return;
+        }
 
         currentPlayingAnim = stateName;
         animator.CrossFadeInFixedTime(stateName, 0.1f, combatLayerIndex);
+
+        if (showDebugLogs)
+            DebugLog($"Playing animation: {stateName}");
     }
     
     /// <summary>
@@ -1437,10 +1470,22 @@ private void TriggerHitFlash()
     /// Returns true if the current animation on combatLayerIndex has reached or passed
     /// the given normalized threshold (0-1). Used to detect animation completion so
     /// state transitions don't wait for timers when the animation is already done.
+    /// Only returns true after 0.2s in the state to let the new animation start.
     /// </summary>
     private bool IsCurrentAnimationDone(float threshold = 0.95f)
     {
         if (animator == null) return false;
+
+        // Don't check in the first 0.2s - the previous animation might still be blending
+        if (currentAttack != null && stateTimer > 0)
+        {
+            float totalDuration = currentState == EnemyState.Telegraph
+                ? currentAttack.telegraphDuration / Mathf.Max(0.1f, currentAttack.telegraphSpeed)
+                : currentAttack.attackDuration / Mathf.Max(0.1f, currentAttack.attackSpeed);
+            float elapsed = totalDuration - stateTimer;
+            if (elapsed < 0.2f) return false;
+        }
+
         var info = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
         return info.normalizedTime >= threshold;
     }

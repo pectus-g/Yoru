@@ -171,6 +171,27 @@ public class HallucinationEffect : MonoBehaviour
             ResetAll();
             activeHallucination = null;
         }
+
+        // Debug key: H = test hallucination effect (ALWAYS works, ignores showDebugLogs)
+        if (Input.GetKeyDown(KeyCode.H))
+        {
+            Debug.LogError("[Hallucination] ========== H KEY PRESSED ==========");
+            Debug.LogError($"[Hallucination] volume={volume != null}, profile={volume?.profile != null}, vignette={vignette != null}");
+            Debug.LogError($"[Hallucination] weight BEFORE={volume?.weight}, isGlobal={volume?.isGlobal}, priority={volume?.priority}");
+
+            // Force immediate test - set weight to 1 and vignette intensity directly
+            if (volume != null && vignette != null)
+            {
+                volume.weight = 1f;
+                vignette.intensity.Override(0.8f);
+                vignette.color.Override(Color.red);
+                Debug.LogError($"[Hallucination] FORCED weight={volume.weight}, vignette.intensity should be 0.8 RED");
+                Debug.LogError("[Hallucination] If you DON'T see red edges, PostProcessLayer is broken!");
+            }
+
+            // Also trigger normal effect
+            Trigger(3f);
+        }
     }
     #endregion
 
