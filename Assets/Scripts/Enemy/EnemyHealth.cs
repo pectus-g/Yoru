@@ -12,6 +12,10 @@ public class EnemyHealth : MonoBehaviour
     public int CurrentHealth => currentHealth;
     public int MaxHealth => maxHealth;
     
+    [Header("Hit Reaction")]
+    [Tooltip("Damage at or above this in a single hit triggers a STAGGER (big interrupt); anything below triggers a quick HIT-REACT flinch. Heavy attacks also always stagger. Set this between your light and heavy player-attack damage values.")]
+    [SerializeField] private int staggerDamageThreshold = 15;
+    
     [Header("Death Settings")]
     [SerializeField] private float deathDelay = 2f;
     [SerializeField] private bool dropItemOnDeath = false;
@@ -73,10 +77,11 @@ public class EnemyHealth : MonoBehaviour
             return;
         }
         
-        // Notify combat script about hit type
+        // Notify combat script about hit type. Big damage staggers (long interrupt); small/medium
+        // damage flinches (hit-react). Heavy attacks always stagger regardless of the number.
         if (enemyCombat != null)
         {
-            if (isHeavy)
+            if (isHeavy || damage >= staggerDamageThreshold)
             {
                 enemyCombat.TriggerStagger();
             }

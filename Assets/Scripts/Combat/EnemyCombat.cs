@@ -139,6 +139,8 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float alertDuration = 0.5f;
     [SerializeField] private float recoveryDuration = 0.4f;
     [SerializeField] private float hitReactDuration = 0.5f;
+    [Tooltip("Minimum seconds between hit-react flinches. A flinch CAN interrupt the enemy's own attack so it stays visible, but within this window further hits only flash — stops a fast player from stun-locking it out of every attack. Raise for a more relentless enemy, lower for more reactive.")]
+    [SerializeField] private float hitReactCooldown = 1.0f;
     [SerializeField] private float staggerDuration = 1.0f;
     [SerializeField] private float attackCooldown = 3.0f;
     
@@ -291,6 +293,14 @@ public class EnemyCombat : MonoBehaviour
     private bool pullDecisionMade;
     private bool pullDecisionResult; // true = pull (yank), false = run in
     
+    // Hallucination fires exactly once per attack — on telegraph if flagged AND a telegraph runs,
+    // otherwise on the attack. Tracking this decouples it from the hallucinationOnTelegraph flag,
+    // so a skipped telegraph can't swallow the trigger.
+    private bool hallucinationFiredThisAttack;
+    
+    // Hit-react rate limit — stops a fast player perma-flinching the enemy out of every attack.
+    private float hitReactReadyTime;
+    
     // Disengage — cached spawn position for return-to-spawn behaviour.
     private Vector3 spawnPosition;
     private Quaternion spawnRotation;
@@ -299,6 +309,9 @@ public class EnemyCombat : MonoBehaviour
     
     // Animation tracking — prevents CrossFade from restarting every frame
     private string currentPlayingAnim = "";
+    
+    // Missing animator states already logged — so a bad state name doesn't spam the console every frame.
+    private readonly System.Collections.Generic.HashSet<string> missingStatesWarned = new System.Collections.Generic.HashSet<string>();
     
     // Clip-driven attack/telegraph transitions — the state runs until the real animation clip
     // reaches its end (full play, no early cut), with a runtime-derived safety net so it can never hang.
@@ -406,62 +419,6 @@ public class EnemyCombat : MonoBehaviour
             case EnemyState.Stagger: HandleStagger(); break;
             case EnemyState.Teleport: break; // Handled by coroutine
             case EnemyState.Dead: HandleDead(); break;
-        }
-        
-        // Debug keys
-        HandleDebugInput();
-    }
-
-    private float lastLoggedNormalizedTime = -1f;
-    private int freezeFrameCount = 0;
-
-    private void LateUpdate()
-    {
-        if (!showDebugLogs || animator == null) return;
-        if (currentState != EnemyState.Attack && currentState != EnemyState.Telegraph) return;
-
-        var info = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-        float nt = info.normalizedTime;
-
-        // Detect freeze: normalizedTime not progressing for multiple frames
-        if (Mathf.Abs(nt - lastLoggedNormalizedTime) < 0.001f)
-        {
-            freezeFrameCount++;
-            if (freezeFrameCount == 10) // 10 frames of no progress = freeze
-            {
-                Debug.LogWarning($"[{gameObject.name}] FREEZE DETECTED! " +
-                    $"normalizedTime stuck at {nt:F3} for 10 frames. " +
-                    $"animator.speed={animator.speed:F2} " +
-                    $"AnimSpeed={animator.GetFloat(HashAnimSpeed):F2} " +
-                    $"state={currentState} anim={currentPlayingAnim}");
-
-                // Check SkinnedMeshRenderer
-                var smr = GetComponentInChildren<SkinnedMeshRenderer>();
-                if (smr != null)
-                {
-                    Debug.LogWarning($"[{gameObject.name}] SkinnedMeshRenderer: " +
-                        $"enabled={smr.enabled} " +
-                        $"updateWhenOffscreen={smr.updateWhenOffscreen} " +
-                        $"isVisible={smr.isVisible}");
-                }
-            }
-        }
-        else
-        {
-            freezeFrameCount = 0;
-        }
-        lastLoggedNormalizedTime = nt;
-
-        // Also log periodically for general diagnostics
-        if (stateTimer > 1.5f && Time.frameCount % 60 == 0)
-        {
-            Debug.Log($"[{gameObject.name}] ANIMATOR DIAGNOSTICS: " +
-                $"animator.speed={animator.speed:F2} " +
-                $"AnimSpeed={animator.GetFloat(HashAnimSpeed):F2} " +
-                $"cullingMode={animator.cullingMode} " +
-                $"updateMode={animator.updateMode} " +
-                $"normalizedTime={nt:F2} " +
-                $"state={currentState}");
         }
     }
     #endregion
@@ -665,8 +622,8 @@ public class EnemyCombat : MonoBehaviour
                 if (chosen != null)
                 {
                     currentAttack = chosen;
-                    // skipTelegraph routes straight to Attack so the self-contained clip plays full-length.
-                    SetState(currentAttack.skipTelegraph ? EnemyState.Attack : EnemyState.Telegraph);
+                    // skipTelegraph (or no telegraph clip) routes straight to Attack so the self-contained clip plays full-length.
+                    SetState(ShouldSkipTelegraph(currentAttack) ? EnemyState.Attack : EnemyState.Telegraph);
                     return;
                 }
             }
@@ -721,7 +678,7 @@ public class EnemyCombat : MonoBehaviour
                     if (pull != null)
                     {
                         currentAttack = pull;
-                        SetState(pull.skipTelegraph ? EnemyState.Attack : EnemyState.Telegraph);
+                        SetState(ShouldSkipTelegraph(pull) ? EnemyState.Attack : EnemyState.Telegraph);
                         return;
                     }
                     // No pull attack defined — fall through to run in.
@@ -794,7 +751,7 @@ public class EnemyCombat : MonoBehaviour
             {
                 currentAttack = comboQueue.Dequeue();
                 LookAtPlayer();
-                SetState(currentAttack.skipTelegraph ? EnemyState.Attack : EnemyState.Telegraph);
+                SetState(ShouldSkipTelegraph(currentAttack) ? EnemyState.Attack : EnemyState.Telegraph);
                 return;
             }
             
@@ -867,6 +824,7 @@ public class EnemyCombat : MonoBehaviour
                     // Committing to an attack — clear the re-engage run flag so normal behaviour
                     // resumes after this strike, and snap to face the player so the wind-up aims true.
                     forceRunReengage = false;
+                    hallucinationFiredThisAttack = false; // fresh attack
                     FacePlayerInstant();
 
                     float speed = currentAttack.telegraphSpeed;
@@ -876,12 +834,14 @@ public class EnemyCombat : MonoBehaviour
                     PlayVFX(telegraphVFX);
                     DebugLog($"Telegraph: {currentAttack.attackName}");
 
-                    // Hallucination on telegraph — only if explicitly flagged. (For skipTelegraph
-                    // attacks this state never runs, so the Attack-state trigger handles it instead.)
+                    // Hallucination — fire here only if explicitly flagged for the telegraph phase.
+                    // Otherwise it fires when the Attack state begins (see below). Tracked so it
+                    // can never fire twice.
                     if (currentAttack.hallucinationOnTelegraph && currentAttack.hallucinationDuration > 0f
-                        && HallucinationEffect.Instance != null)
+                        && !hallucinationFiredThisAttack && HallucinationEffect.Instance != null)
                     {
                         HallucinationEffect.Instance.Trigger(currentAttack.hallucinationDuration);
+                        hallucinationFiredThisAttack = true;
                         DebugLog($"Hallucination triggered on telegraph: {currentAttack.hallucinationDuration}s");
                     }
                 }
@@ -893,6 +853,10 @@ public class EnemyCombat : MonoBehaviour
                     // Committing to an attack — clear the re-engage run flag and snap to face the
                     // player so the strike (and the hair-grab visual) aims where Yoru actually is.
                     forceRunReengage = false;
+                    // If we did NOT come through Telegraph, this is a fresh attack (skipped telegraph) —
+                    // reset the fired flag so the hallucination still fires here.
+                    if (oldState != EnemyState.Telegraph)
+                        hallucinationFiredThisAttack = false;
                     FacePlayerInstant();
 
                     float speed = currentAttack.attackSpeed;
@@ -917,11 +881,13 @@ public class EnemyCombat : MonoBehaviour
                     // Magic-mushroom hallucination — fires the standalone post-process effect and
                     // raises HallucinationEffect.IsActive, which gates Yoru's outgoing damage to 0
                     // for its duration (gate lives in EnemyHealth.TakeDamage). No player code touched.
-                    // Skip if hallucinationOnTelegraph is true — already triggered during telegraph.
-                    if (currentAttack.hallucinationDuration > 0f && !currentAttack.hallucinationOnTelegraph
+                    // Fires here unless it already fired during a telegraph this attack — so it works
+                    // whether the attack telegraphs or skips straight in.
+                    if (currentAttack.hallucinationDuration > 0f && !hallucinationFiredThisAttack
                         && HallucinationEffect.Instance != null)
                     {
                         HallucinationEffect.Instance.Trigger(currentAttack.hallucinationDuration);
+                        hallucinationFiredThisAttack = true;
                         DebugLog($"Hallucination triggered: {currentAttack.hallucinationDuration}s");
                     }
                 }
@@ -1008,11 +974,17 @@ public class EnemyCombat : MonoBehaviour
     {
         if (attacks == null || attacks.Length == 0) return null;
         
+        // A pull at melee range is pointless (the player is already here) and it crowds out the
+        // real melee attacks, which is why CloseStrike rarely showed. Exclude pulls when in close —
+        // the pull is the pull band's gap-closer, not a melee move.
+        bool atMelee = DistanceToPlayer() <= attackRange;
+        
         // Build list of valid attacks for current phase
         int totalWeight = 0;
         
         for (int i = 0; i < attacks.Length; i++)
         {
+            if (atMelee && attacks[i].pullsPlayer) continue;
             if (IsAttackValid(attacks[i]))
                 totalWeight += attacks[i].weight;
         }
@@ -1025,6 +997,7 @@ public class EnemyCombat : MonoBehaviour
         
         for (int i = 0; i < attacks.Length; i++)
         {
+            if (atMelee && attacks[i].pullsPlayer) continue;
             if (!IsAttackValid(attacks[i])) continue;
             
             running += attacks[i].weight;
@@ -1032,7 +1005,7 @@ public class EnemyCombat : MonoBehaviour
                 return attacks[i];
         }
         
-        return attacks[0]; // Fallback
+        return null; // No valid non-pull attack at this range
     }
     
     private bool IsAttackValid(EnemyAttack atk)
@@ -1040,6 +1013,18 @@ public class EnemyCombat : MonoBehaviour
         if (atk.phase == AttackPhase.Phase1Only && isPhase2) return false;
         if (atk.phase == AttackPhase.Phase2Only && !isPhase2) return false;
         return true;
+    }
+    
+    /// <summary>
+    /// True when an attack should bypass the Telegraph state and go straight to Attack. Honours the
+    /// skipTelegraph flag, but ALSO treats a missing telegraphAnim as skip — otherwise the Telegraph
+    /// state sits on the previous clip (e.g. Float_Idle) for the whole wind-up, which reads as the
+    /// enemy freezing/floating. The HairLash clips are self-contained, so the Nopperabō always skips.
+    /// </summary>
+    private bool ShouldSkipTelegraph(EnemyAttack atk)
+    {
+        if (atk == null) return true;
+        return atk.skipTelegraph || string.IsNullOrEmpty(atk.telegraphAnim);
     }
     
     /// <summary>
@@ -1099,14 +1084,21 @@ public class EnemyCombat : MonoBehaviour
             EnemyAttackCombo combo = ChooseCombo();
             if (combo != null && QueueComboSequence(combo))
             {
+                // At melee range, drop any leading pull step(s) — the player is already close, so
+                // the combo should open on its first real strike instead of a pointless yank.
+                // Keep at least one step so the combo still fires.
+                bool atMelee = DistanceToPlayer() <= attackRange;
+                while (atMelee && comboQueue.Count > 1 && comboQueue.Peek().pullsPlayer)
+                    comboQueue.Dequeue();
+
                 // First step dequeued and returned; the rest stay queued for HandleRecovery.
                 EnemyAttack first = comboQueue.Dequeue();
-                DebugLog($"Combo started: {combo.comboName} ({combo.attackNames.Length} steps)");
+                DebugLog($"Combo started: {combo.comboName} ({comboQueue.Count + 1} steps remaining)");
                 return first;
             }
         }
         
-        // Single attack fallback.
+        // Single attack fallback (may be null at melee if only pulls are valid — caller then circles).
         return ChooseAttack();
     }
     
@@ -1319,18 +1311,32 @@ public void TriggerHitReact()
     if (currentState == EnemyState.Stagger) return;
     if (currentState == EnemyState.HitReact) return;
 
-    // Interrupt non-critical states with a proper HitReact state
-    if (currentState == EnemyState.Idle ||
-        currentState == EnemyState.Chase ||
-        currentState == EnemyState.Recovery)
+    // Which states a flinch may interrupt. Attack/Telegraph are now included so small/medium hits
+    // are actually VISIBLE during the enemy's own offence (previously they only flashed). Teleport
+    // and narrative states (LostSoul/Dialogue/Peaceful) are not interrupted.
+    bool interruptible = currentState == EnemyState.Idle
+        || currentState == EnemyState.Chase
+        || currentState == EnemyState.Recovery
+        || currentState == EnemyState.Telegraph
+        || currentState == EnemyState.Attack;
+
+    if (!interruptible)
     {
-        SetState(EnemyState.HitReact);
-    }
-    else if (currentState == EnemyState.Telegraph || currentState == EnemyState.Attack)
-    {
-        // Can't interrupt attack — give the player visual confirmation instead
         TriggerHitFlash();
+        return;
     }
+
+    // Rate limit — a flinch interrupts, then for hitReactCooldown seconds further hits only flash,
+    // so the enemy gets to resume attacking instead of being stun-locked. Big hits use TriggerStagger
+    // (no cooldown), so heavy damage always staggers.
+    if (Time.time < hitReactReadyTime)
+    {
+        TriggerHitFlash();
+        return;
+    }
+
+    hitReactReadyTime = Time.time + hitReactCooldown;
+    SetState(EnemyState.HitReact);
 }
 
 /// <summary>
@@ -1379,6 +1385,8 @@ private void TriggerHitFlash()
         leashTimer = 0;
         forceRunReengage = false;
         pullDecisionMade = false;
+        hallucinationFiredThisAttack = false;
+        hitReactReadyTime = 0f;
         clipLengthRead = false;
         cachedClipLength = 0f;
         currentAttack = null;
@@ -1537,7 +1545,10 @@ private void TriggerHitFlash()
 
         if (!stateExists)
         {
-            Debug.LogError($"[{gameObject.name}] ANIMATION STATE NOT FOUND: '{stateName}' on layer {combatLayerIndex}! Check animator controller.");
+            // Log each missing state name only once per enemy — a misconfigured anim name (e.g. an
+            // idle played every frame in LostSoul) would otherwise flood the console every frame.
+            if (missingStatesWarned.Add(stateName))
+                Debug.LogError($"[{gameObject.name}] ANIMATION STATE NOT FOUND: '{stateName}' on layer {combatLayerIndex}! Check this enemy's animator controller / state-name fields.");
             return;
         }
 
@@ -1679,12 +1690,6 @@ private void TriggerHitFlash()
     #endregion
     
     #region Debug
-    private void HandleDebugInput()
-    {
-        // T key removed — conflicts with Transform (cat/human) keybind.
-        // Use Inspector button or console command to force hostile.
-    }
-    
     private void DebugLog(string msg)
     {
         if (showDebugLogs)

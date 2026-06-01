@@ -66,41 +66,36 @@ public class HallucinationEffect : MonoBehaviour
 
     [Header("Lens Distortion (the woozy bend)")]
     [Tooltip("Peak lens distortion intensity (negative = pinch, positive = bulge)")]
-    [SerializeField] private float lensDistortionPeak = -35f;
-    [Tooltip("Speed of the in/out distortion wobble while held")]
-    [SerializeField] private float lensWobbleSpeed = 2.2f;
-    [Tooltip("Wobble amount added on top of the peak while held")]
-    [SerializeField] private float lensWobbleAmount = 12f;
+    [SerializeField] private float lensDistortionPeak = -40f;
 
     [Header("Chromatic Aberration (color fringing)")]
-    [SerializeField] private float chromaticPeak = 0.9f;
-    [SerializeField] private float chromaticPulseSpeed = 3.5f;
+    [SerializeField] private float chromaticPeak = 1f;
 
     [Header("Bloom (dreamy flare)")]
-    [SerializeField] private float bloomPeak = 6f;
+    [SerializeField] private float bloomPeak = 7f;
     [SerializeField] private float bloomThreshold = 0.7f;
 
     [Header("Vignette (tunnel closing in)")]
-    [SerializeField] private float vignettePeak = 0.45f;
+    [SerializeField] private float vignettePeak = 0.5f;
     [SerializeField] private Color vignetteColor = new Color(0.35f, 0.1f, 0.45f);
 
-    [Header("Color Grading (saturation surge + hue cycle)")]
+    [Header("Color Grading (saturation surge + hue drift)")]
     [Tooltip("Peak added saturation while hallucinating")]
-    [SerializeField] private float saturationPeak = 60f;
-    [Tooltip("Degrees-per-second the hue shifts while held — the 'colors breathing' feel")]
-    [SerializeField] private float hueCycleSpeed = 80f;
+    [SerializeField] private float saturationPeak = 75f;
     [Tooltip("Peak contrast added while hallucinating")]
     [SerializeField] private float contrastPeak = 20f;
+
+    [Header("Lava-Lamp Drift")]
+    [Tooltip("How far the hue sways each way (degrees). The hue oozes back and forth within this band instead of spinning the full colour wheel — the slow 'funk lava lamp' morph.")]
+    [SerializeField] private float hueSwingDegrees = 95f;
+    [Tooltip("Base seconds for one slow morph cycle. Larger = slower, oozier. Three internal oscillators run at incommensurate multiples of this so the wash never visibly repeats.")]
+    [SerializeField] private float breathePeriod = 9f;
 
     [Header("Grain (film fuzz)")]
     [SerializeField] private float grainPeak = 0.6f;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
-    [Tooltip("Force weight to 1 permanently on Start for render testing. Disable after confirming visibility.")]
-    [SerializeField] private bool forceVisibleForTesting = false;
-    [Tooltip("Use only Vignette effect (like CombatPostProcessPulse which works). Enable this to test if PPv2 renders at all.")]
-    [SerializeField] private bool useSimpleEffectsOnly = false;
     #endregion
 
     #region Private Fields
@@ -123,28 +118,6 @@ public class HallucinationEffect : MonoBehaviour
         CreateHallucinationVolume();
         ValidatePostProcessSetup();
         DebugLog("HallucinationEffect ready");
-
-        // Debug mode: force the effect visible to verify PPv2 rendering works at all
-        if (forceVisibleForTesting)
-        {
-            volume.weight = 1f;
-            // Use VERY strong values for testing so it's unmissable
-            if (vignette != null)
-            {
-                vignette.intensity.Override(0.7f); // Very strong vignette
-                vignette.color.Override(Color.red); // Bright red so it's obvious
-            }
-            if (lensDistortion != null) lensDistortion.intensity.Override(lensDistortionPeak);
-            if (chromatic != null) chromatic.intensity.Override(chromaticPeak);
-            if (bloom != null) bloom.intensity.Override(bloomPeak);
-            if (colorGrading != null)
-            {
-                colorGrading.saturation.Override(saturationPeak);
-                colorGrading.contrast.Override(contrastPeak);
-            }
-            if (grain != null) grain.intensity.Override(grainPeak);
-            Debug.LogError($"[Hallucination] *** FORCE VISIBLE MODE ACTIVE *** simpleOnly={useSimpleEffectsOnly} — you should see RED VIGNETTE! Disable after testing.");
-        }
     }
 
     private void OnDestroy()
@@ -171,27 +144,6 @@ public class HallucinationEffect : MonoBehaviour
             ResetAll();
             activeHallucination = null;
         }
-
-        // Debug key: H = test hallucination effect (ALWAYS works, ignores showDebugLogs)
-        if (Input.GetKeyDown(KeyCode.H))
-        {
-            Debug.LogError("[Hallucination] ========== H KEY PRESSED ==========");
-            Debug.LogError($"[Hallucination] volume={volume != null}, profile={volume?.profile != null}, vignette={vignette != null}");
-            Debug.LogError($"[Hallucination] weight BEFORE={volume?.weight}, isGlobal={volume?.isGlobal}, priority={volume?.priority}");
-
-            // Force immediate test - set weight to 1 and vignette intensity directly
-            if (volume != null && vignette != null)
-            {
-                volume.weight = 1f;
-                vignette.intensity.Override(0.8f);
-                vignette.color.Override(Color.red);
-                Debug.LogError($"[Hallucination] FORCED weight={volume.weight}, vignette.intensity should be 0.8 RED");
-                Debug.LogError("[Hallucination] If you DON'T see red edges, PostProcessLayer is broken!");
-            }
-
-            // Also trigger normal effect
-            Trigger(3f);
-        }
     }
     #endregion
 
@@ -213,14 +165,6 @@ public class HallucinationEffect : MonoBehaviour
         vignette.smoothness.Override(0.6f);
         vignette.color.Override(vignetteColor);
         profile.AddSettings(vignette);
-
-        if (useSimpleEffectsOnly)
-        {
-            // Simple mode: only vignette (matches CombatPostProcessPulse setup)
-            volume.profile = profile;
-            DebugLog("Hallucination volume built with SIMPLE EFFECTS ONLY (vignette)");
-            return;
-        }
 
         // Full effect suite
         lensDistortion = ScriptableObject.CreateInstance<LensDistortion>();
@@ -395,9 +339,11 @@ public class HallucinationEffect : MonoBehaviour
     }
 
     /// <summary>
-    /// Applies every stacked effect scaled by strength (0..1), plus the time-based wobble,
-    /// chromatic pulse, and hue cycle that make the wash feel alive while held.
-    /// Wrapped in try/catch so a visual exception never leaves IsActive stuck.
+    /// Applies every stacked effect scaled by strength (0..1) with a slow, flowing "lava lamp"
+    /// drift. Three oscillators at incommensurate periods (so the pattern never visibly repeats)
+    /// ooze the hue within a band and breathe the saturation, fringing, bend and vignette — a
+    /// woozy funk wash rather than a fast strobe. Wrapped in try/catch so a visual exception never
+    /// leaves IsActive stuck.
     /// </summary>
     private void ApplyAtStrength(float strength)
     {
@@ -406,34 +352,45 @@ public class HallucinationEffect : MonoBehaviour
             if (volume == null) return;
             volume.weight = strength;
 
-            float time = Time.unscaledTime;
+            float t = Time.unscaledTime;
+            float w = 2f * Mathf.PI / Mathf.Max(0.5f, breathePeriod);
+
+            // Three slow oscillators on non-matching periods → organic, never-repeating morph.
+            float oscA = Mathf.Sin(t * w);          // base period
+            float oscB = Mathf.Sin(t * w * 0.61f);  // ~1.6x slower
+            float oscC = Mathf.Sin(t * w * 1.37f);  // a touch faster
+            // 0..1 helpers
+            float a01 = 0.5f + 0.5f * oscA;
+            float b01 = 0.5f + 0.5f * oscB;
+            float c01 = 0.5f + 0.5f * oscC;
 
             if (lensDistortion != null)
             {
-                float wobble = Mathf.Sin(time * lensWobbleSpeed) * lensWobbleAmount * strength;
-                lensDistortion.intensity.Override(lensDistortionPeak * strength + wobble);
+                // Slow bulge/pinch breathing around the peak (never drops below ~70%).
+                lensDistortion.intensity.Override(lensDistortionPeak * (0.7f + 0.3f * b01) * strength);
             }
 
             if (chromatic != null)
             {
-                float chromPulse = (0.7f + 0.3f * Mathf.Sin(time * chromaticPulseSpeed));
-                chromatic.intensity.Override(chromaticPeak * strength * chromPulse);
+                // Colour fringing swells and recedes slowly.
+                chromatic.intensity.Override(chromaticPeak * (0.55f + 0.45f * c01) * strength);
             }
 
             if (bloom != null)
-                bloom.intensity.Override(bloomPeak * strength);
+                bloom.intensity.Override(bloomPeak * (0.75f + 0.25f * a01) * strength);
 
             if (vignette != null)
-                vignette.intensity.Override(vignettePeak * strength);
+                vignette.intensity.Override(vignettePeak * (0.8f + 0.2f * b01) * strength);
 
             if (colorGrading != null)
             {
-                colorGrading.saturation.Override(saturationPeak * strength);
+                // Saturation surges and eases on its own slow period.
+                colorGrading.saturation.Override(saturationPeak * (0.65f + 0.35f * a01) * strength);
                 colorGrading.contrast.Override(contrastPeak * strength);
-                // Hue cycles continuously while active — wraps in [-180, 180]
-                float hue = Mathf.Repeat(time * hueCycleSpeed * strength, 360f);
-                if (hue > 180f) hue -= 360f;
-                colorGrading.hueShift.Override(hue);
+                // Hue oozes back and forth within a band (two summed oscillators) instead of
+                // spinning the full wheel — colours flow between related tones, lava-lamp style.
+                float hue = hueSwingDegrees * (0.62f * oscA + 0.38f * oscC) * strength;
+                colorGrading.hueShift.Override(Mathf.Clamp(hue, -180f, 180f));
             }
 
             if (grain != null)
