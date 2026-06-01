@@ -79,9 +79,42 @@ public class EnemyCombat : MonoBehaviour
         [Tooltip("Stun player for this duration on hit (0 = no stun)")]
         public float stunPlayerDuration = 0f;
         
+        [Header("Hallucination Mechanic")]
+        [Tooltip("Seconds the magic-mushroom hallucination runs when this attack lands. 0 = no hallucination. While active, HallucinationEffect.IsActive gates ALL of Yoru's outgoing damage to 0 (see EnemyHealth.TakeDamage).")]
+        public float hallucinationDuration = 0f;
+        
+        [Header("Pull Mechanic")]
+        [Tooltip("If true, this attack drags Yoru toward the enemy while it plays (HairLash hair-grab). The pull is applied through PlayerMovement.ApplyExternalPull so it never fights normal locomotion.")]
+        public bool pullsPlayer = false;
+        [Tooltip("Yank speed in m/s while the pull is active. Higher = snappier. ~12 reads as a strong fast yank.")]
+        public float pullSpeed = 12f;
+        [Tooltip("Stop pulling once Yoru is within this planar distance of the enemy (melee range). Prevents overshoot/clipping.")]
+        public float pullStopDistance = 1.5f;
+        
+        [Header("State Machine")]
+        [Tooltip("Skip the Telegraph state and route Chase → Attack directly. Use when the attack clip is self-contained and should play full-length with no separate wind-up (HairLash_Telegraph IS the full pull animation, so it skips telegraph).")]
+        public bool skipTelegraph = false;
+        
         [Header("Phase")]
         public AttackPhase phase = AttackPhase.Both;
         [Tooltip("Selection weight — higher = more likely to be picked")]
+        [Range(1, 100)]
+        public int weight = 50;
+    }
+    #endregion
+    
+    #region Combo Definition
+    [System.Serializable]
+    public class EnemyAttackCombo
+    {
+        public string comboName = "Combo";
+        
+        [Tooltip("Ordered attackName references resolved against the Attacks array. Each plays its full-length animation back-to-back with no telegraph between them.")]
+        public string[] attackNames;
+        
+        [Header("Phase")]
+        public AttackPhase phase = AttackPhase.Both;
+        [Tooltip("Selection weight among combos — higher = more likely to be picked when a combo is rolled")]
         [Range(1, 100)]
         public int weight = 50;
     }
@@ -118,6 +151,14 @@ public class EnemyCombat : MonoBehaviour
     
     [Header("Attacks")]
     [SerializeField] private EnemyAttack[] attacks;
+    
+    [Header("Combos")]
+    [Tooltip("Chained attack sequences. Each step plays full-length with no telegraph between steps. Any attack can also fire alone — combos and singles are both rolled randomly per engagement.")]
+    [SerializeField] private EnemyAttackCombo[] combos;
+    [Tooltip("Chance (0-1) that an engagement opens with a combo instead of a single attack, in Phase 1")]
+    [SerializeField, Range(0f, 1f)] private float comboChanceP1 = 0.4f;
+    [Tooltip("Chance (0-1) that an engagement opens with a combo instead of a single attack, in Phase 2")]
+    [SerializeField, Range(0f, 1f)] private float comboChanceP2 = 0.6f;
     
     [Header("Phase System")]
     [SerializeField] private bool hasPhases = false;
@@ -201,6 +242,7 @@ public class EnemyCombat : MonoBehaviour
     #region Private Fields
     private Transform player;
     private FormController playerFormController;
+    private PlayerMovement playerMovement;
     private EnemyHealth enemyHealth;
     private Animator animator;
     private NavMeshAgent navAgent;
@@ -214,6 +256,10 @@ public class EnemyCombat : MonoBehaviour
     
     // Attack
     private EnemyAttack currentAttack;
+    
+    // Combo — queued attackNames for the active sequence. Empty = single attack.
+    private readonly System.Collections.Generic.Queue<EnemyAttack> comboQueue = new System.Collections.Generic.Queue<EnemyAttack>();
+    private string activeComboName = "";
     
     // Alert (only triggers once per encounter)
     private bool hasAlerted;
@@ -250,6 +296,10 @@ public class EnemyCombat : MonoBehaviour
         if (player != null && playerFormController == null)
             Debug.LogWarning($"{gameObject.name}: FormController not found on Player. Tomoe-ignore gate will be INACTIVE — this enemy will attack Tomoe.");
         
+        // Cache PlayerMovement for the HairLash pull. Pull is routed through its ApplyExternalPull
+        // so there is only ever one Move per system (no fighting locomotion/gravity).
+        playerMovement = player != null ? player.GetComponent<PlayerMovement>() : null;
+        
         enemyHealth = GetComponent<EnemyHealth>();
         animator = GetComponent<Animator>();
         navAgent = GetComponent<NavMeshAgent>();
@@ -269,6 +319,17 @@ public class EnemyCombat : MonoBehaviour
         spawnRotation = transform.rotation;
         
         SetState(EnemyState.LostSoul);
+
+        // Log animator settings at startup to help diagnose freeze issues
+        if (showDebugLogs && animator != null)
+        {
+            Debug.Log($"[{gameObject.name}] ANIMATOR SETUP: " +
+                $"cullingMode={animator.cullingMode} " +
+                $"updateMode={animator.updateMode} " +
+                $"applyRootMotion={animator.applyRootMotion} " +
+                $"speed={animator.speed}");
+        }
+
         DebugLog("Initialized");
     }
     
@@ -314,6 +375,59 @@ public class EnemyCombat : MonoBehaviour
         
         // Debug keys
         HandleDebugInput();
+    }
+
+    private float lastLoggedNormalizedTime = -1f;
+    private int freezeFrameCount = 0;
+
+    private void LateUpdate()
+    {
+        if (!showDebugLogs || animator == null) return;
+        if (currentState != EnemyState.Attack && currentState != EnemyState.Telegraph) return;
+
+        var info = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+        float nt = info.normalizedTime;
+
+        // Detect freeze: normalizedTime not progressing for multiple frames
+        if (Mathf.Abs(nt - lastLoggedNormalizedTime) < 0.001f)
+        {
+            freezeFrameCount++;
+            if (freezeFrameCount == 10) // 10 frames of no progress = freeze
+            {
+                Debug.LogWarning($"[{gameObject.name}] FREEZE DETECTED! " +
+                    $"normalizedTime stuck at {nt:F3} for 10 frames. " +
+                    $"animator.speed={animator.speed:F2} " +
+                    $"AnimSpeed={animator.GetFloat(HashAnimSpeed):F2} " +
+                    $"state={currentState} anim={currentPlayingAnim}");
+
+                // Check SkinnedMeshRenderer
+                var smr = GetComponentInChildren<SkinnedMeshRenderer>();
+                if (smr != null)
+                {
+                    Debug.LogWarning($"[{gameObject.name}] SkinnedMeshRenderer: " +
+                        $"enabled={smr.enabled} " +
+                        $"updateWhenOffscreen={smr.updateWhenOffscreen} " +
+                        $"isVisible={smr.isVisible}");
+                }
+            }
+        }
+        else
+        {
+            freezeFrameCount = 0;
+        }
+        lastLoggedNormalizedTime = nt;
+
+        // Also log periodically for general diagnostics
+        if (stateTimer > 1.5f && Time.frameCount % 60 == 0)
+        {
+            Debug.Log($"[{gameObject.name}] ANIMATOR DIAGNOSTICS: " +
+                $"animator.speed={animator.speed:F2} " +
+                $"AnimSpeed={animator.GetFloat(HashAnimSpeed):F2} " +
+                $"cullingMode={animator.cullingMode} " +
+                $"updateMode={animator.updateMode} " +
+                $"normalizedTime={nt:F2} " +
+                $"state={currentState}");
+        }
     }
     #endregion
     
@@ -482,11 +596,13 @@ public class EnemyCombat : MonoBehaviour
         if (dist <= attackRange && cooldownTimer <= 0)
         {
             chaseTimer = 0f; // Reset — we're attacking
-            EnemyAttack chosen = ChooseAttack();
+            EnemyAttack chosen = ChooseAttackOrCombo();
             if (chosen != null)
             {
                 currentAttack = chosen;
-                SetState(EnemyState.Telegraph);
+                // HairLash_Telegraph IS the full attack clip for Pull — skipTelegraph routes
+                // straight to Attack so the animation plays full-length with no truncated wind-up.
+                SetState(currentAttack.skipTelegraph ? EnemyState.Attack : EnemyState.Telegraph);
                 return;
             }
         }
@@ -565,9 +681,16 @@ public class EnemyCombat : MonoBehaviour
     {
         StopNav();
         LookAtPlayer();
-        
-        if (stateTimer <= 0)
+
+        // Transition when timer expires OR animation finishes (whichever comes first)
+        // This prevents the "stuck at end of animation" freeze when timer > animation length
+        bool timerDone = stateTimer <= 0;
+        bool animDone = IsCurrentAnimationDone(0.95f);
+
+        if (timerDone || animDone)
         {
+            if (animDone && !timerDone)
+                DebugLog($"Telegraph animation finished early (timer still has {stateTimer:F2}s)");
             SetState(EnemyState.Attack);
         }
     }
@@ -575,10 +698,28 @@ public class EnemyCombat : MonoBehaviour
     private void HandleAttack()
     {
         StopNav();
-        
-        if (stateTimer <= 0)
+
+        // HairLash pull — while a pulling attack plays, drag Yoru toward the enemy via
+        // PlayerMovement (single-Move owner). Stops at pullStopDistance so it snaps to melee
+        // range without overshoot. Faces the player so the yank reads as deliberate.
+        if (currentAttack != null && currentAttack.pullsPlayer && playerMovement != null && player != null)
         {
-            // Deal damage at end of attack
+            LookAtPlayer();
+            Vector3 toEnemy = transform.position - player.position;
+            toEnemy.y = 0f;
+            float dist = toEnemy.magnitude;
+            if (dist > currentAttack.pullStopDistance)
+                playerMovement.ApplyExternalPull(toEnemy.normalized * currentAttack.pullSpeed, Time.deltaTime * 2f);
+        }
+
+        // Transition when timer expires OR animation finishes (whichever comes first)
+        bool timerDone = stateTimer <= 0;
+        bool animDone = IsCurrentAnimationDone(0.95f);
+
+        if (timerDone || animDone)
+        {
+            if (animDone && !timerDone)
+                DebugLog($"Attack animation finished early (timer still has {stateTimer:F2}s)");
             DealDamageToPlayer();
             SetState(EnemyState.Recovery);
         }
@@ -590,6 +731,19 @@ public class EnemyCombat : MonoBehaviour
         
         if (stateTimer <= 0)
         {
+            // Combo chaining — if a sequence is queued, jump straight to the next attack.
+            // Skips Chase + Telegraph so the chained clips play back-to-back, full-length.
+            if (comboQueue.Count > 0)
+            {
+                currentAttack = comboQueue.Dequeue();
+                LookAtPlayer();
+                SetState(currentAttack.skipTelegraph ? EnemyState.Attack : EnemyState.Telegraph);
+                return;
+            }
+            
+            // Sequence finished (or was a single attack) — clear combo label.
+            activeComboName = "";
+            
             // Decide: teleport or chase
             float tpChance = isPhase2 ? teleportChanceP2 : teleportChance;
             
@@ -678,16 +832,28 @@ public class EnemyCombat : MonoBehaviour
                     float speed = currentAttack.attackSpeed;
                     float duration = currentAttack.attackDuration / speed;
                     stateTimer = duration;
-                    
+
                     // Some attacks have no attack anim (scream type — telegraph IS the attack)
                     if (!string.IsNullOrEmpty(currentAttack.attackAnim))
                     {
-                        PlayAnimation(currentAttack.attackAnim);
+                        // Force restart for skipTelegraph attacks and combo chains where
+                        // the same animation might play twice in a row
+                        bool needsRestart = currentAttack.skipTelegraph || comboQueue.Count > 0;
+                        PlayAnimation(currentAttack.attackAnim, needsRestart);
                         SetAnimSpeed(speed);
                     }
                     
                     PlayVFX(attackVFX);
                     DebugLog($"Attack: {currentAttack.attackName} ({duration:F2}s, {currentAttack.damage} dmg)");
+                    
+                    // Magic-mushroom hallucination — fires the standalone post-process effect and
+                    // raises HallucinationEffect.IsActive, which gates Yoru's outgoing damage to 0
+                    // for its duration (gate lives in EnemyHealth.TakeDamage). No player code touched.
+                    if (currentAttack.hallucinationDuration > 0f && HallucinationEffect.Instance != null)
+                    {
+                        HallucinationEffect.Instance.Trigger(currentAttack.hallucinationDuration);
+                        DebugLog($"Hallucination triggered: {currentAttack.hallucinationDuration}s");
+                    }
                 }
                 break;
                 
@@ -709,6 +875,8 @@ public class EnemyCombat : MonoBehaviour
                 PlayAnimation(staggerAnim);
                 SetAnimSpeed(1f);
                 cooldownTimer = 0; // Reset cooldown after stagger
+                comboQueue.Clear(); // Interruption — drop any remaining combo steps
+                activeComboName = "";
                 PlayVFX(staggerVFX);
                 DebugLog($"STAGGERED for {staggerDuration}s");
                 break;
@@ -798,6 +966,109 @@ public class EnemyCombat : MonoBehaviour
         if (atk.phase == AttackPhase.Phase1Only && isPhase2) return false;
         if (atk.phase == AttackPhase.Phase2Only && !isPhase2) return false;
         return true;
+    }
+    
+    /// <summary>
+    /// Top-level selection for an engagement. Rolls combo-vs-single by phase chance; on a combo
+    /// roll, queues the remaining steps and returns the first attack. Falls back to a single
+    /// attack if no valid combo exists. Singles and combos are both fully random.
+    /// </summary>
+    private EnemyAttackCombo ChooseCombo()
+    {
+        if (combos == null || combos.Length == 0) return null;
+        
+        int totalWeight = 0;
+        for (int i = 0; i < combos.Length; i++)
+        {
+            if (IsComboValid(combos[i]))
+                totalWeight += combos[i].weight;
+        }
+        
+        if (totalWeight == 0) return null;
+        
+        int roll = Random.Range(0, totalWeight);
+        int running = 0;
+        for (int i = 0; i < combos.Length; i++)
+        {
+            if (!IsComboValid(combos[i])) continue;
+            
+            running += combos[i].weight;
+            if (roll < running)
+                return combos[i];
+        }
+        
+        return null;
+    }
+    
+    private bool IsComboValid(EnemyAttackCombo combo)
+    {
+        if (combo.attackNames == null || combo.attackNames.Length == 0) return false;
+        if (combo.phase == AttackPhase.Phase1Only && isPhase2) return false;
+        if (combo.phase == AttackPhase.Phase2Only && !isPhase2) return false;
+        return true;
+    }
+    
+    /// <summary>
+    /// Rolls whether this engagement is a combo (by phase chance) or a single attack.
+    /// On a combo, queues steps 2..n and returns step 1. On a single, returns a weighted
+    /// random attack. Clears any stale queue first so interruptions never leak into a new engagement.
+    /// </summary>
+    private EnemyAttack ChooseAttackOrCombo()
+    {
+        comboQueue.Clear();
+        activeComboName = "";
+        
+        float comboChance = isPhase2 ? comboChanceP2 : comboChanceP1;
+        
+        if (Random.value < comboChance)
+        {
+            EnemyAttackCombo combo = ChooseCombo();
+            if (combo != null && QueueComboSequence(combo))
+            {
+                // First step dequeued and returned; the rest stay queued for HandleRecovery.
+                EnemyAttack first = comboQueue.Dequeue();
+                DebugLog($"Combo started: {combo.comboName} ({combo.attackNames.Length} steps)");
+                return first;
+            }
+        }
+        
+        // Single attack fallback.
+        return ChooseAttack();
+    }
+    
+    /// <summary>
+    /// Resolves a combo's attackName references into the comboQueue. Returns false (and leaves
+    /// the queue empty) if any name fails to resolve, so a misconfigured combo degrades to a single.
+    /// </summary>
+    private bool QueueComboSequence(EnemyAttackCombo combo)
+    {
+        comboQueue.Clear();
+        
+        for (int i = 0; i < combo.attackNames.Length; i++)
+        {
+            EnemyAttack atk = FindAttackByName(combo.attackNames[i]);
+            if (atk == null)
+            {
+                Debug.LogWarning($"{gameObject.name}: combo '{combo.comboName}' references unknown attack '{combo.attackNames[i]}' — falling back to single attack.");
+                comboQueue.Clear();
+                return false;
+            }
+            comboQueue.Enqueue(atk);
+        }
+        
+        activeComboName = combo.comboName;
+        return comboQueue.Count > 0;
+    }
+    
+    private EnemyAttack FindAttackByName(string name)
+    {
+        if (attacks == null || string.IsNullOrEmpty(name)) return null;
+        for (int i = 0; i < attacks.Length; i++)
+        {
+            if (attacks[i].attackName == name)
+                return attacks[i];
+        }
+        return null;
     }
     #endregion
     
@@ -1013,6 +1284,8 @@ private void TriggerHitFlash()
         stateTimer = 0;
         chaseTimer = 0;
         currentAttack = null;
+        comboQueue.Clear();
+        activeComboName = "";
         currentPlayingAnim = "";
         currentState = EnemyState.LostSoul;
         SetAnimSpeed(1f);
@@ -1133,11 +1406,11 @@ private void TriggerHitFlash()
     #endregion
     
     #region Animation Helpers
-    private void PlayAnimation(string stateName)
+    private void PlayAnimation(string stateName, bool forceRestart = false)
     {
         if (animator == null || string.IsNullOrEmpty(stateName)) return;
-        if (stateName == currentPlayingAnim) return; // Already playing — don't restart
-        
+        if (!forceRestart && stateName == currentPlayingAnim) return; // Already playing — don't restart
+
         currentPlayingAnim = stateName;
         animator.CrossFadeInFixedTime(stateName, 0.1f, combatLayerIndex);
     }
@@ -1158,6 +1431,18 @@ private void TriggerHitFlash()
     {
         if (animator == null) return;
         animator.SetFloat(HashAnimSpeed, speed);
+    }
+
+    /// <summary>
+    /// Returns true if the current animation on combatLayerIndex has reached or passed
+    /// the given normalized threshold (0-1). Used to detect animation completion so
+    /// state transitions don't wait for timers when the animation is already done.
+    /// </summary>
+    private bool IsCurrentAnimationDone(float threshold = 0.95f)
+    {
+        if (animator == null) return false;
+        var info = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+        return info.normalizedTime >= threshold;
     }
     
     /// <summary>

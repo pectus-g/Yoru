@@ -68,6 +68,12 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 jumpMomentum;
     private Vector3 moveDirection;
     
+    // External pull (e.g. Nopperabō HairLash). Owned by PlayerMovement so there is only ever
+    // ONE controller.Move per system — set via ApplyExternalPull, applied in FixedUpdate,
+    // auto-expires. Never runs during dodge/dash/guard so it can't fight those movers.
+    private Vector3 externalPullVelocity;
+    private float externalPullEndTime;
+    
     // Jump state
     private byte jumpCount; // byte is smaller than int
     private float jumpWindowTimer;
@@ -211,6 +217,15 @@ public class PlayerMovement : MonoBehaviour
         ApplyMovement();
         ApplyGravity();
         controller.Move(velocity * Time.fixedDeltaTime);
+        
+        // External pull — applied AFTER normal locomotion, only in the normal path (dodge/dash/
+        // guard already returned above, so this never touches them). Time-boxed and self-expiring.
+        if (Time.time < externalPullEndTime)
+        {
+            Vector3 pull = externalPullVelocity;
+            pull.y = 0f; // horizontal drag only — never fight gravity/jump on Y
+            controller.Move(pull * Time.fixedDeltaTime);
+        }
     }
     #endregion
     
@@ -396,6 +411,18 @@ public class PlayerMovement : MonoBehaviour
         float gravityMult = (velocity.y < 0) ? fallMultiplier : 1f;
         velocity.y += gravity * gravityMult * Time.fixedDeltaTime;
         velocity.y = Mathf.Max(velocity.y, -50f); // Terminal velocity
+    }
+    
+    /// <summary>
+    /// Applies an external world-space pull to Yoru for a short duration (e.g. an enemy hair-grab
+    /// dragging Yoru toward them). PlayerMovement integrates it into its own single Move so it never
+    /// fights the normal locomotion/gravity Move. Call every frame while the pull should be active;
+    /// the latest call wins and refreshes the expiry.
+    /// </summary>
+    public void ApplyExternalPull(Vector3 worldVelocity, float duration)
+    {
+        externalPullVelocity = worldVelocity;
+        externalPullEndTime = Time.time + duration;
     }
     #endregion
     

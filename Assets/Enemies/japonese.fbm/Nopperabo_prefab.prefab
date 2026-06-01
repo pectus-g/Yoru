@@ -2469,10 +2469,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyCombat
   currentState: 0
-  enemyTier: 3
   detectionRange: 10
   attackRange: 3.5
   escapeRange: 15
+  visionAngle: 120
   alertDuration: 0.5
   recoveryDuration: 0.4
   hitReactDuration: 0.5
@@ -2484,32 +2484,73 @@ MonoBehaviour:
   strafeSpeed: 2
   chaseTeleportTime: 8
   attacks:
-  - attackName: Hair Lash Light
-    telegraphAnim: HairLash_Telegraph
+  - attackName: Pull
+    telegraphAnim: 
+    attackAnim: HairLash_Telegraph
+    telegraphSpeed: 1
+    attackSpeed: 1
+    telegraphDuration: 0
+    attackDuration: 1.7
+    damage: 2
+    range: 5
+    isAoE: 0
+    stunPlayerDuration: 0
+    hallucinationDuration: 0
+    skipTelegraph: 1
+    phase: 0
+    weight: 50
+  - attackName: Mushroom
+    telegraphAnim: 
     attackAnim: HairLash_Attack
     telegraphSpeed: 1
     attackSpeed: 1
-    telegraphDuration: 0.4
-    attackDuration: 0.3
-    damage: 2
-    range: 3.5
+    telegraphDuration: 0
+    attackDuration: 1.7
+    damage: 0
+    range: 100
     isAoE: 0
     stunPlayerDuration: 0
+    hallucinationDuration: 2.5
+    skipTelegraph: 1
     phase: 0
-    weight: 70
-  - attackName: Hair Lash Heavy
-    telegraphAnim: HairLash_Telegraph
-    attackAnim: HairLash_Attack
-    telegraphSpeed: 0.7
-    attackSpeed: 1.2
-    telegraphDuration: 0.6
-    attackDuration: 0.3
+    weight: 30
+  - attackName: CloseStrike
+    telegraphAnim: 
+    attackAnim: CloseAttack
+    telegraphSpeed: 1
+    attackSpeed: 1
+    telegraphDuration: 0
+    attackDuration: 2.03
     damage: 4
     range: 3.5
     isAoE: 0
     stunPlayerDuration: 0
+    hallucinationDuration: 0
+    skipTelegraph: 1
     phase: 0
-    weight: 30
+    weight: 50
+  combos:
+  - comboName: "Pull \u2192 Close"
+    attackNames:
+    - Pull
+    - CloseStrike
+    phase: 0
+    weight: 50
+  - comboName: "Pull \u2192 Mushroom"
+    attackNames:
+    - Pull
+    - Mushroom
+    phase: 0
+    weight: 50
+  - comboName: 'Triple Desperate:'
+    attackNames:
+    - Pull
+    - Mushroom
+    - CloseStrike
+    phase: 2
+    weight: 50
+  comboChanceP1: 0.4
+  comboChanceP2: 0.6
   hasPhases: 1
   phaseThreshold: 0.5
   chaseSpeedP2: 4
@@ -2535,6 +2576,7 @@ MonoBehaviour:
   combatLayerIndex: 0
   showDebugLogs: 1
   showGizmos: 1
+  vfxLifetime: 3
   telegraphVFX: {fileID: 0}
   attackVFX: {fileID: 0}
   staggerVFX: {fileID: 0}
@@ -2544,6 +2586,10 @@ MonoBehaviour:
   deathVFX: {fileID: 0}
   alertVFX: {fileID: 0}
   heavyHitThreshold: 3
+  returnToSpawnOnDisengage: 1
+  returnPauseDuration: 2
+  returnArrivalThreshold: 1
+  disengageRotationSpeedMultiplier: 8
 --- !u!114 &8200132038982254076
 MonoBehaviour:
   m_ObjectHideFlags: 0

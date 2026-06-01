@@ -50,7 +50,16 @@ public class EnemyHealth : MonoBehaviour
     public void TakeDamage(int damage, bool isHeavy)
     {
         if (isDead) return;
-        
+
+        // Hallucination gate — while Nopperabō's Mushroom attack is active, Yoru deals zero
+        // damage to EVERY enemy. All three TakeDamage overloads funnel through here, so this
+        // single check covers normal combos, dash, parry counter, and positional damage.
+        if (HallucinationEffect.IsActive)
+        {
+            Debug.Log($"{gameObject.name}: damage blocked by hallucination ({damage} ignored)");
+            return;
+        }
+
         currentHealth -= damage;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         
