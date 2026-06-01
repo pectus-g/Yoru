@@ -63,9 +63,9 @@ public class EnemyCombat : MonoBehaviour
         public float attackSpeed = 1f;
         
         [Header("Timing")]
-        [Tooltip("Base telegraph duration before speed modifier")]
+        [Tooltip("VESTIGIAL — no longer used for state timing. Telegraph/Attack now run until the real animation clip finishes (read at runtime), so the full clip always plays. Safe to ignore; left in place to avoid re-serialising every attack entry. Use attackSpeed to slow a clip down.")]
         public float telegraphDuration = 0.4f;
-        [Tooltip("Base attack duration before speed modifier")]
+        [Tooltip("VESTIGIAL — see telegraphDuration. State length now comes from the actual clip; this value is not read.")]
         public float attackDuration = 0.3f;
         
         [Header("Damage")]
@@ -127,9 +127,11 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private EnemyState currentState = EnemyState.LostSoul;
     
     [Header("Detection")]
-    [SerializeField] private float detectionRange = 10f;
+    [Tooltip("How close the player must be for an IDLE enemy to notice and engage (cone-gated). ALSO the outer edge of the pull band: inside this (but outside attackRange) the enemy runs/pulls; beyond it (up to escapeRange) it teleports to close the gap.")]
+    [SerializeField] private float detectionRange = 9f;
     [SerializeField] private float attackRange = 3.5f;
-    [SerializeField] private float escapeRange = 15f;
+    [Tooltip("Leash distance (player↔enemy). Once chasing, the enemy gives up and returns home only after the player stays beyond this for leashGraceDuration. Larger than detectionRange so a committed enemy chases further than it first noticed.")]
+    [SerializeField] private float escapeRange = 18f;
     [Tooltip("Full vision-cone width in degrees (e.g. 120 = 60° each side of forward). Player must be within this cone AND within detectionRange to be seen. Only gates INITIAL detection and re-detection — once chasing, the enemy tracks without FOV check.")]
     [SerializeField, Range(30f, 360f)] private float visionAngle = 120f;
     
@@ -147,10 +149,6 @@ public class EnemyCombat : MonoBehaviour
     [Tooltip("Strafe speed when circling player during attack cooldown")]
     [SerializeField] private float strafeSpeed = 2.0f;
     
-    [Header("Chase Teleport Timer")]
-    [Tooltip("Seconds of chasing without attacking before forced teleport (0 = disabled)")]
-    [SerializeField] private float chaseTeleportTime = 8f;
-    
     [Header("Attacks")]
     [SerializeField] private EnemyAttack[] attacks;
     
@@ -162,6 +160,12 @@ public class EnemyCombat : MonoBehaviour
     [Tooltip("Chance (0-1) that an engagement opens with a combo instead of a single attack, in Phase 2")]
     [SerializeField, Range(0f, 1f)] private float comboChanceP2 = 0.6f;
     
+    [Header("Pull vs Run (mid-band)")]
+    [Tooltip("In the pull band (attackRange → detectionRange), chance per action to YANK Yoru in with the pull attack instead of running to close the gap. Phase 1. The pull attack is whichever attack has pullsPlayer = true.")]
+    [SerializeField, Range(0f, 1f)] private float pullChanceP1 = 0.5f;
+    [Tooltip("Pull chance in the pull band during Phase 2 — more aggressive, since the pull is a damaging attack.")]
+    [SerializeField, Range(0f, 1f)] private float pullChanceP2 = 0.7f;
+    
     [Header("Phase System")]
     [SerializeField] private bool hasPhases = false;
     [Tooltip("HP percentage to trigger Phase 2 (0.5 = 50%)")]
@@ -171,9 +175,6 @@ public class EnemyCombat : MonoBehaviour
     
     [Header("Teleport")]
     [SerializeField] private bool canTeleport = true;
-    [Tooltip("Chance to teleport after recovery (0-1)")]
-    [SerializeField] private float teleportChance = 0.5f;
-    [SerializeField] private float teleportChanceP2 = 0.8f;
     [SerializeField] private float teleportDistance = 5f;
     [Tooltip("Playback speed for teleport animations")]
     [SerializeField] private float teleportSpeed = 1.0f;
@@ -182,6 +183,8 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float teleportOutDuration = 0.5f;
     [Tooltip("Duration of Teleport_In animation at 1x speed")]
     [SerializeField] private float teleportInDuration = 0.4f;
+    [Tooltip("Minimum seconds between teleports. Stops the enemy re-blinking every frame when the player kites in and out of the teleport band.")]
+    [SerializeField] private float teleportCooldown = 1.5f;
     
     [Header("Animation State Names")]
     // NOTE: Each enemy prefab must set these fields in the Inspector to match its Animator state names.
@@ -233,6 +236,8 @@ public class EnemyCombat : MonoBehaviour
     [Header("Disengage")]
     [Tooltip("When the enemy loses its target (player became Tomoe, or escaped beyond escapeRange), walk back to spawn position instead of idling in place. GDD Doc 07 universal rule — continue normal behaviour at home.")]
     [SerializeField] private bool returnToSpawnOnDisengage = true;
+    [Tooltip("Player must stay beyond escapeRange (leash) for this many seconds before the enemy gives up and walks home. Prevents flickering between chase and return right at the boundary.")]
+    [SerializeField] private float leashGraceDuration = 1.5f;
     [Tooltip("Seconds the enemy stands still in idle (rotating to face spawn) before starting the walk home. The 'beat' between losing target and committing to walk-home.")]
     [SerializeField] private float returnPauseDuration = 2f;
     [Tooltip("Planar (XZ) distance from spawn position considered 'home' — once within this range, transition to Idle. Slightly larger than navAgent.stoppingDistance for slope/platform robustness.")]
@@ -269,8 +274,22 @@ public class EnemyCombat : MonoBehaviour
     // Teleport
     private bool isTeleporting;
     
-    // Chase timer — teleport if chasing too long without attacking
-    private float chaseTimer;
+    // Teleport cooldown — gates distance-band teleports so the enemy can't re-blink every frame.
+    private float teleportCooldownTimer;
+    
+    // Leash grace — accumulates while the player is beyond escapeRange; once it passes
+    // leashGraceDuration the enemy gives up and returns home. Reset whenever the player is back in range.
+    private float leashTimer;
+    
+    // Re-engage from Returning — when the enemy spots the player while walking home it runs
+    // straight in (no pull, no teleport) for the first approach, then resumes normal behaviour
+    // the moment it commits to an attack (flag cleared in SetState Telegraph/Attack).
+    private bool forceRunReengage;
+    
+    // Pull-vs-run decision — made once per action cycle while in the pull band so the coin flip
+    // doesn't re-roll every frame. Reset on every (re)entry to Chase.
+    private bool pullDecisionMade;
+    private bool pullDecisionResult; // true = pull (yank), false = run in
     
     // Disengage — cached spawn position for return-to-spawn behaviour.
     private Vector3 spawnPosition;
@@ -280,6 +299,16 @@ public class EnemyCombat : MonoBehaviour
     
     // Animation tracking — prevents CrossFade from restarting every frame
     private string currentPlayingAnim = "";
+    
+    // Clip-driven attack/telegraph transitions — the state runs until the real animation clip
+    // reaches its end (full play, no early cut), with a runtime-derived safety net so it can never hang.
+    private float attackStateEntryTime;
+    private float cachedClipLength;
+    private bool clipLengthRead;
+    private const float AnimCompleteThreshold = 0.99f;   // normalizedTime at which a clip counts as fully played
+    private const float AnimSafetyBuffer = 0.5f;         // extra seconds on top of clip length before the safety fires
+    private const float AnimSafetyFallback = 5f;         // hard cap used only if the clip length can't be read at runtime
+    private const float AnimSettleTime = 0.05f;          // ignore completion checks for this long so the new clip can start
     
     // Animator speed parameter
     private static readonly int HashAnimSpeed = Animator.StringToHash("AnimSpeed");
@@ -351,6 +380,10 @@ public class EnemyCombat : MonoBehaviour
         // Cooldown tick
         if (cooldownTimer > 0)
             cooldownTimer -= Time.deltaTime;
+        
+        // Teleport cooldown tick
+        if (teleportCooldownTimer > 0)
+            teleportCooldownTimer -= Time.deltaTime;
         
         // State timer tick
         if (stateTimer > 0)
@@ -495,8 +528,11 @@ public class EnemyCombat : MonoBehaviour
         
         // 1. INTERRUPT — Yoru is back and in vision cone. Overrides everything (pause, walk, rotation).
         //    Vision check applies here so Yoru can sneak around an enemy's back during return.
+        //    Re-engaging from a return always runs straight in (no pull, no teleport) until the
+        //    first attack lands — forceRunReengage carries that intent into HandleChase.
         if (!PlayerIsTomoe() && PlayerInVision())
         {
+            forceRunReengage = true;
             SetState(EnemyState.Chase);
             return;
         }
@@ -545,6 +581,12 @@ public class EnemyCombat : MonoBehaviour
                 navAgent.isStopped = true;
                 navAgent.velocity = Vector3.zero;
                 PlayAnimation(idleAnim);
+
+                // Reached home — instant full heal. The player loses all the chip damage they
+                // dealt before letting the enemy leash, so re-engaging starts from a full bar.
+                // Fires once (this block only runs on the frame nav first stops).
+                if (enemyHealth != null)
+                    enemyHealth.ResetHealth();
             }
             
             transform.rotation = Quaternion.Slerp(transform.rotation, spawnRotation,
@@ -590,32 +632,49 @@ public class EnemyCombat : MonoBehaviour
         }
 
         float dist = DistanceToPlayer();
-        
-        // Increment chase timer
-        chaseTimer += Time.deltaTime;
 
-        // In attack range and cooldown ready — attack
-        if (dist <= attackRange && cooldownTimer <= 0)
+        // ── LEASH (with grace) ────────────────────────────────────────────────
+        // Leash is the raw player↔enemy distance. The enemy only gives up once the player
+        // has stayed beyond escapeRange for leashGraceDuration straight — a brief overshoot
+        // past the edge won't break the chase.
+        if (dist > escapeRange)
         {
-            chaseTimer = 0f; // Reset — we're attacking
-            EnemyAttack chosen = ChooseAttackOrCombo();
-            if (chosen != null)
+            leashTimer += Time.deltaTime;
+            if (leashTimer >= leashGraceDuration)
             {
-                currentAttack = chosen;
-                // HairLash_Telegraph IS the full attack clip for Pull — skipTelegraph routes
-                // straight to Attack so the animation plays full-length with no truncated wind-up.
-                SetState(currentAttack.skipTelegraph ? EnemyState.Attack : EnemyState.Telegraph);
+                leashTimer = 0f;
+                DebugLog($"Leash exceeded ({dist:F1}m > {escapeRange}m for {leashGraceDuration}s) — returning home");
+                SetState(returnToSpawnOnDisengage ? EnemyState.Returning : EnemyState.Idle);
                 return;
             }
+            // Still inside the grace window — keep pursuing (falls through to approach below).
+        }
+        else
+        {
+            leashTimer = 0f;
         }
 
-        // In attack range but cooldown not ready — CIRCLE the player instead of standing idle
+        // ── MELEE BAND (≤ attackRange) ────────────────────────────────────────
+        // Attack when ready; otherwise circle the player. This is the ONLY place the walk
+        // animation is used (slow circling reads fine up close; walking to close a gap looks wrong).
         if (dist <= attackRange)
         {
+            if (cooldownTimer <= 0)
+            {
+                EnemyAttack chosen = ChooseAttackOrCombo();
+                if (chosen != null)
+                {
+                    currentAttack = chosen;
+                    // skipTelegraph routes straight to Attack so the self-contained clip plays full-length.
+                    SetState(currentAttack.skipTelegraph ? EnemyState.Attack : EnemyState.Telegraph);
+                    return;
+                }
+            }
+
+            // On cooldown — strafe-circle around the player.
             LookAtPlayer();
             if (navAgent != null && navAgent.isOnNavMesh)
             {
-                // Strafe sideways around the player
                 Vector3 strafeDir = Vector3.Cross(Vector3.up, (player.position - transform.position).normalized);
                 Vector3 strafeTarget = transform.position + strafeDir * 2f;
                 navAgent.isStopped = false;
@@ -626,75 +685,73 @@ public class EnemyCombat : MonoBehaviour
             return;
         }
 
-        // Chase timer teleport — been chasing too long without attacking
-        if (canTeleport && !isTeleporting && chaseTeleportTime > 0 && chaseTimer >= chaseTeleportTime)
+        // ── TELEPORT BAND (detectionRange < dist ≤ escapeRange) ───────────────
+        // Player is too far to chase on foot — blink to close the gap. Suppressed while
+        // re-engaging from a return (the enemy runs in instead) and while on teleport cooldown.
+        if (dist > detectionRange && dist <= escapeRange)
         {
-            chaseTimer = 0f;
-            DebugLog($"Chase timer expired ({chaseTeleportTime}s), teleporting to close gap");
-            StartCoroutine(TeleportSequence());
-            return;
+            if (canTeleport && !isTeleporting && !forceRunReengage && teleportCooldownTimer <= 0f)
+            {
+                DebugLog($"Teleport band ({dist:F1}m) — blinking to close the gap");
+                StartCoroutine(TeleportSequence());
+                return;
+            }
+            // Can't teleport right now (cooldown / re-engage / disabled) — run in (falls through).
         }
 
-        // Distance-based teleport — player escaped far away
-        if (canTeleport && !isTeleporting && dist > escapeRange)
+        // ── PULL BAND (attackRange < dist ≤ detectionRange) ───────────────────
+        // Once ready to act, roll pull-vs-run a single time (sticky for the cycle so it doesn't
+        // re-roll every frame). Pull = yank Yoru into melee with a damaging grab; run = close on foot.
+        // Re-engage from a return always runs in (no pull) until the first attack lands.
+        if (dist > attackRange && dist <= detectionRange)
         {
-            chaseTimer = 0f;
-            DebugLog("Player too far, teleporting to close gap");
-            StartCoroutine(TeleportSequence());
-            return;
+            if (cooldownTimer <= 0 && !forceRunReengage)
+            {
+                if (!pullDecisionMade)
+                {
+                    pullDecisionMade = true;
+                    float pullChance = isPhase2 ? pullChanceP2 : pullChanceP1;
+                    pullDecisionResult = Random.value < pullChance;
+                    DebugLog($"Pull-band decision: {(pullDecisionResult ? "PULL" : "RUN-IN")} (chance {pullChance:F2})");
+                }
+
+                if (pullDecisionResult)
+                {
+                    EnemyAttack pull = FindPullAttack();
+                    if (pull != null)
+                    {
+                        currentAttack = pull;
+                        SetState(pull.skipTelegraph ? EnemyState.Attack : EnemyState.Telegraph);
+                        return;
+                    }
+                    // No pull attack defined — fall through to run in.
+                }
+            }
+            // Decided to run, cooldown not ready, or re-engaging — fall through to approach.
         }
 
-        // Player beyond escape range and no teleport — disengage.
-        if (!canTeleport && dist > escapeRange)
-        {
-            SetState(returnToSpawnOnDisengage ? EnemyState.Returning : EnemyState.Idle);
-            return;
-        }
-
-        // Chase — distance-based speed and animation
+        // ── APPROACH ──────────────────────────────────────────────────────────
+        // Run toward the player. Covers: pull-band run-in, teleport-band run (when blink is
+        // unavailable), grace-window chase, and re-engage-from-return. Always the run animation —
+        // walking is reserved for melee circling.
         LookAtPlayer();
-        float walkThreshold = attackRange + 3f;
-
-        if (dist <= walkThreshold)
+        float chaseSpd = isPhase2 ? chaseSpeedP2 : chaseSpeed;
+        if (navAgent != null && navAgent.isOnNavMesh)
         {
-            // Close — walk
-            if (navAgent != null && navAgent.isOnNavMesh)
-            {
-                navAgent.isStopped = false;
-                navAgent.speed = patrolSpeed;
-                navAgent.SetDestination(player.position);
-            }
-            PlayAnimation(walkAnim);
+            navAgent.isStopped = false;
+            navAgent.speed = chaseSpd;
+            navAgent.SetDestination(player.position);
         }
-        else
-        {
-            // Far — run
-            float speed = isPhase2 ? chaseSpeedP2 : chaseSpeed;
-            if (navAgent != null && navAgent.isOnNavMesh)
-            {
-                navAgent.isStopped = false;
-                navAgent.speed = speed;
-                navAgent.SetDestination(player.position);
-            }
-            PlayAnimation(runAnim);
-        }
+        PlayAnimation(runAnim);
     }
     private void HandleTelegraph()
     {
         StopNav();
         LookAtPlayer();
 
-        // Transition when timer expires OR animation finishes (whichever comes first)
-        // This prevents the "stuck at end of animation" freeze when timer > animation length
-        bool timerDone = stateTimer <= 0;
-        bool animDone = IsCurrentAnimationDone(0.95f);
-
-        if (timerDone || animDone)
-        {
-            if (animDone && !timerDone)
-                DebugLog($"Telegraph animation finished early (timer still has {stateTimer:F2}s)");
+        // Run until the telegraph clip has actually finished (full play, no early cut).
+        if (AttackAnimationComplete())
             SetState(EnemyState.Attack);
-        }
     }
     
     private void HandleAttack()
@@ -702,7 +759,7 @@ public class EnemyCombat : MonoBehaviour
         StopNav();
 
         // Face player during attack — especially important for skipTelegraph attacks that
-        // didn't go through Telegraph state where LookAtPlayer is normally called
+        // didn't go through Telegraph state where LookAtPlayer is normally called.
         LookAtPlayer();
 
         // HairLash pull — while a pulling attack plays, drag Yoru toward the enemy via
@@ -717,14 +774,9 @@ public class EnemyCombat : MonoBehaviour
                 playerMovement.ApplyExternalPull(toEnemy.normalized * currentAttack.pullSpeed, Time.deltaTime * 2f);
         }
 
-        // Transition when timer expires OR animation finishes (whichever comes first)
-        bool timerDone = stateTimer <= 0;
-        bool animDone = IsCurrentAnimationDone(0.95f);
-
-        if (timerDone || animDone)
+        // Run until the attack clip has actually finished, then resolve damage on the strike.
+        if (AttackAnimationComplete())
         {
-            if (animDone && !timerDone)
-                DebugLog($"Attack animation finished early (timer still has {stateTimer:F2}s)");
             DealDamageToPlayer();
             SetState(EnemyState.Recovery);
         }
@@ -749,19 +801,10 @@ public class EnemyCombat : MonoBehaviour
             // Sequence finished (or was a single attack) — clear combo label.
             activeComboName = "";
             
-            // Decide: teleport or chase
-            float tpChance = isPhase2 ? teleportChanceP2 : teleportChance;
-            
-            if (canTeleport && Random.value < tpChance)
-            {
-                StartCoroutine(TeleportSequence());
-            }
-            else
-            {
-                float cd = isPhase2 ? attackCooldownP2 : attackCooldown;
-                cooldownTimer = cd;
-                SetState(EnemyState.Chase);
-            }
+            // Back to Chase — the distance bands decide what happens next (attack / pull / teleport / leash).
+            // Teleport is no longer rolled randomly here; it only fires when the player is in the teleport band.
+            cooldownTimer = isPhase2 ? attackCooldownP2 : attackCooldown;
+            SetState(EnemyState.Chase);
         }
     }
     
@@ -821,15 +864,20 @@ public class EnemyCombat : MonoBehaviour
             case EnemyState.Telegraph:
                 if (currentAttack != null)
                 {
-                    float speed = currentAttack.telegraphSpeed;
-                    float duration = currentAttack.telegraphDuration / speed;
-                    stateTimer = duration;
-                    PlayAnimation(currentAttack.telegraphAnim);
-                    SetAnimSpeed(speed);
-                    PlayVFX(telegraphVFX);
-                    DebugLog($"Telegraph: {currentAttack.attackName} ({duration:F2}s)");
+                    // Committing to an attack — clear the re-engage run flag so normal behaviour
+                    // resumes after this strike, and snap to face the player so the wind-up aims true.
+                    forceRunReengage = false;
+                    FacePlayerInstant();
 
-                    // Hallucination on telegraph — for HairLash_Telegraph mushroom effect
+                    float speed = currentAttack.telegraphSpeed;
+                    // Play from frame 0 (instant, not blended) so the full clip plays start-to-end
+                    // and its real length is immediately readable for the clip-driven transition.
+                    BeginAttackClip(currentAttack.telegraphAnim, speed);
+                    PlayVFX(telegraphVFX);
+                    DebugLog($"Telegraph: {currentAttack.attackName}");
+
+                    // Hallucination on telegraph — only if explicitly flagged. (For skipTelegraph
+                    // attacks this state never runs, so the Attack-state trigger handles it instead.)
                     if (currentAttack.hallucinationOnTelegraph && currentAttack.hallucinationDuration > 0f
                         && HallucinationEffect.Instance != null)
                     {
@@ -842,22 +890,29 @@ public class EnemyCombat : MonoBehaviour
             case EnemyState.Attack:
                 if (currentAttack != null)
                 {
-                    float speed = currentAttack.attackSpeed;
-                    float duration = currentAttack.attackDuration / speed;
-                    stateTimer = duration;
+                    // Committing to an attack — clear the re-engage run flag and snap to face the
+                    // player so the strike (and the hair-grab visual) aims where Yoru actually is.
+                    forceRunReengage = false;
+                    FacePlayerInstant();
 
-                    // Some attacks have no attack anim (scream type — telegraph IS the attack)
+                    float speed = currentAttack.attackSpeed;
+
+                    // Some attacks have no attack anim (scream type — telegraph IS the attack).
                     if (!string.IsNullOrEmpty(currentAttack.attackAnim))
                     {
-                        // Force restart for skipTelegraph attacks and combo chains where
-                        // the same animation might play twice in a row
-                        bool needsRestart = currentAttack.skipTelegraph || comboQueue.Count > 0;
-                        PlayAnimation(currentAttack.attackAnim, needsRestart);
-                        SetAnimSpeed(speed);
+                        // Play from frame 0 (instant) for clean full-length playback and readable length.
+                        BeginAttackClip(currentAttack.attackAnim, speed);
+                    }
+                    else
+                    {
+                        // No clip — fall back to a fixed safety window so the state can't hang.
+                        attackStateEntryTime = Time.time;
+                        clipLengthRead = false;
+                        cachedClipLength = 0f;
                     }
                     
                     PlayVFX(attackVFX);
-                    DebugLog($"Attack: {currentAttack.attackName} ({duration:F2}s, {currentAttack.damage} dmg)");
+                    DebugLog($"Attack: {currentAttack.attackName} ({currentAttack.damage} dmg)");
                     
                     // Magic-mushroom hallucination — fires the standalone post-process effect and
                     // raises HallucinationEffect.IsActive, which gates Yoru's outgoing damage to 0
@@ -904,12 +959,16 @@ public class EnemyCombat : MonoBehaviour
                 break;
                 
             case EnemyState.Chase:
-                chaseTimer = 0f;
+                // Fresh (re)entry to Chase — reset the per-cycle pull decision and the leash grace.
+                // (During an uninterrupted run-in the enemy stays in Chase, so this never fires mid-run.)
+                pullDecisionMade = false;
+                leashTimer = 0f;
                 SetAnimSpeed(1f);
                 break;
                 
             case EnemyState.Idle:
                 StopNav();
+                forceRunReengage = false;
                 PlayAnimation(idleAnim);
                 SetAnimSpeed(1f);
                 break;
@@ -1085,6 +1144,22 @@ public class EnemyCombat : MonoBehaviour
         }
         return null;
     }
+    
+    /// <summary>
+    /// Returns the first attack flagged pullsPlayer (the HairLash hair-grab). Used by the pull
+    /// band so the gap-closer is data-driven — no hardcoded attack name. Returns null if the
+    /// enemy has no pulling attack (in which case the pull band just runs in).
+    /// </summary>
+    private EnemyAttack FindPullAttack()
+    {
+        if (attacks == null) return null;
+        for (int i = 0; i < attacks.Length; i++)
+        {
+            if (attacks[i].pullsPlayer && IsAttackValid(attacks[i]))
+                return attacks[i];
+        }
+        return null;
+    }
     #endregion
     
     #region Damage
@@ -1163,9 +1238,12 @@ public class EnemyCombat : MonoBehaviour
         
         isTeleporting = false;
         
-        // After teleport, set cooldown and chase
+        // After teleport, set attack cooldown and a teleport cooldown (so the enemy can't
+        // immediately re-blink), then chase. It lands ~teleportDistance behind the player,
+        // which is inside the pull band, so the next action is a pull/run rather than another blink.
         float cd = isPhase2 ? attackCooldownP2 : attackCooldown;
         cooldownTimer = cd * 0.5f; // Shorter cooldown after teleport — keeps pressure on
+        teleportCooldownTimer = teleportCooldown;
         SetState(EnemyState.Chase);
     }
     
@@ -1297,7 +1375,12 @@ private void TriggerHitFlash()
         hasAlerted = false;
         cooldownTimer = 0;
         stateTimer = 0;
-        chaseTimer = 0;
+        teleportCooldownTimer = 0;
+        leashTimer = 0;
+        forceRunReengage = false;
+        pullDecisionMade = false;
+        clipLengthRead = false;
+        cachedClipLength = 0f;
         currentAttack = null;
         comboQueue.Clear();
         activeComboName = "";
@@ -1413,6 +1496,23 @@ private void TriggerHitFlash()
         }
     }
     
+    /// <summary>
+    /// Instantly snaps to face the player (no slerp). Used at the START of an attack so the
+    /// strike — and the HairLash hair-grab visual in particular — aims where Yoru actually is.
+    /// The slow LookAtPlayer slerp can't catch a moving target before a short clip ends, which
+    /// is what made the pull look like it had "horrible aim".
+    /// </summary>
+    private void FacePlayerInstant()
+    {
+        if (player == null) return;
+        
+        Vector3 dir = player.position - transform.position;
+        dir.y = 0f;
+        
+        if (dir.sqrMagnitude > 0.001f)
+            transform.rotation = Quaternion.LookRotation(dir);
+    }
+    
     private float DistanceToPlayer()
     {
         if (player == null) return float.MaxValue;
@@ -1467,27 +1567,76 @@ private void TriggerHitFlash()
     }
 
     /// <summary>
-    /// Returns true if the current animation on combatLayerIndex has reached or passed
-    /// the given normalized threshold (0-1). Used to detect animation completion so
-    /// state transitions don't wait for timers when the animation is already done.
-    /// Only returns true after 0.2s in the state to let the new animation start.
+    /// Begins an attack/telegraph clip from frame 0 (instant Play, not blended) and arms the
+    /// clip-driven transition. Playing from frame 0 guarantees the full clip plays start-to-end
+    /// with no blended-away wind-up, and makes the clip's real length readable on the next frame.
     /// </summary>
-    private bool IsCurrentAnimationDone(float threshold = 0.95f)
+    private void BeginAttackClip(string stateName, float speed)
     {
-        if (animator == null) return false;
-
-        // Don't check in the first 0.2s - the previous animation might still be blending
-        if (currentAttack != null && stateTimer > 0)
+        SetAnimSpeed(speed);
+        
+        attackStateEntryTime = Time.time;
+        clipLengthRead = false;
+        cachedClipLength = 0f;
+        
+        if (animator == null || string.IsNullOrEmpty(stateName)) return;
+        
+        int stateHash = Animator.StringToHash(stateName);
+        if (!animator.HasState(combatLayerIndex, stateHash))
         {
-            float totalDuration = currentState == EnemyState.Telegraph
-                ? currentAttack.telegraphDuration / Mathf.Max(0.1f, currentAttack.telegraphSpeed)
-                : currentAttack.attackDuration / Mathf.Max(0.1f, currentAttack.attackSpeed);
-            float elapsed = totalDuration - stateTimer;
-            if (elapsed < 0.2f) return false;
+            Debug.LogError($"[{gameObject.name}] ANIMATION STATE NOT FOUND: '{stateName}' on layer {combatLayerIndex}! Check animator controller.");
+            return;
+        }
+        
+        currentPlayingAnim = stateName;
+        animator.Play(stateName, combatLayerIndex, 0f);
+    }
+    
+    /// <summary>
+    /// Drives Telegraph/Attack completion. Returns true once the current clip has played to its
+    /// end (full play — no early cut from a hand-set duration), with a runtime-derived safety so
+    /// the state can never hang if the clip length can't be read. The clip's real length is read
+    /// at runtime, so timing is correct regardless of the (now-informational) per-attack durations.
+    /// </summary>
+    private bool AttackAnimationComplete()
+    {
+        if (animator == null) return true; // no animator — don't hang the state machine
+
+        float elapsed = Time.time - attackStateEntryTime;
+
+        // Read the real clip length once the instant Play has settled (one frame in).
+        if (!clipLengthRead && elapsed > AnimSettleTime)
+        {
+            AnimatorStateInfo s = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            if (s.length > 0.01f)
+            {
+                cachedClipLength = s.length;
+                clipLengthRead = true;
+            }
         }
 
-        var info = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-        return info.normalizedTime >= threshold;
+        // Primary completion — the clip reached its end. normalizedTime accounts for playback
+        // speed and, for a non-looping clip, caps at 1 and holds, so this latches true.
+        if (elapsed > AnimSettleTime)
+        {
+            AnimatorStateInfo s = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            if (s.normalizedTime >= AnimCompleteThreshold)
+                return true;
+        }
+
+        // Safety net — derived from the real clip length / speed when known, else a fixed cap.
+        float speed = currentState == EnemyState.Telegraph
+            ? Mathf.Max(0.1f, currentAttack != null ? currentAttack.telegraphSpeed : 1f)
+            : Mathf.Max(0.1f, currentAttack != null ? currentAttack.attackSpeed : 1f);
+        float safetyTime = clipLengthRead ? (cachedClipLength / speed) + AnimSafetyBuffer : AnimSafetyFallback;
+
+        if (elapsed > safetyTime)
+        {
+            Debug.LogWarning($"[{gameObject.name}] Attack/Telegraph safety transition fired (elapsed {elapsed:F2}s > {safetyTime:F2}s) — clip '{currentPlayingAnim}' may not have completed cleanly.");
+            return true;
+        }
+
+        return false;
     }
     
     /// <summary>

@@ -2482,11 +2482,10 @@ MonoBehaviour:
   chaseSpeed: 3
   rotationSpeed: 5
   strafeSpeed: 2
-  chaseTeleportTime: 8
   attacks:
   - attackName: Pull
     telegraphAnim: 
-    attackAnim: HairLash_Telegraph
+    attackAnim: HairLash_Attack
     telegraphSpeed: 1
     attackSpeed: 1
     telegraphDuration: 0
@@ -2505,9 +2504,9 @@ MonoBehaviour:
     weight: 50
   - attackName: Mushroom
     telegraphAnim: 
-    attackAnim: HairLash_Attack
+    attackAnim: HairLash_Telegraph
     telegraphSpeed: 1
-    attackSpeed: 1
+    attackSpeed: 0.6
     telegraphDuration: 0
     attackDuration: 1.7
     damage: 0
@@ -2563,18 +2562,19 @@ MonoBehaviour:
     weight: 50
   comboChanceP1: 0.4
   comboChanceP2: 0.6
+  pullChanceP1: 0.5
+  pullChanceP2: 0.7
   hasPhases: 1
   phaseThreshold: 0.5
   chaseSpeedP2: 4
   attackCooldownP2: 1.2
   canTeleport: 1
-  teleportChance: 0.3
-  teleportChanceP2: 0.6
   teleportDistance: 5
   teleportSpeed: 1
   teleportSpeedP2: 1.4
   teleportOutDuration: 0.5
   teleportInDuration: 0.4
+  teleportCooldown: 1.5
   idleAnim: Float_Idle
   walkAnim: Walk_Glide
   runAnim: Run_Chase
@@ -2599,6 +2599,7 @@ MonoBehaviour:
   alertVFX: {fileID: 0}
   heavyHitThreshold: 3
   returnToSpawnOnDisengage: 1
+  leashGraceDuration: 1.5
   returnPauseDuration: 2
   returnArrivalThreshold: 1
   disengageRotationSpeedMultiplier: 8
