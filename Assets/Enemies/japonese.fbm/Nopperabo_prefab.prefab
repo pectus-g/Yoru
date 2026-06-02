@@ -2476,10 +2476,11 @@ MonoBehaviour:
   alertDuration: 0.5
   recoveryDuration: 0.4
   hitReactDuration: 0.5
+  hitReactCooldown: 1
   staggerDuration: 1
   attackCooldown: 2
   patrolSpeed: 1.5
-  chaseSpeed: 3
+  chaseSpeed: 5
   rotationSpeed: 5
   strafeSpeed: 2
   attacks:
@@ -2616,6 +2617,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
   maxHealth: 100
+  staggerDamageThreshold: 15
   deathDelay: 2
   dropItemOnDeath: 0
   deathParticlePrefab: {fileID: 0}
