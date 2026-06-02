@@ -55,6 +55,15 @@ public class CameraGameFeel : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float shakeMultiplier = 1f;
 
+    [Header("Roll Shake — Close Attack")]
+    [Tooltip("Peak roll angle in degrees (the camera rocks ±this about its forward axis, like a steering wheel turning side to side). Modest values read as a punchy impact; large values get seasick.")]
+    [SerializeField] private float rollShakeAngle = 5f;
+    [Tooltip("Left-right rocks per second. Higher = faster, more sudden wobble.")]
+    [SerializeField] private float rollShakeFrequency = 7f;
+    [Tooltip("Fraction of the duration (0-1) at which the roll starts fading out. 0.9 = hold full strength until 90% done, then ease to zero over the last 10%.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float rollShakeFadeStart = 0.9f;
+
     [Header("FOV Punch — Combat")]
     [Tooltip("FOV degrees added on light hit (combo 1-2)")]
     [SerializeField] private float lightHitPunch = 1.5f;
@@ -97,6 +106,11 @@ public class CameraGameFeel : MonoBehaviour
     private float shakeSeed;
     private bool shakeActive;
 
+    // Roll-shake state (close-attack "steering wheel" rock about the camera's forward axis)
+    private float rollDurationTotal;
+    private float rollElapsed;
+    private bool rollActive;
+
     // FOV Punch state (coroutine-driven, single-active)
     private float currentPunchOffset;
     private Coroutine activePunchCoroutine;
@@ -137,7 +151,8 @@ public class CameraGameFeel : MonoBehaviour
         // Cinemachine set the camera's world position this frame.
         // We add Perlin noise offset on top. Next frame Cinemachine resets position,
         // then we add a new offset — no accumulation, no drift.
-        if (shakeActive && shakeMultiplier > 0f)
+        // Suppressed while a roll-shake is active so the close attack uses the roll alone.
+        if (shakeActive && shakeMultiplier > 0f && !rollActive)
         {
             shakeElapsed += Time.unscaledDeltaTime;
 
@@ -157,6 +172,33 @@ public class CameraGameFeel : MonoBehaviour
 
                 // Apply in camera's local orientation so shake is screen-relative
                 camTransform.position += camTransform.right * offset.x + camTransform.up * offset.y;
+            }
+        }
+
+        // === ROLL SHAKE ===
+        // Rocks the camera left/right about its own forward axis (Z) — the horizon tilts back and
+        // forth like a steering wheel. Additive after Cinemachine (which resets rotation each frame),
+        // so it never accumulates. Holds full strength until rollShakeFadeStart, then eases to zero.
+        if (rollActive && shakeMultiplier > 0f)
+        {
+            rollElapsed += Time.unscaledDeltaTime;
+
+            if (rollElapsed >= rollDurationTotal)
+            {
+                rollActive = false;
+            }
+            else
+            {
+                float t = rollElapsed / rollDurationTotal;
+                float fade = (t < rollShakeFadeStart)
+                    ? 1f
+                    : 1f - (t - rollShakeFadeStart) / Mathf.Max(0.0001f, 1f - rollShakeFadeStart);
+                fade = Mathf.Clamp01(fade);
+
+                float angle = Mathf.Sin(rollElapsed * rollShakeFrequency * 2f * Mathf.PI)
+                              * rollShakeAngle * shakeMultiplier * fade;
+
+                camTransform.Rotate(0f, 0f, angle, Space.Self);
             }
         }
 
@@ -206,6 +248,24 @@ public class CameraGameFeel : MonoBehaviour
         shakeActive = true;
 
         DebugLog($"Shake: intensity={intensity:F2} duration={duration:F3}s");
+    }
+
+    /// <summary>
+    /// Trigger the roll-shake: the camera rocks left/right about its forward axis (steering-wheel
+    /// tilt) for the given duration, using the serialized angle/frequency/fade. Cancels any active
+    /// position shake so the effect stands alone (used for the enemy close attack). Angle and speed
+    /// are tuned via the Roll Shake fields above.
+    /// </summary>
+    public void RollShake(float duration)
+    {
+        if (shakeMultiplier <= 0f || rollShakeAngle < 0.01f || duration <= 0f) return;
+
+        shakeActive = false; // close attack rocks instead of position-shaking
+        rollDurationTotal = duration;
+        rollElapsed = 0f;
+        rollActive = true;
+
+        DebugLog($"RollShake: angle={rollShakeAngle:F1}° freq={rollShakeFrequency:F1}/s duration={duration:F3}s");
     }
 
     /// <summary>

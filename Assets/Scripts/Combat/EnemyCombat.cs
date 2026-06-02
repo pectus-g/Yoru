@@ -127,13 +127,19 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private EnemyState currentState = EnemyState.LostSoul;
     
     [Header("Detection")]
-    [Tooltip("How close the player must be for an IDLE enemy to notice and engage (cone-gated). ALSO the outer edge of the pull band: inside this (but outside attackRange) the enemy runs/pulls; beyond it (up to escapeRange) it teleports to close the gap.")]
+    [Tooltip("REALIZE distance (cone-gated): how close the player must be for an IDLE enemy to notice and engage. Inside this band (but outside pullRange) the enemy chases on foot; beyond it (up to escapeRange) it teleports to close the gap. This is NOT the pull range — see pullRange.")]
     [SerializeField] private float detectionRange = 9f;
     [SerializeField] private float attackRange = 3.5f;
+    [Tooltip("PULL range: the enemy only yanks the player in (the pull/grab attack) when they are within this distance. Must be smaller than detectionRange — between pullRange and detectionRange the enemy is realized but chases on foot instead of pulling, so the player has room to flee. Set 0 to disable pulling entirely.")]
+    [SerializeField] private float pullRange = 6f;
     [Tooltip("Leash distance (player↔enemy). Once chasing, the enemy gives up and returns home only after the player stays beyond this for leashGraceDuration. Larger than detectionRange so a committed enemy chases further than it first noticed.")]
-    [SerializeField] private float escapeRange = 18f;
+    [SerializeField] private float escapeRange = 15f;
     [Tooltip("Full vision-cone width in degrees (e.g. 120 = 60° each side of forward). Player must be within this cone AND within detectionRange to be seen. Only gates INITIAL detection and re-detection — once chasing, the enemy tracks without FOV check.")]
     [SerializeField, Range(30f, 360f)] private float visionAngle = 120f;
+    
+    [Header("Camera Feel")]
+    [Tooltip("The attack whose animation triggers the camera roll-shake (matched by attackName, so it fires whether the attack is standalone or a combo step). Leave blank to disable. Tune the roll itself on the camera's CameraGameFeel component.")]
+    [SerializeField] private string cameraRollAttackName = "CloseStrike";
     
     [Header("Timing")]
     [SerializeField] private float alertDuration = 0.5f;
@@ -318,6 +324,7 @@ public class EnemyCombat : MonoBehaviour
     private float attackStateEntryTime;
     private float cachedClipLength;
     private bool clipLengthRead;
+    private bool cameraRollFiredThisAttack; // ensures the close-attack camera roll fires once per attack
     private const float AnimCompleteThreshold = 0.99f;   // normalizedTime at which a clip counts as fully played
     private const float AnimSafetyBuffer = 0.5f;         // extra seconds on top of clip length before the safety fires
     private const float AnimSafetyFallback = 5f;         // hard cap used only if the clip length can't be read at runtime
@@ -659,6 +666,9 @@ public class EnemyCombat : MonoBehaviour
         // ── PULL BAND (attackRange < dist ≤ detectionRange) ───────────────────
         // Once ready to act, roll pull-vs-run a single time (sticky for the cycle so it doesn't
         // re-roll every frame). Pull = yank Yoru into melee with a damaging grab; run = close on foot.
+        // The pull is gated by pullRange (< detectionRange): only when the player is within pullRange
+        // can a pull be rolled; between pullRange and detectionRange the enemy is realized but always
+        // runs in, so the player can still escape instead of being yanked back from far away.
         // Re-engage from a return always runs in (no pull) until the first attack lands.
         if (dist > attackRange && dist <= detectionRange)
         {
@@ -668,8 +678,9 @@ public class EnemyCombat : MonoBehaviour
                 {
                     pullDecisionMade = true;
                     float pullChance = isPhase2 ? pullChanceP2 : pullChanceP1;
-                    pullDecisionResult = Random.value < pullChance;
-                    DebugLog($"Pull-band decision: {(pullDecisionResult ? "PULL" : "RUN-IN")} (chance {pullChance:F2})");
+                    // Pull only if the player is close enough (within pullRange) AND the roll says pull.
+                    pullDecisionResult = (dist <= pullRange) && (Random.value < pullChance);
+                    DebugLog($"Pull-band decision: {(pullDecisionResult ? "PULL" : "RUN-IN")} (dist {dist:F1}m, pullRange {pullRange}m, chance {pullChance:F2})");
                 }
 
                 if (pullDecisionResult)
@@ -731,8 +742,23 @@ public class EnemyCombat : MonoBehaviour
                 playerMovement.ApplyExternalPull(toEnemy.normalized * currentAttack.pullSpeed, Time.deltaTime * 2f);
         }
 
+        // Resolve the clip-complete check once (this also reads the real clip length the first
+        // settled frame, populating cachedClipLength / clipLengthRead).
+        bool attackDone = AttackAnimationComplete();
+
+        // Camera roll — fire once per attack, but only for the close attack (matched by name so it
+        // works standalone AND as a combo step). Triggered the moment the real clip length is known,
+        // and lasts exactly that long (clip length ÷ playback speed) so the rock spans the animation.
+        if (clipLengthRead && !cameraRollFiredThisAttack && currentAttack != null
+            && currentAttack.attackName == cameraRollAttackName && CameraGameFeel.Instance != null)
+        {
+            float rollDuration = cachedClipLength / Mathf.Max(0.01f, currentAttack.attackSpeed);
+            CameraGameFeel.Instance.RollShake(rollDuration);
+            cameraRollFiredThisAttack = true;
+        }
+
         // Run until the attack clip has actually finished, then resolve damage on the strike.
-        if (AttackAnimationComplete())
+        if (attackDone)
         {
             DealDamageToPlayer();
             SetState(EnemyState.Recovery);
@@ -853,6 +879,7 @@ public class EnemyCombat : MonoBehaviour
                     // Committing to an attack — clear the re-engage run flag and snap to face the
                     // player so the strike (and the hair-grab visual) aims where Yoru actually is.
                     forceRunReengage = false;
+                    cameraRollFiredThisAttack = false; // re-arm per attack (incl. each combo step)
                     // If we did NOT come through Telegraph, this is a fresh attack (skipped telegraph) —
                     // reset the fired flag so the hallucination still fires here.
                     if (oldState != EnemyState.Telegraph)
@@ -1386,6 +1413,7 @@ private void TriggerHitFlash()
         forceRunReengage = false;
         pullDecisionMade = false;
         hallucinationFiredThisAttack = false;
+        cameraRollFiredThisAttack = false;
         hitReactReadyTime = 0f;
         clipLengthRead = false;
         cachedClipLength = 0f;
@@ -1702,6 +1730,9 @@ private void TriggerHitFlash()
         
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectionRange);
+        
+        Gizmos.color = Color.magenta;
+        Gizmos.DrawWireSphere(transform.position, pullRange);
         
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
