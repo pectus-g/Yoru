@@ -291,6 +291,7 @@ public class PlayerCombat : MonoBehaviour
     private GuardMovementController guardMovement;
     private Camera mainCamera;
     private FormController formController;
+    private PlayerHealth playerHealth;
 
     // Combo
     private int currentComboStep;
@@ -385,6 +386,7 @@ public class PlayerCombat : MonoBehaviour
         guardMovement = GetComponent<GuardMovementController>();
         mainCamera = Camera.main;
         formController = GetComponent<FormController>();
+        playerHealth = GetComponent<PlayerHealth>();
 
         // Phase 2 diagnostic — print ONCE so we can verify the gate is connected.
         if (formController != null)
@@ -433,7 +435,7 @@ public class PlayerCombat : MonoBehaviour
         // Continuous soft lock-on during attacks — Yoru tracks nearest enemy while feet stay planted.
         // Like God of War: if enemy teleports behind mid-combo, Yoru turns to face them.
         // Position lock (combo 3, heavy) only locks position, not rotation (see EnforcePositionLock).
-        if (isAttacking && !isInHitReaction)
+        if (isAttacking && !isInHitReaction && !(playerHealth != null && playerHealth.IsStunned()))
             FaceNearestEnemy();
 
         if (!isAttacking && !isInHitReaction && !isDodging && !isDashing && !isGuarding
@@ -730,6 +732,9 @@ public class PlayerCombat : MonoBehaviour
 
         if (isInHitReaction) return;
         if (isDodging || isDashing) return;
+        // Captured/stunned (e.g. enemy grab): no attacks, guard, dodge, dash, or tail abilities.
+        // The freeze is time-boxed in PlayerHealth, so this self-releases.
+        if (playerHealth != null && playerHealth.IsStunned()) return;
 
         // === GUARD INPUT (Q key) ===
         // Cooldown prevents rapid Q tap from corrupting Animator (same principle as dodge cooldown)

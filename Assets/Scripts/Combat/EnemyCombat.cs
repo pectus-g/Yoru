@@ -127,19 +127,31 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private EnemyState currentState = EnemyState.LostSoul;
     
     [Header("Detection")]
-    [Tooltip("REALIZE distance (cone-gated): how close the player must be for an IDLE enemy to notice and engage. Inside this band (but outside pullRange) the enemy chases on foot; beyond it (up to escapeRange) it teleports to close the gap. This is NOT the pull range — see pullRange.")]
+    [Tooltip("REALIZE distance (cone-gated): how close the player must be for an IDLE enemy to notice and engage. Inside this band (but outside pullRange) the enemy chases on foot; beyond it (up to escapeRange) it teleports to close the gap. This is NOT the pull range. See pullRange.")]
     [SerializeField] private float detectionRange = 9f;
     [SerializeField] private float attackRange = 3.5f;
-    [Tooltip("PULL range: the enemy only yanks the player in (the pull/grab attack) when they are within this distance. Must be smaller than detectionRange — between pullRange and detectionRange the enemy is realized but chases on foot instead of pulling, so the player has room to flee. Set 0 to disable pulling entirely.")]
+    [Tooltip("PULL range: the enemy only yanks the player in (the pull/grab attack) when they are within this distance. Must be smaller than detectionRange. Between pullRange and detectionRange the enemy is realized but chases on foot instead of pulling, so the player has room to flee. Set 0 to disable pulling entirely.")]
     [SerializeField] private float pullRange = 6f;
     [Tooltip("Leash distance (player↔enemy). Once chasing, the enemy gives up and returns home only after the player stays beyond this for leashGraceDuration. Larger than detectionRange so a committed enemy chases further than it first noticed.")]
     [SerializeField] private float escapeRange = 15f;
     [Tooltip("Full vision-cone width in degrees (e.g. 120 = 60° each side of forward). Player must be within this cone AND within detectionRange to be seen. Only gates INITIAL detection and re-detection — once chasing, the enemy tracks without FOV check.")]
     [SerializeField, Range(30f, 360f)] private float visionAngle = 120f;
     
-    [Header("Camera Feel")]
-    [Tooltip("The attack whose animation triggers the camera roll-shake (matched by attackName, so it fires whether the attack is standalone or a combo step). Leave blank to disable. Tune the roll itself on the camera's CameraGameFeel component.")]
-    [SerializeField] private string cameraRollAttackName = "CloseStrike";
+    [Header("Close Attack Grab")]
+    [Tooltip("The attack whose animation is the special close-attack grab (matched by attackName, so it fires standalone OR as a combo step). This one attack gets: the swoop-down + forward lean, the yank-in, the camera roll-shake, and the Yoru freeze. Leave blank to disable all of it. Other attacks are untouched.")]
+    [SerializeField] private string closeAttackName = "CloseStrike";
+    [Tooltip("How far she drops DOWN into the grab, in world units from her floating height. She floats, so a value around 2 to 4 brings her body down toward Yoru. Increase it if she still hovers too high, decrease it if she sinks into the ground. Watch it live in Play mode.")]
+    [SerializeField] private float grabDropAmount = 2f;
+    [Tooltip("How far she leans forward (degrees about her side axis) into the grab. 35 is a strong lunge.")]
+    [SerializeField] private float grabLeanAngle = 35f;
+    [Tooltip("Seconds to smoothly swoop down + lean into the grab pose before the strike. Lower = snappier.")]
+    [SerializeField] private float grabSwoopTime = 0.25f;
+    [Tooltip("Seconds to smoothly rise back to her normal floating pose after the strike.")]
+    [SerializeField] private float grabReturnTime = 0.3f;
+    [Tooltip("How hard the grab yanks Yoru toward her during the swoop (world units/sec).")]
+    [SerializeField] private float grabPullSpeed = 12f;
+    [Tooltip("The grab stops yanking Yoru once he is this close, so he snaps into the grab without overshooting.")]
+    [SerializeField] private float grabPullStopDistance = 1.5f;
     
     [Header("Timing")]
     [SerializeField] private float alertDuration = 0.5f;
@@ -324,7 +336,15 @@ public class EnemyCombat : MonoBehaviour
     private float attackStateEntryTime;
     private float cachedClipLength;
     private bool clipLengthRead;
-    private bool cameraRollFiredThisAttack; // ensures the close-attack camera roll fires once per attack
+    
+    // Close-attack grab sequence (cinematic swoop + lean + yank-in + freeze, run as a coroutine
+    // like the teleport). isGrabbing bypasses the normal Attack handler while it plays.
+    private bool isGrabbing;
+    private float grabOriginalBaseOffset;
+    // 0..1 forward-lean blend, eased in/held/out by CloseGrabSequence and applied to the body in
+    // LateUpdate (after the Animator) so the attack clip cannot stomp the tilt.
+    private float grabLeanFactor;
+    private PlayerHealth playerHealthTarget; // the PLAYER's health, for the capture freeze (ApplyStun)
     private const float AnimCompleteThreshold = 0.99f;   // normalizedTime at which a clip counts as fully played
     private const float AnimSafetyBuffer = 0.5f;         // extra seconds on top of clip length before the safety fires
     private const float AnimSafetyFallback = 5f;         // hard cap used only if the clip length can't be read at runtime
@@ -350,6 +370,7 @@ public class EnemyCombat : MonoBehaviour
         // Cache PlayerMovement for the HairLash pull. Pull is routed through its ApplyExternalPull
         // so there is only ever one Move per system (no fighting locomotion/gravity).
         playerMovement = player != null ? player.GetComponent<PlayerMovement>() : null;
+        playerHealthTarget = player != null ? player.GetComponent<PlayerHealth>() : null;
         
         enemyHealth = GetComponent<EnemyHealth>();
         animator = GetComponent<Animator>();
@@ -427,6 +448,23 @@ public class EnemyCombat : MonoBehaviour
             case EnemyState.Teleport: break; // Handled by coroutine
             case EnemyState.Dead: HandleDead(); break;
         }
+    }
+
+    /// <summary>
+    /// Applies the grab's facing and forward lean AFTER the Animator has written its pose, so the
+    /// attack clip cannot stomp the tilt. Active only while a grab is in progress; the blend amount
+    /// (grabLeanFactor) is eased in, held, and out by CloseGrabSequence.
+    /// </summary>
+    private void LateUpdate()
+    {
+        if (!isGrabbing || player == null) return;
+
+        Vector3 flatDir = player.position - transform.position;
+        flatDir.y = 0f;
+        if (flatDir.sqrMagnitude <= 0.0001f) return;
+
+        Quaternion face = Quaternion.LookRotation(flatDir.normalized);
+        transform.rotation = face * Quaternion.Euler(grabLeanAngle * grabLeanFactor, 0f, 0f);
     }
     #endregion
     
@@ -724,6 +762,10 @@ public class EnemyCombat : MonoBehaviour
     
     private void HandleAttack()
     {
+        // The close-attack grab runs as its own coroutine (swoop, strike, return); don't let the
+        // normal per-frame attack handler interfere while it plays.
+        if (isGrabbing) return;
+
         StopNav();
 
         // Face player during attack — especially important for skipTelegraph attacks that
@@ -742,23 +784,8 @@ public class EnemyCombat : MonoBehaviour
                 playerMovement.ApplyExternalPull(toEnemy.normalized * currentAttack.pullSpeed, Time.deltaTime * 2f);
         }
 
-        // Resolve the clip-complete check once (this also reads the real clip length the first
-        // settled frame, populating cachedClipLength / clipLengthRead).
-        bool attackDone = AttackAnimationComplete();
-
-        // Camera roll — fire once per attack, but only for the close attack (matched by name so it
-        // works standalone AND as a combo step). Triggered the moment the real clip length is known,
-        // and lasts exactly that long (clip length ÷ playback speed) so the rock spans the animation.
-        if (clipLengthRead && !cameraRollFiredThisAttack && currentAttack != null
-            && currentAttack.attackName == cameraRollAttackName && CameraGameFeel.Instance != null)
-        {
-            float rollDuration = cachedClipLength / Mathf.Max(0.01f, currentAttack.attackSpeed);
-            CameraGameFeel.Instance.RollShake(rollDuration);
-            cameraRollFiredThisAttack = true;
-        }
-
         // Run until the attack clip has actually finished, then resolve damage on the strike.
-        if (attackDone)
+        if (AttackAnimationComplete())
         {
             DealDamageToPlayer();
             SetState(EnemyState.Recovery);
@@ -879,11 +906,21 @@ public class EnemyCombat : MonoBehaviour
                     // Committing to an attack — clear the re-engage run flag and snap to face the
                     // player so the strike (and the hair-grab visual) aims where Yoru actually is.
                     forceRunReengage = false;
-                    cameraRollFiredThisAttack = false; // re-arm per attack (incl. each combo step)
-                    // If we did NOT come through Telegraph, this is a fresh attack (skipped telegraph) —
-                    // reset the fired flag so the hallucination still fires here.
+                    // If we did NOT come through Telegraph, this is a fresh attack (skipped
+                    // telegraph), so reset the fired flag so the hallucination still fires here.
                     if (oldState != EnemyState.Telegraph)
                         hallucinationFiredThisAttack = false;
+
+                    // Close attack becomes the cinematic grab (swoop + lean + yank-in + freeze +
+                    // camera roll + return), run as its own coroutine. It owns the entire strike,
+                    // so skip the normal attack setup below.
+                    if (!string.IsNullOrEmpty(closeAttackName)
+                        && currentAttack.attackName == closeAttackName && !isGrabbing)
+                    {
+                        StartCoroutine(CloseGrabSequence());
+                        break;
+                    }
+
                     FacePlayerInstant();
 
                     float speed = currentAttack.attackSpeed;
@@ -946,6 +983,7 @@ public class EnemyCombat : MonoBehaviour
                 
             case EnemyState.Dead:
                 StopNav();
+                EndGrab();
                 PlayAnimation(deathAnim);
                 SetAnimSpeed(1f);
                 PlayVFX(deathVFX);
@@ -1296,6 +1334,155 @@ public class EnemyCombat : MonoBehaviour
         
         return transform.position; // Stay put if no valid position
     }
+
+    /// <summary>
+    /// Cinematic close-attack grab. Swoops down to Yoru's level (Inspector-tunable offset) and
+    /// leans forward into a grab pose while yanking Yoru in, freezes him completely for the strike
+    /// (with the camera roll), then rises back to the normal floating pose and resumes combat.
+    /// Runs as a coroutine like the teleport; isGrabbing bypasses the normal Attack handler.
+    /// Height is tied to Yoru's position, so it holds up anywhere on the map; the offset keeps
+    /// her from sitting underground.
+    /// </summary>
+    private IEnumerator CloseGrabSequence()
+    {
+        isGrabbing = true;
+        grabOriginalBaseOffset = navAgent != null ? navAgent.baseOffset : 0f;
+
+        // She plants and grabs, she doesn't drift, so hold position for the whole sequence.
+        StopNav();
+        FacePlayerInstant();
+
+        // Freeze Yoru immediately so he can't act during the capture (refreshed through the swoop).
+        if (playerHealthTarget != null) playerHealthTarget.ApplyStun(grabSwoopTime + 0.2f);
+
+        // Phase 1: swoop down + lean in, yanking Yoru toward her.
+        float t = 0f;
+        while (t < grabSwoopTime)
+        {
+            t += Time.deltaTime;
+            float k = Mathf.SmoothStep(0f, 1f, grabSwoopTime > 0f ? t / grabSwoopTime : 1f);
+
+            // Dip: drop her by lowering the agent's vertical offset, so the root (and the floating
+            // mesh above it) descends into the grab. A fixed drop you tune for the arena.
+            if (navAgent != null)
+            {
+                float targetOffset = grabOriginalBaseOffset - grabDropAmount;
+                navAgent.baseOffset = Mathf.Lerp(grabOriginalBaseOffset, targetOffset, k);
+            }
+
+            // Lean: ease the forward tilt in. The rotation itself (face Yoru + pitch) is applied in
+            // LateUpdate so the Animator cannot stomp it; here we only drive the blend amount.
+            grabLeanFactor = k;
+
+            // Reel Yoru all the way in during the swoop so he is in range when the strike lands.
+            // The speed auto-scales to close the remaining gap by the end of the swoop (never below
+            // grabPullSpeed), routed through PlayerMovement's single-Move pull. This is the yank,
+            // and it happens HERE at the start, not at the strike.
+            if (playerMovement != null && player != null)
+            {
+                Vector3 toEnemy = transform.position - player.position;
+                toEnemy.y = 0f;
+                float gap = toEnemy.magnitude - grabPullStopDistance;
+                if (gap > 0.01f)
+                {
+                    float timeLeft = Mathf.Max(0.02f, grabSwoopTime - t);
+                    float reelSpeed = Mathf.Max(grabPullSpeed, gap / timeLeft);
+                    playerMovement.ApplyExternalPull(toEnemy.normalized * reelSpeed, Time.deltaTime * 2f);
+                }
+            }
+
+            if (playerHealthTarget != null) playerHealthTarget.ApplyStun(0.2f); // hold the freeze
+            if (!isGrabbing) yield break; // cut short (stagger or death); EndGrab handled the restore
+            yield return null;
+        }
+
+        // Hold the full forward lean through the strike (LateUpdate keeps applying it).
+        grabLeanFactor = 1f;
+
+        // Phase 2: the strike. Clip plays from frame 0; the camera roll + freeze span its length.
+        PlayVFX(attackVFX);
+        if (currentAttack != null && !string.IsNullOrEmpty(currentAttack.attackAnim))
+        {
+            BeginAttackClip(currentAttack.attackAnim, currentAttack.attackSpeed);
+        }
+        else
+        {
+            attackStateEntryTime = Time.time;
+            clipLengthRead = false;
+            cachedClipLength = 0f;
+        }
+
+        bool rollFired = false;
+        while (!AttackAnimationComplete())
+        {
+            // The moment the real clip length is known, fire the camera roll for exactly that long
+            // and extend the freeze to cover the whole strike.
+            if (!rollFired && clipLengthRead)
+            {
+                float strikeDuration = cachedClipLength / Mathf.Max(0.01f, currentAttack != null ? currentAttack.attackSpeed : 1f);
+                if (CameraGameFeel.Instance != null) CameraGameFeel.Instance.RollShake(strikeDuration);
+                if (playerHealthTarget != null) playerHealthTarget.ApplyStun(strikeDuration + 0.1f);
+                rollFired = true;
+            }
+            if (!isGrabbing) yield break;
+            yield return null;
+        }
+
+        // Strike connects. Deal damage inline with a FLAT (horizontal) range check: the dip lowers
+        // the root, so the shared 3D distance check would read as out-of-range during the grab.
+        // TakeDamage also triggers Yoru's hit reaction.
+        if (currentAttack != null && player != null && playerHealthTarget != null)
+        {
+            Vector3 flat = transform.position - player.position;
+            flat.y = 0f;
+            if (flat.magnitude <= currentAttack.range)
+            {
+                bool isHeavy = currentAttack.damage >= heavyHitThreshold;
+                playerHealthTarget.TakeDamage(currentAttack.damage, isHeavy, transform.position);
+            }
+        }
+
+        // Phase 3: rise back to the normal floating pose, upright.
+        float dipOffset = navAgent != null ? navAgent.baseOffset : grabOriginalBaseOffset;
+        float r = 0f;
+        while (r < grabReturnTime)
+        {
+            r += Time.deltaTime;
+            float k = Mathf.SmoothStep(0f, 1f, grabReturnTime > 0f ? r / grabReturnTime : 1f);
+
+            if (navAgent != null)
+                navAgent.baseOffset = Mathf.Lerp(dipOffset, grabOriginalBaseOffset, k);
+
+            // Ease the lean back out; LateUpdate keeps her facing Yoru while the pitch unwinds.
+            grabLeanFactor = 1f - k;
+
+            if (!isGrabbing) yield break;
+            yield return null;
+        }
+
+        if (navAgent != null) navAgent.baseOffset = grabOriginalBaseOffset;
+        grabLeanFactor = 0f;
+        isGrabbing = false;
+
+        // Cooldown, then resume the normal loop.
+        cooldownTimer = isPhase2 ? attackCooldownP2 : attackCooldown;
+        SetState(EnemyState.Recovery);
+    }
+
+    /// <summary>
+    /// Safety restore if the grab is cut short (stagger/death). Puts the agent's vertical offset
+    /// back, snaps her upright (keeping her facing), and clears the grab flag. Yoru's freeze is
+    /// time-boxed in PlayerHealth, so it releases on its own.
+    /// </summary>
+    private void EndGrab()
+    {
+        if (!isGrabbing) return;
+        isGrabbing = false;
+        grabLeanFactor = 0f;
+        if (navAgent != null) navAgent.baseOffset = grabOriginalBaseOffset;
+        Vector3 e = transform.eulerAngles;
+        transform.rotation = Quaternion.Euler(0f, e.y, 0f);
+    }
     #endregion
     
     #region Public Methods (called by other scripts)
@@ -1309,6 +1496,7 @@ public class EnemyCombat : MonoBehaviour
         
         StopAllCoroutines();
         isTeleporting = false;
+        EndGrab();
         SetState(EnemyState.Stagger);
     }
 
@@ -1321,6 +1509,7 @@ public class EnemyCombat : MonoBehaviour
         
         StopAllCoroutines();
         isTeleporting = false;
+        EndGrab();
         SetState(EnemyState.Stagger);
         // Override the default stagger duration set by SetState
         stateTimer = customDuration;
@@ -1393,6 +1582,7 @@ private void TriggerHitFlash()
     {
         if (currentState == EnemyState.Dead) return;
         StopAllCoroutines();
+        EndGrab();
         SetState(EnemyState.Peaceful);
         StartCoroutine(PassOnPeacefully());
     }
@@ -1404,6 +1594,7 @@ private void TriggerHitFlash()
     {
         StopAllCoroutines();
         isTeleporting = false;
+        EndGrab();
         isPhase2 = false;
         hasAlerted = false;
         cooldownTimer = 0;
@@ -1413,7 +1604,6 @@ private void TriggerHitFlash()
         forceRunReengage = false;
         pullDecisionMade = false;
         hallucinationFiredThisAttack = false;
-        cameraRollFiredThisAttack = false;
         hitReactReadyTime = 0f;
         clipLengthRead = false;
         cachedClipLength = 0f;

@@ -38,6 +38,7 @@ public class PlayerMovement : MonoBehaviour
     private PlayerCombat playerCombat;
     private GuardMovementController guardMovement;
     private FormController formController;
+    private PlayerHealth playerHealth;
 
     private CharacterController controller;
     private Animator animator;
@@ -117,6 +118,7 @@ public class PlayerMovement : MonoBehaviour
     {playerCombat = GetComponent<PlayerCombat>();
         guardMovement = GetComponent<GuardMovementController>();
         formController = GetComponent<FormController>();
+        playerHealth = GetComponent<PlayerHealth>();
         // Cache all components once
         controller = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
@@ -244,6 +246,15 @@ public class PlayerMovement : MonoBehaviour
         // accept WASD/jump/etc input so the transformation reads as a deliberate moment
         // rather than the player fighting controls through a half-rendered state.
         if (formController != null && formController.IsTransforming)
+        {
+            SetState(PlayerState.Moving, false);
+            return;
+        }
+        
+        // Block ALL movement while stunned/captured (e.g. an enemy grab). Mirrors the hit-react
+        // block. The external pull is applied separately in FixedUpdate, so a grabbed Yoru can
+        // still be reeled in toward the enemy while he's held.
+        if (playerHealth != null && playerHealth.IsStunned())
         {
             SetState(PlayerState.Moving, false);
             return;
