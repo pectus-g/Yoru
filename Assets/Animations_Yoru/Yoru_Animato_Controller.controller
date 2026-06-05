@@ -267,6 +267,32 @@ AnimatorStateTransition:
   m_InterruptionSource: 0
   m_OrderedInterruption: 1
   m_CanTransitionToSelf: 1
+--- !u!1102 &-5690153499511351493
+AnimatorState:
+  serializedVersion: 6
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: HR_Die_2legs
+  m_Speed: 1
+  m_CycleOffset: 0
+  m_Transitions: []
+  m_StateMachineBehaviours: []
+  m_Position: {x: 50, y: 50, z: 0}
+  m_IKOnFeet: 0
+  m_WriteDefaultValues: 1
+  m_Mirror: 0
+  m_SpeedParameterActive: 0
+  m_MirrorParameterActive: 0
+  m_CycleOffsetParameterActive: 0
+  m_TimeParameterActive: 0
+  m_Motion: {fileID: -623603649343465320, guid: d31bcb78f7be3407f9acf101e5482a08, type: 3}
+  m_Tag: 
+  m_SpeedParameter: 
+  m_MirrorParameter: 
+  m_CycleOffsetParameter: 
+  m_TimeParameter: 
 --- !u!1102 &-4833602653336572756
 AnimatorState:
   serializedVersion: 6
@@ -1144,25 +1170,25 @@ AnimatorStateMachine:
     m_Position: {x: 120, y: 380, z: 0}
   - serializedVersion: 1
     m_State: {fileID: -4285810500234023197}
-    m_Position: {x: 290, y: 160, z: 0}
+    m_Position: {x: -190, y: 350, z: 0}
   - serializedVersion: 1
     m_State: {fileID: -4033956346559020000}
-    m_Position: {x: 310, y: 210, z: 0}
+    m_Position: {x: -170, y: 400, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 3788830011917866357}
-    m_Position: {x: 320, y: 260, z: 0}
+    m_Position: {x: -160, y: 450, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 8307263185978263496}
     m_Position: {x: 560, y: 130, z: 0}
   - serializedVersion: 1
     m_State: {fileID: -6846007580957936125}
-    m_Position: {x: 570, y: 190, z: 0}
+    m_Position: {x: 570, y: 380, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 364507169166851169}
-    m_Position: {x: 580, y: 240, z: 0}
+    m_Position: {x: 560, y: 190, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 2198418667598821370}
-    m_Position: {x: 590, y: 300, z: 0}
+    m_Position: {x: 560, y: 250, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 6449814973700158592}
     m_Position: {x: 810, y: 80, z: 0}
@@ -1180,7 +1206,7 @@ AnimatorStateMachine:
     m_Position: {x: 820, y: 240, z: 0}
   - serializedVersion: 1
     m_State: {fileID: -8529658909595332512}
-    m_Position: {x: 320, y: 320, z: 0}
+    m_Position: {x: -160, y: 510, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 3417661637333586600}
     m_Position: {x: 1070, y: 200, z: 0}
@@ -1190,6 +1216,15 @@ AnimatorStateMachine:
   - serializedVersion: 1
     m_State: {fileID: 949751715267730810}
     m_Position: {x: 1070, y: 140, z: 0}
+  - serializedVersion: 1
+    m_State: {fileID: 6452979999100565865}
+    m_Position: {x: 570, y: 300, z: 0}
+  - serializedVersion: 1
+    m_State: {fileID: -5690153499511351493}
+    m_Position: {x: 330, y: 140, z: 0}
+  - serializedVersion: 1
+    m_State: {fileID: 2635106364169053857}
+    m_Position: {x: 330, y: 200, z: 0}
   m_ChildStateMachines: []
   m_AnyStateTransitions: []
   m_EntryTransitions: []
@@ -1273,6 +1308,32 @@ AnimatorStateTransition:
   m_InterruptionSource: 0
   m_OrderedInterruption: 1
   m_CanTransitionToSelf: 0
+--- !u!1102 &2635106364169053857
+AnimatorState:
+  serializedVersion: 6
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: HR_jumping_Die
+  m_Speed: 1
+  m_CycleOffset: 0
+  m_Transitions: []
+  m_StateMachineBehaviours: []
+  m_Position: {x: 50, y: 50, z: 0}
+  m_IKOnFeet: 0
+  m_WriteDefaultValues: 1
+  m_Mirror: 0
+  m_SpeedParameterActive: 0
+  m_MirrorParameterActive: 0
+  m_CycleOffsetParameterActive: 0
+  m_TimeParameterActive: 0
+  m_Motion: {fileID: -623603649343465320, guid: 8fda4f469b5d04a1dbd21ddd7c5493f5, type: 3}
+  m_Tag: 
+  m_SpeedParameter: 
+  m_MirrorParameter: 
+  m_CycleOffsetParameter: 
+  m_TimeParameter: 
 --- !u!1102 &2725338505533721337
 AnimatorState:
   serializedVersion: 6
@@ -1601,6 +1662,32 @@ AnimatorState:
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
   m_Motion: {fileID: 8328334035284510391, guid: c2c1449359b85475cb7100bd0cae1af4, type: 3}
+  m_Tag: 
+  m_SpeedParameter: 
+  m_MirrorParameter: 
+  m_CycleOffsetParameter: 
+  m_TimeParameter: 
+--- !u!1102 &6452979999100565865
+AnimatorState:
+  serializedVersion: 6
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Bhit_run_reaction_4
+  m_Speed: 1
+  m_CycleOffset: 0
+  m_Transitions: []
+  m_StateMachineBehaviours: []
+  m_Position: {x: 50, y: 50, z: 0}
+  m_IKOnFeet: 0
+  m_WriteDefaultValues: 1
+  m_Mirror: 0
+  m_SpeedParameterActive: 0
+  m_MirrorParameterActive: 0
+  m_CycleOffsetParameterActive: 0
+  m_TimeParameterActive: 0
+  m_Motion: {fileID: 1827226128182048838, guid: dbac7497e0644419998e39ac116dc73b, type: 3}
   m_Tag: 
   m_SpeedParameter: 
   m_MirrorParameter: 
