@@ -345,6 +345,7 @@ public class EnemyCombat : MonoBehaviour
     // LateUpdate (after the Animator) so the attack clip cannot stomp the tilt.
     private float grabLeanFactor;
     private PlayerHealth playerHealthTarget; // the PLAYER's health, for the capture freeze (ApplyStun)
+    private PlayerCombat playerCombatTarget; // the PLAYER's combat, for the stance-aware grab reaction
     private const float AnimCompleteThreshold = 0.99f;   // normalizedTime at which a clip counts as fully played
     private const float AnimSafetyBuffer = 0.5f;         // extra seconds on top of clip length before the safety fires
     private const float AnimSafetyFallback = 5f;         // hard cap used only if the clip length can't be read at runtime
@@ -371,6 +372,7 @@ public class EnemyCombat : MonoBehaviour
         // so there is only ever one Move per system (no fighting locomotion/gravity).
         playerMovement = player != null ? player.GetComponent<PlayerMovement>() : null;
         playerHealthTarget = player != null ? player.GetComponent<PlayerHealth>() : null;
+        playerCombatTarget = player != null ? player.GetComponent<PlayerCombat>() : null;
         
         enemyHealth = GetComponent<EnemyHealth>();
         animator = GetComponent<Animator>();
@@ -1355,6 +1357,10 @@ public class EnemyCombat : MonoBehaviour
         // Freeze Yoru immediately so he can't act during the capture (refreshed through the swoop).
         if (playerHealthTarget != null) playerHealthTarget.ApplyStun(grabSwoopTime + 0.2f);
 
+        // Kick off the stance-aware grab reaction on Yoru. It plays to its freeze frame and holds
+        // there through the strike; ResumeGrabReaction below lets it finish when the strike is over.
+        if (playerCombatTarget != null) playerCombatTarget.PlayGrabReaction();
+
         // Phase 1: swoop down + lean in, yanking Yoru toward her.
         float t = 0f;
         while (t < grabSwoopTime)
@@ -1430,7 +1436,9 @@ public class EnemyCombat : MonoBehaviour
 
         // Strike connects. Deal damage inline with a FLAT (horizontal) range check: the dip lowers
         // the root, so the shared 3D distance check would read as out-of-range during the grab.
-        // TakeDamage also triggers Yoru's hit reaction.
+        // feedbackOnly = true: HP plus the impact feedback (hit VFX, sound, screen) still fire, but
+        // the normal hit reaction animation and the pull are skipped, since the held grab reaction
+        // is the visible reaction. Vector3.zero also means no pull.
         if (currentAttack != null && player != null && playerHealthTarget != null)
         {
             Vector3 flat = transform.position - player.position;
@@ -1438,9 +1446,12 @@ public class EnemyCombat : MonoBehaviour
             if (flat.magnitude <= currentAttack.range)
             {
                 bool isHeavy = currentAttack.damage >= heavyHitThreshold;
-                playerHealthTarget.TakeDamage(currentAttack.damage, isHeavy, transform.position);
+                playerHealthTarget.TakeDamage(currentAttack.damage, isHeavy, Vector3.zero, true);
             }
         }
+
+        // Strike is over: release the held grab reaction so it plays out to its end as Yoru recovers.
+        if (playerCombatTarget != null) playerCombatTarget.ResumeGrabReaction();
 
         // Phase 3: rise back to the normal floating pose, upright.
         float dipOffset = navAgent != null ? navAgent.baseOffset : grabOriginalBaseOffset;
@@ -1479,6 +1490,7 @@ public class EnemyCombat : MonoBehaviour
         if (!isGrabbing) return;
         isGrabbing = false;
         grabLeanFactor = 0f;
+        if (playerCombatTarget != null) playerCombatTarget.CancelGrabReaction();
         if (navAgent != null) navAgent.baseOffset = grabOriginalBaseOffset;
         Vector3 e = transform.eulerAngles;
         transform.rotation = Quaternion.Euler(0f, e.y, 0f);

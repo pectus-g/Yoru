@@ -68,7 +68,7 @@ public class PlayerHealth : MonoBehaviour
     /// Full TakeDamage — all defensive gates checked BEFORE HP subtraction.
     /// Called by EnemyCombat.DealDamageToPlayer().
     /// </summary>
-    public void TakeDamage(int damage, bool isHeavy, Vector3 attackerPos)
+    public void TakeDamage(int damage, bool isHeavy, Vector3 attackerPos, bool feedbackOnly = false)
     {
         // GATE 0: Tomoe (human form) is never damaged. GDD Doc 04 §4b:
         // "Damage taken: 0x — Tomoe is never attacked. Enemies ignore her."
@@ -137,7 +137,7 @@ public class PlayerHealth : MonoBehaviour
 
         // Hit reaction — visual feedback
         if (playerCombat != null)
-            playerCombat.PlayHitReaction(isHeavy, attackerPos);
+            playerCombat.PlayHitReaction(isHeavy, attackerPos, feedbackOnly);
 
         if (currentHealth <= 0)
             OnDeath();

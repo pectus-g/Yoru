@@ -159,9 +159,26 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Animation State Names — Hit Reaction")]
     [SerializeField] private string hitReactLight2Leg = "HitReact_Light_2Leg";
-    [SerializeField] private string hitReactLight4Leg = "HitReact_Light_4Leg";
+    [SerializeField] private string hitReactLight4Leg = "HitReact_Running_4Leg";
     [SerializeField] private string hitReactHeavy2Leg = "HitReact_Heavy_2Leg";
-    [SerializeField] private string hitReactHeavy4Leg = "HitReact_Running_4Leg";
+    [SerializeField] private string hitReactHeavy4Leg = "Bhit_run_reaction_4";
+
+    [Header("Grab Reaction (Nopperabo close attack)")]
+    [Tooltip("Reaction state played when an enemy grab catches Yoru while he is on 2 legs.")]
+    [SerializeField] private string grabReact2LegState = "HitReact_Heavy_2Leg";
+    [Tooltip("Frame the 2-leg grab reaction freezes on while held, out of its total frame count.")]
+    [SerializeField] private int grabReact2LegFreezeFrame = 11;
+    [SerializeField] private int grabReact2LegTotalFrames = 28;
+    [Tooltip("Reaction state played when an enemy grab catches Yoru while he is on 4 legs (running).")]
+    [SerializeField] private string grabReact4LegState = "Bhit_run_reaction_4";
+    [Tooltip("Frame the 4-leg grab reaction freezes on while held, out of its total frame count.")]
+    [SerializeField] private int grabReact4LegFreezeFrame = 25;
+    [SerializeField] private int grabReact4LegTotalFrames = 76;
+    [Tooltip("Blend time into and out of the grab reaction so the transitions stay smooth.")]
+    [SerializeField] private float grabReactBlendIn = 0.08f;
+    [SerializeField] private float grabReactBlendOut = 0.2f;
+    [Tooltip("Safety: if the grab never signals release, the hold lets go after this many seconds.")]
+    [SerializeField] private float grabReactMaxHold = 5f;
 
     [Header("Animation State Names — Dodge (frontflip)")]
     [SerializeField] private string dodge2LegState = "Dodge_2Leg";
@@ -330,6 +347,11 @@ public class PlayerCombat : MonoBehaviour
     private bool isInHitReaction;
     private float hitReactionEndTime;
     private Coroutine hitReactSafetyCoroutine; // Backup force-clear (independent of UpdateHitReaction)
+
+    // Grab reaction (enemy close-attack capture)
+    private bool isInGrabReaction;
+    private bool grabReleaseRequested;
+    private Coroutine grabReactionCoroutine;
 
     // Dodge (frontflip — C)
     private bool isDodging;
@@ -1486,13 +1508,13 @@ public class PlayerCombat : MonoBehaviour
         PlayHitReaction(isHeavy, Vector3.zero);
     }
 
-    public void PlayHitReaction(bool isHeavy, Vector3 attackerPos)
+    /// <summary>
+    /// Cancels any combat action in progress (attack, heavy charge, guard, dodge, dash) and clears
+    /// its flags, coroutines and animator parameters. Shared by the hit reaction and the grab
+    /// reaction so both begin from a clean combat state.
+    /// </summary>
+    private void EndActiveCombatActions()
     {
-        combatIdleSettledTimer = 0f;
-        if (!gameObject.activeInHierarchy) return;
-
-        bool is4Leg = playerMovement != null && playerMovement.IsRunning();
-
         isAttacking = false;
         isChargingHeavy = false;
         chargeHoldStarted = false;
@@ -1538,6 +1560,27 @@ public class PlayerCombat : MonoBehaviour
             animator.SetBool(HashIsAttacking, false);
             animator.SetInteger(HashComboStep, 0);
         }
+    }
+
+    public void PlayHitReaction(bool isHeavy, Vector3 attackerPos, bool feedbackOnly = false)
+    {
+        combatIdleSettledTimer = 0f;
+        if (!gameObject.activeInHierarchy) return;
+
+        if (feedbackOnly)
+        {
+            // Grab path: HP is applied by the caller; here we fire ONLY the impact feedback
+            // (hit VFX, screen feedback, hit sound). The normal hit reaction animation and the
+            // pull are skipped on purpose, because the held grab reaction is the visible reaction.
+            if (vfxManager != null) vfxManager.PlayHitReactVFX(isHeavy);
+            if (CombatFeedbackManager.Instance != null) CombatFeedbackManager.Instance.PlayPlayerHitFeedback(isHeavy);
+            if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayPlayerHit(isHeavy);
+            return;
+        }
+
+        bool is4Leg = playerMovement != null && playerMovement.IsRunning();
+
+        EndActiveCombatActions();
 
         if (attackerPos != Vector3.zero && characterController != null)
         {
@@ -1590,6 +1633,106 @@ public class PlayerCombat : MonoBehaviour
         if (hitReactSafetyCoroutine != null) StopCoroutine(hitReactSafetyCoroutine);
         hitReactSafetyCoroutine = StartCoroutine(HitReactSafetyTimer(duration + 0.1f));
     }
+
+    #region Grab Reaction
+    /// <summary>
+    /// Plays the stance-appropriate grab reaction (2-leg or 4-leg) when an enemy grab catches Yoru,
+    /// then freezes it on its configured frame and holds there until ResumeGrabReaction is called.
+    /// The camera shake, camera roll, hit sound and hit VFX are untouched and still fire from their
+    /// own paths; this method only drives the reaction body animation.
+    /// </summary>
+    public void PlayGrabReaction()
+    {
+        if (!gameObject.activeInHierarchy || animator == null) return;
+
+        bool is4Leg = playerMovement != null && playerMovement.IsRunning();
+        string state = is4Leg ? grabReact4LegState : grabReact2LegState;
+        int freezeFrame = is4Leg ? grabReact4LegFreezeFrame : grabReact2LegFreezeFrame;
+        int totalFrames = is4Leg ? grabReact4LegTotalFrames : grabReact2LegTotalFrames;
+        float freezeNorm = totalFrames > 0 ? Mathf.Clamp01((float)freezeFrame / totalFrames) : 0.4f;
+
+        // Start from a clean combat state, then make sure no leftover hit reaction flag lingers.
+        EndActiveCombatActions();
+        isInHitReaction = false;
+
+        if (grabReactionCoroutine != null) StopCoroutine(grabReactionCoroutine);
+        grabReactionCoroutine = StartCoroutine(GrabReactionRoutine(state, freezeNorm));
+    }
+
+    /// <summary>
+    /// Releases the held grab reaction so it plays from the freeze frame through to the end of the
+    /// clip and then blends back to the normal combat pose. Called when the grab's strike is over.
+    /// </summary>
+    public void ResumeGrabReaction()
+    {
+        grabReleaseRequested = true;
+    }
+
+    /// <summary>
+    /// Hard cleanup if the grab is cut short (enemy staggered or killed mid grab). Stops the
+    /// reaction, blends back to the normal combat pose and clears the flags.
+    /// </summary>
+    public void CancelGrabReaction()
+    {
+        if (grabReactionCoroutine != null)
+        {
+            StopCoroutine(grabReactionCoroutine);
+            grabReactionCoroutine = null;
+        }
+        if (animator != null && isInGrabReaction)
+            animator.CrossFadeInFixedTime(combatIdleStateName, grabReactBlendOut, combatLayerIndex);
+        isInGrabReaction = false;
+        grabReleaseRequested = false;
+    }
+
+    private IEnumerator GrabReactionRoutine(string state, float freezeNorm)
+    {
+        isInGrabReaction = true;
+        grabReleaseRequested = false;
+
+        int stateHash = Animator.StringToHash(state);
+        animator.SetLayerWeight(combatLayerIndex, 1f);
+        animator.CrossFadeInFixedTime(state, grabReactBlendIn, combatLayerIndex, 0f);
+        yield return null;
+
+        // Phase 1: play in until we reach the freeze frame.
+        while (true)
+        {
+            AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            bool settled = !animator.IsInTransition(combatLayerIndex) && si.shortNameHash == stateHash;
+            if (settled && si.normalizedTime >= freezeNorm) break;
+            if (!isInGrabReaction) yield break;
+            yield return null;
+        }
+
+        // Phase 2: hold on the freeze frame by re-pinning the state each frame. Animator speed is
+        // left untouched so this never collides with hitstop or the movement-stuck safety net. The
+        // hold ends when the strike signals release, or after the safety timeout as a last resort.
+        float held = 0f;
+        while (!grabReleaseRequested && held < grabReactMaxHold)
+        {
+            animator.Play(stateHash, combatLayerIndex, freezeNorm);
+            held += Time.deltaTime;
+            if (!isInGrabReaction) yield break;
+            yield return null;
+        }
+
+        // Phase 3: released. Let it play from the freeze frame to the end.
+        while (true)
+        {
+            AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            if (si.shortNameHash == stateHash && si.normalizedTime >= 0.98f) break;
+            if (!isInGrabReaction) yield break;
+            yield return null;
+        }
+
+        // Blend back to the normal combat pose.
+        animator.CrossFadeInFixedTime(combatIdleStateName, grabReactBlendOut, combatLayerIndex);
+        isInGrabReaction = false;
+        grabReleaseRequested = false;
+        grabReactionCoroutine = null;
+    }
+    #endregion
 
     private IEnumerator SmoothPull(Vector3 direction, float distance, float duration)
     {
