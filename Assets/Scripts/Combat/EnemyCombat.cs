@@ -192,6 +192,7 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float phaseThreshold = 0.5f;
     [SerializeField] private float chaseSpeedP2 = 4.0f;
     [SerializeField] private float attackCooldownP2 = 2.0f;
+    [SerializeField] private string bossBarName = "";
     
     [Header("Teleport")]
     [SerializeField] private bool canTeleport = true;
@@ -440,7 +441,8 @@ public class EnemyCombat : MonoBehaviour
             case EnemyState.Peaceful: HandlePeaceful(); break;
             case EnemyState.Idle: HandleIdle(); break;
             case EnemyState.Returning: HandleReturning(); break;
-            case EnemyState.Alert: HandleAlert(); break;
+            case EnemyState.Alert: HandleAlert();if (!string.IsNullOrEmpty(bossBarName) && BossHealthBarUI.Instance != null && enemyHealth != null)
+    BossHealthBarUI.Instance.Show(enemyHealth, bossBarName); break;
             case EnemyState.Chase: HandleChase(); break;
             case EnemyState.Telegraph: HandleTelegraph(); break;
             case EnemyState.Attack: HandleAttack(); break;
