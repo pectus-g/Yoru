@@ -201,6 +201,10 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private int heavy4LegHitCutFrame = 60;
     [Tooltip("Total frame count of the 4-leg heavy reaction clip, used to convert the cut frame into a normalized time.")]
     [SerializeField] private int heavy4LegHitTotalFrames = 76;
+    [Tooltip("Safety ceiling in seconds for the clip-driven 4-leg heavy reaction. When a cut frame is set, the reaction no longer ends on Heavy Hit React Duration; it plays until the clip reaches the cut frame, and this value is only the hard stop if the clip somehow never gets there. Must be longer than the time the clip needs to reach the cut frame (frame 64 of 76 at 30fps is about 2.1s).")]
+    [SerializeField] private float heavy4LegHitMaxHold = 2.5f;
+    [Tooltip("Reaction duration for light hits that land while the magic-mushroom hallucination is active (the Mushroom strike itself). The default 0.3s light reaction is unreadable under the screen distortion, so these hits hold the light reaction clip this long instead. The clip still blends out early if it finishes before this time.")]
+    [SerializeField] private float hallucinationHitReactDuration = 0.7f;
 
     [Header("Knockback Pull")]
     [SerializeField] private float pullDistance = 0.5f;
@@ -1606,11 +1610,25 @@ public class PlayerCombat : MonoBehaviour
         {
             animState = is4Leg ? hitReactHeavy4Leg : hitReactHeavy2Leg;
             duration = heavyHitReactDuration;
+
+            // Clip-driven 4-leg heavy reaction: when a cut frame is configured, the reaction must
+            // stay alive long enough for Bhit_run_reaction_4 to actually reach that frame (almost
+            // 2s in), so the 0.5s timer is replaced by the max-hold ceiling. HoldHitReaction ends
+            // the reaction the moment the clip crosses the cut frame, so the ceiling only matters
+            // if the clip never gets there.
+            if (animState == hitReactHeavy4Leg && heavy4LegHitCutFrame > 0 && heavy4LegHitTotalFrames > 0)
+                duration = heavy4LegHitMaxHold;
         }
         else
         {
             animState = is4Leg ? hitReactLight4Leg : hitReactLight2Leg;
             duration = lightHitReactDuration;
+
+            // Mushroom strike readability: a 0.3s light reaction is lost under the hallucination
+            // screen distortion (and the 4-leg light clip reads like normal running at that length).
+            // Hold the light reaction longer so the hit visibly registers.
+            if (HallucinationEffect.IsActive)
+                duration = Mathf.Max(duration, hallucinationHitReactDuration);
         }
 
         if (vfxManager != null) vfxManager.PlayHitReactVFX(isHeavy);
@@ -1802,29 +1820,55 @@ public class PlayerCombat : MonoBehaviour
         yield return null;
 
         // Optional early cut: the 4-leg heavy clip (Bhit_run_reaction_4) runs into a locomotion cycle
-        // at its tail, which reads as Yoru jogging in place. Blend back to idle once the clip passes
-        // the cut frame so that tail never shows. cutNorm stays at 1 (no cut) for every other reaction.
+        // at its tail, which reads as Yoru jogging in place. The cut frame is the LAST VISIBLE frame:
+        // the blend to idle starts early enough that, by the time it completes, the clip has only just
+        // reached the cut frame, so nothing past it is ever shown. cutNorm stays at 1 (no cut) for
+        // every other reaction.
+        const float cutBlendOut = 0.12f;
         float cutNorm = 1f;
-        if (state == hitReactHeavy4Leg && heavy4LegHitTotalFrames > 0 && heavy4LegHitCutFrame > 0)
+        bool hasCut = state == hitReactHeavy4Leg && heavy4LegHitTotalFrames > 0 && heavy4LegHitCutFrame > 0;
+        if (hasCut)
             cutNorm = Mathf.Clamp01((float)heavy4LegHitCutFrame / heavy4LegHitTotalFrames);
 
         float elapsed = 0f;
+        bool settledOnce = false;
+        bool missingStateWarned = false;
         while (elapsed < duration && isInHitReaction)
         {
             AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
             bool settled = si.shortNameHash == hash && !animator.IsInTransition(combatLayerIndex);
+            if (settled) settledOnce = true;
             if (!settled)
             {
                 // Lost the reaction state (something overwrote the one-shot crossfade): re-assert it.
                 if (!animator.IsInTransition(combatLayerIndex))
                     animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, 0f);
+
+                // If the state has never been reached after repeated re-asserts, the state name
+                // almost certainly does not exist on the combat layer (CrossFade to a missing
+                // state fails silently in Unity, which looks like "no hit reaction at all").
+                // Shout once so the broken Inspector field is identifiable from the console.
+                if (!settledOnce && !missingStateWarned && elapsed > 0.4f)
+                {
+                    Debug.LogWarning($"[Combat] Hit react state '{state}' never settled on combat layer {combatLayerIndex}. The reaction is firing but nothing is visible. Check the Hit Reaction state-name fields on PlayerCombat in the Inspector (expected: {hitReactLight2Leg} / {hitReactLight4Leg} / {hitReactHeavy2Leg} / {hitReactHeavy4Leg}).");
+                    missingStateWarned = true;
+                }
             }
-            else if (si.normalizedTime >= cutNorm)
+            else
             {
-                // Reached the cut frame: blend back to idle and end the reaction early so the tail never plays.
-                animator.CrossFadeInFixedTime(combatIdleStateName, 0.15f, combatLayerIndex);
-                isInHitReaction = false;
-                break;
+                // Start the blend early so the clip lands ON the cut frame as the blend completes;
+                // frames past the cut frame are never visible. Non-cut reactions (triggerNorm 1)
+                // simply blend out when their clip finishes.
+                float triggerNorm = cutNorm;
+                if (hasCut && si.length > 0f)
+                    triggerNorm = Mathf.Max(0.05f, cutNorm - (cutBlendOut / si.length));
+
+                if (si.normalizedTime >= triggerNorm)
+                {
+                    animator.CrossFadeInFixedTime(combatIdleStateName, cutBlendOut, combatLayerIndex);
+                    isInHitReaction = false;
+                    break;
+                }
             }
             elapsed += Time.deltaTime;
             yield return null;
