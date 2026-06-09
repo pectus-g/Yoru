@@ -1744,17 +1744,40 @@ public class PlayerCombat : MonoBehaviour
             yield return null;
         }
 
-        // Phase 3: released. Let it play from the freeze frame to the end.
+        // Phase 3: released. Play from the freeze frame onward, but stop at the configured cut
+        // frame for the 4-leg heavy clip exactly like HoldHitReaction does: the blend to idle
+        // starts early enough that, by the time it completes, the clip has only just reached the
+        // cut frame, so the locomotion tail past it is never shown. Yoru also stays frozen (the
+        // stun is refreshed every frame, the same pattern the grab swoop uses) until the reaction
+        // is visually over, so he can never run around while the body is still mid-reaction.
+        const float cutBlendOut = 0.12f;
+        float cutNorm = 1f;
+        bool hasCut = state == hitReactHeavy4Leg && heavy4LegHitTotalFrames > 0 && heavy4LegHitCutFrame > 0;
+        if (hasCut)
+            cutNorm = Mathf.Clamp01((float)heavy4LegHitCutFrame / heavy4LegHitTotalFrames);
+
         while (true)
         {
+            if (playerHealth != null) playerHealth.ApplyStun(0.2f); // hold the freeze through the release
+
             AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-            if (si.shortNameHash == stateHash && si.normalizedTime >= 0.98f) break;
+            if (si.shortNameHash == stateHash)
+            {
+                float triggerNorm = hasCut ? cutNorm : 0.98f;
+                if (hasCut && si.length > 0f)
+                    triggerNorm = Mathf.Max(0.05f, cutNorm - (cutBlendOut / si.length));
+
+                if (si.normalizedTime >= triggerNorm) break;
+            }
             if (!isInGrabReaction) yield break;
             yield return null;
         }
 
-        // Blend back to the normal combat pose.
-        animator.CrossFadeInFixedTime(combatIdleStateName, grabReactBlendOut, combatLayerIndex);
+        // Blend back to the normal combat pose. The freeze stays on just long enough to cover the
+        // blend, so control returns the moment Yoru is back on his feet and not a frame before.
+        float blendOut = hasCut ? cutBlendOut : grabReactBlendOut;
+        if (playerHealth != null) playerHealth.ApplyStun(blendOut);
+        animator.CrossFadeInFixedTime(combatIdleStateName, blendOut, combatLayerIndex);
         isInGrabReaction = false;
         grabReleaseRequested = false;
         grabReactionCoroutine = null;

@@ -27,6 +27,16 @@ public class EnemyFX : MonoBehaviour
         [Tooltip("Volume for this clip only (multiplied with the AudioSource volume).")]
         [Range(0f, 1f)]
         public float sfxVolume = 1f;
+
+        [Header("Spawn Shaping (optional)")]
+        [Tooltip("Local offset from the enemy's position. Y raises the effect (use for mid-body portals), Z pushes it toward the enemy's facing direction. Leave at zero for the old behaviour (spawn at the enemy's feet).")]
+        public Vector3 positionOffset = Vector3.zero;
+
+        [Tooltip("Extra rotation in degrees applied on top of the enemy's facing. Example: X = 90 stands a flat ground ring up into a vertical portal. Leave at zero for the old behaviour.")]
+        public Vector3 rotationOffset = Vector3.zero;
+
+        [Tooltip("Uniform size multiplier for the spawned effect. 2 = twice as big. 0 and 1 both mean unchanged (0 is treated as 1 so older entries keep working).")]
+        public float scale = 1f;
     }
     #endregion
 
@@ -82,7 +92,17 @@ public class EnemyFX : MonoBehaviour
 
         if (entry.vfx != null)
         {
-            GameObject effect = Instantiate(entry.vfx, transform.position, transform.rotation);
+            // Local offset so Y is always "up the body" and Z is always "in front of the enemy",
+            // whatever way the enemy is facing.
+            Vector3 spawnPos = transform.TransformPoint(entry.positionOffset);
+            Quaternion spawnRot = transform.rotation * Quaternion.Euler(entry.rotationOffset);
+
+            GameObject effect = Instantiate(entry.vfx, spawnPos, spawnRot);
+
+            // Unity fills newly added fields on old serialized entries with 0, so 0 means "unchanged".
+            float sizeMultiplier = entry.scale <= 0f ? 1f : entry.scale;
+            if (!Mathf.Approximately(sizeMultiplier, 1f))
+                effect.transform.localScale *= sizeMultiplier;
 
             ParticleSystem ps = effect.GetComponent<ParticleSystem>();
             if (ps != null && !ps.isPlaying)
