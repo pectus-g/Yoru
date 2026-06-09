@@ -197,6 +197,10 @@ public class PlayerCombat : MonoBehaviour
     [Header("Hit Reaction Timing")]
     [SerializeField] private float lightHitReactDuration = 0.3f;
     [SerializeField] private float heavyHitReactDuration = 0.5f;
+    [Tooltip("Cut the 4-leg heavy hit reaction (Bhit_run_reaction_4) at this frame and blend back to idle, so the clips run-cycle tail does not read as Yoru jogging in place. 0 = play the full duration with no cut.")]
+    [SerializeField] private int heavy4LegHitCutFrame = 60;
+    [Tooltip("Total frame count of the 4-leg heavy reaction clip, used to convert the cut frame into a normalized time.")]
+    [SerializeField] private int heavy4LegHitTotalFrames = 76;
 
     [Header("Knockback Pull")]
     [SerializeField] private float pullDistance = 0.5f;
@@ -347,6 +351,7 @@ public class PlayerCombat : MonoBehaviour
     private bool isInHitReaction;
     private float hitReactionEndTime;
     private Coroutine hitReactSafetyCoroutine; // Backup force-clear (independent of UpdateHitReaction)
+    private Coroutine hitReactHoldCoroutine; // Holds the hit reaction state visible for its duration
 
     // Grab reaction (enemy close-attack capture)
     private bool isInGrabReaction;
@@ -1612,7 +1617,11 @@ public class PlayerCombat : MonoBehaviour
 
         if (animator != null)
         {
-            animator.CrossFadeInFixedTime(animState, 0.02f, combatLayerIndex, 0f);
+            // Drive the reaction the robust way the grab does: force the combat layer to full weight
+            // and actively hold the reaction state for its duration so a single crossfade cannot be
+            // silently lost. The hold yields once UpdateHitReaction clears the flag and runs ReturnToIdle.
+            if (hitReactHoldCoroutine != null) StopCoroutine(hitReactHoldCoroutine);
+            hitReactHoldCoroutine = StartCoroutine(HoldHitReaction(animState, duration));
             lastCombatCrossFadeTime = Time.time;
             DebugLog($"Hit react: {animState} ({duration}s)");
         }
@@ -1778,6 +1787,49 @@ public class PlayerCombat : MonoBehaviour
             ReturnToIdle();
         }
         hitReactSafetyCoroutine = null;
+    }
+
+    // Mirrors the grab reaction's proven approach for the normal hit reaction: set the combat layer
+    // to full weight, crossfade into the reaction, then keep the state asserted each frame so nothing
+    // can overwrite the one-shot crossfade before it is seen. Lets the clip play through (no freeze).
+    // Exits the moment the duration elapses or UpdateHitReaction clears the flag and runs ReturnToIdle,
+    // so it never fights the blend back to idle.
+    private IEnumerator HoldHitReaction(string state, float duration)
+    {
+        int hash = Animator.StringToHash(state);
+        animator.SetLayerWeight(combatLayerIndex, 1f);
+        animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, 0f);
+        yield return null;
+
+        // Optional early cut: the 4-leg heavy clip (Bhit_run_reaction_4) runs into a locomotion cycle
+        // at its tail, which reads as Yoru jogging in place. Blend back to idle once the clip passes
+        // the cut frame so that tail never shows. cutNorm stays at 1 (no cut) for every other reaction.
+        float cutNorm = 1f;
+        if (state == hitReactHeavy4Leg && heavy4LegHitTotalFrames > 0 && heavy4LegHitCutFrame > 0)
+            cutNorm = Mathf.Clamp01((float)heavy4LegHitCutFrame / heavy4LegHitTotalFrames);
+
+        float elapsed = 0f;
+        while (elapsed < duration && isInHitReaction)
+        {
+            AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            bool settled = si.shortNameHash == hash && !animator.IsInTransition(combatLayerIndex);
+            if (!settled)
+            {
+                // Lost the reaction state (something overwrote the one-shot crossfade): re-assert it.
+                if (!animator.IsInTransition(combatLayerIndex))
+                    animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, 0f);
+            }
+            else if (si.normalizedTime >= cutNorm)
+            {
+                // Reached the cut frame: blend back to idle and end the reaction early so the tail never plays.
+                animator.CrossFadeInFixedTime(combatIdleStateName, 0.15f, combatLayerIndex);
+                isInHitReaction = false;
+                break;
+            }
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        hitReactHoldCoroutine = null;
     }
     #endregion
 
