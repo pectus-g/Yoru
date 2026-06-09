@@ -232,26 +232,6 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private bool showDebugLogs = true;
     [SerializeField] private bool showGizmos = true;
     
-    [Header("VFX")]
-    [Tooltip("Seconds before instantiated VFX is auto-destroyed. Set higher than your longest particle lifetime.")]
-    [SerializeField] private float vfxLifetime = 3f;
-    [Tooltip("Prefab spawned during telegraph wind-up. Drag prefab from Project window.")]
-    [SerializeField] private GameObject telegraphVFX;
-    [Tooltip("Prefab spawned on attack strike. Drag prefab from Project window.")]
-    [SerializeField] private GameObject attackVFX;
-    [Tooltip("Prefab spawned on stagger. Drag prefab from Project window.")]
-    [SerializeField] private GameObject staggerVFX;
-    [Tooltip("Prefab spawned on hit reaction. Drag prefab from Project window.")]
-    [SerializeField] private GameObject hitReactVFX;
-    [Tooltip("Prefab spawned at teleport-out position (old location). Drag prefab from Project window.")]
-    [SerializeField] private GameObject teleportOutVFX;
-    [Tooltip("Prefab spawned at teleport-in position (new location). Drag prefab from Project window.")]
-    [SerializeField] private GameObject teleportInVFX;
-    [Tooltip("Prefab spawned on death. Drag prefab from Project window.")]
-    [SerializeField] private GameObject deathVFX;
-    [Tooltip("Prefab spawned on alert/notice. Drag prefab from Project window.")]
-    [SerializeField] private GameObject alertVFX;
-    
     [Header("Damage")]
     [Tooltip("Damage at or above this threshold is treated as a heavy hit")]
     [SerializeField] private int heavyHitThreshold = 2;
@@ -276,6 +256,7 @@ public class EnemyCombat : MonoBehaviour
     private EnemyHealth enemyHealth;
     private Animator animator;
     private NavMeshAgent navAgent;
+    private EnemyFX enemyFX;
     
     // Timing
     private float stateTimer;
@@ -380,6 +361,7 @@ public class EnemyCombat : MonoBehaviour
         enemyHealth = GetComponent<EnemyHealth>();
         animator = GetComponent<Animator>();
         navAgent = GetComponent<NavMeshAgent>();
+        enemyFX = GetComponent<EnemyFX>();
         
         if (navAgent != null)
         {
@@ -874,7 +856,7 @@ public class EnemyCombat : MonoBehaviour
                 stateTimer = alertDuration;
                 PlayAnimation(alertAnim);
                 SetAnimSpeed(1f);
-                PlayVFX(alertVFX);
+                PlayFX(alertAnim);
                 break;
                 
             case EnemyState.Telegraph:
@@ -890,7 +872,7 @@ public class EnemyCombat : MonoBehaviour
                     // Play from frame 0 (instant, not blended) so the full clip plays start-to-end
                     // and its real length is immediately readable for the clip-driven transition.
                     BeginAttackClip(currentAttack.telegraphAnim, speed);
-                    PlayVFX(telegraphVFX);
+                    PlayFX(currentAttack.telegraphAnim);
                     DebugLog($"Telegraph: {currentAttack.attackName}");
 
                     // Hallucination — fire here only if explicitly flagged for the telegraph phase.
@@ -945,7 +927,7 @@ public class EnemyCombat : MonoBehaviour
                         cachedClipLength = 0f;
                     }
                     
-                    PlayVFX(attackVFX);
+                    PlayFX(currentAttack.attackAnim);
                     DebugLog($"Attack: {currentAttack.attackName} ({currentAttack.damage} dmg)");
                     
                     // Magic-mushroom hallucination — fires the standalone post-process effect and
@@ -973,7 +955,7 @@ public class EnemyCombat : MonoBehaviour
                 stateTimer = hitReactDuration;
                 ForcePlayAnimation(hitReactAnim);
                 SetAnimSpeed(1f);
-                PlayVFX(hitReactVFX);
+                PlayFX(hitReactAnim);
                 break;
                 
             case EnemyState.Stagger:
@@ -983,7 +965,7 @@ public class EnemyCombat : MonoBehaviour
                 cooldownTimer = 0; // Reset cooldown after stagger
                 comboQueue.Clear(); // Interruption — drop any remaining combo steps
                 activeComboName = "";
-                PlayVFX(staggerVFX);
+                PlayFX(staggerAnim);
                 DebugLog($"STAGGERED for {staggerDuration}s");
                 break;
                 
@@ -992,7 +974,7 @@ public class EnemyCombat : MonoBehaviour
                 EndGrab();
                 PlayAnimation(deathAnim);
                 SetAnimSpeed(1f);
-                PlayVFX(deathVFX);
+                PlayFX(deathAnim);
                 break;
                 
             case EnemyState.Chase:
@@ -1271,7 +1253,7 @@ public class EnemyCombat : MonoBehaviour
         // Phase 1: Teleport Out
         PlayAnimation(teleportOutAnim);
         SetAnimSpeed(speed);
-        PlayVFX(teleportOutVFX);
+        PlayFX(teleportOutAnim);
         
         float outTime = teleportOutDuration / speed;
         yield return new WaitForSeconds(outTime);
@@ -1298,7 +1280,7 @@ public class EnemyCombat : MonoBehaviour
         // Phase 2: Teleport In
         PlayAnimation(teleportInAnim);
         SetAnimSpeed(speed);
-        PlayVFX(teleportInVFX);
+        PlayFX(teleportInAnim);
         
         float inTime = teleportInDuration / speed;
         yield return new WaitForSeconds(inTime);
@@ -1416,7 +1398,7 @@ public class EnemyCombat : MonoBehaviour
         grabLeanFactor = 1f;
 
         // Phase 2: the strike. Clip plays from frame 0; the camera roll + freeze span its length.
-        PlayVFX(attackVFX);
+        PlayFX(currentAttack != null ? currentAttack.attackAnim : null);
         if (currentAttack != null && !string.IsNullOrEmpty(currentAttack.attackAnim))
         {
             BeginAttackClip(currentAttack.attackAnim, currentAttack.attackSpeed);
@@ -1894,21 +1876,13 @@ private void TriggerHitFlash()
     }
     
     /// <summary>
-    /// Instantiates a VFX prefab at the enemy's current position and rotation, plays its
-    /// ParticleSystem, and schedules auto-destroy. Mirrors YoruVFXManager.SpawnEffect.
-    /// Null-safe — silently no-ops if the prefab slot is unassigned.
+    /// Routes effects to the EnemyFX component, which holds the per-animation VFX + SFX slots.
+    /// Null-safe — silently no-ops if the enemy has no EnemyFX component.
     /// </summary>
-    private void PlayVFX(GameObject vfxPrefab)
+    private void PlayFX(string animName)
     {
-        if (vfxPrefab == null) return;
-        
-        GameObject effect = Instantiate(vfxPrefab, transform.position, transform.rotation);
-        
-        ParticleSystem ps = effect.GetComponent<ParticleSystem>();
-        if (ps != null && !ps.isPlaying)
-            ps.Play();
-        
-        Destroy(effect, vfxLifetime);
+        if (enemyFX != null)
+            enemyFX.Play(animName);
     }
     #endregion
     
