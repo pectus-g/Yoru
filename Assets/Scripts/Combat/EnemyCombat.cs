@@ -1245,7 +1245,10 @@ public class EnemyCombat : MonoBehaviour
         // forces a heavy reaction. A single attack stays damage-based.
         bool inCombo = !string.IsNullOrEmpty(activeComboName);
         bool isHeavy = inCombo ? (comboQueue.Count == 0) : (currentAttack.damage >= heavyHitThreshold);
-        playerHealth.TakeDamage(currentAttack.damage, isHeavy, transform.position);
+      // Hallucination attacks (Mushroom) skip the knockback pull so it does not interrupt
+        // and cut the hit reaction. Physical attacks still knock back toward the enemy.
+        Vector3 reactPos = currentAttack.hallucinationDuration > 0f ? Vector3.zero : transform.position;
+        playerHealth.TakeDamage(currentAttack.damage, isHeavy, reactPos);
         DebugLog($"⚔️ Hit player for {currentAttack.damage} ({currentAttack.attackName})");
         
         // Apply stun if attack has it
