@@ -10,9 +10,9 @@ using TMPro;
 /// Only one boss bar is visible at a time (the current threat).
 /// 
 /// Look (YORU), glow-based, no art assets:
-///   - Phase 1: glowing blue fill with a soft pulsing blue halo.
-///   - Phase 2 (call SetPhase2): fill and glow shift to crimson, a bright flash fires on the
-///     switch, and the glow pulses faster with a shimmer so the player reads the escalation.
+///   - Rounded corners, a soft glassy sheen on the fill, and a glowing halo behind the bar.
+///   - Phase 1: glowing blue fill. Phase 2 (call SetPhase2): fill and glow shift to crimson,
+///     a bright flash fires on the switch, and the glow pulses faster with a shimmer.
 ///   - Damage: HP drops instantly, the lost chunk reads as a hot trail that fades as it catches up.
 ///   - Optional red flash over the bar as it fades out on death (redFlashOnDeath).
 /// 
@@ -50,7 +50,7 @@ public class BossHealthBarUI : MonoBehaviour
     [Tooltip("Bar width in pixels")]
     [SerializeField] private float barWidth = 620f;
     [Tooltip("Bar height in pixels")]
-    [SerializeField] private float barHeight = 26f;
+    [SerializeField] private float barHeight = 30f;
     [Tooltip("Distance from top of screen in pixels")]
     [SerializeField] private float topMargin = 60f;
 
@@ -98,9 +98,9 @@ public class BossHealthBarUI : MonoBehaviour
 
     [Header("Glow")]
     [Tooltip("How far the glow halo extends past the bar, in pixels")]
-    [SerializeField] private float glowPadding = 22f;
+    [SerializeField] private float glowPadding = 30f;
     [Tooltip("Base glow opacity")]
-    [SerializeField] private float glowBaseAlpha = 0.5f;
+    [SerializeField] private float glowBaseAlpha = 0.6f;
     [Tooltip("Phase 1 glow pulse speed")]
     [SerializeField] private float glowPulseSpeed = 2f;
     [Tooltip("How much the pulse adds to / removes from the base opacity")]
@@ -116,9 +116,15 @@ public class BossHealthBarUI : MonoBehaviour
 
     [Header("Frame")]
     [Tooltip("Dark bar background")]
-    [SerializeField] private Color backgroundColor = new Color(0.05f, 0.07f, 0.16f, 0.85f);
-    [Tooltip("Thin frame around the bar")]
-    [SerializeField] private Color borderColor = new Color(0.45f, 0.65f, 1f, 0.55f);
+    [SerializeField] private Color backgroundColor = new Color(0.05f, 0.07f, 0.16f, 0.9f);
+    [Tooltip("Frame around the bar")]
+    [SerializeField] private Color borderColor = new Color(0.55f, 0.72f, 1f, 0.7f);
+    [Tooltip("Corner roundness in pixels")]
+    [SerializeField] private float cornerRadius = 9f;
+    [Tooltip("Border (frame) thickness in pixels")]
+    [SerializeField] private float borderThickness = 2.5f;
+    [Tooltip("Strength of the glassy highlight sheen on the fill (0 = off)")]
+    [SerializeField] private float sheenStrength = 0.30f;
 
     [Header("Damage Flash")]
     [Tooltip("Colour the glow flares toward when HP drops, then settles back")]
@@ -417,6 +423,10 @@ public class BossHealthBarUI : MonoBehaviour
         containerRect.anchoredPosition = new Vector2(0f, 0f);
         containerRect.sizeDelta = new Vector2(0f, barHeight);
 
+        // Rounded + sheen sprites, generated in code so no art asset is needed
+        Sprite rounded = CreateRoundedSprite(cornerRadius);
+        Sprite sheen = CreateSheenSprite();
+
         // Soft glow halo (behind everything, larger than the bar)
         GameObject glowObj = new GameObject("Glow");
         glowObj.transform.SetParent(barContainer.transform, false);
@@ -434,25 +444,48 @@ public class BossHealthBarUI : MonoBehaviour
         glowStart.a = glowBaseAlpha;
         glowImage.color = glowStart;
 
+        // Border rim (full-size rounded layer, the inner area sits on top inset by the thickness)
+        CreateFilledImage("Border", barContainer.transform, borderColor, rounded);
+
+        // Inner area, inset by the border thickness so the rim shows around it
+        GameObject inner = new GameObject("Inner");
+        inner.transform.SetParent(barContainer.transform, false);
+        RectTransform innerRect = inner.AddComponent<RectTransform>();
+        innerRect.anchorMin = Vector2.zero;
+        innerRect.anchorMax = Vector2.one;
+        innerRect.offsetMin = new Vector2(borderThickness, borderThickness);
+        innerRect.offsetMax = new Vector2(-borderThickness, -borderThickness);
+
         // Background
-        GameObject bgObj = CreateBarLayer("Background", barContainer.transform, backgroundColor);
+        GameObject bgObj = CreateFilledImage("Background", inner.transform, backgroundColor, rounded);
         backgroundImage = bgObj.GetComponent<Image>();
 
         // Trail (lost chunk that catches up)
-        GameObject trailObj = CreateBarLayer("Trail", barContainer.transform, ActiveTrailColor);
+        GameObject trailObj = CreateFilledImage("Trail", inner.transform, ActiveTrailColor, rounded);
         trailRect = trailObj.GetComponent<RectTransform>();
         trailImage = trailObj.GetComponent<Image>();
 
         // Health fill (instant)
-        GameObject healthObj = CreateBarLayer("Health", barContainer.transform, ActiveHealthColor);
+        GameObject healthObj = CreateFilledImage("Health", inner.transform, ActiveHealthColor, rounded);
         healthRect = healthObj.GetComponent<RectTransform>();
         healthImage = healthObj.GetComponent<Image>();
 
-        // Border outline (thin frame around the bar)
-        CreateBorderOutline(barContainer.transform, barHeight);
+        // Glassy sheen over the fill (child of health so it matches the fill width)
+        GameObject sheenObj = new GameObject("Sheen");
+        sheenObj.transform.SetParent(healthObj.transform, false);
+        RectTransform sheenRect = sheenObj.AddComponent<RectTransform>();
+        sheenRect.anchorMin = Vector2.zero;
+        sheenRect.anchorMax = Vector2.one;
+        sheenRect.offsetMin = Vector2.zero;
+        sheenRect.offsetMax = Vector2.zero;
+        Image sheenImg = sheenObj.AddComponent<Image>();
+        sheenImg.sprite = sheen;
+        sheenImg.type = Image.Type.Simple;
+        sheenImg.color = new Color(1f, 1f, 1f, sheenStrength);
+        sheenImg.raycastTarget = false;
 
         // Phase-transition flash overlay (on top, transparent until phase 2 fires)
-        GameObject flashObj = CreateBarLayer("PhaseFlash", barContainer.transform, new Color(1f, 1f, 1f, 0f));
+        GameObject flashObj = CreateFilledImage("PhaseFlash", barContainer.transform, new Color(1f, 1f, 1f, 0f), rounded);
         flashImage = flashObj.GetComponent<Image>();
     }
 
@@ -481,7 +514,11 @@ public class BossHealthBarUI : MonoBehaviour
         return label;
     }
 
-    private GameObject CreateBarLayer(string name, Transform parent, Color color)
+    /// <summary>
+    /// Creates a full-stretch Image filling its parent. If a sprite is given it renders Sliced
+    /// so rounded corners stay crisp at any width.
+    /// </summary>
+    private GameObject CreateFilledImage(string name, Transform parent, Color color, Sprite sprite)
     {
         GameObject obj = new GameObject(name);
         obj.transform.SetParent(parent, false);
@@ -495,51 +532,13 @@ public class BossHealthBarUI : MonoBehaviour
         Image img = obj.AddComponent<Image>();
         img.color = color;
         img.raycastTarget = false;
+        if (sprite != null)
+        {
+            img.sprite = sprite;
+            img.type = Image.Type.Sliced;
+        }
 
         return obj;
-    }
-
-    private void CreateBorderOutline(Transform parent, float height)
-    {
-        // Simple 1px border using 4 stretched images
-        float borderWidth = 1f;
-
-        // Top
-        CreateBorderEdge("Border_Top", parent, borderColor,
-            new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1f),
-            Vector2.zero, new Vector2(0, borderWidth));
-        // Bottom
-        CreateBorderEdge("Border_Bottom", parent, borderColor,
-            new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0f),
-            Vector2.zero, new Vector2(0, borderWidth));
-        // Left
-        CreateBorderEdge("Border_Left", parent, borderColor,
-            new Vector2(0, 0), new Vector2(0, 1), new Vector2(0f, 0.5f),
-            Vector2.zero, new Vector2(borderWidth, 0));
-        // Right
-        CreateBorderEdge("Border_Right", parent, borderColor,
-            new Vector2(1, 0), new Vector2(1, 1), new Vector2(1f, 0.5f),
-            Vector2.zero, new Vector2(borderWidth, 0));
-    }
-
-    private void CreateBorderEdge(string name, Transform parent, Color color,
-        Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot,
-        Vector2 offsetMin, Vector2 sizeDelta)
-    {
-        GameObject obj = new GameObject(name);
-        obj.transform.SetParent(parent, false);
-
-        RectTransform rect = obj.AddComponent<RectTransform>();
-        rect.anchorMin = anchorMin;
-        rect.anchorMax = anchorMax;
-        rect.pivot = pivot;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-        rect.sizeDelta = sizeDelta;
-
-        Image img = obj.AddComponent<Image>();
-        img.color = color;
-        img.raycastTarget = false;
     }
 
     /// <summary>
@@ -565,6 +564,55 @@ public class BossHealthBarUI : MonoBehaviour
         }
         tex.Apply();
         return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+    }
+
+    /// <summary>
+    /// Builds a rounded-rectangle sprite with a 9-slice border so corners stay round at any size.
+    /// </summary>
+    private Sprite CreateRoundedSprite(float radius)
+    {
+        int r = Mathf.Max(1, Mathf.CeilToInt(radius));
+        int size = r * 2 + 4;
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float nx = Mathf.Clamp(x, r, size - 1 - r);
+                float ny = Mathf.Clamp(y, r, size - 1 - r);
+                float dx = x - nx;
+                float dy = y - ny;
+                float d = Mathf.Sqrt(dx * dx + dy * dy);
+                float a = Mathf.Clamp01(r - d + 0.5f); // 1 inside, soft 1px edge at the corners
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f),
+            100f, 0, SpriteMeshType.FullRect, new Vector4(r, r, r, r));
+    }
+
+    /// <summary>
+    /// Builds a vertical white gradient (bright at the top, fading down) for the glassy sheen.
+    /// </summary>
+    private Sprite CreateSheenSprite()
+    {
+        int h = 32;
+        Texture2D tex = new Texture2D(4, h, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+
+        for (int y = 0; y < h; y++)
+        {
+            float t = (float)y / (h - 1);                  // 0 bottom, 1 top
+            float a = Mathf.Clamp01((t - 0.45f) / 0.55f);  // 0 over the lower 45%, ramps to the top
+            a = a * a;                                      // ease so the sheen sits near the top
+            for (int x = 0; x < 4; x++)
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+        }
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, 4, h), new Vector2(0.5f, 0.5f));
     }
 
     private void SetBarFill(RectTransform rect, float percent)

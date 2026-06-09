@@ -140,6 +140,8 @@ public class EnemyCombat : MonoBehaviour
     [Header("Close Attack Grab")]
     [Tooltip("The attack whose animation is the special close-attack grab (matched by attackName, so it fires standalone OR as a combo step). This one attack gets: the swoop-down + forward lean, the yank-in, the camera roll-shake, and the Yoru freeze. Leave blank to disable all of it. Other attacks are untouched.")]
     [SerializeField] private string closeAttackName = "CloseStrike";
+    [Tooltip("Extra damage the close attack deals when it lands as the last hit of a combo (finisher). Same grab animation, just a harder hit. Standalone close uses its base Damage value.")]
+    [SerializeField] private int closeFinisherBonusDamage = 3;
     [Tooltip("How far she drops DOWN into the grab, in world units from her floating height. She floats, so a value around 2 to 4 brings her body down toward Yoru. Increase it if she still hovers too high, decrease it if she sinks into the ground. Watch it live in Play mode.")]
     [SerializeField] private float grabDropAmount = 2f;
     [Tooltip("How far she leans forward (degrees about her side axis) into the grab. 35 is a strong lunge.")]
@@ -1239,7 +1241,10 @@ public class EnemyCombat : MonoBehaviour
         PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
         if (playerHealth == null) return;
         
-        bool isHeavy = currentAttack.damage >= heavyHitThreshold;
+       // Combo hits read light until the finisher: only the last hit of an active combo
+        // forces a heavy reaction. A single attack stays damage-based.
+        bool inCombo = !string.IsNullOrEmpty(activeComboName);
+        bool isHeavy = inCombo ? (comboQueue.Count == 0) : (currentAttack.damage >= heavyHitThreshold);
         playerHealth.TakeDamage(currentAttack.damage, isHeavy, transform.position);
         DebugLog($"⚔️ Hit player for {currentAttack.damage} ({currentAttack.attackName})");
         
@@ -1447,8 +1452,11 @@ public class EnemyCombat : MonoBehaviour
             flat.y = 0f;
             if (flat.magnitude <= currentAttack.range)
             {
-                bool isHeavy = currentAttack.damage >= heavyHitThreshold;
-                playerHealthTarget.TakeDamage(currentAttack.damage, isHeavy, Vector3.zero, true);
+                // Harder when it ends a combo: more damage on the finisher, same grab reaction.
+                bool isComboFinisher = !string.IsNullOrEmpty(activeComboName) && comboQueue.Count == 0;
+                int grabDamage = isComboFinisher ? currentAttack.damage + closeFinisherBonusDamage : currentAttack.damage;
+                bool isHeavy = grabDamage >= heavyHitThreshold;
+                playerHealthTarget.TakeDamage(grabDamage, isHeavy, Vector3.zero, true);
             }
         }
 
