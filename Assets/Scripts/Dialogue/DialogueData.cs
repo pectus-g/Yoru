@@ -133,6 +133,13 @@ public class DialogueData : ScriptableObject
     public MiniGameData miniGameToTrigger;
     #endregion
 
+    #region Mistaken Identity
+    [Header("Mistaken Identity")]
+    [Tooltip("One-time line spoken first when the soul aggroed on Yoru but no fight started and the player returned as Tomoe, e.g. \"I took you for a nekomata...\". Empty = skip straight to the normal conversation")]
+    [TextArea(1, 3)]
+    public string mistakenIdentityLine;
+    #endregion
+
     #region Post-Quest Recap
     [Header("Post-Quest Recap")]
     [Tooltip("What the soul says when re-approached after the quest has been given")]

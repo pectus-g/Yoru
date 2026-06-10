@@ -61,7 +61,7 @@ public static class DialogueAssetCreator
     private static void PopulateQuest(QuestData quest)
     {
         quest.displayName = "The Stolen Face";
-        quest.description = "A faceless woman on the road begs for help. A beast in a cave past the bent pines wears her stolen face and sleeps on a hoard of stolen things. Retrieve the face and bring it back to her.";
+        quest.description = "A faceless woman on the road begs for help. A beast in a <color=#7FD4A8>cave past the bent pines</color> wears her stolen face and sleeps on a hoard of stolen things. Retrieve the <color=#E8A33D>face</color> and bring it back to her.";
     }
 
     private static void PopulateDialogue(DialogueData d, QuestData quest)
@@ -75,9 +75,11 @@ public static class DialogueAssetCreator
         d.questToGive = quest;
         d.miniGameToTrigger = null;
 
-        d.postQuestWaitingLine = "Empty hands... no, do not explain. The cave waits past the bent pines. So will I.";
+        d.postQuestWaitingLine = "Empty hands... no, do not explain. The <color=#7FD4A8>cave</color> waits past the bent pines. So will I.";
         d.postQuestLeaveText = "I will return when I have it.";
         d.postQuestAskAgainText = "What was it you asked for?";
+
+        d.mistakenIdentityLine = "...oh. Forgive me. For a moment I thought a nekomata stalked me. The night plays tricks on what little sense I have left.";
 
         d.beats = new List<DialogueBeat>
         {
@@ -108,7 +110,7 @@ public static class DialogueAssetCreator
                 OptGoodbye("That is a very practiced answer.", "Practiced. Yes. I have told it to the dark a thousand nights. Goodbye.")),
 
             Beat("B3",
-                "A beast of the hills wears my face now. It dens in a cave past the bent pines, sleeping on everything it has ever stolen.",
+                "A beast of the hills wears my <color=#E8A33D>face</color> now. It dens in a <color=#7FD4A8>cave past the bent pines</color>, sleeping on everything it has ever stolen.",
                 "Forget the cave. Forget me.",
                 Opt("Then I will go to this cave.", DialogueBranchType.CORRECT, "B4"),
                 Opt("Why have you not taken it back yourself?", DialogueBranchType.SOFT_WRONG, "B3A"),
@@ -121,7 +123,7 @@ public static class DialogueAssetCreator
                 OptGoodbye("A shadow that found me easily enough.", "...sharp. Too sharp. Goodbye, granny.")),
 
             Beat("B4",
-                "Bring my face home to me. It is pale, and light as paper. The beast keeps it close while it sleeps.",
+                "Bring my <color=#E8A33D>face</color> home to me. It is pale, and light as paper. The beast keeps it close while it sleeps.",
                 "Then I will wait for someone kinder.",
                 Opt("Wait here. I will bring it back to you.", DialogueBranchType.FINAL_SUCCESS, ""),
                 Opt("And what do I get for braving a beast's den?", DialogueBranchType.SOFT_WRONG, "B4A"),
