@@ -45,7 +45,7 @@ public static class DialogueUIRestyler
     // Palette
     private static readonly Color NameColor = new Color(0.886f, 0.871f, 0.812f, 1f);
     private static readonly Color TextColor = new Color(0.97f, 0.97f, 0.97f, 1f);
-    private static readonly Color ButtonColor = new Color(0.075f, 0.075f, 0.09f, 0.93f);
+    private static readonly Color ButtonColor = new Color(0.04f, 0.04f, 0.055f, 0.42f);
     private static readonly Color LabelColor = new Color(0.93f, 0.93f, 0.93f, 1f);
 
     [MenuItem("YORU/Restyle Dialogue UI (Zelda Style)")]
@@ -133,13 +133,13 @@ public static class DialogueUIRestyler
             btnRt.anchorMin = new Vector2(1f, 0f);
             btnRt.anchorMax = new Vector2(1f, 0f);
             btnRt.pivot = new Vector2(1f, 0f);
-            btnRt.anchoredPosition = new Vector2(-56f, 64f + (ChoiceCount - 1 - i) * 64f);
-            btnRt.sizeDelta = new Vector2(450f, 54f);
+            btnRt.anchoredPosition = new Vector2(-56f, 62f + (ChoiceCount - 1 - i) * 70f);
+            btnRt.sizeDelta = new Vector2(470f, 60f);
 
             Image btnImg = btnGO.AddComponent<Image>();
             btnImg.sprite = rounded;
             btnImg.type = Image.Type.Sliced;
-            btnImg.pixelsPerUnitMultiplier = 1.5f; // keeps the corner radius tidy at 54px height
+            btnImg.pixelsPerUnitMultiplier = 1.35f; // keeps the corner radius tidy at 60px height
             btnImg.color = ButtonColor;
 
             // Thin light outline, the BotW button signature.
@@ -151,8 +151,8 @@ public static class DialogueUIRestyler
             Image frameImg = frameGO.AddComponent<Image>();
             frameImg.sprite = frame;
             frameImg.type = Image.Type.Sliced;
-            frameImg.pixelsPerUnitMultiplier = 1.5f;
-            frameImg.color = new Color(1f, 1f, 1f, 0.22f);
+            frameImg.pixelsPerUnitMultiplier = 1.35f;
+            frameImg.color = new Color(1f, 1f, 1f, 0.85f);
             frameImg.raycastTarget = false;
 
             Button button = btnGO.AddComponent<Button>();
@@ -168,13 +168,13 @@ public static class DialogueUIRestyler
 
             TMP_Text label = NewText(btnGO.transform, "Label",
                 Vector2.zero, Vector2.zero,
-                18f, FontStyles.Normal, LabelColor, TextAlignmentOptions.Left);
+                17f, FontStyles.Normal, LabelColor, TextAlignmentOptions.Left);
             RectTransform labelRt = label.rectTransform;
             labelRt.anchorMin = Vector2.zero;
             labelRt.anchorMax = Vector2.one;
             labelRt.pivot = new Vector2(0.5f, 0.5f);
-            labelRt.offsetMin = new Vector2(24f, 7f);
-            labelRt.offsetMax = new Vector2(-24f, -7f);
+            labelRt.offsetMin = new Vector2(28f, 9f);
+            labelRt.offsetMax = new Vector2(-28f, -9f);
 
             buttons[i] = button;
             labels[i] = label;
@@ -352,7 +352,9 @@ public static class DialogueUIRestyler
 
         const int size = 128;
         const float radius = 30f;
-        const float thickness = 2.5f;
+        const float thickness = 1.6f;   // crisp core line
+        const float glowReach = 7f;     // soft halo width around the line
+        const float glowStrength = 0.4f;
         Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
         Color32[] pixels = new Color32[size * size];
 
@@ -363,8 +365,13 @@ public static class DialogueUIRestyler
                 float dx = Mathf.Max(Mathf.Abs(xPix + 0.5f - size * 0.5f) - (size * 0.5f - radius), 0f);
                 float dy = Mathf.Max(Mathf.Abs(yPix + 0.5f - size * 0.5f) - (size * 0.5f - radius), 0f);
                 float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                float edge = Mathf.Abs(dist - (radius - thickness)); // band around the inset edge
-                float a = Mathf.Clamp01(thickness - edge + 0.5f) * Mathf.Clamp01(radius - dist + 0.5f);
+                float edge = Mathf.Abs(dist - (radius - thickness));
+
+                float core = Mathf.Clamp01(thickness - edge + 0.5f);
+                float halo = Mathf.Clamp01(1f - edge / glowReach);
+                halo = halo * halo * glowStrength; // soft quadratic falloff
+
+                float a = Mathf.Clamp01(core + halo) * Mathf.Clamp01(radius - dist + 0.5f);
                 pixels[yPix * size + xPix] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255f));
             }
         }
