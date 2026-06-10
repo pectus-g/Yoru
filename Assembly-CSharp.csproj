@@ -48,6 +48,7 @@
     <Analyzer Include="/Applications/Unity/Hub/Editor/6000.2.7f2/Unity.app/Contents/Tools/Unity.SourceGenerators/Unity.UIToolkit.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets/Scripts/MiniGames/MiniGameManager.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXEffectController.cs" />
     <Compile Include="Assets/Mirza Beig/Particle Systems/Ultimate VFX/Expansions/XP - TITLES/Scripts/DemoManager_XPTitles.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/ShaderGenerator.cs" />
@@ -69,7 +70,6 @@
     <Compile Include="Assets/VolumetricLightBeam/Scripts/EffectAbstractBase.cs" />
     <Compile Include="Assets/Scripts/Skybox/SkyboxDayNightSwitcher.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Misc/TorusFog.cs" />
-    <Compile Include="Assets/Scripts/BalanceSystem/YoruCozyIntegration.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Misc/QuadTreeCulling/QuadTree.cs" />
     <Compile Include="Assets/Scripts/Enemy/EnemyHealth.cs" />
     <Compile Include="Assets/Scripts/Camera/ThirdPersonCamera.cs" />
@@ -235,6 +235,7 @@
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/States/HarvestedState.cs" />
     <Compile Include="Assets/VolumetricFog/Extra/DynamicFog/Scripts/DynamicFogManager.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Core/SceneExit.cs" />
+    <Compile Include="Assets/Scripts/Quests/QuestData.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Interaction/CharacterClickInteraction.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/VFX Library/ParticleEffectsLibrary.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/ChoppableTreeSettings.cs" />
@@ -289,6 +290,7 @@
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/HarvestInteraction.cs" />
     <Compile Include="Assets/Scripts/NPCs/NPCInteraction.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/SimpleAI/StateMachine/States/NPCCycleState.cs" />
+    <Compile Include="Assets/Scripts/MiniGames/MiniGameData.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/MaterialManager.cs" />
     <Compile Include="Assets/Scripts/Player/PlayerHealth.cs" />
     <Compile Include="Assets/Mirza Beig/Scripting/Effects/Particle Force Fields/Scripts/TurbulenceParticleForceField.cs" />
@@ -311,6 +313,7 @@
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Misc/Flythrough.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXEffectCycler.cs" />
     <Compile Include="Assets/VolumetricFog/Scripts/VolumetricFogShaderIds.cs" />
+    <Compile Include="Assets/Scripts/BalanceSystem/Yorucozyintegration.cs" />
     <Compile Include="Assets/Scripts/BalanceSystem/Musiccontroller.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/ShaderProperties.cs" />
     <Compile Include="Assets/Scripts/Enemy/EnemyDeathEffect.cs" />
@@ -326,6 +329,7 @@
     <Compile Include="Assets/VolumetricLightBeam/Scripts/SD/GlobalMeshSD.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/BatchingHelper.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/VFX Library/UICanvasManager.cs" />
+    <Compile Include="Assets/Scripts/Quests/QuestManager.cs" />
     <Compile Include="Assets/Mirza Beig/Scripting/Effects/Particle Lights/Scripts/ParticleLights.cs" />
     <Compile Include="Assets/Mirza Beig/Particle Systems/_Common/Scripts/RewindParticleSystem.cs" />
     <Compile Include="Assets/Scripts/VolumetricFogDiagnostic.cs" />

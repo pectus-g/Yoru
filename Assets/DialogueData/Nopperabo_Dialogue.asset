@@ -12,26 +12,159 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38039b016c60f49ef856ef184eaeb59e, type: 3}
   m_Name: Nopperabo_Dialogue
   m_EditorClassIdentifier: Assembly-CSharp::DialogueData
-  enemyDisplayName: "Nopperab\u014D"
-  initialDialogue: You came closer than the others. Most run before I turn my head.
-    A merchant last moon. A little girl two nights ago, no older than five, who called
-    for her grandmother as she fled. They scream when I turn. They call me a thing,
-    a haunting, a face that was not a face. So tell me, traveler. What do you see
-    standing here? A person? Or only what is missing?
-  options:
-  - choiceText: '[I SEE YOU]'
-    responseText: You looked. You did not look away. No one has said those words
-      to me since the lantern-maker's wife. I had a name once. I had hands she would
-      warm in the winter. Take this peace with you, traveler. The slope is quieter
-      now.
-    isCorrect: 1
-  - choiceText: '[WHAT ARE YOU]'
-    responseText: A thing. So that is all I am. Then I will be the thing you fear.
-      Run, traveler. Run until your throat tears. The next face you see will be mine.
-    isCorrect: 0
-  - choiceText: '[LEAVE]'
-    responseText: Yes. Walk away. Like the merchant. Like the child who called for
-      her grandmother. Like every soft footstep before yours. I will weep here a
-      while longer. And when you reach the soba stall at the bottom of the hill,
-      do not ask the vendor about his face.
-    isCorrect: 0
+  dialogueId: nopperabo
+  soulName: "Nopperab\u014D"
+  startBeatId: B1
+  beats:
+  - beatId: B1
+    soulLine: Do not come closer. Please. I have nothing left to greet you with.
+    options:
+    - text: I did not come to stare. I came to listen.
+      branchType: 0
+      nextBeatId: B2
+      optionGoodbyeLine: 
+    - text: Turn around. Let me see you.
+      branchType: 1
+      nextBeatId: B1A
+      optionGoodbyeLine: 
+    - text: Souls do not weep on roadsides. Tricksters do.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: Then let the trickster weep alone. Go.
+    beatGoodbyeLine: Go. The road is kinder than you.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B1A
+    soulLine: See me? There is nothing to see. That is the whole of my misery.
+    options:
+    - text: Forgive me. Tell me what happened.
+      branchType: 0
+      nextBeatId: B2
+      optionGoodbyeLine: 
+    - text: Everyone has a face. Stop hiding yours.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: Hiding. You think I would choose this. Leave me.
+    beatGoodbyeLine: ...leave me to my nothing.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B2
+    soulLine: I was walking home by night. A stranger wept on this very road. I leaned
+      close to comfort her... and woke with nothing. No eyes. No mouth. No name anyone
+      remembers.
+    options:
+    - text: Who would do such a thing?
+      branchType: 0
+      nextBeatId: B3
+      optionGoodbyeLine: 
+    - text: No mouth... yet you speak. How?
+      branchType: 1
+      nextBeatId: B2A
+      optionGoodbyeLine: 
+    - text: I have heard this exact tale before. Told to frighten travelers.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: Then go laugh about it at the teahouse. They all do.
+    beatGoodbyeLine: You doubt me. Everyone doubts what they cannot see.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B2A
+    soulLine: Grief speaks without a mouth. Surely a woman your age knows that.
+    options:
+    - text: ...I do. Go on. Tell me who took it.
+      branchType: 0
+      nextBeatId: B3
+      optionGoodbyeLine: 
+    - text: That is a very practiced answer.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: Practiced. Yes. I have told it to the dark a thousand nights.
+        Goodbye.
+    beatGoodbyeLine: Enough. Questions never gave anyone their face back.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B3
+    soulLine: A beast of the hills wears my face now. It dens in a cave past the
+      bent pines, sleeping on everything it has ever stolen.
+    options:
+    - text: Then I will go to this cave.
+      branchType: 0
+      nextBeatId: B4
+      optionGoodbyeLine: 
+    - text: Why have you not taken it back yourself?
+      branchType: 1
+      nextBeatId: B3A
+      optionGoodbyeLine: 
+    - text: A beast that steals faces... and yet it let you walk away alive.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: Alive. You call this alive. Cruel old woman.
+    beatGoodbyeLine: Forget the cave. Forget me.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B3A
+    soulLine: With what eyes would I find the path? With what mouth would I demand
+      it back? I am less than a shadow now.
+    options:
+    - text: Then my eyes will find it for you.
+      branchType: 0
+      nextBeatId: B4
+      optionGoodbyeLine: 
+    - text: A shadow that found me easily enough.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: ...sharp. Too sharp. Goodbye, granny.
+    beatGoodbyeLine: Forget the cave. Forget me.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B4
+    soulLine: Bring my face home to me. It is pale, and light as paper. The beast
+      keeps it close while it sleeps.
+    options:
+    - text: Wait here. I will bring it back to you.
+      branchType: 3
+      nextBeatId: 
+      optionGoodbyeLine: 
+    - text: And what do I get for braving a beast's den?
+      branchType: 1
+      nextBeatId: B4A
+      optionGoodbyeLine: 
+    - text: Swear on your soul that every word is true.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: My soul... my soul is not mine to swear on. Just go.
+    beatGoodbyeLine: Then I will wait for someone kinder.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B4A
+    soulLine: The beast sleeps on its hoard. Gold, charms, trinkets of a hundred
+      travelers. Take all of it. I want only what is mine.
+    options:
+    - text: Deal. The face for you, the rest for me.
+      branchType: 3
+      nextBeatId: 
+      optionGoodbyeLine: 
+    - text: A hoard of a hundred travelers... how would you know that?
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: I... enough. Forget I spoke. Forget the cave.
+    beatGoodbyeLine: Greed and doubt. What a pair you carry.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  soulDefaultGoodbye: ...go. The night is long enough alone.
+  cooldownSeconds: 10
+  endBehavior: 0
+  questToGive: {fileID: 11400000, guid: 2b1d47b0b965649bdb578038f39c4b49, type: 2}
+  miniGameToTrigger: {fileID: 0}
+  postQuestWaitingLine: Empty hands... no, do not explain. The cave waits past the
+    bent pines. So will I.
+  postQuestLeaveText: I will return when I have it.
+  postQuestAskAgainText: What was it you asked for?

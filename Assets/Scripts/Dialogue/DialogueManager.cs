@@ -4,21 +4,35 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Singleton manager for Tier 4 persuasion dialogue per GDD Doc 09 §4a.
+/// Dialogue System v2 singleton.
+///
+/// Replaces the v1 single-shot persuasion (correct = peace + ring, wrong = hostile) with a
+/// branched multi-beat conversation. Souls are never hostile and never pass on from
+/// dialogue. The conversation's only job is to reach FINAL_SUCCESS and fire the dialogue's
+/// end behavior (quest hand-over or mini-game). The soul stays alive afterward.
 ///
 /// Flow:
-///   1. InteractableEnemy.StartDialogue() → ShowDialogue(data, enemy)
-///   2. Panel opens, first N buttons populated from data.options (2-3)
-///   3. Player clicks a button → OnChoiceClicked(index)
-///   4. Response text shown for responseDisplayDuration seconds
-///   5. ResolveOutcome — isCorrect → +1 right ring + BecomePeaceful; else BecomeHostile
-///   6. CloseDialogue
+///   1. InteractableEnemy click -> ShowDialogue(data, enemy)
+///   2. Beats display one at a time, routed by the picked option's branchType:
+///        CORRECT / SOFT_WRONG -> advance to nextBeatId
+///        HARD_WRONG           -> goodbye line, conversation ends, strike added
+///        FINAL_SUCCESS        -> end behavior fires, soul enters permanent recap mode
+///   3. 3 strikes -> soul wanders to its wander point and a cooldown starts.
+///      Cooldown expiry -> soul walks home, strikes reset, interaction restored.
+///   4. After the quest is given, re-approaching opens a one-beat recap instead:
+///      a waiting line, a leave option, and a repeat-the-quest option. The strike and
+///      cooldown machinery is permanently retired for that soul.
 ///
-/// Inspector wiring:
+/// Per-soul runtime state (strikes, cooldown, quest-given) is keyed by
+/// DialogueData.dialogueId and survives soul object disable/enable.
+///
+/// This manager never calls BecomePeaceful or BecomeHostile. The only combat state it
+/// touches is restoring LostSoul on conversation end so the soul stays talkable.
+///
+/// Inspector wiring (unchanged from v1, scene component survives):
 ///   - dialoguePanel: parent UI GameObject (shown/hidden as a block)
 ///   - speakerNameText, dialogueText: panel labels
-///   - choiceButtons + choiceTexts: parallel lists — button[i] paired with text[i]
-///     Current scene has 3 buttons; options beyond 3 are clamped silently.
+///   - choiceButtons + choiceTexts: parallel lists, button[i] paired with text[i]
 /// </summary>
 public class DialogueManager : MonoBehaviour
 {
@@ -35,8 +49,38 @@ public class DialogueManager : MonoBehaviour
     [SerializeField] private List<TMP_Text> choiceTexts = new List<TMP_Text>();
 
     [Header("Timing")]
-    [Tooltip("Seconds to display the enemy's response text before resolving outcome and closing the panel")]
+    [Tooltip("Seconds a goodbye line or quest recap stays on screen before the panel closes")]
     [SerializeField] private float responseDisplayDuration = 2f;
+
+    [Header("Cancel")]
+    [Tooltip("Extra metres beyond the enemy's interactionRange before walking away cancels the conversation (no strike)")]
+    [SerializeField] private float rangeCancelBuffer = 1.5f;
+    #endregion
+
+    #region Per-Soul State
+    /// <summary>
+    /// Runtime state for one soul, keyed by DialogueData.dialogueId.
+    /// Lives on the manager so it survives soul object disable/enable.
+    /// </summary>
+    private class SoulState
+    {
+        public int strikeCount;
+        public float cooldownEndTime;      // 0 = no cooldown; compared against Time.time
+        public bool hasGivenQuest;
+        public InteractableEnemy enemy;    // last enemy seen for this id; used for the walk home
+    }
+
+    private readonly Dictionary<string, SoulState> soulStates = new Dictionary<string, SoulState>();
+
+    private SoulState GetOrCreateState(string dialogueId)
+    {
+        if (!soulStates.TryGetValue(dialogueId, out SoulState state))
+        {
+            state = new SoulState();
+            soulStates[dialogueId] = state;
+        }
+        return state;
+    }
     #endregion
 
     #region State
@@ -44,8 +88,12 @@ public class DialogueManager : MonoBehaviour
 
     private DialogueData currentDialogue;
     private InteractableEnemy currentEnemy;
-    private DialogueOption pendingOption;
+    private DialogueBeat currentBeat;
     private bool isDialogueActive;
+    private bool isRecapMode;
+    private Transform player;
+
+    private const int MaxStrikes = 3;
     #endregion
 
     #region Lifecycle
@@ -64,6 +112,8 @@ public class DialogueManager : MonoBehaviour
         if (dialoguePanel != null)
             dialoguePanel.SetActive(false);
 
+        player = GameObject.FindGameObjectWithTag("Player")?.transform;
+
         // Wire each button to send its index to the click handler.
         // Local copy of i avoids the closure-over-loop-variable pitfall.
         for (int i = 0; i < choiceButtons.Count; i++)
@@ -77,34 +127,127 @@ public class DialogueManager : MonoBehaviour
 
     private void Update()
     {
+        TickCooldowns();
+
+        if (!isDialogueActive) return;
+
         // Force cursor visible while dialogue is open so the player can click choices.
         // ThirdPersonCamera locks cursor during normal gameplay; CloseDialogue restores that.
-        if (isDialogueActive && (!Cursor.visible || Cursor.lockState != CursorLockMode.None))
+        if (!Cursor.visible || Cursor.lockState != CursorLockMode.None)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+        }
+
+        // Cancel paths: Esc, or walking out of range. No strike, no penalty.
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            CancelDialogue("Esc pressed");
+            return;
+        }
+
+        if (player != null && currentEnemy != null)
+        {
+            float maxDist = currentEnemy.interactionRange + rangeCancelBuffer;
+            if (Vector3.Distance(player.position, currentEnemy.transform.position) > maxDist)
+            {
+                CancelDialogue("player left range");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Walks every soul on cooldown. When a cooldown expires, the soul walks home,
+    /// strikes reset, and (on arrival) interaction is restored by InteractableEnemy.
+    /// Touching souls the manager is not actively talking to is intended and cheap.
+    /// </summary>
+    private void TickCooldowns()
+    {
+        foreach (KeyValuePair<string, SoulState> pair in soulStates)
+        {
+            SoulState state = pair.Value;
+            if (state.cooldownEndTime > 0f && Time.time >= state.cooldownEndTime)
+            {
+                state.cooldownEndTime = 0f;
+                state.strikeCount = 0;
+                Debug.Log($"[Dialogue] Cooldown complete for '{pair.Key}'. strikeCount = 0");
+
+                if (state.enemy != null)
+                    state.enemy.ReturnFromWander();
+            }
         }
     }
     #endregion
 
     #region Public API
     /// <summary>
-    /// Open dialogue panel for the given enemy/data pair. Called by InteractableEnemy on click.
+    /// Open the conversation for the given enemy/data pair. Called by InteractableEnemy on click.
+    /// Routes to the post-quest recap when the soul has already given its quest.
     /// </summary>
     public void ShowDialogue(DialogueData dialogue, InteractableEnemy enemy)
     {
         if (dialogue == null || enemy == null) return;
+
+        if (string.IsNullOrEmpty(dialogue.dialogueId))
+        {
+            Debug.LogError($"[Dialogue] '{dialogue.name}' has an empty dialogueId. Aborting.");
+            RestoreLostSoulOn(enemy);
+            return;
+        }
+
+        SoulState state = GetOrCreateState(dialogue.dialogueId);
+        state.enemy = enemy;
+
+        // Cooldown re-entry is suppressed at the InteractableEnemy level; this is a belt-and-braces guard.
+        // The early-outs restore LostSoul because InteractableEnemy set Dialogue state before calling here.
+        if (state.cooldownEndTime > 0f && Time.time < state.cooldownEndTime)
+        {
+            RestoreLostSoulOn(enemy);
+            return;
+        }
 
         currentDialogue = dialogue;
         currentEnemy = enemy;
         isDialogueActive = true;
 
         dialoguePanel.SetActive(true);
-        speakerNameText.text = dialogue.enemyDisplayName;
-        dialogueText.text = dialogue.initialDialogue;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
 
-        // Show only the buttons we have options for. Hide the rest.
-        int optionCount = Mathf.Min(dialogue.options.Count, choiceButtons.Count);
+        if (state.hasGivenQuest)
+        {
+            ShowRecapBeat();
+        }
+        else
+        {
+            DialogueBeat startBeat = dialogue.GetBeat(dialogue.startBeatId);
+            if (startBeat == null)
+            {
+                Debug.LogError($"[Dialogue] Start beat '{dialogue.startBeatId}' not found in '{dialogue.dialogueId}'. Aborting.");
+                EndConversationNoStrike();
+                return;
+            }
+            Debug.Log($"[Dialogue] Opened '{dialogue.dialogueId}' at beat {startBeat.beatId}");
+            DisplayBeat(startBeat);
+        }
+    }
+
+    public bool IsDialogueActive => isDialogueActive;
+    #endregion
+
+    #region Beat Display
+    /// <summary>
+    /// Render one beat: soul line, options on buttons, optional VO and animation trigger.
+    /// </summary>
+    private void DisplayBeat(DialogueBeat beat)
+    {
+        currentBeat = beat;
+        isRecapMode = false;
+
+        speakerNameText.text = currentDialogue.soulName;
+        dialogueText.text = beat.soulLine;
+
+        int optionCount = Mathf.Min(beat.options.Count, choiceButtons.Count);
         for (int i = 0; i < choiceButtons.Count; i++)
         {
             bool used = i < optionCount;
@@ -114,83 +257,253 @@ public class DialogueManager : MonoBehaviour
                 choiceButtons[i].interactable = used;
             }
             if (used && i < choiceTexts.Count && choiceTexts[i] != null)
-                choiceTexts[i].text = dialogue.options[i].choiceText;
+                choiceTexts[i].text = beat.options[i].text;
         }
 
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        PlayBeatPresentation(beat);
     }
 
-    public bool IsDialogueActive => isDialogueActive;
+    /// <summary>
+    /// Optional VO clip and Animator trigger for a beat. cameraFramingId is reserved for
+    /// the future camera framing system and is ignored at runtime for now.
+    /// </summary>
+    private void PlayBeatPresentation(DialogueBeat beat)
+    {
+        if (currentEnemy == null) return;
+
+        if (beat.soulAudioClip != null)
+            AudioSource.PlayClipAtPoint(beat.soulAudioClip, currentEnemy.transform.position);
+
+        if (!string.IsNullOrEmpty(beat.soulAnimationTrigger))
+        {
+            EnemyCombat combat = currentEnemy.GetComponent<EnemyCombat>();
+            Animator animator = combat != null ? combat.GetAnimator() : null;
+            if (animator != null)
+                animator.SetTrigger(Animator.StringToHash(beat.soulAnimationTrigger));
+        }
+    }
+
+    /// <summary>
+    /// The one-beat post-quest exchange: a waiting line, a leave option, and a
+    /// repeat-the-quest option. Re-approachable indefinitely. No strikes here.
+    /// </summary>
+    private void ShowRecapBeat()
+    {
+        currentBeat = null;
+        isRecapMode = true;
+
+        Debug.Log($"[Dialogue] Recap opened for '{currentDialogue.dialogueId}'");
+
+        speakerNameText.text = currentDialogue.soulName;
+        dialogueText.text = currentDialogue.postQuestWaitingLine;
+
+        // Button 0 = leave, button 1 = ask again. Hide the rest.
+        for (int i = 0; i < choiceButtons.Count; i++)
+        {
+            bool used = i < 2;
+            if (choiceButtons[i] != null)
+            {
+                choiceButtons[i].gameObject.SetActive(used);
+                choiceButtons[i].interactable = used;
+            }
+        }
+        if (choiceTexts.Count > 0 && choiceTexts[0] != null)
+            choiceTexts[0].text = currentDialogue.postQuestLeaveText;
+        if (choiceTexts.Count > 1 && choiceTexts[1] != null)
+            choiceTexts[1].text = currentDialogue.postQuestAskAgainText;
+    }
     #endregion
 
     #region Choice Handling
     private void OnChoiceClicked(int index)
     {
-        if (currentDialogue == null || currentEnemy == null) return;
-        if (index < 0 || index >= currentDialogue.options.Count) return;
+        if (!isDialogueActive || currentDialogue == null || currentEnemy == null) return;
 
-        pendingOption = currentDialogue.options[index];
+        if (isRecapMode)
+        {
+            HandleRecapChoice(index);
+            return;
+        }
 
-        // Hide all buttons during the response display so player can't double-click.
+        if (currentBeat == null || index < 0 || index >= currentBeat.options.Count) return;
+
+        DialogueOption option = currentBeat.options[index];
+
+        switch (option.branchType)
+        {
+            case DialogueBranchType.CORRECT:
+            case DialogueBranchType.SOFT_WRONG:
+                AdvanceToBeat(option);
+                break;
+
+            case DialogueBranchType.HARD_WRONG:
+                ShowGoodbye(option);
+                break;
+
+            case DialogueBranchType.FINAL_SUCCESS:
+                ResolveFinalSuccess();
+                break;
+        }
+    }
+
+    private void AdvanceToBeat(DialogueOption option)
+    {
+        DialogueBeat next = currentDialogue.GetBeat(option.nextBeatId);
+        if (next == null)
+        {
+            Debug.LogError($"[Dialogue] nextBeatId '{option.nextBeatId}' not found in '{currentDialogue.dialogueId}'. Ending without strike.");
+            EndConversationNoStrike();
+            return;
+        }
+
+        Debug.Log($"[Dialogue] Beat {currentBeat.beatId} -> {next.beatId} ({option.branchType})");
+        DisplayBeat(next);
+    }
+
+    /// <summary>
+    /// HARD_WRONG: show the resolved goodbye line and apply the strike immediately
+    /// (so cancelling during the goodbye cannot dodge it), then close after a pause.
+    /// Goodbye resolution: option-specific, then beat fallback, then soul default.
+    /// </summary>
+    private void ShowGoodbye(DialogueOption option)
+    {
+        string line = !string.IsNullOrEmpty(option.optionGoodbyeLine) ? option.optionGoodbyeLine
+                    : !string.IsNullOrEmpty(currentBeat.beatGoodbyeLine) ? currentBeat.beatGoodbyeLine
+                    : !string.IsNullOrEmpty(currentDialogue.soulDefaultGoodbye) ? currentDialogue.soulDefaultGoodbye
+                    : "...";
+
+        HideAllButtons();
+        dialogueText.text = line;
+
+        ApplyStrike();
+
+        Invoke(nameof(EndConversationNoStrike), responseDisplayDuration);
+    }
+
+    private void ApplyStrike()
+    {
+        SoulState state = GetOrCreateState(currentDialogue.dialogueId);
+        state.strikeCount++;
+        Debug.Log($"[Dialogue] HARD_WRONG at beat {(currentBeat != null ? currentBeat.beatId : "?")}. strikeCount = {state.strikeCount}");
+
+        if (state.strikeCount >= MaxStrikes)
+        {
+            state.cooldownEndTime = Time.time + currentDialogue.cooldownSeconds;
+            Debug.Log($"[Dialogue] strikeCount = {state.strikeCount}. '{currentDialogue.dialogueId}' begins wander + cooldown ({currentDialogue.cooldownSeconds}s)");
+
+            // BeginWander restores LostSoul underneath, suppresses interaction, and
+            // drives the NavMeshAgent to the wander point. It starts now, while the
+            // goodbye line is still on screen: the soul turning away mid-line is
+            // intended flavor.
+            currentEnemy.BeginWander();
+        }
+    }
+
+    /// <summary>
+    /// FINAL_SUCCESS: fire the end behavior, retire the strike machinery for this soul,
+    /// and leave it alive and talkable so the recap path works. Never destroys the soul,
+    /// never calls BecomePeaceful.
+    /// </summary>
+    private void ResolveFinalSuccess()
+    {
+        SoulState state = GetOrCreateState(currentDialogue.dialogueId);
+        state.hasGivenQuest = true;
+        state.strikeCount = 0;
+        state.cooldownEndTime = 0f;
+
+        if (currentDialogue.endBehavior == DialogueEndBehavior.GIVE_QUEST)
+        {
+            if (QuestManager.Instance != null)
+                QuestManager.Instance.GiveQuest(currentDialogue.questToGive);
+            else
+                Debug.Log($"[STUB] Quest given: {(currentDialogue.questToGive != null ? currentDialogue.questToGive.displayName : "null")} (no QuestManager in scene)");
+        }
+        else
+        {
+            if (MiniGameManager.Instance != null)
+                MiniGameManager.Instance.TriggerMinigame(currentDialogue.miniGameToTrigger);
+            else
+                Debug.Log($"[STUB] Minigame triggered: {(currentDialogue.miniGameToTrigger != null ? currentDialogue.miniGameToTrigger.displayName : "null")} (no MiniGameManager in scene)");
+        }
+
+        EndConversationNoStrike();
+    }
+
+    private void HandleRecapChoice(int index)
+    {
+        if (index == 0)
+        {
+            // Leave. No strike, no state change.
+            EndConversationNoStrike();
+        }
+        else if (index == 1)
+        {
+            // Repeat the quest: the soul re-reads the quest description, then the panel closes.
+            string recap = currentDialogue.questToGive != null && !string.IsNullOrEmpty(currentDialogue.questToGive.description)
+                ? currentDialogue.questToGive.description
+                : "...";
+
+            HideAllButtons();
+            dialogueText.text = recap;
+            Invoke(nameof(EndConversationNoStrike), responseDisplayDuration);
+        }
+    }
+    #endregion
+
+    #region End And Close
+    /// <summary>
+    /// Player cancelled (Esc or walked away). Ends mid-conversation with no strike.
+    /// </summary>
+    private void CancelDialogue(string reason)
+    {
+        Debug.Log($"[Dialogue] Cancelled ({reason}). No strike.");
+        CancelInvoke();
+        EndConversationNoStrike();
+    }
+
+    /// <summary>
+    /// End the conversation without penalty and return the soul to LostSoul so re-entry works.
+    /// </summary>
+    private void EndConversationNoStrike()
+    {
+        RestoreLostSoul();
+        CloseDialogue();
+    }
+
+    /// <summary>
+    /// Return the soul to LostSoul after a non-wander end so InteractableEnemy's state gate
+    /// lets the player talk again. Uses only EnemyCombat's existing public SetState.
+    /// </summary>
+    private void RestoreLostSoul()
+    {
+        RestoreLostSoulOn(currentEnemy);
+    }
+
+    private void RestoreLostSoulOn(InteractableEnemy enemy)
+    {
+        if (enemy == null) return;
+        EnemyCombat combat = enemy.GetComponent<EnemyCombat>();
+        if (combat != null)
+            combat.SetState(EnemyCombat.EnemyState.LostSoul);
+    }
+
+    private void HideAllButtons()
+    {
         for (int i = 0; i < choiceButtons.Count; i++)
         {
             if (choiceButtons[i] != null)
                 choiceButtons[i].gameObject.SetActive(false);
         }
-
-        // Show the enemy's response text.
-        dialogueText.text = pendingOption.responseText;
-        speakerNameText.text = currentDialogue.enemyDisplayName + " responds:";
-
-        // Resolve outcome after a short pause so the player can read.
-        Invoke(nameof(ResolveOutcome), responseDisplayDuration);
     }
 
-    private void ResolveOutcome()
-    {
-        if (currentEnemy == null || pendingOption == null)
-        {
-            CloseDialogue();
-            return;
-        }
-
-        EnemyCombat combat = currentEnemy.GetComponent<EnemyCombat>();
-        if (combat == null)
-        {
-            CloseDialogue();
-            return;
-        }
-
-        if (pendingOption.isCorrect)
-        {
-            // Correct response — soul accepts acknowledgement, finds peace.
-            // Per GDD Doc 09 §6 and §8c, persuasion success grants a right ring (light tail).
-            // AddRing(false) → false = right tail per WorldStateManager signature.
-            if (WorldStateManager.Instance != null)
-                WorldStateManager.Instance.AddRing(false);
-            combat.BecomePeaceful();
-        }
-        else
-        {
-            // Wrong response — soul rejects acknowledgement, becomes hostile.
-            // Per universal Tomoe-ignore rule (Phase 3 Option B), the enemy still won't
-            // attack Tomoe directly; player must transform back to Yoru to engage.
-            combat.BecomeHostile();
-        }
-
-        CloseDialogue();
-    }
-    #endregion
-
-    #region Close
     private void CloseDialogue()
     {
         dialoguePanel.SetActive(false);
         isDialogueActive = false;
-        pendingOption = null;
+        isRecapMode = false;
+        currentBeat = null;
 
-        // Re-enable buttons for next dialogue (visibility is managed per-show in ShowDialogue).
+        // Re-enable buttons for the next dialogue (visibility is managed per-show).
         for (int i = 0; i < choiceButtons.Count; i++)
         {
             if (choiceButtons[i] != null)
