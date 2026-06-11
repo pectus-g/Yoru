@@ -39,13 +39,13 @@ public static class DialogueUIRestyler
 
     // Layout (in 1920x1080 reference pixels)
     private const float TextLeft = 170f;
-    private const float TextWidth = 1000f;
+    private const float TextWidth = 1040f;
     private const int ChoiceCount = 3;
 
     // Palette
     private static readonly Color NameColor = new Color(0.886f, 0.871f, 0.812f, 1f);
     private static readonly Color TextColor = new Color(0.97f, 0.97f, 0.97f, 1f);
-    private static readonly Color ButtonColor = new Color(0.04f, 0.04f, 0.055f, 0.42f);
+    private static readonly Color ButtonColor = new Color(0.03f, 0.03f, 0.045f, 0.22f);
     private static readonly Color LabelColor = new Color(0.93f, 0.93f, 0.93f, 1f);
 
     [MenuItem("YORU/Restyle Dialogue UI (Zelda Style)")]
@@ -70,6 +70,12 @@ public static class DialogueUIRestyler
 
         SerializedObject so = new SerializedObject(dm);
         GameObject oldPanel = so.FindProperty("dialoguePanel").objectReferenceValue as GameObject;
+
+        // Custom font: drop any TMP Font Asset into Assets/Fonts and it is applied to the
+        // whole dialogue UI on the next run. None found = TMP default font.
+        customFont = FindCustomFont();
+        if (customFont != null)
+            Debug.Log($"[DialogueUIRestyler] Using custom font: {customFont.name}");
 
         // Rebuild from zero every run.
         GameObject previous = GameObject.Find(CanvasName);
@@ -133,13 +139,13 @@ public static class DialogueUIRestyler
             btnRt.anchorMin = new Vector2(1f, 0f);
             btnRt.anchorMax = new Vector2(1f, 0f);
             btnRt.pivot = new Vector2(1f, 0f);
-            btnRt.anchoredPosition = new Vector2(-56f, 62f + (ChoiceCount - 1 - i) * 70f);
-            btnRt.sizeDelta = new Vector2(470f, 60f);
+            btnRt.anchoredPosition = new Vector2(-56f, 56f + (ChoiceCount - 1 - i) * 82f);
+            btnRt.sizeDelta = new Vector2(530f, 64f);
 
             Image btnImg = btnGO.AddComponent<Image>();
             btnImg.sprite = rounded;
             btnImg.type = Image.Type.Sliced;
-            btnImg.pixelsPerUnitMultiplier = 1.35f; // keeps the corner radius tidy at 60px height
+            btnImg.pixelsPerUnitMultiplier = 1.3f; // keeps the corner radius tidy at 64px height
             btnImg.color = ButtonColor;
 
             // Thin light outline, the BotW button signature.
@@ -151,31 +157,26 @@ public static class DialogueUIRestyler
             Image frameImg = frameGO.AddComponent<Image>();
             frameImg.sprite = frame;
             frameImg.type = Image.Type.Sliced;
-            frameImg.pixelsPerUnitMultiplier = 1.35f;
-            frameImg.color = new Color(1f, 1f, 1f, 0.85f);
+            frameImg.pixelsPerUnitMultiplier = 1.3f;
+            frameImg.color = new Color(1f, 1f, 1f, 0.95f);
             frameImg.raycastTarget = false;
 
             Button button = btnGO.AddComponent<Button>();
             button.targetGraphic = btnImg;
-            button.transition = Selectable.Transition.ColorTint;
-            ColorBlock colors = button.colors;
-            colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(2.4f, 2.3f, 1.9f, 1f); // dark base needs a strong hover lift
-            colors.pressedColor = new Color(1.5f, 1.5f, 1.4f, 1f);
-            colors.selectedColor = new Color(2f, 1.95f, 1.7f, 1f);
-            colors.fadeDuration = 0.08f;
-            button.colors = colors;
+            button.transition = Selectable.Transition.None; // hover is handled by DialogueManager
 
             TMP_Text label = NewText(btnGO.transform, "Label",
                 Vector2.zero, Vector2.zero,
-                17f, FontStyles.Normal, LabelColor, TextAlignmentOptions.Left);
+                20f, FontStyles.Normal, LabelColor, TextAlignmentOptions.Left);
             RectTransform labelRt = label.rectTransform;
             labelRt.anchorMin = Vector2.zero;
             labelRt.anchorMax = Vector2.one;
             labelRt.pivot = new Vector2(0.5f, 0.5f);
-            labelRt.offsetMin = new Vector2(28f, 9f);
-            labelRt.offsetMax = new Vector2(-28f, -9f);
+            labelRt.offsetMin = new Vector2(30f, 10f);
+            labelRt.offsetMax = new Vector2(-30f, -10f);
 
+            // Hover (fill up, light down) is handled by DialogueManager.UpdateChoiceHover,
+            // which finds the "Frame" child by name. No extra components needed here.
             buttons[i] = button;
             labels[i] = label;
         }
@@ -210,6 +211,16 @@ public static class DialogueUIRestyler
     }
 
     #region Builders
+    private static TMP_FontAsset customFont;
+
+    private static TMP_FontAsset FindCustomFont()
+    {
+        if (!AssetDatabase.IsValidFolder("Assets/Fonts")) return null;
+        string[] guids = AssetDatabase.FindAssets("t:TMP_FontAsset", new[] { "Assets/Fonts" });
+        if (guids.Length == 0) return null;
+        return AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(AssetDatabase.GUIDToAssetPath(guids[0]));
+    }
+
     private static GameObject NewRect(string name, Transform parent, out RectTransform rt)
     {
         GameObject go = new GameObject(name, typeof(RectTransform));
@@ -229,6 +240,8 @@ public static class DialogueUIRestyler
         rt.sizeDelta = size;
 
         TextMeshProUGUI text = go.AddComponent<TextMeshProUGUI>();
+        if (customFont != null)
+            text.font = customFont;
         text.enableAutoSizing = false;
         text.fontSize = fontSize;
         text.fontStyle = style;
@@ -352,9 +365,9 @@ public static class DialogueUIRestyler
 
         const int size = 128;
         const float radius = 30f;
-        const float thickness = 1.6f;   // crisp core line
-        const float glowReach = 7f;     // soft halo width around the line
-        const float glowStrength = 0.4f;
+        const float thickness = 1.0f;   // hairline core at full brightness
+        const float glowReach = 16f;    // wide soft halo, the neon bloom
+        const float glowStrength = 0.32f;
         Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
         Color32[] pixels = new Color32[size * size];
 

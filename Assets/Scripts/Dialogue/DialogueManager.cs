@@ -55,6 +55,18 @@ public class DialogueManager : MonoBehaviour
     [Header("Cancel")]
     [Tooltip("Extra metres beyond the enemy's interactionRange before walking away cancels the conversation (no strike)")]
     [SerializeField] private float rangeCancelBuffer = 1.5f;
+
+    [Header("Choice Hover (v2 styled buttons only)")]
+    [Tooltip("Resting transparency of a choice button's glass fill")]
+    [SerializeField] private float fillNormalAlpha = 0.22f;
+    [Tooltip("Fill transparency while hovered: near-opaque so the background becomes visible")]
+    [SerializeField] private float fillHoverAlpha = 0.9f;
+    [Tooltip("Resting brightness of the neon outline")]
+    [SerializeField] private float frameNormalAlpha = 0.95f;
+    [Tooltip("Outline brightness while hovered: the light dims as the glass fills")]
+    [SerializeField] private float frameHoverAlpha = 0.3f;
+    [Tooltip("Higher = snappier fade. 12 is a quick, soft response")]
+    [SerializeField] private float hoverFadeSpeed = 12f;
     #endregion
 
     #region Per-Soul State
@@ -88,6 +100,8 @@ public class DialogueManager : MonoBehaviour
 
     private DialogueData currentDialogue;
     private InteractableEnemy currentEnemy;
+    private Image[] choiceFills;
+    private Image[] choiceFrames;
     private DialogueBeat currentBeat;
     private bool isDialogueActive;
     private bool isRecapMode;
@@ -123,6 +137,27 @@ public class DialogueManager : MonoBehaviour
             choiceButtons[i].onClick.RemoveAllListeners();
             choiceButtons[i].onClick.AddListener(() => OnChoiceClicked(capturedIndex));
         }
+
+        CacheChoiceVisuals();
+    }
+
+    /// <summary>
+    /// Cache the glass fill and neon frame of each v2-styled choice button. A button
+    /// without a child named "Frame" is not v2-styled and is left untouched by the
+    /// hover effect, so legacy or hand-built buttons keep their own look.
+    /// </summary>
+    private void CacheChoiceVisuals()
+    {
+        choiceFills = new Image[choiceButtons.Count];
+        choiceFrames = new Image[choiceButtons.Count];
+        for (int i = 0; i < choiceButtons.Count; i++)
+        {
+            if (choiceButtons[i] == null) continue;
+            Transform frame = choiceButtons[i].transform.Find("Frame");
+            if (frame == null) continue;
+            choiceFrames[i] = frame.GetComponent<Image>();
+            choiceFills[i] = choiceButtons[i].GetComponent<Image>();
+        }
     }
 
     private void Update()
@@ -130,6 +165,8 @@ public class DialogueManager : MonoBehaviour
         TickCooldowns();
 
         if (!isDialogueActive) return;
+
+        UpdateChoiceHover();
 
         // Force cursor visible while dialogue is open so the player can click choices.
         // ThirdPersonCamera locks cursor during normal gameplay; CloseDialogue restores that.
@@ -214,20 +251,54 @@ public class DialogueManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
+        // One-time mistaken identity interstitial: the soul aggroed on Yoru, no fight
+        // started, and the player came back as Tomoe. The soul excuses itself first,
+        // then the normal conversation (or recap) opens.
+        bool mistaken = enemy.ConsumeMistakenIdentity();
+        if (mistaken && !string.IsNullOrEmpty(dialogue.mistakenIdentityLine))
+        {
+            isRecapMode = false;
+            currentBeat = null;
+            speakerNameText.text = dialogue.soulName;
+            dialogueText.text = dialogue.mistakenIdentityLine;
+            HideAllButtons();
+            Debug.Log($"[Dialogue] Mistaken identity line for '{dialogue.dialogueId}'");
+            Invoke(nameof(OpenConversation), responseDisplayDuration);
+        }
+        else
+        {
+            OpenConversation();
+        }
+    }
+
+    /// <summary>
+    /// Open the conversation body: the recap beat when the quest has been given,
+    /// otherwise the start beat of the full conversation.
+    /// </summary>
+    private void OpenConversation()
+    {
+        if (currentDialogue == null)
+        {
+            CloseDialogue();
+            return;
+        }
+
+        SoulState state = GetOrCreateState(currentDialogue.dialogueId);
+
         if (state.hasGivenQuest)
         {
             ShowRecapBeat();
         }
         else
         {
-            DialogueBeat startBeat = dialogue.GetBeat(dialogue.startBeatId);
+            DialogueBeat startBeat = currentDialogue.GetBeat(currentDialogue.startBeatId);
             if (startBeat == null)
             {
-                Debug.LogError($"[Dialogue] Start beat '{dialogue.startBeatId}' not found in '{dialogue.dialogueId}'. Aborting.");
+                Debug.LogError($"[Dialogue] Start beat '{currentDialogue.startBeatId}' not found in '{currentDialogue.dialogueId}'. Aborting.");
                 EndConversationNoStrike();
                 return;
             }
-            Debug.Log($"[Dialogue] Opened '{dialogue.dialogueId}' at beat {startBeat.beatId}");
+            Debug.Log($"[Dialogue] Opened '{currentDialogue.dialogueId}' at beat {startBeat.beatId}");
             DisplayBeat(startBeat);
         }
     }
@@ -243,6 +314,7 @@ public class DialogueManager : MonoBehaviour
     {
         currentBeat = beat;
         isRecapMode = false;
+        ResetChoiceVisuals();
 
         speakerNameText.text = currentDialogue.soulName;
         dialogueText.text = beat.soulLine;
@@ -284,6 +356,61 @@ public class DialogueManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Neon hover for v2-styled choice buttons: while the pointer is over a button its
+    /// glass fill rises to near-opaque and its outline light dims, both gliding back on
+    /// exit. Two opposing fades, which is why Unity's single-target ColorTint is not used.
+    /// </summary>
+    private void UpdateChoiceHover()
+    {
+        if (choiceFills == null) return;
+
+        float t = 1f - Mathf.Exp(-hoverFadeSpeed * Time.unscaledDeltaTime);
+        for (int i = 0; i < choiceButtons.Count; i++)
+        {
+            if (choiceFills[i] == null || choiceFrames[i] == null) continue;
+            Button button = choiceButtons[i];
+            if (button == null || !button.gameObject.activeSelf) continue;
+
+            // Overlay canvas: no camera needed for the containment test.
+            bool hovered = RectTransformUtility.RectangleContainsScreenPoint(
+                (RectTransform)button.transform, Input.mousePosition, null);
+
+            LerpImageAlpha(choiceFills[i], hovered ? fillHoverAlpha : fillNormalAlpha, t);
+            LerpImageAlpha(choiceFrames[i], hovered ? frameHoverAlpha : frameNormalAlpha, t);
+        }
+    }
+
+    /// <summary>
+    /// Snap every styled button back to its resting look. Called whenever choices are
+    /// (re)shown so a button never opens mid-hover from the previous beat.
+    /// </summary>
+    private void ResetChoiceVisuals()
+    {
+        if (choiceFills == null) return;
+        for (int i = 0; i < choiceFills.Length; i++)
+        {
+            SetImageAlpha(choiceFills[i], fillNormalAlpha);
+            SetImageAlpha(choiceFrames[i], frameNormalAlpha);
+        }
+    }
+
+    private static void LerpImageAlpha(Image image, float target, float t)
+    {
+        if (image == null) return;
+        Color c = image.color;
+        c.a = Mathf.Lerp(c.a, target, t);
+        image.color = c;
+    }
+
+    private static void SetImageAlpha(Image image, float alpha)
+    {
+        if (image == null) return;
+        Color c = image.color;
+        c.a = alpha;
+        image.color = c;
+    }
+
+    /// <summary>
     /// The one-beat post-quest exchange: a waiting line, a leave option, and a
     /// repeat-the-quest option. Re-approachable indefinitely. No strikes here.
     /// </summary>
@@ -291,6 +418,7 @@ public class DialogueManager : MonoBehaviour
     {
         currentBeat = null;
         isRecapMode = true;
+        ResetChoiceVisuals();
 
         Debug.Log($"[Dialogue] Recap opened for '{currentDialogue.dialogueId}'");
 
