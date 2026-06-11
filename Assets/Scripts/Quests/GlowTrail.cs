@@ -1,37 +1,41 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 /// <summary>
-/// Tomoe-only quest wayfinding: a hand-placed chain of glowing rings the player passes
-/// through one by one, like flying through rings. Reusable for any quest: add a GlowTrail
-/// object per quest, set questId/stepId, add as many P point children as the route needs.
+/// Tomoe-only quest wayfinding: a chain of glowing rings the player passes through one
+/// by one. Fully reusable: one GlowTrail object per quest, any number of rings, rings
+/// can be added, deleted, moved, resized, and reordered at any time.
 ///
-/// Setup: create an empty GameObject, add this component, set questId (and stepId when
-/// the trail belongs to one step), then add empty children along the route (P01, P02...).
-/// Any number of children works; the LAST child is always the arrival ring.
+/// SETUP (per trail):
+///   1. Empty GameObject + this component. Set questId (and stepId if step-specific).
+///      Assign effect prefabs and sounds.
+///   2. Add empty children where rings should be (any names, any hierarchy order).
+///   3. Right-click this component's header in the Inspector and choose
+///      "Setup Rings From Children". Every child gets a GlowTrailRing component
+///      numbered 10, 20, 30... by current hierarchy order. Save the scene.
 ///
-/// Per-ring control, live, from the inspector, via the P point children:
-///   MOVE a ring   = move its P point.
-///   RESIZE a ring = scale its P point (uniform; the X value is used as the multiplier).
-/// P point ROTATION is ignored. All rings use the Ring Rotation field below, applied
-/// from code LIVE every frame (default 90 on X stands flat effects upright), so tweaks
-/// show instantly, including during Play.
-/// Never edit the runtime "<name>_Effects" container at the scene root; it is rebuilt
-/// every Play. The P points are the only editing surface.
+/// HOW RINGS WORK (all on the GlowTrailRing component, nothing else matters):
+///   SEQUENCE  = the Order number. Lower = earlier. The HIGHEST order is the arrival.
+///               Insert a ring between 10 and 20 by giving it order 15. Hierarchy
+///               position and creation time are IGNORED.
+///   SIZE      = the Size field (1 = normal). Transform scale is IGNORED, and the ring
+///               is pinned to its point by content-offset compensation, so resizing
+///               NEVER moves it.
+///   POSITION  = the point object's position. That is the only thing the transform does.
+///   ROTATION  = the trail-wide Ring Rotation field below, applied live from code.
+///               Point rotation is IGNORED.
 ///
-/// Pass detection is HORIZONTAL (XZ) within triggerRadius, with a separate vertical
-/// tolerance (triggerHeight), so walking under or through a raised ring still counts.
+/// Effects live in a clean scale-1 container at the scene root; the scene hierarchy
+/// never touches them. Never edit the runtime "<name>_Effects" container.
 ///
-/// Sequential reveal: only the current ring and the next revealAhead ring(s) are lit.
-/// Passing a ring plays the pass sound + burst and that ring is gone for the session,
-/// while the next one lights up ahead. The FINAL ring uses its own special sound and
-/// burst when set, falling back to the normal ones when empty.
+/// Pass detection is HORIZONTAL (XZ) within triggerRadius, with triggerHeight of
+/// vertical tolerance. Exactly ONE ring is visible at a time (hardcoded): passing it
+/// plays the pass sound + burst, it vanishes, and the next ring appears in the same
+/// instant. The FINAL ring uses its special sound and burst when set.
 ///
-/// Visibility, all three at once:
-///   1. The quest is the TRACKED quest (chosen on the Memory Parchment), and
-///   2. that step is the quest's current step (stepId empty = whole quest), and
-///   3. the player is in Tomoe form. Yoru sees nothing. (GDD: the world only speaks
-///      to the grandmother.)
+/// Visibility, all three at once: quest tracked + step current + Tomoe form.
+/// (GDD: the world only speaks to the grandmother.)
 /// </summary>
 public class GlowTrail : MonoBehaviour
 {
@@ -44,20 +48,20 @@ public class GlowTrail : MonoBehaviour
     [SerializeField] private string stepId;
 
     [Header("Visual Prefabs (assign your own VFX)")]
-    [Tooltip("Your particle effect, spawned at every trail point. Use a LOOPING effect. Leave empty to use the built-in procedural glow")]
+    [Tooltip("Your particle effect, spawned at every ring. Use a LOOPING effect. Leave empty to use the built-in procedural glow")]
     [SerializeField] private GameObject pointEffectPrefab;
 
-    [Tooltip("A different effect for the FINAL point only, the you-have-arrived marker. Empty = the point effect scaled up by the arrival multiplier")]
+    [Tooltip("A different effect for the ARRIVAL ring only. Empty = the point effect scaled up by the arrival multiplier")]
     [SerializeField] private GameObject arrivalEffectPrefab;
 
-    [Tooltip("Rotation in degrees applied to EVERY ring from code, LIVE (changes show instantly, even in Play). Default (90,0,0) stands a flat effect upright. P point rotation is ignored")]
+    [Tooltip("Rotation in degrees applied to EVERY ring from code, LIVE. Default (90,0,0) stands a flat effect upright. Point rotation is ignored")]
     [SerializeField] private Vector3 ringRotation = new Vector3(90f, 0f, 0f);
 
     [Header("Pass Through (walk through a ring: sound plays, burst spawns, ring disappears)")]
     [Tooltip("Played at the ring's position when the player passes through it")]
     [SerializeField] private AudioClip passSound;
 
-    [Tooltip("SPECIAL sound for the FINAL ring only. Empty = the normal pass sound")]
+    [Tooltip("SPECIAL sound for the ARRIVAL ring only. Empty = the normal pass sound")]
     [SerializeField] private AudioClip arrivalPassSound;
 
     [Tooltip("Volume for pass sounds")]
@@ -67,27 +71,20 @@ public class GlowTrail : MonoBehaviour
     [Tooltip("One-shot burst spawned where the ring was (a little poof). Use a NON-looping effect. Empty = none")]
     [SerializeField] private GameObject passEffectPrefab;
 
-    [Tooltip("SPECIAL burst for the FINAL ring only. Empty = the normal pass effect")]
+    [Tooltip("SPECIAL burst for the ARRIVAL ring only. Empty = the normal pass effect")]
     [SerializeField] private GameObject arrivalPassEffectPrefab;
 
-    [Tooltip("Horizontal distance from the player to a ring's P point, in metres, to pass it")]
+    [Tooltip("Horizontal distance from the player to a ring, in metres, to pass it")]
     [SerializeField] private float triggerRadius = 1.5f;
 
     [Tooltip("Vertical tolerance in metres: a ring up to this far above/below the player still counts as passed")]
     [SerializeField] private float triggerHeight = 3f;
 
-    [Header("Reveal (rings light up one ahead as you progress)")]
-    [Tooltip("ON: only the current ring plus the next Reveal Ahead ring(s) are lit. OFF: the whole trail is lit at once")]
-    [SerializeField] private bool sequentialReveal = true;
-
-    [Tooltip("How many rings beyond the current one are lit. 1 = the next ring appears before the current one is passed")]
-    [SerializeField] private int revealAhead = 1;
-
     [Header("Look (PLACEHOLDER ONLY except where noted; these do NOT change your prefab)")]
     [Tooltip("PLACEHOLDER ONLY: diameter in metres of a built-in path glow")]
     [SerializeField] private float pointSize = 0.9f;
 
-    [Tooltip("BOTH MODES: the last ring is scaled up by this when no dedicated arrival prefab is set")]
+    [Tooltip("BOTH MODES: the arrival ring is scaled up by this when no dedicated arrival prefab is set")]
     [SerializeField] private float arrivalSizeMultiplier = 2.2f;
 
     [Tooltip("PLACEHOLDER ONLY: warm gold by default")]
@@ -96,24 +93,27 @@ public class GlowTrail : MonoBehaviour
     [Tooltip("PLACEHOLDER ONLY: pulse cycles per second-ish")]
     [SerializeField] private float pulseSpeed = 2.2f;
 
-    [Tooltip("BOTH MODES: metres above each point's position, so effects never z-fight the ground")]
+    [Tooltip("BOTH MODES: metres above each ring's position, so effects never z-fight the ground")]
     [SerializeField] private float groundOffset = 0.06f;
     #endregion
 
     #region State
-    /// <summary>One ring along the route.</summary>
-    private class TrailPoint
+    /// <summary>One ring along the route, driven by its GlowTrailRing component.</summary>
+    private class TrailEntry
     {
-        public Transform anchor;          // the P-point child; position + scale read live every frame
-        public GameObject instance;       // the spawned visual (prefab instance or placeholder quad)
-        public Transform quad;            // placeholder mode only, for billboard + pulse
-        public Vector3 baseScale;         // authored prefab scale (incl. arrival multiplier), prefab mode
-        public Quaternion prefabRotation; // authored prefab rotation, combined live with ringRotation
+        public GlowTrailRing ring;          // order + size, read live
+        public GameObject instance;         // the spawned visual (prefab instance or placeholder quad)
+        public Transform quad;              // placeholder mode only, for billboard + pulse
+        public Vector3 baseScale;           // authored prefab scale (incl. arrival multiplier), prefab mode
+        public Quaternion prefabRotation;   // authored prefab rotation, combined live with ringRotation
+        public Vector3 contentOffsetPerUnit;// prefab content offset from its root, per 1.0 of Size,
+                                            // in the ring's local frame; used to pin the visuals to
+                                            // the point so resizing never moves the ring
         public bool isArrival;
-        public bool consumed;             // player passed through it, gone for the session
+        public bool consumed;               // player passed through it, gone for the session
     }
 
-    private readonly List<TrailPoint> points = new List<TrailPoint>();
+    private readonly List<TrailEntry> entries = new List<TrailEntry>();
     private Transform effectsRoot;   // scene-root container, scale (1,1,1), owns every spawned visual
     private FormController formController;
     private Transform playerTransform;
@@ -136,7 +136,7 @@ public class GlowTrail : MonoBehaviour
         else
             playerTransform = formController.transform;
 
-        BuildPoints();
+        BuildEntries();
         SetVisible(false);
     }
 
@@ -168,42 +168,79 @@ public class GlowTrail : MonoBehaviour
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
 
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < entries.Count; i++)
         {
-            TrailPoint point = points[i];
-            if (point.quad == null || point.consumed || !point.instance.activeSelf) continue;
+            TrailEntry entry = entries[i];
+            if (entry.quad == null || entry.consumed || !entry.instance.activeSelf) continue;
 
             if (cameraTransform != null)
-                point.quad.rotation = Quaternion.LookRotation(point.quad.position - cameraTransform.position);
+                entry.quad.rotation = Quaternion.LookRotation(entry.quad.position - cameraTransform.position);
 
-            float baseSize = point.isArrival ? pointSize * arrivalSizeMultiplier : pointSize;
+            float baseSize = entry.isArrival ? pointSize * arrivalSizeMultiplier : pointSize;
             float pulse = 1f + 0.18f * Mathf.Sin(Time.time * pulseSpeed - i * 0.8f);
-            point.quad.localScale = Vector3.one * baseSize * pulse * AnchorScale(point.anchor);
+            entry.quad.localScale = Vector3.one * baseSize * pulse * RingSize(entry.ring);
         }
+    }
+    #endregion
+
+    #region Editor Setup
+    /// <summary>
+    /// One-click setup: adds a GlowTrailRing to every direct child that lacks one and
+    /// numbers ALL of them 10, 20, 30... by current hierarchy order (existing sizes are
+    /// kept). Run it again any time after dragging children around to renumber. To
+    /// insert a ring between two others without renumbering, just give it an in-between
+    /// order (e.g. 15 between 10 and 20).
+    /// </summary>
+    [ContextMenu("Setup Rings From Children")]
+    private void SetupRingsFromChildren()
+    {
+        int order = 10;
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform child = transform.GetChild(i);
+            GlowTrailRing ring = child.GetComponent<GlowTrailRing>();
+            if (ring == null)
+                ring = child.gameObject.AddComponent<GlowTrailRing>();
+
+            ring.order = order;
+            order += 10;
+        }
+        Debug.Log($"[GlowTrail] {name}: {transform.childCount} ring(s) set up and numbered by hierarchy order. Save the scene.");
     }
     #endregion
 
     #region Build
     /// <summary>
-    /// One visual per child point, spawned into a clean scale-1 scene-root container.
-    /// Point transforms mark position and per-ring size; rotation comes from ringRotation
-    /// in code; the scene hierarchy never touches the effects.
+    /// Collects all GlowTrailRing children, sorts them by Order (ties broken by
+    /// hierarchy position), and spawns one visual per ring into a clean scale-1
+    /// scene-root container. The highest Order is the arrival.
     /// </summary>
-    private void BuildPoints()
+    private void BuildEntries()
     {
+        GlowTrailRing[] rings = GetComponentsInChildren<GlowTrailRing>(true)
+            .OrderBy(r => r.order)
+            .ThenBy(r => r.transform.GetSiblingIndex())
+            .ToArray();
+
+        if (rings.Length == 0)
+        {
+            Debug.LogWarning($"[GlowTrail] {name}: no GlowTrailRing children found. Right-click the GlowTrail component and run \"Setup Rings From Children\".");
+            return;
+        }
+
         usingPrefabs = pointEffectPrefab != null;
         if (!usingPrefabs)
             EnsureSharedVisuals();
 
         effectsRoot = new GameObject($"{name}_Effects").transform;
+        Quaternion codeRotation = Quaternion.Euler(ringRotation);
 
-        int count = transform.childCount;
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < rings.Length; i++)
         {
-            Transform anchor = transform.GetChild(i);
-            bool isArrival = i == count - 1;
+            GlowTrailRing ring = rings[i];
+            bool isArrival = i == rings.Length - 1;
 
-            TrailPoint trailPoint = new TrailPoint { anchor = anchor, isArrival = isArrival };
+            TrailEntry entry = new TrailEntry { ring = ring, isArrival = isArrival };
 
             if (usingPrefabs)
             {
@@ -211,17 +248,21 @@ public class GlowTrail : MonoBehaviour
                     ? arrivalEffectPrefab
                     : pointEffectPrefab;
 
-                trailPoint.prefabRotation = prefab.transform.rotation;
-
-                Vector3 spawnPosition = anchor.position + Vector3.up * groundOffset;
-                GameObject instance = Instantiate(
-                    prefab, spawnPosition, Quaternion.Euler(ringRotation) * trailPoint.prefabRotation, effectsRoot);
+                entry.prefabRotation = prefab.transform.rotation;
 
                 float sizeMultiplier = isArrival && arrivalEffectPrefab == null ? arrivalSizeMultiplier : 1f;
-                trailPoint.baseScale = prefab.transform.localScale * sizeMultiplier;
-                instance.transform.localScale = trailPoint.baseScale * AnchorScale(anchor);
+                entry.baseScale = prefab.transform.localScale * sizeMultiplier;
 
-                trailPoint.instance = instance;
+                Quaternion spawnRotation = codeRotation * entry.prefabRotation;
+                GameObject instance = Instantiate(prefab, ring.transform.position, spawnRotation, effectsRoot);
+                instance.transform.localScale = entry.baseScale * RingSize(ring);
+
+                // Measure how far the prefab's particle content sits from its root, per
+                // 1.0 of Size, in the ring's local frame. SyncAndReveal uses this to pin
+                // the CONTENT (not the root) to the point, so resizing never moves it.
+                entry.contentOffsetPerUnit = MeasureContentOffsetPerUnit(instance, spawnRotation, RingSize(ring));
+
+                entry.instance = instance;
             }
             else
             {
@@ -230,22 +271,41 @@ public class GlowTrail : MonoBehaviour
                 Object.Destroy(quad.GetComponent<Collider>());
 
                 quad.transform.SetParent(effectsRoot, false);
-                quad.transform.position = anchor.position + Vector3.up * (groundOffset + pointSize * 0.4f);
+                quad.transform.position = ring.transform.position + Vector3.up * (groundOffset + pointSize * 0.4f);
 
                 Renderer rend = quad.GetComponent<Renderer>();
                 rend.sharedMaterial = trailMaterial;
                 rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 rend.receiveShadows = false;
 
-                trailPoint.instance = quad;
-                trailPoint.quad = quad.transform;
+                entry.instance = quad;
+                entry.quad = quad.transform;
             }
 
-            points.Add(trailPoint);
+            entries.Add(entry);
         }
 
-        if (points.Count == 0)
-            Debug.LogWarning($"[GlowTrail] {name}: no child points. Add empty children along the route.");
+        string sequence = string.Join(" -> ", entries.Select(e => $"{e.ring.name}({e.ring.order})"));
+        Debug.Log($"[GlowTrail] {name}: {entries.Count} ring(s), sequence: {sequence}, one ring shown at a time");
+    }
+
+    /// <summary>
+    /// Average position of the spawned effect's ParticleSystems relative to its root,
+    /// converted to the ring's local frame and normalised to Size = 1. Zero when the
+    /// effect has no particle systems or its content is already centred on the root.
+    /// </summary>
+    private static Vector3 MeasureContentOffsetPerUnit(GameObject instance, Quaternion rotation, float sizeAtBuild)
+    {
+        ParticleSystem[] systems = instance.GetComponentsInChildren<ParticleSystem>(true);
+        if (systems.Length == 0 || sizeAtBuild <= 0f)
+            return Vector3.zero;
+
+        Vector3 sum = Vector3.zero;
+        for (int i = 0; i < systems.Length; i++)
+            sum += systems[i].transform.position;
+
+        Vector3 worldOffset = sum / systems.Length - instance.transform.position;
+        return Quaternion.Inverse(rotation) * worldOffset / sizeAtBuild;
     }
 
     /// <summary>
@@ -297,43 +357,50 @@ public class GlowTrail : MonoBehaviour
 
     #region Reveal + Pass Through
     /// <summary>
-    /// Keeps each ring glued to its P point (position + per-ring size) and re-applies
-    /// ringRotation, all live every frame, then applies the sequential reveal window:
-    /// the first unpassed ring plus revealAhead more.
+    /// Keeps each ring pinned to its point (content-centred, so Size changes never move
+    /// it), re-applies ringRotation and Size live every frame, then applies the
+    /// sequencing rule: exactly one ring lit, the first unpassed one.
     /// </summary>
     private void SyncAndReveal()
     {
         Quaternion codeRotation = Quaternion.Euler(ringRotation);
 
         int firstUnconsumed = -1;
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < entries.Count; i++)
         {
-            if (!points[i].consumed) { firstUnconsumed = i; break; }
+            if (!entries[i].consumed) { firstUnconsumed = i; break; }
         }
 
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < entries.Count; i++)
         {
-            TrailPoint point = points[i];
-            if (point.instance == null) continue;
+            TrailEntry entry = entries[i];
+            if (entry.instance == null || entry.ring == null) continue;
 
-            bool lit = !point.consumed
-                    && (!sequentialReveal || firstUnconsumed < 0 || i <= firstUnconsumed + revealAhead);
+            // HARDCODED: exactly ONE ring at a time. Only the first unpassed ring is
+            // lit; the moment it is passed, the next one lights in the same instant.
+            bool lit = !entry.consumed && i == firstUnconsumed;
 
-            if (point.instance.activeSelf != lit)
-                point.instance.SetActive(lit);
+            if (entry.instance.activeSelf != lit)
+                entry.instance.SetActive(lit);
 
-            if (!lit || point.anchor == null) continue;
+            if (!lit) continue;
 
             if (usingPrefabs)
             {
-                point.instance.transform.SetPositionAndRotation(
-                    point.anchor.position + Vector3.up * groundOffset,
-                    codeRotation * point.prefabRotation);
-                point.instance.transform.localScale = point.baseScale * AnchorScale(point.anchor);
+                float ringSize = RingSize(entry.ring);
+                Quaternion rotation = codeRotation * entry.prefabRotation;
+                Vector3 target = entry.ring.transform.position + Vector3.up * groundOffset;
+
+                // Pin the CONTENT centre to the point: shift the root by the scaled,
+                // rotated content offset so resizing grows the ring in place.
+                Vector3 rootPosition = target - rotation * (entry.contentOffsetPerUnit * ringSize);
+
+                entry.instance.transform.SetPositionAndRotation(rootPosition, rotation);
+                entry.instance.transform.localScale = entry.baseScale * ringSize;
             }
             else
             {
-                point.quad.position = point.anchor.position + Vector3.up * (groundOffset + pointSize * 0.4f);
+                entry.quad.position = entry.ring.transform.position + Vector3.up * (groundOffset + pointSize * 0.4f);
             }
         }
     }
@@ -341,41 +408,41 @@ public class GlowTrail : MonoBehaviour
     /// <summary>
     /// Any LIT ring the player walks into is passed: sound + burst + gone for the session.
     /// Distance is horizontal (XZ) within triggerRadius, with triggerHeight of vertical
-    /// tolerance, so raised rings still count. The final ring uses its special sound and
-    /// burst when assigned.
+    /// tolerance, so raised rings still count. The arrival ring uses its special sound
+    /// and burst when assigned.
     /// </summary>
     private void CheckPassThrough()
     {
         if (playerTransform == null) return;
 
         float sqrRadius = triggerRadius * triggerRadius;
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < entries.Count; i++)
         {
-            TrailPoint point = points[i];
-            if (point.consumed || point.instance == null || !point.instance.activeSelf || point.anchor == null)
+            TrailEntry entry = entries[i];
+            if (entry.consumed || entry.instance == null || !entry.instance.activeSelf || entry.ring == null)
                 continue;
 
-            Vector3 delta = playerTransform.position - point.anchor.position;
+            Vector3 delta = playerTransform.position - entry.ring.transform.position;
             float verticalDistance = Mathf.Abs(delta.y);
             delta.y = 0f;
 
             if (delta.sqrMagnitude <= sqrRadius && verticalDistance <= triggerHeight)
-                ConsumePoint(point, i);
+                ConsumeEntry(entry, i);
         }
     }
 
-    private void ConsumePoint(TrailPoint point, int index)
+    private void ConsumeEntry(TrailEntry entry, int index)
     {
-        point.consumed = true;
+        entry.consumed = true;
 
-        if (point.instance != null)
-            point.instance.SetActive(false);
+        if (entry.instance != null)
+            entry.instance.SetActive(false);
 
-        AudioClip clip = point.isArrival && arrivalPassSound != null ? arrivalPassSound : passSound;
+        AudioClip clip = entry.isArrival && arrivalPassSound != null ? arrivalPassSound : passSound;
         if (clip != null)
-            AudioSource.PlayClipAtPoint(clip, point.anchor.position, passSoundVolume);
+            AudioSource.PlayClipAtPoint(clip, entry.ring.transform.position, passSoundVolume);
 
-        GameObject burstPrefab = point.isArrival && arrivalPassEffectPrefab != null
+        GameObject burstPrefab = entry.isArrival && arrivalPassEffectPrefab != null
             ? arrivalPassEffectPrefab
             : passEffectPrefab;
 
@@ -383,20 +450,20 @@ public class GlowTrail : MonoBehaviour
         {
             GameObject burst = Instantiate(
                 burstPrefab,
-                point.anchor.position + Vector3.up * groundOffset,
+                entry.ring.transform.position + Vector3.up * groundOffset,
                 burstPrefab.transform.rotation,
                 effectsRoot);
             burst.transform.localScale = burstPrefab.transform.localScale;
             Destroy(burst, passBurstLifetime);
         }
 
-        Debug.Log($"[GlowTrail] {name}: ring {index + 1}/{points.Count} passed{(point.isArrival ? " (ARRIVAL)" : "")}");
+        Debug.Log($"[GlowTrail] {name}: ring {index + 1}/{entries.Count} passed{(entry.isArrival ? " (ARRIVAL)" : "")}");
     }
 
-    /// <summary>Per-ring size multiplier read from the P point's scale (X component).</summary>
-    private static float AnchorScale(Transform anchor)
+    /// <summary>Per-ring size multiplier from the GlowTrailRing component, guarded.</summary>
+    private static float RingSize(GlowTrailRing ring)
     {
-        return anchor == null ? 1f : Mathf.Max(0.01f, anchor.localScale.x);
+        return ring == null ? 1f : Mathf.Max(0.01f, ring.size);
     }
     #endregion
 
@@ -413,11 +480,11 @@ public class GlowTrail : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < entries.Count; i++)
         {
-            TrailPoint point = points[i];
-            if (point.instance != null && point.instance.activeSelf)
-                point.instance.SetActive(false);
+            TrailEntry entry = entries[i];
+            if (entry.instance != null && entry.instance.activeSelf)
+                entry.instance.SetActive(false);
         }
     }
     #endregion
@@ -425,13 +492,18 @@ public class GlowTrail : MonoBehaviour
     #region Gizmos
     private void OnDrawGizmosSelected()
     {
+        GlowTrailRing[] rings = GetComponentsInChildren<GlowTrailRing>(true)
+            .OrderBy(r => r.order)
+            .ThenBy(r => r.transform.GetSiblingIndex())
+            .ToArray();
+
         Gizmos.color = new Color(1f, 0.82f, 0.45f, 0.9f);
         Transform previous = null;
-        for (int i = 0; i < transform.childCount; i++)
+        for (int i = 0; i < rings.Length; i++)
         {
-            Transform point = transform.GetChild(i);
-            float baseR = (i == transform.childCount - 1 ? pointSize * arrivalSizeMultiplier : pointSize) * 0.5f;
-            Gizmos.DrawWireSphere(point.position, baseR * Mathf.Max(0.01f, point.localScale.x));
+            Transform point = rings[i].transform;
+            float baseR = (i == rings.Length - 1 ? pointSize * arrivalSizeMultiplier : pointSize) * 0.5f;
+            Gizmos.DrawWireSphere(point.position, baseR * Mathf.Max(0.01f, rings[i].size));
             if (previous != null)
                 Gizmos.DrawLine(previous.position, point.position);
             previous = point;
