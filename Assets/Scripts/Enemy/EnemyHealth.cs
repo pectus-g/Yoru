@@ -124,10 +124,19 @@ public class EnemyHealth : MonoBehaviour
         Debug.Log($"[Health] {gameObject.name} reset to {maxHealth} HP");
     }
     
+    /// <summary>
+    /// Fired exactly once when this enemy dies, on both death paths (EnemyDeathEffect
+    /// and the inline fallback). InteractableEnemy listens to stamp the Memory
+    /// Parchment; quest DEFEAT_ENEMY steps route through the same hook.
+    /// </summary>
+    public event System.Action<EnemyHealth> OnDied;
+
     private void Die()
     {
         if (isDead) return;
         isDead = true;
+
+        OnDied?.Invoke(this);
         
         // Use EnemyDeathEffect if available
         var deathEffect = GetComponent<EnemyDeathEffect>();

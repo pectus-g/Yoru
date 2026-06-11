@@ -17,6 +17,7 @@ public class PlayerInteraction : MonoBehaviour
     // Track what's nearby (only one at a time for priority)
     private ItemPickup nearbyItem = null;
     private NPCInteraction nearbyNPC = null;
+    private QuestTrigger nearbyQuestTrigger = null;
     
     private void Start()
     {
@@ -51,10 +52,14 @@ public class PlayerInteraction : MonoBehaviour
             return;
         }
         
-        // Priority: NPC first, then items
+        // Priority: NPC first, then quest interactables, then items
         if (nearbyNPC != null)
         {
             nearbyNPC.Interact();
+        }
+        else if (nearbyQuestTrigger != null)
+        {
+            nearbyQuestTrigger.Use();
         }
         else if (nearbyItem != null)
         {
@@ -81,6 +86,11 @@ public class PlayerInteraction : MonoBehaviour
         {
             interactionPromptUI.SetActive(true);
             promptText.text = nearbyNPC.GetPromptText();
+        }
+        else if (nearbyQuestTrigger != null)
+        {
+            interactionPromptUI.SetActive(true);
+            promptText.text = nearbyQuestTrigger.GetPromptText();
         }
         else if (nearbyItem != null)
         {
@@ -111,6 +121,30 @@ public class PlayerInteraction : MonoBehaviour
         if (nearbyItem == item)
         {
             nearbyItem = null;
+        }
+    }
+    
+    #endregion
+    
+    #region Quest Trigger Detection
+    
+    /// <summary>
+    /// Called by QuestTrigger (PRESS_E mode) when the player is in range AND the
+    /// matching quest step is current. Same registration pattern as ItemPickup.
+    /// </summary>
+    public void SetNearbyQuestTrigger(QuestTrigger trigger)
+    {
+        nearbyQuestTrigger = trigger;
+    }
+    
+    /// <summary>
+    /// Called by QuestTrigger when the player leaves range or the step passes.
+    /// </summary>
+    public void ClearNearbyQuestTrigger(QuestTrigger trigger)
+    {
+        if (nearbyQuestTrigger == trigger)
+        {
+            nearbyQuestTrigger = null;
         }
     }
     

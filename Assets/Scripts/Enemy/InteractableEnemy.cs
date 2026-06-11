@@ -84,6 +84,11 @@ public class InteractableEnemy : MonoBehaviour
         // Cached for the walk home after a wander.
         originalPosition = transform.position;
 
+        // Combat killed this soul: stamp Destroyed on the Memory Parchment and let
+        // DEFEAT_ENEMY quest steps advance. Subscription is cleaned up in OnDestroy.
+        if (enemyHealth != null)
+            enemyHealth.OnDied += HandleSoulDied;
+
         // Phase 2: prompt UI is permanently hidden. Persuasion is signalled by emotional
         // aura (Tomoe-only visual, future implementation) and taught to the player on the
         // how-to-play screen. No in-world text prompt is shown.
@@ -94,6 +99,25 @@ public class InteractableEnemy : MonoBehaviour
             Debug.LogWarning("[InteractableEnemy] FormController not found in scene. Click-to-talk will be permanently disabled on this enemy.");
         if (mainCamera == null)
             Debug.LogWarning("[InteractableEnemy] Camera.main not found. Click raycast disabled on this enemy.");
+    }
+
+    private void OnDestroy()
+    {
+        if (enemyHealth != null)
+            enemyHealth.OnDied -= HandleSoulDied;
+    }
+
+    /// <summary>
+    /// This soul was destroyed in combat. Journal stamp + quest notification.
+    /// </summary>
+    private void HandleSoulDied(EnemyHealth health)
+    {
+        if (dialogueData == null) return;
+
+        SoulJournal.MarkDestroyed(dialogueData);
+
+        if (QuestManager.Instance != null)
+            QuestManager.Instance.NotifyEnemyDefeated(dialogueData.dialogueId);
     }
 
     private void Update()

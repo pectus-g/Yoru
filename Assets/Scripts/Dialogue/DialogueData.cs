@@ -18,12 +18,16 @@ public enum DialogueBranchType
 
 /// <summary>
 /// What happens when the player reaches FINAL_SUCCESS.
-/// Tier 4-2 souls give a quest. Tier 1 bosses trigger a mini-game.
+/// Tier 4-2 souls give a quest. Tier 1 bosses trigger a mini-game. NONE is for scripted
+/// conversations (the mujina cave reveal) where a controller listens to
+/// DialogueManager.OnFinalSuccess instead. NONE is appended last so existing assets
+/// keep their serialized values.
 /// </summary>
 public enum DialogueEndBehavior
 {
     GIVE_QUEST,
-    TRIGGER_MINIGAME
+    TRIGGER_MINIGAME,
+    NONE
 }
 #endregion
 
@@ -100,6 +104,17 @@ public class DialogueData : ScriptableObject
 
     [Tooltip("Display name shown to the player. Unicode is fine here, e.g. \"Nopperab\u014d\"")]
     public string soulName;
+
+    [Tooltip("Enemy tier (1 to 4). Decides which Memory Parchment this soul appears on")]
+    [Range(1, 4)]
+    public int tier = 4;
+
+    [Tooltip("The soul's short story as written on the Memory Parchment, next to their name")]
+    [TextArea(2, 4)]
+    public string soulStory;
+
+    [Tooltip("Never create a Memory Parchment entry for this dialogue. For scripted conversations (the mujina cave reveal) that are not souls of their own")]
+    public bool excludeFromJournal = false;
     #endregion
 
     #region Conversation

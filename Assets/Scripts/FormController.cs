@@ -279,6 +279,15 @@ public class FormController : MonoBehaviour
                 Debug.Log("[FormController] Transform BLOCKED — combat engaged (GDD Doc 04 §4a).");
             return;
         }
+
+        // Mirror of the combat lock for conversations: Tomoe cannot transform mid-dialogue,
+        // the same way Yoru cannot open one. Finish or leave the conversation first.
+        if (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueActive)
+        {
+            if (logTransforms)
+                Debug.Log("[FormController] Transform BLOCKED — dialogue active. Close the conversation first.");
+            return;
+        }
         
         // Re-entry guard: a second T-press during an in-flight fade is ignored. Prevents
         // double-starting the coroutine, which would corrupt material alpha state (mid-fade

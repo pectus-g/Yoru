@@ -1,0 +1,101 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38039b016c60f49ef856ef184eaeb59e, type: 3}
+  m_Name: MujinaReveal_Dialogue
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  dialogueId: mujina_reveal
+  soulName: ???
+  tier: 3
+  soulStory: 
+  excludeFromJournal: 1
+  startBeatId: R1
+  beats:
+  - beatId: R1
+    soulLine: You came. Through the dark, past the pines, all for a poor woman's
+      face.
+    options:
+    - text: I have come to take back what you stole.
+      branchType: 0
+      nextBeatId: R2
+      optionGoodbyeLine: 
+    beatGoodbyeLine: 
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: R2
+    soulLine: Stolen? Look around, grandmother. No beast. No hoard. Only an empty
+      cave and the fool who walked into it.
+    options:
+    - text: ...You. You are the woman from the road.
+      branchType: 0
+      nextBeatId: R3
+      optionGoodbyeLine: 
+    beatGoodbyeLine: 
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: R3
+    soulLine: Woman. Beast. Beggar. I am whatever opens a door. A face is a key,
+      and old keys open old locks.
+    options:
+    - text: Stay back.
+      branchType: 0
+      nextBeatId: R4
+      optionGoodbyeLine: 
+    beatGoodbyeLine: 
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: R4
+    soulLine: Hold still now. This will only take the rest of your...
+    options:
+    - text: ...
+      branchType: 0
+      nextBeatId: R5
+      optionGoodbyeLine: 
+    beatGoodbyeLine: 
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: R5
+    soulLine: What... what are you? Two lights. Two souls in one skin. No. No, that
+      face would burn me to the root.
+    options:
+    - text: Then you leave with nothing.
+      branchType: 0
+      nextBeatId: R6
+      optionGoodbyeLine: 
+    beatGoodbyeLine: 
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: R6
+    soulLine: With nothing, and with my own skin, which is more than most keep around
+      me. Farewell, grandmother. This forest was getting dull anyway.
+    options:
+    - text: ...
+      branchType: 3
+      nextBeatId: 
+      optionGoodbyeLine: 
+    beatGoodbyeLine: 
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  soulDefaultGoodbye: ...
+  cooldownSeconds: 0
+  endBehavior: 2
+  questToGive: {fileID: 0}
+  miniGameToTrigger: {fileID: 0}
+  mistakenIdentityLine: 
+  postQuestWaitingLine: 
+  postQuestLeaveText: 
+  postQuestAskAgainText: 

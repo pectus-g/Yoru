@@ -12,7 +12,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0f4d91ec2784849ca800984ef380806e, type: 3}
   m_Name: Nopperabo_Quest
   m_EditorClassIdentifier: Assembly-CSharp::QuestData
+  questId: stolen_face
   displayName: The Stolen Face
   description: A faceless woman on the road begs for help. A beast in a <color=#7FD4A8>cave
     past the bent pines</color> wears her stolen face and sleeps on a hoard of stolen
     things. Retrieve the <color=#E8A33D>face</color> and bring it back to her.
+  tier: 3
+  giverDialogueId: nopperabo
+  steps:
+  - stepId: S1
+    hintText: Find the <color=#7FD4A8>cave past the bent pines</color> and take back
+      her stolen face.
+    trigger: 0
+    triggerId: stolenface_cave
+    requiredItem: {fileID: 0}
+    requiredQuantity: 1
+  resolutionType: 1
+  rewards: []
+  completedStatusText: LIAR!
+  strikeThroughOnComplete: 1
+  turnInLine: 
+  turnInButtonText: ...
+  farewellLine: 
+  giverDisappearsOnCompletion: 0

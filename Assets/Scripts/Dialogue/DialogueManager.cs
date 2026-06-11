@@ -56,10 +56,6 @@ public class DialogueManager : MonoBehaviour
     [Tooltip("Extra metres beyond the enemy's interactionRange before walking away cancels the conversation (no strike)")]
     [SerializeField] private float rangeCancelBuffer = 1.5f;
 
-    [Header("Continue Button")]
-    [Tooltip("Label of the single acknowledge button shown on hold-open lines (quest recap repeat, mistaken identity). The panel stays until it is pressed")]
-    [SerializeField] private string continueButtonText = "OK";
-
     [Header("Choice Hover (v2 styled buttons only)")]
     [Tooltip("Resting transparency of a choice button's glass fill")]
     [SerializeField] private float fillNormalAlpha = 0.22f;
@@ -106,13 +102,27 @@ public class DialogueManager : MonoBehaviour
     private InteractableEnemy currentEnemy;
     private Image[] choiceFills;
     private Image[] choiceFrames;
-    private System.Action pendingContinue;
     private DialogueBeat currentBeat;
     private bool isDialogueActive;
     private bool isRecapMode;
+    private bool isTurnInMode;
+    private QuestData turnInQuest;
+    private GameObject pendingDisappear;
     private Transform player;
 
+    // Movement lock for the duration of a conversation, same pattern as YoruSleepIntro:
+    // disable the PlayerMovement component, remember it ONLY if we disabled it, restore
+    // on close. Never re-enables a script some other system (sleep intro) turned off.
+    private PlayerMovement lockedMovement;
+
     private const int MaxStrikes = 3;
+
+    /// <summary>
+    /// Fired when any conversation reaches FINAL_SUCCESS, after its end behavior ran.
+    /// Scripted sequences (the mujina cave reveal) listen here; endBehavior NONE
+    /// conversations exist exactly for this hook.
+    /// </summary>
+    public static event System.Action<DialogueData> OnFinalSuccess;
     #endregion
 
     #region Lifecycle
@@ -240,6 +250,9 @@ public class DialogueManager : MonoBehaviour
         SoulState state = GetOrCreateState(dialogue.dialogueId);
         state.enemy = enemy;
 
+        // First contact (or refresh) on the Memory Parchments. Idempotent.
+        SoulJournal.RegisterMet(dialogue);
+
         // Cooldown re-entry is suppressed at the InteractableEnemy level; this is a belt-and-braces guard.
         // The early-outs restore LostSoul because InteractableEnemy set Dialogue state before calling here.
         if (state.cooldownEndTime > 0f && Time.time < state.cooldownEndTime)
@@ -253,6 +266,7 @@ public class DialogueManager : MonoBehaviour
         isDialogueActive = true;
 
         dialoguePanel.SetActive(true);
+        LockPlayerMovement();
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
@@ -266,8 +280,9 @@ public class DialogueManager : MonoBehaviour
             currentBeat = null;
             speakerNameText.text = dialogue.soulName;
             dialogueText.text = dialogue.mistakenIdentityLine;
+            HideAllButtons();
             Debug.Log($"[Dialogue] Mistaken identity line for '{dialogue.dialogueId}'");
-            ShowContinueButton(OpenConversation); // stays until pressed
+            Invoke(nameof(OpenConversation), responseDisplayDuration);
         }
         else
         {
@@ -289,7 +304,12 @@ public class DialogueManager : MonoBehaviour
 
         SoulState state = GetOrCreateState(currentDialogue.dialogueId);
 
-        if (state.hasGivenQuest)
+        // Quest finished and waiting on this soul: the turn-in beat outranks the recap.
+        if (QuestManager.Instance != null && QuestManager.Instance.IsReadyToTurnIn(currentDialogue.dialogueId))
+        {
+            ShowTurnInBeat();
+        }
+        else if (state.hasGivenQuest)
         {
             ShowRecapBeat();
         }
@@ -444,6 +464,42 @@ public class DialogueManager : MonoBehaviour
         if (choiceTexts.Count > 1 && choiceTexts[1] != null)
             choiceTexts[1].text = currentDialogue.postQuestAskAgainText;
     }
+
+    /// <summary>
+    /// The turn-in beat for a RETURN_TO_GIVER quest: the soul acknowledges the finished
+    /// business (turnInLine), one button (turnInButtonText), then the farewell line and
+    /// completion. No strikes here; cancelling just postpones the turn-in.
+    /// </summary>
+    private void ShowTurnInBeat()
+    {
+        currentBeat = null;
+        isRecapMode = false;
+        isTurnInMode = true;
+        turnInQuest = QuestManager.Instance.GetTurnInQuest(currentDialogue.dialogueId);
+        ResetChoiceVisuals();
+
+        Debug.Log($"[Dialogue] Turn-in opened for '{currentDialogue.dialogueId}'");
+
+        speakerNameText.text = currentDialogue.soulName;
+        dialogueText.text = turnInQuest != null && !string.IsNullOrEmpty(turnInQuest.turnInLine)
+            ? turnInQuest.turnInLine
+            : "...";
+
+        // One button only.
+        for (int i = 0; i < choiceButtons.Count; i++)
+        {
+            bool used = i == 0;
+            if (choiceButtons[i] != null)
+            {
+                choiceButtons[i].gameObject.SetActive(used);
+                choiceButtons[i].interactable = used;
+            }
+        }
+        if (choiceTexts.Count > 0 && choiceTexts[0] != null)
+            choiceTexts[0].text = turnInQuest != null && !string.IsNullOrEmpty(turnInQuest.turnInButtonText)
+                ? turnInQuest.turnInButtonText
+                : "...";
+    }
     #endregion
 
     #region Choice Handling
@@ -451,13 +507,9 @@ public class DialogueManager : MonoBehaviour
     {
         if (!isDialogueActive || currentDialogue == null || currentEnemy == null) return;
 
-        // Hold-open lines (recap repeat, mistaken identity): any shown button is the
-        // acknowledge button, and pressing it runs the stored continuation.
-        if (pendingContinue != null)
+        if (isTurnInMode)
         {
-            System.Action action = pendingContinue;
-            pendingContinue = null;
-            action();
+            HandleTurnInChoice();
             return;
         }
 
@@ -560,15 +612,56 @@ public class DialogueManager : MonoBehaviour
             else
                 Debug.Log($"[STUB] Quest given: {(currentDialogue.questToGive != null ? currentDialogue.questToGive.displayName : "null")} (no QuestManager in scene)");
         }
-        else
+        else if (currentDialogue.endBehavior == DialogueEndBehavior.TRIGGER_MINIGAME)
         {
             if (MiniGameManager.Instance != null)
                 MiniGameManager.Instance.TriggerMinigame(currentDialogue.miniGameToTrigger);
             else
                 Debug.Log($"[STUB] Minigame triggered: {(currentDialogue.miniGameToTrigger != null ? currentDialogue.miniGameToTrigger.displayName : "null")} (no MiniGameManager in scene)");
         }
+        // DialogueEndBehavior.NONE: scripted conversation, listeners act on the event below.
+
+        OnFinalSuccess?.Invoke(currentDialogue);
 
         EndConversationNoStrike();
+    }
+
+    /// <summary>
+    /// Turn-in click: complete the quest through QuestManager (rewards, parchment
+    /// stamp), show the farewell line, then close. The soul passing on (deactivation)
+    /// honours QuestData.giverDisappearsOnCompletion; a dissolve VFX is a later pass.
+    /// </summary>
+    private void HandleTurnInChoice()
+    {
+        QuestData quest = turnInQuest;
+        InteractableEnemy giver = currentEnemy;
+
+        if (QuestManager.Instance != null)
+            QuestManager.Instance.CompleteTurnIn(currentDialogue.dialogueId);
+
+        HideAllButtons();
+        dialogueText.text = quest != null && !string.IsNullOrEmpty(quest.farewellLine)
+            ? quest.farewellLine
+            : "...";
+
+        bool disappear = quest != null && quest.giverDisappearsOnCompletion;
+        pendingDisappear = disappear && giver != null ? giver.gameObject : null;
+
+        Invoke(nameof(FinishTurnIn), responseDisplayDuration);
+    }
+
+    private void FinishTurnIn()
+    {
+        GameObject soul = pendingDisappear;
+        pendingDisappear = null;
+
+        EndConversationNoStrike();
+
+        if (soul != null)
+        {
+            Debug.Log($"[Dialogue] {soul.name} passes on.");
+            soul.SetActive(false);
+        }
     }
 
     private void HandleRecapChoice(int index)
@@ -585,8 +678,9 @@ public class DialogueManager : MonoBehaviour
                 ? currentDialogue.questToGive.description
                 : "...";
 
+            HideAllButtons();
             dialogueText.text = recap;
-            ShowContinueButton(EndConversationNoStrike); // stays until pressed
+            Invoke(nameof(EndConversationNoStrike), responseDisplayDuration);
         }
     }
     #endregion
@@ -599,6 +693,7 @@ public class DialogueManager : MonoBehaviour
     {
         Debug.Log($"[Dialogue] Cancelled ({reason}). No strike.");
         CancelInvoke();
+        pendingDisappear = null;
         EndConversationNoStrike();
     }
 
@@ -628,25 +723,6 @@ public class DialogueManager : MonoBehaviour
             combat.SetState(EnemyCombat.EnemyState.LostSoul);
     }
 
-    /// <summary>
-    /// Show only the first button as a single acknowledge button. The panel holds until
-    /// it is pressed, then the given continuation runs (open the conversation, close, etc).
-    /// </summary>
-    private void ShowContinueButton(System.Action onContinue)
-    {
-        pendingContinue = onContinue;
-        ResetChoiceVisuals();
-        for (int i = 0; i < choiceButtons.Count; i++)
-        {
-            if (choiceButtons[i] == null) continue;
-            bool used = i == 0;
-            choiceButtons[i].gameObject.SetActive(used);
-            choiceButtons[i].interactable = used;
-        }
-        if (choiceTexts.Count > 0 && choiceTexts[0] != null)
-            choiceTexts[0].text = continueButtonText;
-    }
-
     private void HideAllButtons()
     {
         for (int i = 0; i < choiceButtons.Count; i++)
@@ -656,13 +732,40 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// The player stands still while talking, like any conversation in any game.
+    /// Disables the PlayerMovement component for the conversation; PlayerMovement.cs
+    /// itself is untouched. Camera look stays free.
+    /// </summary>
+    private void LockPlayerMovement()
+    {
+        if (lockedMovement != null) return;
+        if (player == null) return;
+
+        PlayerMovement movement = player.GetComponent<PlayerMovement>();
+        if (movement != null && movement.enabled)
+        {
+            movement.enabled = false;
+            lockedMovement = movement;
+        }
+    }
+
+    private void UnlockPlayerMovement()
+    {
+        if (lockedMovement == null) return;
+
+        lockedMovement.enabled = true;
+        lockedMovement = null;
+    }
+
     private void CloseDialogue()
     {
         dialoguePanel.SetActive(false);
         isDialogueActive = false;
         isRecapMode = false;
+        isTurnInMode = false;
+        turnInQuest = null;
         currentBeat = null;
-        pendingContinue = null;
 
         // Re-enable buttons for the next dialogue (visibility is managed per-show).
         for (int i = 0; i < choiceButtons.Count; i++)
@@ -670,6 +773,8 @@ public class DialogueManager : MonoBehaviour
             if (choiceButtons[i] != null)
                 choiceButtons[i].interactable = true;
         }
+
+        UnlockPlayerMovement();
 
         // Return cursor to gameplay-locked state. ThirdPersonCamera takes over from here.
         Cursor.lockState = CursorLockMode.Locked;
