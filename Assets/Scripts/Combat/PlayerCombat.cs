@@ -741,6 +741,11 @@ public class PlayerCombat : MonoBehaviour
     #region Input
     private void HandleInput()
     {
+        // Menu lockout: while any menu is open (Memory Parchments, Inventory), all
+        // combat input is ignored, so clicking UI buttons never swings claws. The
+        // matching damage gate lives in PlayerHealth; MenuGuard owns the rule.
+        if (MenuGuard.IsAnyMenuOpen) return;
+
         // Phase 2 lockout: in Tomoe (human) form, all combat input is disabled.
         // Per GDD Doc 04 §4b and Doc 09 §8c. Tomoe is the persuasion form — no attacks,
         // no dodge, no dash, no guard, no tail abilities. Only walking, running, and
@@ -2416,10 +2421,6 @@ public class PlayerCombat : MonoBehaviour
         if (showDebugLogs)
             Debug.Log($"[Combat] {message}");
     }
-private void OnDisable()
-{
-    Debug.LogError("[Combat] PlayerYoru_Def was DEACTIVATED!", gameObject);
-}
     private void OnDrawGizmosSelected()
     {
         if (!showHitboxGizmo || attackPoint == null) return;

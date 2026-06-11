@@ -114,7 +114,9 @@ public static class QuestSystemEditorTools
         GameObject iconGo = NewRect("Icon", hudRoot.transform, out RectTransform iconRt);
         Stretch(iconRt);
         Image iconImage = iconGo.AddComponent<Image>();
-        iconImage.sprite = parchmentImage.sprite; // same art as the big parchment
+        // Hazel's own icon art wins when present; the big parchment art is the fallback.
+        Sprite iconArt = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtFolder}/ParchmentIcon.png");
+        iconImage.sprite = iconArt != null ? iconArt : parchmentImage.sprite;
         iconImage.preserveAspect = true;
         Button iconButton = iconGo.AddComponent<Button>();
         UnityEditor.Events.UnityEventTools.AddPersistentListener(iconButton.onClick, ui.Open);
@@ -128,8 +130,14 @@ public static class QuestSystemEditorTools
             16f, FontStyles.Normal, TextAlignmentOptions.Center, new Color(0.85f, 0.85f, 0.85f, 0.7f));
         Place(hint.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 36f), new Vector2(400f, 24f));
 
+        // ---------- Audio ----------
+        AudioSource audio = canvasGo.AddComponent<AudioSource>();
+        audio.playOnAwake = false;
+        audio.spatialBlend = 0f; // UI sound, no 3D falloff
+
         // ---------- Wire MemoryParchmentUI ----------
         SerializedObject so = new SerializedObject(ui);
+        so.FindProperty("audioSource").objectReferenceValue = audio;
         so.FindProperty("panelRoot").objectReferenceValue = panel;
         so.FindProperty("parchmentImage").objectReferenceValue = parchmentImage;
         so.FindProperty("titleText").objectReferenceValue = title;
@@ -151,6 +159,7 @@ public static class QuestSystemEditorTools
             s.FindPropertyRelative("statusText").objectReferenceValue = slots[i].statusText;
             s.FindPropertyRelative("trackButton").objectReferenceValue = slots[i].trackButton;
             s.FindPropertyRelative("trackLabel").objectReferenceValue = slots[i].trackLabel;
+            s.FindPropertyRelative("highlight").objectReferenceValue = slots[i].highlight;
         }
 
         so.FindProperty("hudIconRoot").objectReferenceValue = hudRoot;
@@ -182,6 +191,18 @@ public static class QuestSystemEditorTools
         GameObject root = NewRect($"Entry_{index}", parchment, out RectTransform rt);
         Place(rt, new Vector2(0.5f, 1f), new Vector2(0f, y), new Vector2(640f, height));
         slot.root = root;
+
+        // Shine frame behind the whole entry: alpha 0 at rest, faded in and out by
+        // MemoryParchmentUI when this entry holds a freshly taken quest.
+        GameObject highlightGo = NewRect("Highlight", root.transform, out RectTransform highlightRt);
+        Stretch(highlightRt);
+        highlightRt.offsetMin = new Vector2(-14f, 2f);
+        highlightRt.offsetMax = new Vector2(14f, 6f);
+        slot.highlight = highlightGo.AddComponent<Image>();
+        slot.highlight.sprite = LoadUiSprite("YORU_RoundedFrame");
+        slot.highlight.type = Image.Type.Sliced;
+        slot.highlight.color = new Color(1f, 0.85f, 0.45f, 0f);
+        slot.highlight.raycastTarget = false;
 
         // Left column (0..320): soul name with its strike line, story below.
         slot.nameText = NewText("Name", root.transform, "Soul Name",

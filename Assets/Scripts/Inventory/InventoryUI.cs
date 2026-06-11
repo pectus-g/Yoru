@@ -215,7 +215,18 @@ public class InventoryUI : MonoBehaviour
 
     public void OpenInventory()
     {
+        if (isInventoryOpen) return;
+        // The inventory follows the same menu rules as the Memory Parchments: never
+        // mid-combat, never mid-dialogue, never over another menu. While open, the
+        // player is frozen and damage-immune (MenuGuard).
+        if (!MenuGuard.CanOpenMenu())
+        {
+            Debug.Log("[Inventory] Open blocked (combat, dialogue, or another menu).");
+            return;
+        }
+
         isInventoryOpen = true;
+        MenuGuard.Register();
         if (inventoryPanel != null) inventoryPanel.SetActive(true);
         if (dimBackground != null) dimBackground.SetActive(true);
 
@@ -238,7 +249,9 @@ public class InventoryUI : MonoBehaviour
 
     public void CloseInventory()
     {
+        if (!isInventoryOpen) return;
         isInventoryOpen = false;
+        MenuGuard.Unregister();
         if (inventoryPanel != null) inventoryPanel.SetActive(false);
         if (dimBackground != null) dimBackground.SetActive(false);
 

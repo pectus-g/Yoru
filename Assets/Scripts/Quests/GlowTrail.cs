@@ -28,7 +28,14 @@ public class GlowTrail : MonoBehaviour
     [Tooltip("stepId this trail belongs to, e.g. \"S1\". Empty = lit for the whole quest")]
     [SerializeField] private string stepId;
 
-    [Header("Look")]
+    [Header("Visual Prefabs (assign your own VFX)")]
+    [Tooltip("Your particle effect, spawned at every trail point. Use a LOOPING effect. Leave empty to use the built-in procedural glow")]
+    [SerializeField] private GameObject pointEffectPrefab;
+
+    [Tooltip("A different effect for the FINAL point only, the you-have-arrived marker. Empty = the point effect scaled up by the arrival multiplier")]
+    [SerializeField] private GameObject arrivalEffectPrefab;
+
+    [Header("Look (procedural fallback, and arrival scaling)")]
     [Tooltip("Diameter in metres of a path glow")]
     [SerializeField] private float pointSize = 0.9f;
 
@@ -46,9 +53,11 @@ public class GlowTrail : MonoBehaviour
     #endregion
 
     #region State
-    private readonly List<Transform> glowQuads = new List<Transform>();
-    private readonly List<Renderer> glowRenderers = new List<Renderer>();
+    private readonly List<GameObject> glowInstances = new List<GameObject>();
+    private readonly List<Transform> billboardQuads = new List<Transform>(); // procedural fallback only
     private FormController formController;
+    private Transform cameraTransform;
+    private bool usingPrefabs;
     private bool currentlyVisible;
 
     private static Texture2D sharedDotTexture;
@@ -76,49 +85,82 @@ public class GlowTrail : MonoBehaviour
         if (visible != currentlyVisible)
             SetVisible(visible);
 
-        if (!currentlyVisible) return;
+        if (!currentlyVisible || usingPrefabs) return;
 
-        // Soft breathing pulse, phase-shifted along the chain so the trail reads as
-        // flowing toward the destination.
-        for (int i = 0; i < glowQuads.Count; i++)
+        // Procedural fallback only: billboard each quad toward the camera (a flat
+        // ground disc reads as a thin line from a standing camera) and breathe a soft
+        // pulse, phase-shifted along the chain so the trail flows toward the destination.
+        if (cameraTransform == null && Camera.main != null)
+            cameraTransform = Camera.main.transform;
+
+        for (int i = 0; i < billboardQuads.Count; i++)
         {
-            float baseSize = i == glowQuads.Count - 1 ? pointSize * arrivalSizeMultiplier : pointSize;
+            Transform quad = billboardQuads[i];
+            if (quad == null) continue;
+
+            if (cameraTransform != null)
+                quad.rotation = Quaternion.LookRotation(quad.position - cameraTransform.position);
+
+            float baseSize = i == billboardQuads.Count - 1 ? pointSize * arrivalSizeMultiplier : pointSize;
             float pulse = 1f + 0.18f * Mathf.Sin(Time.time * pulseSpeed - i * 0.8f);
-            glowQuads[i].localScale = Vector3.one * baseSize * pulse;
+            quad.localScale = Vector3.one * baseSize * pulse;
         }
     }
     #endregion
 
     #region Build
     /// <summary>
-    /// One additive quad per child point, lying flat just above the ground.
+    /// One visual per child point. With prefabs assigned: YOUR effect at every point,
+    /// the arrival effect (or a scaled point effect) at the last. Without prefabs: a
+    /// procedural camera-facing additive glow as a working placeholder.
     /// </summary>
     private void BuildPoints()
     {
-        EnsureSharedVisuals();
+        usingPrefabs = pointEffectPrefab != null;
+        if (!usingPrefabs)
+            EnsureSharedVisuals();
 
-        for (int i = 0; i < transform.childCount; i++)
+        int count = transform.childCount;
+        for (int i = 0; i < count; i++)
         {
             Transform point = transform.GetChild(i);
+            bool isArrival = i == count - 1;
 
-            GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            quad.name = "Glow";
-            Object.Destroy(quad.GetComponent<Collider>());
+            if (usingPrefabs)
+            {
+                GameObject prefab = isArrival && arrivalEffectPrefab != null
+                    ? arrivalEffectPrefab
+                    : pointEffectPrefab;
 
-            quad.transform.SetParent(point, false);
-            quad.transform.localPosition = new Vector3(0f, groundOffset, 0f);
-            quad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                GameObject instance = Instantiate(prefab, point);
+                instance.transform.localPosition = new Vector3(0f, groundOffset, 0f);
 
-            Renderer rend = quad.GetComponent<Renderer>();
-            rend.sharedMaterial = trailMaterial;
-            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            rend.receiveShadows = false;
+                // No dedicated arrival effect: same effect, scaled up.
+                if (isArrival && arrivalEffectPrefab == null)
+                    instance.transform.localScale *= arrivalSizeMultiplier;
 
-            glowQuads.Add(quad.transform);
-            glowRenderers.Add(rend);
+                glowInstances.Add(instance);
+            }
+            else
+            {
+                GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                quad.name = "Glow";
+                Object.Destroy(quad.GetComponent<Collider>());
+
+                quad.transform.SetParent(point, false);
+                quad.transform.localPosition = new Vector3(0f, groundOffset + pointSize * 0.4f, 0f);
+
+                Renderer rend = quad.GetComponent<Renderer>();
+                rend.sharedMaterial = trailMaterial;
+                rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                rend.receiveShadows = false;
+
+                glowInstances.Add(quad);
+                billboardQuads.Add(quad.transform);
+            }
         }
 
-        if (glowQuads.Count == 0)
+        if (glowInstances.Count == 0)
             Debug.LogWarning($"[GlowTrail] {name}: no child points. Add empty children along the route.");
     }
 
@@ -172,10 +214,10 @@ public class GlowTrail : MonoBehaviour
     {
         currentlyVisible = visible;
         Debug.Log($"[GlowTrail] {name}: {(visible ? "ON (quest tracked, step current, Tomoe form)" : "off")}");
-        for (int i = 0; i < glowRenderers.Count; i++)
+        for (int i = 0; i < glowInstances.Count; i++)
         {
-            if (glowRenderers[i] != null)
-                glowRenderers[i].enabled = visible;
+            if (glowInstances[i] != null && glowInstances[i].activeSelf != visible)
+                glowInstances[i].SetActive(visible);
         }
     }
     #endregion

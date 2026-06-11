@@ -77,6 +77,12 @@ public class PlayerHealth : MonoBehaviour
         if (formController != null && formController.IsHuman)
             return;
 
+        // GATE 0.5: Menus are a safe space. While the Memory Parchments or Inventory
+        // are open the player is frozen and cannot respond, so no damage lands and no
+        // combat engagement is marked. The world keeps moving; the player does not bleed.
+        if (MenuGuard.IsAnyMenuOpen)
+            return;
+
         // Mark combat engaged — enemy→Yoru half of "hit exchanged either way" per
         // GDD Doc 04 §4a. Registered as soon as the hit reaches Yoru's hitbox in
         // cat form, even if i-frames/parry/guard absorb the damage — the contact

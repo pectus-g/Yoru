@@ -35,6 +35,7 @@ public class MemoryParchmentUI : MonoBehaviour
         public TextMeshProUGUI statusText;
         public Button trackButton;
         public TextMeshProUGUI trackLabel;
+        public Image highlight;
     }
     #endregion
 
@@ -58,6 +59,20 @@ public class MemoryParchmentUI : MonoBehaviour
     [Tooltip("Soft gold glow behind the icon. Pulses while a new quest has not been looked at yet")]
     [SerializeField] private Image hudGlowImage;
 
+    [Header("Audio (assign your own clips)")]
+    [Tooltip("Wired by the builder. Plays the two clips below")]
+    [SerializeField] private AudioSource audioSource;
+
+    [Tooltip("Played every time the parchments open")]
+    [SerializeField] private AudioClip openSound;
+
+    [Tooltip("Played when the parchments open showing a freshly taken quest, layered with the entry shine")]
+    [SerializeField] private AudioClip newQuestSound;
+
+    [Header("New Quest Shine")]
+    [Tooltip("How long the new quest's entry frame shines before fading out")]
+    [SerializeField] private float shineDuration = 2.5f;
+
     [Header("Behaviour")]
     [Tooltip("Key that opens and closes the parchments. J per GDD Doc 04")]
     [SerializeField] private KeyCode toggleKey = KeyCode.J;
@@ -73,6 +88,10 @@ public class MemoryParchmentUI : MonoBehaviour
     private int pageIndex; // 0..3, tier = 4 - pageIndex
     private bool isOpen;
     private bool hasUnseenQuest;
+    private QuestData pendingNewQuest;   // the quest the parchment opens onto, with shine
+    private QuestData shineQuest;        // whose entry frame is currently shining
+    private Image shineHighlight;        // rebound every Refresh by FillQuestBlock
+    private float shineTimer;
     private CursorLockMode previousLockState;
     private bool previousCursorVisible;
 
@@ -107,8 +126,9 @@ public class MemoryParchmentUI : MonoBehaviour
 
     private void HandleQuestGiven(QuestData quest)
     {
-        // The icon glows until the player looks at the parchments.
+        // The icon glows until the player looks; the next open jumps to this quest.
         hasUnseenQuest = true;
+        pendingNewQuest = quest;
     }
 
     private void Update()
@@ -134,17 +154,56 @@ public class MemoryParchmentUI : MonoBehaviour
         if (hudIconRoot != null && hudIconRoot.activeSelf == isOpen)
             hudIconRoot.SetActive(!isOpen);
 
-        if (hudGlowImage == null) return;
-
-        float alpha = hasUnseenQuest
-            ? 0.4f + 0.3f * Mathf.Sin(Time.time * 3.5f)
-            : 0f;
-        Color c = hudGlowImage.color;
-        if (!Mathf.Approximately(c.a, alpha))
+        if (hudGlowImage != null)
         {
-            c.a = alpha;
-            hudGlowImage.color = c;
+            float alpha = hasUnseenQuest
+                ? 0.4f + 0.3f * Mathf.Sin(Time.time * 3.5f)
+                : 0f;
+            Color c = hudGlowImage.color;
+            if (!Mathf.Approximately(c.a, alpha))
+            {
+                c.a = alpha;
+                hudGlowImage.color = c;
+            }
         }
+
+        UpdateEntryShine();
+    }
+
+    /// <summary>
+    /// The freshly taken quest's entry frame shines, then fades over shineDuration.
+    /// FillQuestBlock rebinds shineHighlight every Refresh, so paging away and back
+    /// keeps the remaining shine on the right entry.
+    /// </summary>
+    private void UpdateEntryShine()
+    {
+        if (shineQuest == null) return;
+
+        shineTimer -= Time.deltaTime;
+        if (shineTimer <= 0f)
+        {
+            if (shineHighlight != null)
+                SetImageAlpha(shineHighlight, 0f);
+            shineQuest = null;
+            shineHighlight = null;
+            return;
+        }
+
+        if (shineHighlight != null)
+            SetImageAlpha(shineHighlight, 0.85f * (shineTimer / Mathf.Max(0.01f, shineDuration)));
+    }
+
+    private static void SetImageAlpha(Image image, float alpha)
+    {
+        Color c = image.color;
+        c.a = alpha;
+        image.color = c;
+    }
+
+    private void PlaySound(AudioClip clip)
+    {
+        if (audioSource != null && clip != null)
+            audioSource.PlayOneShot(clip);
     }
     #endregion
 
@@ -157,10 +216,22 @@ public class MemoryParchmentUI : MonoBehaviour
     {
         if (isOpen) return;
         if (panelRoot == null) return;
-        if (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueActive) return;
+        if (!MenuGuard.CanOpenMenu())
+        {
+            Debug.Log("[Parchment] Open blocked (combat, dialogue, or another menu).");
+            return;
+        }
 
         isOpen = true;
         hasUnseenQuest = false; // looked at: the icon stops glowing
+        MenuGuard.Register();   // freezes the player, grants menu damage immunity
+
+        // A freshly taken quest pulls the parchment straight to its page.
+        QuestData newQuest = pendingNewQuest;
+        pendingNewQuest = null;
+        if (newQuest != null)
+            pageIndex = Mathf.Clamp(4 - newQuest.tier, 0, 3);
+
         panelRoot.SetActive(true);
 
         previousLockState = Cursor.lockState;
@@ -168,7 +239,17 @@ public class MemoryParchmentUI : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
+        if (newQuest != null)
+        {
+            shineQuest = newQuest;
+            shineTimer = shineDuration;
+        }
+
         Refresh();
+
+        PlaySound(openSound);
+        if (newQuest != null)
+            PlaySound(newQuestSound);
     }
 
     /// <summary>
@@ -179,6 +260,7 @@ public class MemoryParchmentUI : MonoBehaviour
         if (!isOpen) return;
 
         isOpen = false;
+        MenuGuard.Unregister();
         if (panelRoot != null)
             panelRoot.SetActive(false);
 
@@ -247,6 +329,8 @@ public class MemoryParchmentUI : MonoBehaviour
         if (slot.root == null) return;
         slot.root.SetActive(true);
 
+        if (slot.highlight != null)
+            SetImageAlpha(slot.highlight, 0f);
         if (slot.nameText != null)
             slot.nameText.text = record.soulName;
         if (slot.strikeLine != null)
@@ -269,6 +353,8 @@ public class MemoryParchmentUI : MonoBehaviour
             : null;
 
         bool hasQuest = quest != null;
+        if (hasQuest && quest == shineQuest)
+            shineHighlight = slot.highlight;
         if (slot.questNameText != null)
         {
             slot.questNameText.gameObject.SetActive(hasQuest);
@@ -322,4 +408,77 @@ public class MemoryParchmentUI : MonoBehaviour
         slot.statusText.color = grim ? destroyedColor : peaceColor;
     }
     #endregion
+}
+
+/// <summary>
+/// The soft-pause for menus (Memory Parchments, Inventory, future screens), the way
+/// living-world action games handle it: the world keeps breathing (COZY weather, leaves,
+/// ambience all run), but the player is frozen and damage-immune while any menu is open,
+/// and menus refuse to open mid-combat or mid-dialogue.
+///
+/// Static on purpose: every menu calls CanOpenMenu before opening, Register on open,
+/// Unregister on close. Register freezes PlayerMovement (component disabled, sleep-intro
+/// pattern); attack input is gated inside PlayerCombat by IsAnyMenuOpen; PlayerHealth
+/// checks IsAnyMenuOpen as a damage gate. PlayerMovement.cs itself is untouched.
+/// </summary>
+public static class MenuGuard
+{
+    private static int openMenus;
+    private static PlayerMovement frozenMovement;
+
+    /// <summary>True while any registered menu is on screen. PlayerHealth and PlayerCombat gate on this.</summary>
+    public static bool IsAnyMenuOpen => openMenus > 0;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetForNewSession()
+    {
+        openMenus = 0;
+        frozenMovement = null;
+    }
+
+    /// <summary>
+    /// May a menu open right now? No while another menu is open, a conversation is on
+    /// screen, or an enemy is engaged with the player (same check as the transform lock).
+    /// </summary>
+    public static bool CanOpenMenu()
+    {
+        if (IsAnyMenuOpen) return false;
+        if (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueActive) return false;
+
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        PlayerCombat combat = player != null ? player.GetComponent<PlayerCombat>() : null;
+        if (combat != null && combat.IsEngagedInCombat()) return false;
+
+        return true;
+    }
+
+    /// <summary>Menu opened: freeze the player on the first open.</summary>
+    public static void Register()
+    {
+        openMenus++;
+        if (openMenus != 1) return;
+
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null) return;
+
+        PlayerMovement movement = player.GetComponent<PlayerMovement>();
+        if (movement != null && movement.enabled)
+        {
+            movement.enabled = false;
+            frozenMovement = movement;
+        }
+    }
+
+    /// <summary>Menu closed: unfreeze when the last one closes. Only restores what Register froze.</summary>
+    public static void Unregister()
+    {
+        openMenus = Mathf.Max(0, openMenus - 1);
+        if (openMenus != 0) return;
+
+        if (frozenMovement != null)
+        {
+            frozenMovement.enabled = true;
+            frozenMovement = null;
+        }
+    }
 }
