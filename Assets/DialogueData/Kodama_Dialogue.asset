@@ -12,28 +12,140 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38039b016c60f49ef856ef184eaeb59e, type: 3}
   m_Name: Kodama_Dialogue
   m_EditorClassIdentifier: Assembly-CSharp::DialogueData
-  enemyDisplayName: Kodama
-  initialDialogue: You came closer than the others. Most run before I turn my head.
-    A merchant last moon. A little girl two nights ago, no older than five, who called
-    for her grandmother as she fled. They scream when I turn. They call me a thing,
-    a haunting, a face that was not a face. So tell me, traveler. What do you see
-    standing here? A person? Or only what is missing?
-  options:
-  - choiceText: '[YOUR TREE IS REMEMBERED]'
-    responseText: Remembered. You say the word as if it is a small thing. It is not.
-      The woodcutters forgot the rope. The villagers forgot the prayers. I thought
-      the forest itself had forgotten. But you stopped in this clearing. You listened.
-      The echo can rest now. A sapling has grown three paces from the stump. I will
-      try to learn its voice.
-    isCorrect: 1
-  - choiceText: '[IT WAS JUST A TREE]'
-    responseText: Just. Just a tree. Just a thousand years of holding the rain. Just
-      every bird that nested in my branches and every child who once slept against
-      my bark. Go. Take your small words and go. The next storm that breaks a roof
-      in your village, listen for the echo. It will be mine.
-    isCorrect: 0
-  - choiceText: '[LEAVE]'
-    responseText: Yes. Walk back through the moss. The clearing always returns travelers
-      to where they came from. I will be here. I am always here. There is nowhere
-      else for what I am.
-    isCorrect: 0
+  dialogueId: kodama
+  soulName: Kodama
+  startBeatId: B1
+  beats:
+  - beatId: B1
+    soulLine: ...you can see me?
+    options:
+    - text: I can. Are you hurt?
+      branchType: 0
+      nextBeatId: B2
+      optionGoodbyeLine: 
+    - text: What are you doing here, spirit?
+      branchType: 1
+      nextBeatId: B1A
+      optionGoodbyeLine: 
+    - text: Leave this place.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: ...it was my place first. But yes. I will leave it too,
+        soon enough.
+    beatGoodbyeLine: Then look away. Everyone does, in the end.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B1A
+    soulLine: Doing...? I am not doing anything. I am only... left.
+    options:
+    - text: Then tell me what happened.
+      branchType: 0
+      nextBeatId: B2
+      optionGoodbyeLine: 
+    - text: Spirits should move on.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: Move on to where? My home was the moving-on place. Go.
+    beatGoodbyeLine: Left, and best left alone.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B2
+    soulLine: My tree... they took it. All of it. There was a seed... I saw it fall
+      into the water.
+    options:
+    - text: Where did the river carry it?
+      branchType: 0
+      nextBeatId: B3
+      optionGoodbyeLine: 
+    - text: I will find who cut it down.
+      branchType: 1
+      nextBeatId: B2A
+      optionGoodbyeLine: 
+    - text: Trees die. That is the way of things.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: The way of things. Yes. And I am the part that stays behind.
+        Leave me to it.
+    beatGoodbyeLine: The water took the last of it. The water can keep you too.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B2A
+    soulLine: No. No anger. Anger is how forests burn. Only the seed matters now.
+    options:
+    - text: Then the seed. Where did it fall?
+      branchType: 0
+      nextBeatId: B3
+      optionGoodbyeLine: 
+    - text: The ones who did this deserve worse.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: Then you and the axe are the same shape. Go away.
+    beatGoodbyeLine: Put the axe out of your mind, or leave.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B3
+    soulLine: Downstream... past the red stones where the herons stand. It is so
+      small. Smaller than hope.
+    options:
+    - text: Small things grow. I will find it.
+      branchType: 0
+      nextBeatId: B4
+      optionGoodbyeLine: 
+    - text: A single seed in a whole river? Impossible.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: ...yes. Impossible. That is what the herons said too.
+    beatGoodbyeLine: Forget it. The river forgets everything eventually.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B4
+    soulLine: Find it. Plant it where my tree stood... the bare earth still remembers
+      the roots. Then I can sleep.
+    options:
+    - text: Rest soon, little one. I will plant your forest.
+      branchType: 3
+      nextBeatId: 
+      optionGoodbyeLine: 
+    - text: And if the seed did not survive the water?
+      branchType: 1
+      nextBeatId: B4A
+      optionGoodbyeLine: 
+    - text: What do I gain from digging in the dirt?
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: ...nothing. You gain nothing. Forget me.
+    beatGoodbyeLine: Then I will wait for kinder hands.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  - beatId: B4A
+    soulLine: It survived. Seeds are patient... more patient than grief. Please.
+    options:
+    - text: Then I will bring it home.
+      branchType: 3
+      nextBeatId: 
+      optionGoodbyeLine: 
+    - text: You put too much faith in one seed.
+      branchType: 2
+      nextBeatId: 
+      optionGoodbyeLine: Faith is all a forest is, before it is a forest. Goodbye.
+    beatGoodbyeLine: If you cannot believe in a seed, you cannot help me.
+    soulAudioClip: {fileID: 0}
+    soulAnimationTrigger: 
+    cameraFramingId: 
+  soulDefaultGoodbye: ...the leaves are quieter than you. Goodbye.
+  cooldownSeconds: 10
+  endBehavior: 0
+  questToGive: {fileID: 11400000, guid: 8fbbc58440c4d45e987c38e6aa83d1d3, type: 2}
+  miniGameToTrigger: {fileID: 0}
+  mistakenIdentityLine: ...oh! You are not the cat-thing. Forgive me, I hid for nothing.
+    The shadows make monsters of everyone.
+  postQuestWaitingLine: Is it in the earth yet...? No. No, I would feel it. Go gently.
+    Seeds frighten easily.
+  postQuestLeaveText: Soon, little one.
+  postQuestAskAgainText: What was it you asked for?
