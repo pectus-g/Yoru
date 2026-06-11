@@ -47,6 +47,7 @@ public static class DialogueUIRestyler
     private static readonly Color TextColor = new Color(0.97f, 0.97f, 0.97f, 1f);
     private static readonly Color ButtonColor = new Color(0.03f, 0.03f, 0.045f, 0.22f);
     private static readonly Color LabelColor = new Color(0.93f, 0.93f, 0.93f, 1f);
+    private static readonly Color GlowColor = new Color(1f, 1f, 1f, 0.95f); // pure white light
 
     [MenuItem("YORU/Restyle Dialogue UI (Zelda Style)")]
     public static void Restyle()
@@ -152,13 +153,13 @@ public static class DialogueUIRestyler
             GameObject frameGO = NewRect("Frame", btnGO.transform, out RectTransform frameRt);
             frameRt.anchorMin = Vector2.zero;
             frameRt.anchorMax = Vector2.one;
-            frameRt.offsetMin = Vector2.zero;
-            frameRt.offsetMax = Vector2.zero;
+            frameRt.offsetMin = new Vector2(-15f, -15f); // room for the outward bloom
+            frameRt.offsetMax = new Vector2(15f, 15f);
             Image frameImg = frameGO.AddComponent<Image>();
             frameImg.sprite = frame;
             frameImg.type = Image.Type.Sliced;
             frameImg.pixelsPerUnitMultiplier = 1.3f;
-            frameImg.color = new Color(1f, 1f, 1f, 0.95f);
+            frameImg.color = GlowColor;
             frameImg.raycastTarget = false;
 
             Button button = btnGO.AddComponent<Button>();
@@ -363,28 +364,37 @@ public static class DialogueUIRestyler
         AssetDatabase.DeleteAsset(FramePath);
         EnsureFolder();
 
-        const int size = 128;
-        const float radius = 30f;
-        const float thickness = 1.0f;   // hairline core at full brightness
-        const float glowReach = 16f;    // wide soft halo, the neon bloom
-        const float glowStrength = 0.32f;
+        const int size = 160;
+        const float margin = 20f;        // texture border reserved for the outward bloom
+        const float radius = 30f;        // matches the glass pill's corner radius
+        const float thickness = 1.1f;    // hairline core at full brightness
+        const float outerReach = 13f;    // bloom outside the line: the fairy-light halo
+        const float outerStrength = 0.55f;
+        const float innerReach = 3f;     // whisper of bleed inside, for richness
+        const float innerStrength = 0.16f;
         Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
         Color32[] pixels = new Color32[size * size];
 
+        float halfW = size * 0.5f - margin; // rounded-rect half extents, inset by the bloom margin
         for (int yPix = 0; yPix < size; yPix++)
         {
             for (int xPix = 0; xPix < size; xPix++)
             {
-                float dx = Mathf.Max(Mathf.Abs(xPix + 0.5f - size * 0.5f) - (size * 0.5f - radius), 0f);
-                float dy = Mathf.Max(Mathf.Abs(yPix + 0.5f - size * 0.5f) - (size * 0.5f - radius), 0f);
-                float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                float edge = Mathf.Abs(dist - (radius - thickness));
+                // Signed distance to the rounded rect: negative inside, positive outside.
+                float qx = Mathf.Abs(xPix + 0.5f - size * 0.5f) - (halfW - radius);
+                float qy = Mathf.Abs(yPix + 0.5f - size * 0.5f) - (halfW - radius);
+                float outside = Mathf.Sqrt(Mathf.Max(qx, 0f) * Mathf.Max(qx, 0f) + Mathf.Max(qy, 0f) * Mathf.Max(qy, 0f));
+                float sd = outside + Mathf.Min(Mathf.Max(qx, qy), 0f) - radius;
 
-                float core = Mathf.Clamp01(thickness - edge + 0.5f);
-                float halo = Mathf.Clamp01(1f - edge / glowReach);
-                halo = halo * halo * glowStrength; // soft quadratic falloff
+                float core = Mathf.Clamp01(thickness - Mathf.Abs(sd) + 0.5f);
 
-                float a = Mathf.Clamp01(core + halo) * Mathf.Clamp01(radius - dist + 0.5f);
+                float outer = sd > 0f ? Mathf.Clamp01(1f - sd / outerReach) : 0f;
+                outer = outer * outer * outer * outerStrength; // cubic falloff, tight and chic
+
+                float inner = sd < 0f ? Mathf.Clamp01(1f + sd / innerReach) : 0f;
+                inner = inner * inner * innerStrength;
+
+                float a = Mathf.Clamp01(core + outer + inner);
                 pixels[yPix * size + xPix] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * 255f));
             }
         }
@@ -394,7 +404,7 @@ public static class DialogueUIRestyler
         File.WriteAllBytes(FramePath, tex.EncodeToPNG());
         Object.DestroyImmediate(tex);
 
-        ImportSprite(FramePath, new Vector4(36f, 36f, 36f, 36f));
+        ImportSprite(FramePath, new Vector4(56f, 56f, 56f, 56f)); // margin 20 + radius 30 + AA room
         return AssetDatabase.LoadAssetAtPath<Sprite>(FramePath);
     }
 

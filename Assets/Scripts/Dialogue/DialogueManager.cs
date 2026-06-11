@@ -56,6 +56,10 @@ public class DialogueManager : MonoBehaviour
     [Tooltip("Extra metres beyond the enemy's interactionRange before walking away cancels the conversation (no strike)")]
     [SerializeField] private float rangeCancelBuffer = 1.5f;
 
+    [Header("Continue Button")]
+    [Tooltip("Label of the single acknowledge button shown on hold-open lines (quest recap repeat, mistaken identity). The panel stays until it is pressed")]
+    [SerializeField] private string continueButtonText = "OK";
+
     [Header("Choice Hover (v2 styled buttons only)")]
     [Tooltip("Resting transparency of a choice button's glass fill")]
     [SerializeField] private float fillNormalAlpha = 0.22f;
@@ -102,6 +106,7 @@ public class DialogueManager : MonoBehaviour
     private InteractableEnemy currentEnemy;
     private Image[] choiceFills;
     private Image[] choiceFrames;
+    private System.Action pendingContinue;
     private DialogueBeat currentBeat;
     private bool isDialogueActive;
     private bool isRecapMode;
@@ -261,9 +266,8 @@ public class DialogueManager : MonoBehaviour
             currentBeat = null;
             speakerNameText.text = dialogue.soulName;
             dialogueText.text = dialogue.mistakenIdentityLine;
-            HideAllButtons();
             Debug.Log($"[Dialogue] Mistaken identity line for '{dialogue.dialogueId}'");
-            Invoke(nameof(OpenConversation), responseDisplayDuration);
+            ShowContinueButton(OpenConversation); // stays until pressed
         }
         else
         {
@@ -447,6 +451,16 @@ public class DialogueManager : MonoBehaviour
     {
         if (!isDialogueActive || currentDialogue == null || currentEnemy == null) return;
 
+        // Hold-open lines (recap repeat, mistaken identity): any shown button is the
+        // acknowledge button, and pressing it runs the stored continuation.
+        if (pendingContinue != null)
+        {
+            System.Action action = pendingContinue;
+            pendingContinue = null;
+            action();
+            return;
+        }
+
         if (isRecapMode)
         {
             HandleRecapChoice(index);
@@ -571,9 +585,8 @@ public class DialogueManager : MonoBehaviour
                 ? currentDialogue.questToGive.description
                 : "...";
 
-            HideAllButtons();
             dialogueText.text = recap;
-            Invoke(nameof(EndConversationNoStrike), responseDisplayDuration);
+            ShowContinueButton(EndConversationNoStrike); // stays until pressed
         }
     }
     #endregion
@@ -615,6 +628,25 @@ public class DialogueManager : MonoBehaviour
             combat.SetState(EnemyCombat.EnemyState.LostSoul);
     }
 
+    /// <summary>
+    /// Show only the first button as a single acknowledge button. The panel holds until
+    /// it is pressed, then the given continuation runs (open the conversation, close, etc).
+    /// </summary>
+    private void ShowContinueButton(System.Action onContinue)
+    {
+        pendingContinue = onContinue;
+        ResetChoiceVisuals();
+        for (int i = 0; i < choiceButtons.Count; i++)
+        {
+            if (choiceButtons[i] == null) continue;
+            bool used = i == 0;
+            choiceButtons[i].gameObject.SetActive(used);
+            choiceButtons[i].interactable = used;
+        }
+        if (choiceTexts.Count > 0 && choiceTexts[0] != null)
+            choiceTexts[0].text = continueButtonText;
+    }
+
     private void HideAllButtons()
     {
         for (int i = 0; i < choiceButtons.Count; i++)
@@ -630,6 +662,7 @@ public class DialogueManager : MonoBehaviour
         isDialogueActive = false;
         isRecapMode = false;
         currentBeat = null;
+        pendingContinue = null;
 
         // Re-enable buttons for the next dialogue (visibility is managed per-show).
         for (int i = 0; i < choiceButtons.Count; i++)
