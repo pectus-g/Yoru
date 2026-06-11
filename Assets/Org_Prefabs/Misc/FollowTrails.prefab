@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8449754498753509354}
+  - component: {fileID: 6124300029667007142}
   m_Layer: 10
   m_Name: P01
   m_TagString: Untagged
@@ -25,12 +26,26 @@ Transform:
   m_GameObject: {fileID: 3673495652202461461}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.23410188, y: 0, z: 113.999954}
+  m_LocalPosition: {x: 1.9400024, y: -0.80000305, z: 111}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5546869278624419545}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6124300029667007142
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3673495652202461461}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 225fef8eaddda4913b60436db7671933, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GlowTrailRing
+  order: 10
+  size: 1
 --- !u!1 &4598102258040401484
 GameObject:
   m_ObjectHideFlags: 0
@@ -64,6 +79,7 @@ Transform:
   - {fileID: 8449754498753509354}
   - {fileID: 5578412078634055450}
   - {fileID: 7311714483522995655}
+  - {fileID: 5542773800716084921}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2706449096601644782
@@ -82,6 +98,7 @@ MonoBehaviour:
   stepId: S1
   pointEffectPrefab: {fileID: 113850, guid: 11943dcb81a97804fbd4b58ce063f22b, type: 3}
   arrivalEffectPrefab: {fileID: 164298, guid: 6da08197388d2854cbd29c147b0c7fa4, type: 3}
+  ringRotation: {x: 0, y: 90, z: 0}
   passSound: {fileID: 8300000, guid: 9183d8042e89046efb4e0081dcdec4c9, type: 3}
   arrivalPassSound: {fileID: 8300000, guid: 1e27eded4a90c4a5ea47b4e7c5f38fe1, type: 3}
   passSoundVolume: 0.9
@@ -89,8 +106,6 @@ MonoBehaviour:
   arrivalPassEffectPrefab: {fileID: 115120, guid: f00b7ce74a405d547ad157c971a52fb9, type: 3}
   triggerRadius: 1.5
   triggerHeight: 3
-  sequentialReveal: 1
-  revealAhead: 1
   pointSize: 0.9
   arrivalSizeMultiplier: 2.2
   glowColor: {r: 1, g: 0.82, b: 0.45, a: 0.55}
@@ -105,6 +120,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5578412078634055450}
+  - component: {fileID: 1006805925866270793}
   m_Layer: 10
   m_Name: P02
   m_TagString: Untagged
@@ -121,12 +137,72 @@ Transform:
   m_GameObject: {fileID: 5507786181048778320}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.23410188, y: 0, z: 41.999954}
+  m_LocalPosition: {x: 0, y: 6.199997, z: 74}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5546869278624419545}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1006805925866270793
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5507786181048778320}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 225fef8eaddda4913b60436db7671933, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GlowTrailRing
+  order: 20
+  size: 1
+--- !u!1 &6649715108138990928
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5542773800716084921}
+  - component: {fileID: 4473190543283362614}
+  m_Layer: 10
+  m_Name: P04
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5542773800716084921
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6649715108138990928}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5546869278624419545}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4473190543283362614
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6649715108138990928}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 225fef8eaddda4913b60436db7671933, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GlowTrailRing
+  order: 40
+  size: 1
 --- !u!1 &7302215895232432494
 GameObject:
   m_ObjectHideFlags: 0
@@ -136,6 +212,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7311714483522995655}
+  - component: {fileID: 8849868549307472664}
   m_Layer: 10
   m_Name: P03
   m_TagString: Untagged
@@ -152,9 +229,23 @@ Transform:
   m_GameObject: {fileID: 7302215895232432494}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.23410188, y: 0.06666666, z: 19.999954}
+  m_LocalPosition: {x: 0, y: 0, z: 51}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5546869278624419545}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8849868549307472664
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7302215895232432494}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 225fef8eaddda4913b60436db7671933, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GlowTrailRing
+  order: 30
+  size: 1
