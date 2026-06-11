@@ -3,16 +3,19 @@ using UnityEngine;
 
 /// <summary>
 /// Tomoe-only quest wayfinding: a hand-placed chain of glowing rings the player passes
-/// through one by one, like flying through rings.
+/// through one by one, like flying through rings. Reusable for any quest: add a GlowTrail
+/// object per quest, set questId/stepId, add as many P point children as the route needs.
 ///
 /// Setup: create an empty GameObject, add this component, set questId (and stepId when
 /// the trail belongs to one step), then add empty children along the route (P01, P02...).
-/// The LAST child is the arrival ring.
+/// Any number of children works; the LAST child is always the arrival ring.
 ///
-/// Per-ring control, live, from the inspector, all via the P point children:
+/// Per-ring control, live, from the inspector, via the P point children:
 ///   MOVE a ring   = move its P point.
 ///   RESIZE a ring = scale its P point (uniform; the X value is used as the multiplier).
-///   ROTATE a ring = rotate its P point (e.g. X = 90 to stand a flat ring upright).
+/// P point ROTATION is ignored. All rings use the Ring Rotation field below, applied
+/// from code LIVE every frame (default 90 on X stands flat effects upright), so tweaks
+/// show instantly, including during Play.
 /// Never edit the runtime "<name>_Effects" container at the scene root; it is rebuilt
 /// every Play. The P points are the only editing surface.
 ///
@@ -46,6 +49,9 @@ public class GlowTrail : MonoBehaviour
 
     [Tooltip("A different effect for the FINAL point only, the you-have-arrived marker. Empty = the point effect scaled up by the arrival multiplier")]
     [SerializeField] private GameObject arrivalEffectPrefab;
+
+    [Tooltip("Rotation in degrees applied to EVERY ring from code, LIVE (changes show instantly, even in Play). Default (90,0,0) stands a flat effect upright. P point rotation is ignored")]
+    [SerializeField] private Vector3 ringRotation = new Vector3(90f, 0f, 0f);
 
     [Header("Pass Through (walk through a ring: sound plays, burst spawns, ring disappears)")]
     [Tooltip("Played at the ring's position when the player passes through it")]
@@ -98,13 +104,13 @@ public class GlowTrail : MonoBehaviour
     /// <summary>One ring along the route.</summary>
     private class TrailPoint
     {
-        public Transform anchor;        // the P-point child; position + rotation + scale read live every frame
-        public GameObject instance;     // the spawned visual (prefab instance or placeholder quad)
-        public Transform quad;          // placeholder mode only, for billboard + pulse
-        public Vector3 baseScale;       // authored prefab scale (incl. arrival multiplier), prefab mode
-        public Quaternion baseRotation; // authored prefab rotation, combined with the anchor's
+        public Transform anchor;          // the P-point child; position + scale read live every frame
+        public GameObject instance;       // the spawned visual (prefab instance or placeholder quad)
+        public Transform quad;            // placeholder mode only, for billboard + pulse
+        public Vector3 baseScale;         // authored prefab scale (incl. arrival multiplier), prefab mode
+        public Quaternion prefabRotation; // authored prefab rotation, combined live with ringRotation
         public bool isArrival;
-        public bool consumed;           // player passed through it, gone for the session
+        public bool consumed;             // player passed through it, gone for the session
     }
 
     private readonly List<TrailPoint> points = new List<TrailPoint>();
@@ -180,8 +186,8 @@ public class GlowTrail : MonoBehaviour
     #region Build
     /// <summary>
     /// One visual per child point, spawned into a clean scale-1 scene-root container.
-    /// Point transforms mark position, rotation, and per-ring size; their hierarchy
-    /// never touches the effects.
+    /// Point transforms mark position and per-ring size; rotation comes from ringRotation
+    /// in code; the scene hierarchy never touches the effects.
     /// </summary>
     private void BuildPoints()
     {
@@ -205,11 +211,11 @@ public class GlowTrail : MonoBehaviour
                     ? arrivalEffectPrefab
                     : pointEffectPrefab;
 
-                trailPoint.baseRotation = prefab.transform.rotation;
+                trailPoint.prefabRotation = prefab.transform.rotation;
 
                 Vector3 spawnPosition = anchor.position + Vector3.up * groundOffset;
                 GameObject instance = Instantiate(
-                    prefab, spawnPosition, anchor.rotation * trailPoint.baseRotation, effectsRoot);
+                    prefab, spawnPosition, Quaternion.Euler(ringRotation) * trailPoint.prefabRotation, effectsRoot);
 
                 float sizeMultiplier = isArrival && arrivalEffectPrefab == null ? arrivalSizeMultiplier : 1f;
                 trailPoint.baseScale = prefab.transform.localScale * sizeMultiplier;
@@ -291,12 +297,14 @@ public class GlowTrail : MonoBehaviour
 
     #region Reveal + Pass Through
     /// <summary>
-    /// Keeps each ring glued to its P point (position + rotation + per-ring size, live)
-    /// and applies the sequential reveal window: the first unpassed ring plus revealAhead
-    /// more.
+    /// Keeps each ring glued to its P point (position + per-ring size) and re-applies
+    /// ringRotation, all live every frame, then applies the sequential reveal window:
+    /// the first unpassed ring plus revealAhead more.
     /// </summary>
     private void SyncAndReveal()
     {
+        Quaternion codeRotation = Quaternion.Euler(ringRotation);
+
         int firstUnconsumed = -1;
         for (int i = 0; i < points.Count; i++)
         {
@@ -320,7 +328,7 @@ public class GlowTrail : MonoBehaviour
             {
                 point.instance.transform.SetPositionAndRotation(
                     point.anchor.position + Vector3.up * groundOffset,
-                    point.anchor.rotation * point.baseRotation);
+                    codeRotation * point.prefabRotation);
                 point.instance.transform.localScale = point.baseScale * AnchorScale(point.anchor);
             }
             else
@@ -376,7 +384,7 @@ public class GlowTrail : MonoBehaviour
             GameObject burst = Instantiate(
                 burstPrefab,
                 point.anchor.position + Vector3.up * groundOffset,
-                point.anchor.rotation * burstPrefab.transform.rotation,
+                burstPrefab.transform.rotation,
                 effectsRoot);
             burst.transform.localScale = burstPrefab.transform.localScale;
             Destroy(burst, passBurstLifetime);
