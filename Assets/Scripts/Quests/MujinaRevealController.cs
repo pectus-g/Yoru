@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -19,11 +20,14 @@ using UnityEngine;
 ///
 /// Setup:
 ///   - This GameObject: trigger Collider sized to the cave mouth.
-///   - caveMujina: the ACTIVE mujina enemy standing in the cave. InteractableEnemy
-///     dialogueData = MujinaReveal_Dialogue, interactionRange large (25+) so moving
-///     around the cave does not range-cancel the reveal.
+///   - caveMujina: the mujina enemy placed in the cave (full enemy prefab).
+///     InteractableEnemy dialogueData = MujinaReveal_Dialogue, interactionRange large
+///     (25+) so moving around the cave does not range-cancel the reveal. Leave her
+///     active in the editor; the quest gate hides her at Play start until the quest
+///     is taken, so wanderers find an empty cave.
 ///   - roadsideSoul: the original Nopperabo_prefab instance on the road.
-/// Cave loot is hand-placed by Hazel; this script never spawns items.
+///   - questRevealedObjects: the hand-placed cave loot (and any props) that should
+///     also only exist while the quest does.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class MujinaRevealController : MonoBehaviour
@@ -42,6 +46,10 @@ public class MujinaRevealController : MonoBehaviour
 
     [Tooltip("The original roadside Nopperabo spawn. Stays in the world after the reveal (the player just knows her now); despawned only if the mujina is killed")]
     [SerializeField] private GameObject roadsideSoul;
+
+    [Header("Quest-Gated Cave Contents")]
+    [Tooltip("Loot and props that exist ONLY while the quest does. Hidden at Play start, revealed the moment the quest is taken. The cave mujina is gated automatically, do not add her here. Wanderers without the quest find an empty cave")]
+    [SerializeField] private List<GameObject> questRevealedObjects = new List<GameObject>();
     #endregion
 
     #region State
@@ -85,6 +93,13 @@ public class MujinaRevealController : MonoBehaviour
         // Yoru path: combat as always; her death also resolves the quest.
         if (caveMujinaHealth != null)
             caveMujinaHealth.OnDied += HandleCaveMujinaDied;
+
+        // The cave starts empty for players without the quest. Everything appears the
+        // moment the quest is taken. Objects can stay active in the editor; this hides
+        // them at Play start when needed.
+        ApplyQuestGate();
+        if (QuestManager.Instance != null)
+            QuestManager.Instance.OnQuestsChanged += ApplyQuestGate;
     }
 
     private void OnDestroy()
@@ -92,6 +107,34 @@ public class MujinaRevealController : MonoBehaviour
         DialogueManager.OnFinalSuccess -= HandleFinalSuccess;
         if (caveMujinaHealth != null)
             caveMujinaHealth.OnDied -= HandleCaveMujinaDied;
+        if (QuestManager.Instance != null)
+            QuestManager.Instance.OnQuestsChanged -= ApplyQuestGate;
+    }
+
+    /// <summary>
+    /// Show or hide the cave's contents based on quest state: hidden while the quest is
+    /// untaken, revealed once taken. Stops applying after resolution so the despawn
+    /// rules in Resolve are never overridden (loot stays as-is for collection).
+    /// </summary>
+    private void ApplyQuestGate()
+    {
+        if (resolved) return;
+        if (quest == null) return;
+
+        QuestManager.QuestState state = QuestManager.Instance != null
+            ? QuestManager.Instance.GetState(quest.questId)
+            : QuestManager.QuestState.NotStarted;
+        bool revealed = state != QuestManager.QuestState.NotStarted;
+
+        if (caveMujina != null && caveMujina.activeSelf != revealed)
+            caveMujina.SetActive(revealed);
+
+        for (int i = 0; i < questRevealedObjects.Count; i++)
+        {
+            GameObject go = questRevealedObjects[i];
+            if (go != null && go.activeSelf != revealed)
+                go.SetActive(revealed);
+        }
     }
 
     private void OnTriggerEnter(Collider other)

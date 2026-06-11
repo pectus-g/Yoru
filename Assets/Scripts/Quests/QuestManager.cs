@@ -64,6 +64,9 @@ public class QuestManager : MonoBehaviour
     /// <summary>Fired whenever any quest is given, advances, or completes. UI refresh hook.</summary>
     public event System.Action OnQuestsChanged;
 
+    /// <summary>Fired once when a quest is handed to the player. The parchment HUD icon glows on this.</summary>
+    public event System.Action<QuestData> OnQuestGiven;
+
     /// <summary>Fired when the tracked quest changes. Glow trails listen via polling, UI via this.</summary>
     public event System.Action OnTrackedQuestChanged;
     #endregion
@@ -109,6 +112,8 @@ public class QuestManager : MonoBehaviour
         QuestEntry entry = new QuestEntry { data = data, stepIndex = 0, state = QuestState.Active };
         quests[data.questId] = entry;
         Debug.Log($"[Quest] Given: {data.displayName} ({data.questId}), {data.steps.Count} step(s)");
+
+        OnQuestGiven?.Invoke(data);
 
         EvaluateCurrentStep(entry);
 
@@ -322,17 +327,27 @@ public class QuestManager : MonoBehaviour
     /// </summary>
     public bool IsTrailVisible(string questId, string stepId)
     {
-        if (questId != trackedQuestId) return false;
-        if (!quests.TryGetValue(questId, out QuestEntry entry)) return false;
+        if (!SameId(questId, trackedQuestId)) return false;
+        if (!quests.TryGetValue(trackedQuestId, out QuestEntry entry)) return false;
         if (entry.state == QuestState.Completed) return false;
         if (string.IsNullOrEmpty(stepId)) return true;
 
         QuestStep step = entry.data.GetStep(entry.stepIndex);
-        if (step != null) return step.stepId == stepId;
+        if (step != null) return SameId(step.stepId, stepId);
 
         // Steps exhausted, WORLD_EVENT pending: keep the last step's trail lit.
         QuestStep last = entry.data.GetStep(entry.data.steps.Count - 1);
-        return last != null && last.stepId == stepId;
+        return last != null && SameId(last.stepId, stepId);
+    }
+
+    /// <summary>
+    /// Forgiving id comparison for inspector-typed fields: trims whitespace, ignores
+    /// case, so "S1 " still matches "s1". Empty never matches.
+    /// </summary>
+    private static bool SameId(string a, string b)
+    {
+        if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+        return string.Equals(a.Trim(), b.Trim(), System.StringComparison.OrdinalIgnoreCase);
     }
     #endregion
 

@@ -51,6 +51,13 @@ public class MemoryParchmentUI : MonoBehaviour
     [Tooltip("Optional per-tier parchment art, index 0 = Tier 1 ... index 3 = Tier 4. Empty entries keep the default sprite")]
     [SerializeField] private List<Sprite> tierParchmentSprites = new List<Sprite>();
 
+    [Header("HUD Icon (Wired By Builder)")]
+    [Tooltip("The small parchment icon pinned bottom-left. Hidden while the parchments are open")]
+    [SerializeField] private GameObject hudIconRoot;
+
+    [Tooltip("Soft gold glow behind the icon. Pulses while a new quest has not been looked at yet")]
+    [SerializeField] private Image hudGlowImage;
+
     [Header("Behaviour")]
     [Tooltip("Key that opens and closes the parchments. J per GDD Doc 04")]
     [SerializeField] private KeyCode toggleKey = KeyCode.J;
@@ -65,6 +72,7 @@ public class MemoryParchmentUI : MonoBehaviour
     #region State
     private int pageIndex; // 0..3, tier = 4 - pageIndex
     private bool isOpen;
+    private bool hasUnseenQuest;
     private CursorLockMode previousLockState;
     private bool previousCursorVisible;
 
@@ -79,14 +87,28 @@ public class MemoryParchmentUI : MonoBehaviour
 
         SoulJournal.OnJournalChanged += RefreshIfOpen;
         if (QuestManager.Instance != null)
+        {
             QuestManager.Instance.OnQuestsChanged += RefreshIfOpen;
+            QuestManager.Instance.OnQuestGiven += HandleQuestGiven;
+        }
+
+        UpdateHudGlow();
     }
 
     private void OnDestroy()
     {
         SoulJournal.OnJournalChanged -= RefreshIfOpen;
         if (QuestManager.Instance != null)
+        {
             QuestManager.Instance.OnQuestsChanged -= RefreshIfOpen;
+            QuestManager.Instance.OnQuestGiven -= HandleQuestGiven;
+        }
+    }
+
+    private void HandleQuestGiven(QuestData quest)
+    {
+        // The icon glows until the player looks at the parchments.
+        hasUnseenQuest = true;
     }
 
     private void Update()
@@ -99,6 +121,30 @@ public class MemoryParchmentUI : MonoBehaviour
 
         if (isOpen && Input.GetKeyDown(KeyCode.Escape))
             Close();
+
+        UpdateHudGlow();
+    }
+
+    /// <summary>
+    /// The bottom-left parchment icon: hidden while the parchments are open, and its
+    /// glow breathes gold while a quest is waiting to be looked at.
+    /// </summary>
+    private void UpdateHudGlow()
+    {
+        if (hudIconRoot != null && hudIconRoot.activeSelf == isOpen)
+            hudIconRoot.SetActive(!isOpen);
+
+        if (hudGlowImage == null) return;
+
+        float alpha = hasUnseenQuest
+            ? 0.4f + 0.3f * Mathf.Sin(Time.time * 3.5f)
+            : 0f;
+        Color c = hudGlowImage.color;
+        if (!Mathf.Approximately(c.a, alpha))
+        {
+            c.a = alpha;
+            hudGlowImage.color = c;
+        }
     }
     #endregion
 
@@ -114,6 +160,7 @@ public class MemoryParchmentUI : MonoBehaviour
         if (DialogueManager.Instance != null && DialogueManager.Instance.IsDialogueActive) return;
 
         isOpen = true;
+        hasUnseenQuest = false; // looked at: the icon stops glowing
         panelRoot.SetActive(true);
 
         previousLockState = Cursor.lockState;

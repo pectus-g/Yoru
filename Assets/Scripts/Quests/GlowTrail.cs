@@ -171,6 +171,7 @@ public class GlowTrail : MonoBehaviour
     private void SetVisible(bool visible)
     {
         currentlyVisible = visible;
+        Debug.Log($"[GlowTrail] {name}: {(visible ? "ON (quest tracked, step current, Tomoe form)" : "off")}");
         for (int i = 0; i < glowRenderers.Count; i++)
         {
             if (glowRenderers[i] != null)

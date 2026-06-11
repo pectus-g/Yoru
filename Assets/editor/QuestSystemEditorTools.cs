@@ -98,6 +98,31 @@ public static class QuestSystemEditorTools
         UnityEditor.Events.UnityEventTools.AddIntPersistentListener(prev.onClick, ui.ChangePage, -1);
         UnityEditor.Events.UnityEventTools.AddIntPersistentListener(next.onClick, ui.ChangePage, 1);
 
+        // ---------- HUD icon (bottom-left, OUTSIDE the panel so it shows during play) ----------
+        GameObject hudRoot = NewRect("QuestHudIcon", canvasGo.transform, out RectTransform hudRt);
+        Place(hudRt, new Vector2(0f, 0f), new Vector2(28f, 28f), new Vector2(78f, 98f));
+
+        GameObject glowGo = NewRect("Glow", hudRoot.transform, out RectTransform glowRt);
+        glowRt.anchorMin = glowRt.anchorMax = new Vector2(0.5f, 0.5f);
+        glowRt.anchoredPosition = Vector2.zero;
+        glowRt.sizeDelta = new Vector2(170f, 190f);
+        Image glowImage = glowGo.AddComponent<Image>();
+        glowImage.sprite = EnsureGlowSprite();
+        glowImage.color = new Color(1f, 0.82f, 0.4f, 0f); // alpha driven at runtime
+        glowImage.raycastTarget = false;
+
+        GameObject iconGo = NewRect("Icon", hudRoot.transform, out RectTransform iconRt);
+        Stretch(iconRt);
+        Image iconImage = iconGo.AddComponent<Image>();
+        iconImage.sprite = parchmentImage.sprite; // same art as the big parchment
+        iconImage.preserveAspect = true;
+        Button iconButton = iconGo.AddComponent<Button>();
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(iconButton.onClick, ui.Open);
+
+        TextMeshProUGUI iconHint = NewText("KeyHint", hudRoot.transform, "J",
+            18f, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.98f, 0.95f, 0.88f, 0.9f));
+        Place(iconHint.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, -22f), new Vector2(40f, 22f));
+
         // ---------- Close hint ----------
         TextMeshProUGUI hint = NewText("CloseHint", panel.transform, "J / Esc to close",
             16f, FontStyles.Normal, TextAlignmentOptions.Center, new Color(0.85f, 0.85f, 0.85f, 0.7f));
@@ -127,6 +152,9 @@ public static class QuestSystemEditorTools
             s.FindPropertyRelative("trackButton").objectReferenceValue = slots[i].trackButton;
             s.FindPropertyRelative("trackLabel").objectReferenceValue = slots[i].trackLabel;
         }
+
+        so.FindProperty("hudIconRoot").objectReferenceValue = hudRoot;
+        so.FindProperty("hudGlowImage").objectReferenceValue = glowImage;
 
         SerializedProperty artProp = so.FindProperty("tierParchmentSprites");
         artProp.arraySize = 4;
@@ -316,6 +344,51 @@ public static class QuestSystemEditorTools
         importer.SaveAndReimport();
 
         Debug.Log($"[ParchmentBuilder] Placeholder parchment generated at {path}.");
+        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+    }
+
+    /// <summary>
+    /// Soft radial gold glow sprite for the HUD icon's new-quest pulse. Generated once
+    /// into the art folder, same pattern as the parchment placeholder.
+    /// </summary>
+    private static Sprite EnsureGlowSprite()
+    {
+        string path = $"{ArtFolder}/YORU_QuestGlow.png";
+        Sprite existing = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (existing != null) return existing;
+
+        EnsureFolder(ArtFolder);
+
+        const int size = 256;
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        Color32[] pixels = new Color32[size * size];
+        Vector2 centre = new Vector2(size * 0.5f, size * 0.5f);
+        float maxDist = size * 0.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x, y), centre) / maxDist;
+                float a = Mathf.Clamp01(1f - d);
+                a = a * a * (3f - 2f * a); // smoothstep
+                a *= a;
+                pixels[y * size + x] = new Color(1f, 0.88f, 0.55f, a);
+            }
+        }
+        tex.SetPixels32(pixels);
+        tex.Apply();
+
+        System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+        Object.DestroyImmediate(tex);
+        AssetDatabase.ImportAsset(path);
+
+        TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(path);
+        importer.textureType = TextureImporterType.Sprite;
+        importer.spriteImportMode = SpriteImportMode.Single;
+        importer.mipmapEnabled = false;
+        importer.SaveAndReimport();
+
         return AssetDatabase.LoadAssetAtPath<Sprite>(path);
     }
 
