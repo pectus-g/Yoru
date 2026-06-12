@@ -22,8 +22,8 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     [SerializeField] private Color hoverSlotColor = new Color(0.4f, 0.4f, 0.5f, 1f);
 
     [Header("Quest Item Frame")]
-    [Tooltip("Frame color for quest items; the FRAME pulses a glow between this and a brighter version (the icon itself is untouched)")]
-    [SerializeField] private Color questSlotColor = new Color(0.82f, 0.66f, 0.28f, 0.9f);
+    [Tooltip("Color of the glowing FRAME around quest item slots. The slot background itself stays normal; only the frame glows")]
+    [SerializeField] private Color questSlotColor = new Color(1f, 0.84f, 0.35f, 1f);
     [Tooltip("Glow pulse cycles per second-ish. Unscaled time: the bag pauses the game")]
     [SerializeField] private float questGlowSpeed = 2.2f;
     
@@ -36,6 +36,7 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     private Transform originalParent;
     private bool isHovering = false;
     private bool isQuestItem = false;
+    private Outline questFrame; // the glowing frame, built in Awake
     
     private void Awake()
     {
@@ -46,17 +47,30 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
         }
         rectTransform = GetComponent<RectTransform>();
+
+        // The quest frame: a glowing outline AROUND the slot. The slot background
+        // keeps its normal color; only the frame glows (the spec, literally).
+        if (slotBackground != null)
+        {
+            questFrame = slotBackground.gameObject.GetComponent<Outline>();
+            if (questFrame == null)
+                questFrame = slotBackground.gameObject.AddComponent<Outline>();
+            questFrame.effectDistance = new Vector2(3f, -3f);
+            questFrame.useGraphicAlpha = false;
+            questFrame.enabled = false;
+        }
     }
 
     private void Update()
     {
-        // Quest items: the FRAME glows, pulsing between the quest color and a brighter
-        // version. Unscaled time because the bag runs at timeScale 0.
-        if (!isQuestItem || isHovering || inventorySlot == null || inventorySlot.IsEmpty()) return;
+        // Quest items: the FRAME pulses between faint and full glow.
+        // Unscaled time because the bag runs at timeScale 0.
+        if (!isQuestItem || questFrame == null || inventorySlot == null || inventorySlot.IsEmpty()) return;
 
         float pulse = (Mathf.Sin(Time.unscaledTime * questGlowSpeed) + 1f) * 0.5f;
-        Color bright = Color.Lerp(questSlotColor, Color.white, 0.45f);
-        slotBackground.color = Color.Lerp(questSlotColor, bright, pulse);
+        Color frame = questSlotColor;
+        frame.a = Mathf.Lerp(0.35f, 1f, pulse);
+        questFrame.effectColor = frame;
     }
     
     /// <summary>
@@ -90,7 +104,8 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         }
         else
         {
-            // Filled slot
+            // Filled slot. Quest items keep the NORMAL background; their glowing
+            // frame (questFrame) is what marks them.
             isQuestItem = inventorySlot.item.category == ItemCategory.Quest;
             itemIcon.enabled = true;
             itemIcon.sprite = inventorySlot.item.icon;
@@ -98,8 +113,11 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
             // Show quantity only if more than 1
             quantityText.text = inventorySlot.quantity > 1 ? inventorySlot.quantity.ToString() : "";
             
-            slotBackground.color = isHovering ? hoverSlotColor : (isQuestItem ? questSlotColor : filledSlotColor);
+            slotBackground.color = isHovering ? hoverSlotColor : filledSlotColor;
         }
+
+        if (questFrame != null)
+            questFrame.enabled = isQuestItem && inventorySlot != null && !inventorySlot.IsEmpty();
     }
     
     #region Hover Events (for Preview Panel)
