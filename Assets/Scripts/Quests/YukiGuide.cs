@@ -80,6 +80,7 @@ public class YukiGuide : MonoBehaviour
     private FormController formController;
     private Transform player;
     private GlowTrail[] trails;
+    private Renderer[] renderers;
     private bool reachedHopPoint;
 
     private static readonly int HashIsRunning = Animator.StringToHash("IsRunning");
@@ -101,7 +102,31 @@ public class YukiGuide : MonoBehaviour
         if (animator == null) animator = GetComponent<Animator>();
         if (ghostEffect == null) ghostEffect = GetComponent<GhostEffect3D>();
         if (navMeshAgent == null) navMeshAgent = GetComponent<NavMeshAgent>();
+
+        // The prefab ships without a speaker: build one. 3D so her giggle comes from
+        // WHERE she is; the laugh is the breadcrumb the player follows through trees.
         if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 1f;
+            audioSource.minDistance = 2f;
+            audioSource.maxDistance = 35f;
+        }
+
+        // Hiding is handled HERE, not by GhostEffect3D alone: the prefab's effect only
+        // fades the renderers in its list and misses the skinned body, which left her
+        // standing visible. Renderers off = truly gone, whatever the model is made of.
+        renderers = GetComponentsInChildren<Renderer>(true);
+
+        // She is a spirit: nothing should ever stand on her. The prefab root carries a
+        // solid capsule that turned hidden Yuki into an invisible platform (the
+        // walking-on-air bug). Colliders stay off permanently; the NavMeshAgent does
+        // not need them to move.
+        Collider[] solids = GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < solids.Length; i++)
+            solids[i].enabled = false;
     }
 
     private void Start()
@@ -114,6 +139,11 @@ public class YukiGuide : MonoBehaviour
 
         // Trails are placed in the editor, never spawned at runtime: cache once.
         trails = FindObjectsOfType<GlowTrail>(true);
+
+        // Guard against the easy inspector mistake of assigning the particle PREFAB
+        // (an asset cannot play in the scene): fall back to her own child sparkles.
+        if (fairyParticles == null || !fairyParticles.gameObject.scene.IsValid())
+            fairyParticles = GetComponentInChildren<ParticleSystem>(true);
 
         if (fairyParticles != null) fairyParticles.Stop();
         HideImmediate();
@@ -195,6 +225,7 @@ public class YukiGuide : MonoBehaviour
         navMeshAgent.isStopped = true;
 
         FacePlayer();
+        SetRenderersVisible(true);
 
         if (ghostEffect != null)
         {
@@ -246,11 +277,26 @@ public class YukiGuide : MonoBehaviour
     /// <summary>Instantly to the hidden resting state, ready for the next call.</summary>
     private void HideImmediate()
     {
+        SetRenderersVisible(false);
         if (ghostEffect != null) ghostEffect.SetAlphaImmediate(0f);
         if (fairyParticles != null) fairyParticles.Stop();
         if (navMeshAgent != null) navMeshAgent.enabled = false;
         SetAnimation(running: false, alert: false, lookAround: false);
         state = GuideState.Hidden;
+    }
+
+    /// <summary>
+    /// The real hide switch. GhostEffect3D only fades the renderers it knows about and
+    /// misses the skinned body, so visibility is enforced at the renderer level.
+    /// </summary>
+    private void SetRenderersVisible(bool visible)
+    {
+        if (renderers == null) return;
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null)
+                renderers[i].enabled = visible;
+        }
     }
     #endregion
 

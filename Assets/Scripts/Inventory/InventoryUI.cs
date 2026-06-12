@@ -83,6 +83,8 @@ public class InventoryUI : MonoBehaviour
         
         if (itemsTabButton != null) itemsTabButton.onClick.AddListener(() => SwitchPage(ItemCategory.Items));
         if (questTabButton != null) questTabButton.onClick.AddListener(() => SwitchPage(ItemCategory.Quest));
+        SetTabLabel(itemsTabButton, "Items");
+        SetTabLabel(questTabButton, "Quest");
 
         if (InventoryManager.Instance != null)
         {
@@ -305,6 +307,16 @@ public class InventoryUI : MonoBehaviour
         HideItemPreview();
         RefreshInventoryDisplay();
         RefreshTabVisuals();
+    }
+
+    /// <summary>
+    /// Tabs write their own labels so the default "Button" text can never ship.
+    /// </summary>
+    private static void SetTabLabel(Button button, string label)
+    {
+        if (button == null) return;
+        TextMeshProUGUI text = button.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (text != null) text.text = label;
     }
 
     /// <summary>

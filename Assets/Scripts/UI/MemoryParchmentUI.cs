@@ -98,6 +98,7 @@ public class MemoryParchmentUI : MonoBehaviour
     private float shineTimer;
     private CursorLockMode previousLockState;
     private bool previousCursorVisible;
+    private TextMeshProUGUI callYukiLabel; // cached by StyleCallYukiButton
 
     private static readonly string[] RomanPages = { "I", "II", "III", "IV" };
     #endregion
@@ -116,7 +117,10 @@ public class MemoryParchmentUI : MonoBehaviour
         }
 
         if (callYukiButton != null)
+        {
             callYukiButton.onClick.AddListener(OnCallYukiClicked);
+            StyleCallYukiButton();
+        }
 
         UpdateHudGlow();
     }
@@ -152,7 +156,12 @@ public class MemoryParchmentUI : MonoBehaviour
         // Lit only when she can actually come; the gray button doubles as the hint
         // that the marked quest's ring is already close by.
         if (isOpen && callYukiButton != null)
-            callYukiButton.interactable = YukiGuide.Instance != null && YukiGuide.Instance.CanBeCalled();
+        {
+            bool canCall = YukiGuide.Instance != null && YukiGuide.Instance.CanBeCalled();
+            callYukiButton.interactable = canCall;
+            if (callYukiLabel != null)
+                callYukiLabel.alpha = canCall ? 1f : 0.35f;
+        }
 
         UpdateHudGlow();
     }
@@ -282,6 +291,49 @@ public class MemoryParchmentUI : MonoBehaviour
     #endregion
 
     #region Call Yuki
+    /// <summary>
+    /// Make the hand-made button look like it belongs on the parchment: ink-coloured
+    /// label in the parchment's own font, near-transparent fill, thin ink frame. Runs
+    /// once at Start so no manual styling is ever needed.
+    /// </summary>
+    private void StyleCallYukiButton()
+    {
+        // Ink and font are borrowed from the page label the builder already styled,
+        // so the button always matches whatever the parchment looks like.
+        Color ink = pageLabelText != null ? pageLabelText.color : new Color(0.24f, 0.17f, 0.10f, 1f);
+
+        callYukiLabel = callYukiButton.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (callYukiLabel != null)
+        {
+            callYukiLabel.text = "Call Yuki";
+            callYukiLabel.color = ink;
+            if (pageLabelText != null)
+            {
+                callYukiLabel.font = pageLabelText.font;
+                callYukiLabel.fontSize = pageLabelText.fontSize;
+            }
+        }
+
+        Image frame = callYukiButton.image;
+        if (frame != null)
+        {
+            // Near-invisible fill: the parchment shows through, only the ink remains.
+            frame.color = new Color(ink.r, ink.g, ink.b, 0.06f);
+
+            Outline outline = frame.GetComponent<Outline>();
+            if (outline == null)
+                outline = frame.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(ink.r, ink.g, ink.b, 0.6f);
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
+            outline.useGraphicAlpha = false; // the frame stays visible over the faint fill
+        }
+
+        // Disabled = faded, like dried ink.
+        ColorBlock colors = callYukiButton.colors;
+        colors.disabledColor = new Color(1f, 1f, 1f, 0.35f);
+        callYukiButton.colors = colors;
+    }
+
     /// <summary>
     /// Close the parchments first (releases MenuGuard and the cursor), then summon
     /// Yuki beside Tomoe to lead the way to the marked quest's current ring.
