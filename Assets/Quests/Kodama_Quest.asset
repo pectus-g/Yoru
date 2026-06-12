@@ -12,8 +12,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0f4d91ec2784849ca800984ef380806e, type: 3}
   m_Name: Kodama_Quest
   m_EditorClassIdentifier: Assembly-CSharp::QuestData
+  questId: last_seed
   displayName: The Last Seed
   description: A small forest spirit lost its tree. Its last <color=#E8A33D>seed</color>
     fell into the river and drifted <color=#7FD4A8>downstream past the red stones</color>.
     Find the seed and plant it in the <color=#7FD4A8>bare clearing</color> where
     the tree once stood.
+  tier: 4
+  giverDialogueId: kodama
+  steps:
+  - stepId: S1
+    hintText: Find the lost seed
+    trigger: 1
+    triggerId: 
+    requiredItem: {fileID: 11400000, guid: 76988616c1ddd4d468368547cff6c1a2, type: 2}
+    requiredQuantity: 1
+  - stepId: S2
+    hintText: Bring the seed to the Kodama
+    trigger: 3
+    triggerId: 
+    requiredItem: {fileID: 0}
+    requiredQuantity: 0
+  resolutionType: 0
+  rewards: []
+  completedStatusText: Found the Peace
+  strikeThroughOnComplete: 0
+  turnInLine: 
+  turnInButtonText: ...
+  farewellLine: 
+  giverDisappearsOnCompletion: 1

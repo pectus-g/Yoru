@@ -95,7 +95,9 @@ public class PlayerInteraction : MonoBehaviour
         else if (nearbyItem != null)
         {
             interactionPromptUI.SetActive(true);
-            promptText.text = $"Press E to pick up {nearbyItem.GetItem().itemName}";
+            promptText.text = nearbyItem.BagHasRoom()
+                ? $"Press E to pick up {nearbyItem.GetItem().itemName}"
+                : "Bag is full!";
         }
         else
         {

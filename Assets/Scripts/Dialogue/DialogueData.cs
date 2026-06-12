@@ -94,7 +94,7 @@ public class DialogueBeat
 /// to reach FINAL_SUCCESS and hand over the quest (or trigger the mini-game). The soul
 /// stays alive in the world afterward and re-approaching it opens the post-quest recap.
 /// </summary>
-[CreateAssetMenu(fileName = "NewDialogue", menuName = "Yoru/Dialogue Data")]
+[CreateAssetMenu(fileName = "NewDialogue", menuName = "YORU/Dialogue Data")]
 public class DialogueData : ScriptableObject
 {
     #region Identity

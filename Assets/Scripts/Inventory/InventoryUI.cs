@@ -13,6 +13,10 @@ public class InventoryUI : MonoBehaviour
     [SerializeField] private GameObject dimBackground;
     [SerializeField] private Transform slotsParent;
     [SerializeField] private GameObject slotPrefab;
+
+    [Header("Pages (Items / Quest)")]
+    [SerializeField] private Button itemsTabButton;
+    [SerializeField] private Button questTabButton;
     
     [Header("Preview Panel (Right Side)")]
     [SerializeField] private GameObject previewPanel;
@@ -31,6 +35,7 @@ public class InventoryUI : MonoBehaviour
     
     private List<InventorySlotUI> activeSlots = new List<InventorySlotUI>();
     private bool isInventoryOpen = false;
+    private ItemCategory currentPage = ItemCategory.Items;
     private RectTransform inventoryRect;
     
     private NavMeshAgent playerNavAgent;
@@ -76,11 +81,16 @@ public class InventoryUI : MonoBehaviour
         isInventoryOpen = false;
         Time.timeScale = 1f;
         
+        if (itemsTabButton != null) itemsTabButton.onClick.AddListener(() => SwitchPage(ItemCategory.Items));
+        if (questTabButton != null) questTabButton.onClick.AddListener(() => SwitchPage(ItemCategory.Quest));
+
         if (InventoryManager.Instance != null)
         {
             InventoryManager.Instance.OnInventoryChanged += RefreshInventoryDisplay;
             RefreshInventoryDisplay();
         }
+
+        RefreshTabVisuals();
     }
     
     private void OnDestroy()
@@ -97,7 +107,14 @@ public class InventoryUI : MonoBehaviour
         {
             ToggleInventory();
         }
-        
+
+        if (isInventoryOpen)
+        {
+            // Tab cycles between the Items and Quest pages.
+            if (Input.GetKeyDown(KeyCode.Tab))
+                SwitchPage(currentPage == ItemCategory.Items ? ItemCategory.Quest : ItemCategory.Items);
+        }
+
         if (isInventoryOpen && Input.GetKeyDown(KeyCode.X))
         {
             foreach (InventorySlotUI slotUI in activeSlots)
@@ -107,8 +124,9 @@ public class InventoryUI : MonoBehaviour
                     Input.mousePosition, 
                     GetComponentInParent<Canvas>().worldCamera))
                 {
-                    int slotIndex = activeSlots.IndexOf(slotUI);
-                    InventoryManager.Instance.DropItem(slotIndex);
+                    // Pages filter the display: ask the slot for its index in the
+                    // manager's FULL list, never its position on screen.
+                    InventoryManager.Instance.DropItem(slotUI.SlotIndex);
                     break;
                 }
             }
@@ -125,8 +143,11 @@ public class InventoryUI : MonoBehaviour
         
         List<InventorySlot> items = InventoryManager.Instance.GetInventorySlots();
         
+        // Only the current page's category is shown; the slot keeps its index into
+        // the manager's FULL list so drop/use still target the right item.
         for (int i = 0; i < items.Count; i++)
         {
+            if (items[i].item == null || items[i].item.category != currentPage) continue;
             CreateSlotUI(i, items[i]);
         }
         
@@ -134,7 +155,7 @@ public class InventoryUI : MonoBehaviour
         
         if (emptyInventoryMessage != null)
         {
-            emptyInventoryMessage.SetActive(items.Count == 0);
+            emptyInventoryMessage.SetActive(activeSlots.Count == 0);
         }
     }
     
@@ -231,6 +252,7 @@ public class InventoryUI : MonoBehaviour
         if (dimBackground != null) dimBackground.SetActive(true);
 
         HideItemPreview();
+        RefreshTabVisuals();
 
         if (pauseGameWhenOpen)
         {
@@ -272,6 +294,29 @@ public class InventoryUI : MonoBehaviour
         Cursor.visible = false;
     }
     
+    #region Pages + Call Yuki
+    /// <summary>
+    /// Show one page of the bag: Items (everyday) or Quest (protected, glowing frames).
+    /// </summary>
+    private void SwitchPage(ItemCategory page)
+    {
+        if (currentPage == page) return;
+        currentPage = page;
+        HideItemPreview();
+        RefreshInventoryDisplay();
+        RefreshTabVisuals();
+    }
+
+    /// <summary>
+    /// The active tab reads as pressed (non-interactable).
+    /// </summary>
+    private void RefreshTabVisuals()
+    {
+        if (itemsTabButton != null) itemsTabButton.interactable = currentPage != ItemCategory.Items;
+        if (questTabButton != null) questTabButton.interactable = currentPage != ItemCategory.Quest;
+    }
+    #endregion
+
     public RectTransform GetInventoryRect()
     {
         return inventoryRect;

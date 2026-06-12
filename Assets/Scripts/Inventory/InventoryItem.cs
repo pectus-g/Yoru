@@ -4,7 +4,7 @@ using UnityEngine;
 /// ScriptableObject that defines an item type
 /// Create items via: Right-click in Project > Create > Inventory > InventoryItem
 /// </summary>
-[CreateAssetMenu(fileName = "New Item", menuName = "Inventory/InventoryItem")]
+[CreateAssetMenu(fileName = "New Item", menuName = "YORU/Inventory Item")]
 public class InventoryItem : ScriptableObject
 {
     [Header("Basic Info")]
@@ -21,6 +21,10 @@ public class InventoryItem : ScriptableObject
     
     [Header("Item Properties")]
     public bool isConsumable = false; // Can it be consumed/used?
+
+    [Header("Category")]
+    [Tooltip("Items: food, sake, consumables (everyday page). Quest: important things souls need; shown on the bag's Quest page with a glowing frame, cannot be dropped or consumed")]
+    public ItemCategory category = ItemCategory.Items;
     
     [Header("Item Effects (for future use)")]
     public ItemEffectType effectType = ItemEffectType.None;
@@ -41,4 +45,15 @@ public enum ItemEffectType
     RestoreStamina, // Restores stamina
     TimidEffect,    // Makes enemy timid (sake effect)
     // Add more as needed
+}
+
+/// <summary>
+/// Which page of the bag an item lives on.
+/// Quest items are protected: glowing slot frame, cannot be dropped or consumed;
+/// they only leave the bag when a quest hands them over at turn-in.
+/// </summary>
+public enum ItemCategory
+{
+    Items, // Food, sake, consumables - the everyday page
+    Quest  // Important things souls need - the protected page
 }

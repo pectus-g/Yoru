@@ -49,6 +49,10 @@ public class MemoryParchmentUI : MonoBehaviour
     [SerializeField] private Button previousPageButton;
     [SerializeField] private Button nextPageButton;
 
+    [Header("Call Yuki (top right)")]
+    [Tooltip("Hand-made Button - TextMeshPro under the panel root, top right corner. Shown while the parchments are open; grayed out when Yuki cannot come (no quest marked, already near the ring, or not Tomoe)")]
+    [SerializeField] private Button callYukiButton;
+
     [Tooltip("Optional per-tier parchment art, index 0 = Tier 1 ... index 3 = Tier 4. Empty entries keep the default sprite")]
     [SerializeField] private List<Sprite> tierParchmentSprites = new List<Sprite>();
 
@@ -111,6 +115,9 @@ public class MemoryParchmentUI : MonoBehaviour
             QuestManager.Instance.OnQuestGiven += HandleQuestGiven;
         }
 
+        if (callYukiButton != null)
+            callYukiButton.onClick.AddListener(OnCallYukiClicked);
+
         UpdateHudGlow();
     }
 
@@ -141,6 +148,11 @@ public class MemoryParchmentUI : MonoBehaviour
 
         if (isOpen && Input.GetKeyDown(KeyCode.Escape))
             Close();
+
+        // Lit only when she can actually come; the gray button doubles as the hint
+        // that the marked quest's ring is already close by.
+        if (isOpen && callYukiButton != null)
+            callYukiButton.interactable = YukiGuide.Instance != null && YukiGuide.Instance.CanBeCalled();
 
         UpdateHudGlow();
     }
@@ -266,6 +278,19 @@ public class MemoryParchmentUI : MonoBehaviour
 
         Cursor.lockState = previousLockState;
         Cursor.visible = previousCursorVisible;
+    }
+    #endregion
+
+    #region Call Yuki
+    /// <summary>
+    /// Close the parchments first (releases MenuGuard and the cursor), then summon
+    /// Yuki beside Tomoe to lead the way to the marked quest's current ring.
+    /// </summary>
+    private void OnCallYukiClicked()
+    {
+        if (YukiGuide.Instance == null || !YukiGuide.Instance.CanBeCalled()) return;
+        Close();
+        YukiGuide.Instance.CallYuki();
     }
     #endregion
 

@@ -20,6 +20,12 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     [SerializeField] private Color emptySlotColor = new Color(0.2f, 0.2f, 0.2f, 0.5f);
     [SerializeField] private Color filledSlotColor = new Color(0.3f, 0.3f, 0.3f, 0.8f);
     [SerializeField] private Color hoverSlotColor = new Color(0.4f, 0.4f, 0.5f, 1f);
+
+    [Header("Quest Item Frame")]
+    [Tooltip("Frame color for quest items; the FRAME pulses a glow between this and a brighter version (the icon itself is untouched)")]
+    [SerializeField] private Color questSlotColor = new Color(0.82f, 0.66f, 0.28f, 0.9f);
+    [Tooltip("Glow pulse cycles per second-ish. Unscaled time: the bag pauses the game")]
+    [SerializeField] private float questGlowSpeed = 2.2f;
     
     private int slotIndex;
     private InventorySlot inventorySlot;
@@ -29,6 +35,7 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     private Vector2 originalPosition;
     private Transform originalParent;
     private bool isHovering = false;
+    private bool isQuestItem = false;
     
     private void Awake()
     {
@@ -40,6 +47,17 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         }
         rectTransform = GetComponent<RectTransform>();
     }
+
+    private void Update()
+    {
+        // Quest items: the FRAME glows, pulsing between the quest color and a brighter
+        // version. Unscaled time because the bag runs at timeScale 0.
+        if (!isQuestItem || isHovering || inventorySlot == null || inventorySlot.IsEmpty()) return;
+
+        float pulse = (Mathf.Sin(Time.unscaledTime * questGlowSpeed) + 1f) * 0.5f;
+        Color bright = Color.Lerp(questSlotColor, Color.white, 0.45f);
+        slotBackground.color = Color.Lerp(questSlotColor, bright, pulse);
+    }
     
     /// <summary>
     /// Setup this slot with its data
@@ -50,6 +68,12 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         inventorySlot = slot;
         UpdateDisplay();
     }
+
+    /// <summary>
+    /// Index of this slot in InventoryManager's FULL list. The bag pages filter the
+    /// display, so a slot's position on screen no longer matches its manager index.
+    /// </summary>
+    public int SlotIndex => slotIndex;
     
     /// <summary>
     /// Update the visual display based on slot data
@@ -59,6 +83,7 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         if (inventorySlot == null || inventorySlot.IsEmpty())
         {
             // Empty slot
+            isQuestItem = false;
             itemIcon.enabled = false;
             quantityText.text = "";
             slotBackground.color = isHovering ? hoverSlotColor : emptySlotColor;
@@ -66,13 +91,14 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         else
         {
             // Filled slot
+            isQuestItem = inventorySlot.item.category == ItemCategory.Quest;
             itemIcon.enabled = true;
             itemIcon.sprite = inventorySlot.item.icon;
             
             // Show quantity only if more than 1
             quantityText.text = inventorySlot.quantity > 1 ? inventorySlot.quantity.ToString() : "";
             
-            slotBackground.color = isHovering ? hoverSlotColor : filledSlotColor;
+            slotBackground.color = isHovering ? hoverSlotColor : (isQuestItem ? questSlotColor : filledSlotColor);
         }
     }
     

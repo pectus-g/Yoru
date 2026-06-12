@@ -246,6 +246,7 @@ public class QuestManager : MonoBehaviour
             Debug.LogWarning($"[Quest] CompleteTurnIn: nothing ready to turn in at '{giverDialogueId}'.");
             return;
         }
+        HandOverQuestItems(entry);
         CompleteQuest(entry);
     }
 
@@ -352,6 +353,24 @@ public class QuestManager : MonoBehaviour
     #endregion
 
     #region Internals
+    /// <summary>
+    /// Turn-in means handing things over: every OBTAIN_ITEM step's items leave the
+    /// bag when the giver accepts. Hardcoded; giving is giving.
+    /// </summary>
+    private void HandOverQuestItems(QuestEntry entry)
+    {
+        if (InventoryManager.Instance == null) return;
+
+        foreach (QuestStep step in entry.data.steps)
+        {
+            if (step.trigger != QuestStepTrigger.OBTAIN_ITEM || step.requiredItem == null) continue;
+
+            int quantity = Mathf.Max(1, step.requiredQuantity);
+            if (InventoryManager.Instance.RemoveItem(step.requiredItem, quantity))
+                Debug.Log($"[Quest] Handed over {quantity}x {step.requiredItem.itemName} to '{entry.data.giverDialogueId}'.");
+        }
+    }
+
     private QuestEntry FindTurnInQuest(string giverDialogueId)
     {
         if (string.IsNullOrEmpty(giverDialogueId)) return null;

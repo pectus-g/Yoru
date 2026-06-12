@@ -24,7 +24,8 @@ public class InventoryManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            LoadInventory();
+            // No save system yet: the bag starts empty every Play session, matching
+            // the quests. The save menu will call LoadInventory() here when it exists.
         }
         else
         {
@@ -46,6 +47,24 @@ public class InventoryManager : MonoBehaviour
     {
         return inventorySlots.Count >= maxUniqueItems;
     }
+
+    /// <summary>
+    /// True only when the FULL quantity fits right now: stack room on the existing
+    /// slot plus, if needed, one fresh slot. Pickups check this BEFORE taking, so an
+    /// item that does not fit stays in the world instead of partially vanishing.
+    /// </summary>
+    public bool CanAccept(InventoryItem item, int quantity = 1)
+    {
+        if (item == null || quantity <= 0) return false;
+
+        InventorySlot existingSlot = inventorySlots.FirstOrDefault(slot => slot.item.itemID == item.itemID);
+        int stackSpace = existingSlot != null ? existingSlot.item.maxStackSize - existingSlot.quantity : 0;
+
+        if (stackSpace >= quantity) return true;
+
+        // The remainder needs a fresh slot of its own.
+        return !IsFull() && quantity - stackSpace <= item.maxStackSize;
+    }
     
     public bool AddItem(InventoryItem item, int quantity = 1)
     {
@@ -63,7 +82,6 @@ public class InventoryManager : MonoBehaviour
                 {
                     Debug.Log("Inventory is full! Cannot add more unique items.");
                     OnInventoryChanged?.Invoke();
-                    SaveInventory();
                     return false;
                 }
                 
@@ -72,7 +90,6 @@ public class InventoryManager : MonoBehaviour
             }
             
             OnInventoryChanged?.Invoke();
-            SaveInventory();
             return true;
         }
         else
@@ -89,7 +106,6 @@ public class InventoryManager : MonoBehaviour
             Debug.Log($"Added {quantity}x {item.itemName} to inventory! ({inventorySlots.Count}/{maxUniqueItems} slots used)");
             
             OnInventoryChanged?.Invoke();
-            SaveInventory();
             return true;
         }
     }
@@ -113,7 +129,6 @@ public class InventoryManager : MonoBehaviour
             if (success)
             {
                 OnInventoryChanged?.Invoke();
-                SaveInventory();
             }
             
             return success;
@@ -137,7 +152,6 @@ public class InventoryManager : MonoBehaviour
         if (result)
         {
             OnInventoryChanged?.Invoke();
-            SaveInventory();
         }
         
         return result;
@@ -148,6 +162,14 @@ public class InventoryManager : MonoBehaviour
         if (slotIndex < 0 || slotIndex >= inventorySlots.Count) return;
         
         InventorySlot slot = inventorySlots[slotIndex];
+
+        // Quest items are protected: they only leave the bag at quest turn-in.
+        if (slot.item.category == ItemCategory.Quest)
+        {
+            Debug.Log($"{slot.item.itemName} is a quest item - it cannot be consumed.");
+            return;
+        }
+
         if (!slot.item.isConsumable) 
         {
             Debug.Log($"{slot.item.itemName} is not consumable!");
@@ -164,7 +186,14 @@ public class InventoryManager : MonoBehaviour
         if (slotIndex < 0 || slotIndex >= inventorySlots.Count) return;
         
         InventorySlot slot = inventorySlots[slotIndex];
-        
+
+        // Quest items are protected: they only leave the bag at quest turn-in.
+        if (slot.item.category == ItemCategory.Quest)
+        {
+            Debug.Log($"{slot.item.itemName} is a quest item - it cannot be dropped.");
+            return;
+        }
+
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player == null)
         {
@@ -214,7 +243,6 @@ public class InventoryManager : MonoBehaviour
     {
         inventorySlots.Clear();
         OnInventoryChanged?.Invoke();
-        SaveInventory();
         Debug.Log("Inventory cleared!");
     }
     
@@ -233,6 +261,9 @@ public class InventoryManager : MonoBehaviour
     
     private string SavePath => Path.Combine(Application.persistentDataPath, "inventory.json");
     
+    /// <summary>
+    /// NOT called at runtime yet (no save system). The save menu wires this in later.
+    /// </summary>
     public void SaveInventory()
     {
         InventorySaveData saveData = new InventorySaveData();
@@ -252,6 +283,9 @@ public class InventoryManager : MonoBehaviour
         Debug.Log($"Inventory saved! {inventorySlots.Count} items stored.");
     }
     
+    /// <summary>
+    /// NOT called at runtime yet (no save system). The save menu wires this in later.
+    /// </summary>
     public void LoadInventory()
     {
         if (!File.Exists(SavePath))

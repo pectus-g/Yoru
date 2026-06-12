@@ -94,6 +94,17 @@ public class ItemPickup : MonoBehaviour
     }
     
     /// <summary>
+    /// True when the bag can take the FULL quantity right now. PlayerInteraction
+    /// uses this for the prompt ("Bag is full!" instead of "Press E").
+    /// </summary>
+    public bool BagHasRoom()
+    {
+        return item != null
+            && InventoryManager.Instance != null
+            && InventoryManager.Instance.CanAccept(item, quantity);
+    }
+
+    /// <summary>
     /// Attempt to pick up this item
     /// </summary>
     public bool TryPickup()
@@ -103,7 +114,15 @@ public class ItemPickup : MonoBehaviour
             Debug.LogWarning("ItemPickup has no item assigned!");
             return false;
         }
-        
+
+        // Refuse BEFORE taking: if the full quantity does not fit, the item stays
+        // in the world instead of partially vanishing into a full bag.
+        if (InventoryManager.Instance == null || !InventoryManager.Instance.CanAccept(item, quantity))
+        {
+            Debug.Log("Bag is full! The item stays where it is.");
+            return false;
+        }
+
         // Try to add to inventory
         bool success = InventoryManager.Instance.AddItem(item, quantity);
         

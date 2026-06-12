@@ -183,6 +183,31 @@ public class GlowTrail : MonoBehaviour
     }
     #endregion
 
+    #region Public Lookup (Yuki guide)
+    /// <summary>
+    /// True while this trail is lit in the world (quest tracked + step current +
+    /// Tomoe form). YukiGuide scans for the one lit trail.
+    /// </summary>
+    public bool IsLit => currentlyVisible;
+
+    /// <summary>
+    /// Position of the CURRENT ring: the single lit one, the first unpassed in the
+    /// sequence. False when every ring has been passed. Yuki leads the player here.
+    /// </summary>
+    public bool TryGetCurrentRingPosition(out Vector3 position)
+    {
+        for (int i = 0; i < entries.Count; i++)
+        {
+            TrailEntry entry = entries[i];
+            if (entry.consumed || entry.ring == null) continue;
+            position = entry.ring.transform.position;
+            return true;
+        }
+        position = Vector3.zero;
+        return false;
+    }
+    #endregion
+
     #region Editor Setup
     /// <summary>
     /// One-click setup: adds a GlowTrailRing to every direct child that lacks one and
