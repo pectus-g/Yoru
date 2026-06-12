@@ -85,6 +85,8 @@ public class InventoryUI : MonoBehaviour
         if (questTabButton != null) questTabButton.onClick.AddListener(() => SwitchPage(ItemCategory.Quest));
         SetTabLabel(itemsTabButton, "Items");
         SetTabLabel(questTabButton, "Quest");
+        StyleTab(itemsTabButton);
+        StyleTab(questTabButton);
 
         if (InventoryManager.Instance != null)
         {
@@ -307,6 +309,37 @@ public class InventoryUI : MonoBehaviour
         HideItemPreview();
         RefreshInventoryDisplay();
         RefreshTabVisuals();
+    }
+
+    /// <summary>
+    /// Tabs style themselves: dark translucent fill, thin gold outline, soft white
+    /// label. The ACTIVE tab is the non-interactable one, so the disabled tint is set
+    /// to gold: selected reads as lit, unselected as dark. No manual styling needed.
+    /// </summary>
+    private static void StyleTab(Button button)
+    {
+        if (button == null) return;
+
+        TextMeshProUGUI text = button.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (text != null) text.color = new Color(0.95f, 0.93f, 0.88f, 1f);
+
+        Image fill = button.image;
+        if (fill != null)
+        {
+            fill.color = new Color(0.08f, 0.08f, 0.1f, 0.75f);
+
+            Outline outline = fill.GetComponent<Outline>();
+            if (outline == null) outline = fill.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0.95f, 0.85f, 0.55f, 0.5f);
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
+            outline.useGraphicAlpha = false;
+        }
+
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1.3f, 1.3f, 1.3f, 1f);
+        colors.disabledColor = new Color(2.2f, 1.9f, 1.1f, 1f); // selected tab = gold lit
+        button.colors = colors;
     }
 
     /// <summary>

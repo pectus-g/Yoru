@@ -69,6 +69,8 @@ public class MemoryParchmentUI : MonoBehaviour
 
     [Tooltip("Played every time the parchments open")]
     [SerializeField] private AudioClip openSound;
+    [Tooltip("Played when the parchments close")]
+    [SerializeField] private AudioClip closeSound;
 
     [Tooltip("Played when the parchments open showing a freshly taken quest, layered with the entry shine")]
     [SerializeField] private AudioClip newQuestSound;
@@ -278,6 +280,7 @@ public class MemoryParchmentUI : MonoBehaviour
     /// </summary>
     public void Close()
     {
+        PlaySound(closeSound);
         if (!isOpen) return;
 
         isOpen = false;

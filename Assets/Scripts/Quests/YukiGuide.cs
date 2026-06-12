@@ -3,33 +3,35 @@ using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
-/// Yuki as the quest guide spirit, version 3 (Hazel's spec, June 12 2026).
+/// Yuki as the quest guide spirit, version 4 (Hazel's spec, June 12 2026).
 ///
 /// THE LOOP:
-///   - Press C (Tomoe/granny form only, no menu open) or the parchment button.
+///   - Press C (granny form only, no menu open) or the parchment button. Only works
+///     while a quest is marked; no marked quest, no Yuki.
 ///   - She appears in the distance, runs to granny, giggles her greeting.
-///   - Then she runs ahead toward the CURRENT glow ring, stopping midway to wait
-///     whenever granny falls behind (granny is slow).
-///   - She arrives at the ring first and WAITS THERE for granny.
-///   - Once granny reaches the ring, Yuki's guiding is done. From then on she is shy:
-///     she follows granny from FAR, keeping her distance. No more hide and seek.
-///   - If granny walks TOWARD her and gets close, she fades away. Want her back?
-///     Call her again with C.
+///   - She leads to the CURRENT glow ring, stopping midway to wait whenever granny
+///     falls behind (granny is slow).
+///   - She arrives at the ring first and WAITS THERE, every time.
+///   - The moment granny PASSES that ring, Yuki's job is done: a happy giggle and she
+///     fades away on the spot. The remaining rings (one at a time) guide the player on.
+///   - Want her again, for the next ring or the way back? Press C again. Fresh call,
+///     same loop, she always leads to whatever ring is current.
 ///   - Press C while she is out: she runs far away and disappears out there.
-///   - If the player turns into Yoru (the cat) while she is out: she runs away and
+///   - Turning into Yoru (the cat) while she is out: same, she runs away and
 ///     disappears. She only ever answers to granny.
 ///
 /// HARDCODED rules:
 ///   - No distance requirement to call her. She comes EVERY time C is pressed.
-///   - She guides to the FIRST ring after each call; the remaining rings (one at a
-///     time) guide the player onward while she shyly tags along behind.
+///   - One job per call: lead to the current ring, vanish once it is passed.
 ///   - C in cat form stays dodge, untouched; she simply never hears the cat.
+///   - She carries her own soft glow light so she reads through rain, fog, and night.
 ///
 /// Setup: duplicate the intro Yuki prefab, REMOVE YukiHideAndSeek, add this. Same
 /// pieces: Animator (IsRunning / IsAlert / IsLookAround), GhostEffect3D, NavMeshAgent,
-/// laugh clip. She builds her own AudioSource if the prefab lacks one, finds her own
-/// sparkles, hides her own renderers, and keeps her colliders permanently off (she is
-/// a spirit, nothing stands on her). One instance lives in the scene, hidden.
+/// laugh clip. She builds her own AudioSource and glow light if missing, finds her own
+/// sparkles, hides her own renderers, forces her Animator to always animate (so she
+/// runs properly even off-screen), and keeps her colliders permanently off (she is a
+/// spirit, nothing stands on her). One instance lives in the scene, hidden.
 /// </summary>
 public class YukiGuide : MonoBehaviour
 {
@@ -42,12 +44,21 @@ public class YukiGuide : MonoBehaviour
     [SerializeField] private AudioSource audioSource;
 
     [Header("Audio")]
-    [Tooltip("Her giggle. Played on appear, greeting, each hop resume, and goodbye")]
+    [Tooltip("Her giggle. Played on appear, greeting, resume, success, and goodbye, never more than once per cooldown")]
     [SerializeField] private AudioClip laughingSound;
+
+    [Tooltip("Minimum seconds between giggles, so call-spamming never machine-guns the laugh")]
+    [SerializeField] private float giggleCooldown = 1.2f;
 
     [Header("Input")]
     [Tooltip("Summons her when hidden, dismisses her when out. Granny form only, ignored while any menu or dialogue is open")]
     [SerializeField] private KeyCode callKey = KeyCode.C;
+
+    [Header("Glow (so she reads through rain, fog, night)")]
+    [Tooltip("Created automatically: a soft warm light that travels with her while she is visible")]
+    [SerializeField] private Color glowColor = new Color(1f, 0.92f, 0.72f, 1f);
+    [SerializeField] private float glowIntensity = 2.4f;
+    [SerializeField] private float glowRange = 7f;
 
     [Header("Distances (metres)")]
     [Tooltip("How far away she appears before running to granny")]
@@ -67,16 +78,6 @@ public class YukiGuide : MonoBehaviour
 
     [Tooltip("How close SHE must get to the ring to count as arrived (she waits there)")]
     [SerializeField] private float ringArriveDistance = 2.5f;
-
-    [Tooltip("Granny reaching within this range of the ring ends the guiding: Yuki backs off and turns shy")]
-    [SerializeField] private float ringHandoffDistance = 6f;
-
-    [Header("Shy Following (after the ring)")]
-    [Tooltip("The distance she keeps from granny while shyly following from far")]
-    [SerializeField] private float shyDistance = 14f;
-
-    [Tooltip("If granny comes toward her and gets within this range, she fades away")]
-    [SerializeField] private float scareDistance = 7f;
 
     [Header("Departing")]
     [Tooltip("On dismissal: how far she runs away before fading out there")]
@@ -106,9 +107,8 @@ public class YukiGuide : MonoBehaviour
         Greeting,      // Reached granny: look-around + giggle beat
         GuideRunning,  // Running a stretch toward the current ring
         GuideWaiting,  // Paused on the way, waiting for slow granny
-        AtRing,        // Arrived at the ring, waiting there for granny
-        ShyFollowing,  // Guiding done: tagging along from far, easily scared off
-        Departing      // Running far away, fading out there
+        AtRing,        // Waiting at the ring until granny passes it
+        Departing      // Fading out (success, dismissal, or cat form)
     }
 
     private GuideState state = GuideState.Hidden;
@@ -116,7 +116,11 @@ public class YukiGuide : MonoBehaviour
     private Transform player;
     private GlowTrail[] trails;
     private Renderer[] renderers;
+    private Light glowLight;
     private bool reachedHopPoint;
+    private Vector3 guidedRing;       // the ring she is waiting at
+    private float lastGiggleTime = -10f;
+    private float lastCallKeyTime = -10f;
 
     private static readonly int HashIsRunning = Animator.StringToHash("IsRunning");
     private static readonly int HashIsAlert = Animator.StringToHash("IsAlert");
@@ -138,6 +142,11 @@ public class YukiGuide : MonoBehaviour
         if (ghostEffect == null) ghostEffect = GetComponent<GhostEffect3D>();
         if (navMeshAgent == null) navMeshAgent = GetComponent<NavMeshAgent>();
 
+        // Off-screen or freshly unhidden, a culled Animator simply stops playing,
+        // which looked like "her animations do not work". She always animates.
+        if (animator != null)
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+
         // The prefab ships without a speaker: build one. 3D so her giggle comes from
         // WHERE she is; the laugh is the breadcrumb the player follows through trees.
         if (audioSource == null) audioSource = GetComponent<AudioSource>();
@@ -149,6 +158,18 @@ public class YukiGuide : MonoBehaviour
             audioSource.minDistance = 2f;
             audioSource.maxDistance = 35f;
         }
+
+        // Her own glow, so rain, fog, and night can never swallow her.
+        GameObject glow = new GameObject("YukiGlow");
+        glow.transform.SetParent(transform, false);
+        glow.transform.localPosition = new Vector3(0f, 1.1f, 0f);
+        glowLight = glow.AddComponent<Light>();
+        glowLight.type = LightType.Point;
+        glowLight.color = glowColor;
+        glowLight.intensity = glowIntensity;
+        glowLight.range = glowRange;
+        glowLight.shadows = LightShadows.None;
+        glowLight.enabled = false;
 
         // Hiding is handled HERE, not by GhostEffect3D alone: the prefab's effect only
         // fades the renderers in its list and misses the skinned body. Renderers off =
@@ -207,7 +228,6 @@ public class YukiGuide : MonoBehaviour
             case GuideState.GuideRunning: UpdateGuideRunning(); break;
             case GuideState.GuideWaiting: UpdateGuideWaiting(); break;
             case GuideState.AtRing:       UpdateAtRing(); break;
-            case GuideState.ShyFollowing: UpdateShyFollowing(); break;
             // Hidden, Greeting, Departing are driven by coroutines / do nothing.
         }
     }
@@ -215,14 +235,18 @@ public class YukiGuide : MonoBehaviour
 
     #region Input
     /// <summary>
-    /// C summons her when hidden, dismisses her when out. Granny only, and ignored
-    /// while any menu, dialogue, or combat lock is active. Cat C stays dodge.
+    /// C summons her when hidden, dismisses her when out. Granny only, ignored while
+    /// any menu, dialogue, or combat lock is active, and debounced so hammering the
+    /// key cannot spam-toggle her. Cat C stays dodge.
     /// </summary>
     private void HandleCallKey()
     {
         if (!Input.GetKeyDown(callKey)) return;
+        if (Time.time - lastCallKeyTime < 0.75f) return;
         if (formController == null || !formController.IsHuman) return;
         if (!MenuGuard.CanOpenMenu()) return;
+
+        lastCallKeyTime = Time.time;
 
         if (state == GuideState.Hidden)
         {
@@ -278,6 +302,7 @@ public class YukiGuide : MonoBehaviour
         navMeshAgent.stoppingDistance = 0f;
 
         SetRenderersVisible(true);
+        if (glowLight != null) glowLight.enabled = true;
         if (ghostEffect != null)
         {
             ghostEffect.SetAlphaImmediate(0f);
@@ -300,7 +325,7 @@ public class YukiGuide : MonoBehaviour
     {
         if (state == GuideState.Hidden || state == GuideState.Departing) return;
         StopAllCoroutines();
-        StartCoroutine(DepartRoutine());
+        StartCoroutine(DepartRoutine(runAway: true));
     }
     #endregion
 
@@ -324,26 +349,27 @@ public class YukiGuide : MonoBehaviour
         Giggle();
         yield return new WaitForSeconds(lookAroundTime);
 
-        // Guide when there is a ring to guide to, otherwise she is simply around,
-        // shy as always.
         if (TryResolveTarget(out Vector3 ring))
+        {
             NextHop(ring);
+        }
         else
-            EnterShyFollowing(retreat: false);
+        {
+            // Nothing to guide to (all rings already passed): she fades back out.
+            StartCoroutine(DepartRoutine(runAway: false));
+        }
     }
     #endregion
 
-    #region Guiding (to the FIRST ring, with waits for slow granny)
+    #region Guiding (to the current ring, with waits for slow granny)
     private void UpdateGuideRunning()
     {
-        // Target gone (quest unmarked, all rings passed): nothing to guide to,
-        // she turns shy instead of vanishing.
-        if (!TryResolveTarget(out Vector3 ring)) { EnterShyFollowing(retreat: false); return; }
+        if (!TryResolveTarget(out Vector3 ring)) { StartCoroutine(DepartRoutine(runAway: false)); return; }
 
-        // SHE reached the ring: wait there for granny.
+        // SHE reached the ring: wait there until granny passes it.
         if (HorizontalDistance(transform.position, ring) <= ringArriveDistance)
         {
-            EnterAtRing();
+            EnterAtRing(ring);
             return;
         }
 
@@ -369,7 +395,7 @@ public class YukiGuide : MonoBehaviour
 
     private void UpdateGuideWaiting()
     {
-        if (!TryResolveTarget(out Vector3 ring)) { EnterShyFollowing(retreat: false); return; }
+        if (!TryResolveTarget(out Vector3 ring)) { StartCoroutine(DepartRoutine(runAway: false)); return; }
 
         if (HorizontalDistance(player.position, transform.position) > resumeDistance) return;
 
@@ -403,7 +429,6 @@ public class YukiGuide : MonoBehaviour
             point = hit.position;
 
         reachedHopPoint = false;
-        navMeshAgent.stoppingDistance = 0f;
         navMeshAgent.isStopped = false;
         navMeshAgent.SetDestination(point);
         SetAnimation(running: true, alert: false, lookAround: false);
@@ -411,9 +436,10 @@ public class YukiGuide : MonoBehaviour
     }
     #endregion
 
-    #region At the Ring
-    private void EnterAtRing()
+    #region At the Ring (until granny passes it)
+    private void EnterAtRing(Vector3 ring)
     {
+        guidedRing = ring;
         navMeshAgent.isStopped = true;
         FacePlayer();
         SetAnimation(running: false, alert: false, lookAround: true);
@@ -423,135 +449,61 @@ public class YukiGuide : MonoBehaviour
 
     private void UpdateAtRing()
     {
-        // Ring consumed some other way (player took a shortcut past it)?
-        // Her job here is done either way.
-        if (!TryResolveTarget(out Vector3 ring)) { EnterShyFollowing(retreat: true); return; }
-
-        // Granny arrived: guiding is over. Yuki backs off and turns shy.
-        if (HorizontalDistance(player.position, ring) <= ringHandoffDistance ||
-            HorizontalDistance(player.position, transform.position) <= ringHandoffDistance)
+        // Granny passed the ring: the trail consumed it, so the current ring is now a
+        // DIFFERENT one (or none). Her job is done: happy giggle, fade on the spot.
+        bool ringStillCurrent = TryResolveTarget(out Vector3 current) &&
+                                Vector3.Distance(current, guidedRing) < 0.5f;
+        if (!ringStillCurrent)
         {
             Giggle();
-            EnterShyFollowing(retreat: true);
+            StartCoroutine(DepartRoutine(runAway: false));
         }
-    }
-    #endregion
-
-    #region Shy Following (from far, after the ring)
-    /// <summary>
-    /// Guiding is done: from now on she keeps her distance. With retreat, she first
-    /// runs away from granny out to her shy distance.
-    /// </summary>
-    private void EnterShyFollowing(bool retreat)
-    {
-        navMeshAgent.stoppingDistance = shyDistance;
-
-        if (retreat)
-        {
-            Vector3 away = transform.position - player.position;
-            away.y = 0f;
-            if (away.sqrMagnitude < 0.01f) away = -player.forward;
-            away.Normalize();
-
-            Vector3 point = player.position + away * shyDistance;
-            if (NavMesh.SamplePosition(point, out NavMeshHit hit, 8f, NavMesh.AllAreas))
-                point = hit.position;
-
-            navMeshAgent.stoppingDistance = 0f; // the retreat point itself is exact
-            navMeshAgent.isStopped = false;
-            navMeshAgent.SetDestination(point);
-            SetAnimation(running: true, alert: false, lookAround: false);
-        }
-        else
-        {
-            navMeshAgent.isStopped = true;
-            SetAnimation(running: false, alert: false, lookAround: false);
-        }
-
-        state = GuideState.ShyFollowing;
-    }
-
-    private void UpdateShyFollowing()
-    {
-        float gap = HorizontalDistance(transform.position, player.position);
-
-        // Granny came toward her: too close, she fades away. Call her again with C.
-        if (gap <= scareDistance)
-        {
-            StopAllCoroutines();
-            StartCoroutine(FadeAwayShyRoutine());
-            return;
-        }
-
-        // Tag along from far: when granny drifts off, follow, but always stop at
-        // shy distance. The NavMeshAgent's stoppingDistance does the keeping-away.
-        if (gap > shyDistance + 5f)
-        {
-            navMeshAgent.stoppingDistance = shyDistance;
-            navMeshAgent.isStopped = false;
-            navMeshAgent.SetDestination(player.position);
-        }
-
-        // Animation from actual motion: running while moving, settled when not.
-        bool moving = !navMeshAgent.isStopped && navMeshAgent.velocity.sqrMagnitude > 0.05f;
-        SetAnimation(running: moving, alert: false, lookAround: false);
-        if (!moving) FacePlayer();
-    }
-
-    /// <summary>Scared off: a quiet fade right where she stands. No run, no goodbye.</summary>
-    private IEnumerator FadeAwayShyRoutine()
-    {
-        state = GuideState.Departing; // blocks re-trigger; C is ignored during it
-        navMeshAgent.isStopped = true;
-        SetAnimation(running: false, alert: false, lookAround: true);
-
-        if (ghostEffect != null) ghostEffect.FadeOut();
-        yield return new WaitForSeconds(fadeOutTime);
-
-        HideImmediate();
     }
     #endregion
 
     #region Departing + Hiding
     /// <summary>
-    /// Her exit on C or cat form: goodbye giggle, run far from granny, fade out in
-    /// the distance.
+    /// Her exit. With runAway (C press, cat form): goodbye giggle, run far from
+    /// granny, fade in the distance. Without (job done, nothing to guide to): a
+    /// gentle fade right where she stands.
     /// </summary>
-    private IEnumerator DepartRoutine()
+    private IEnumerator DepartRoutine(bool runAway)
     {
         state = GuideState.Departing;
 
-        FacePlayer();
-        SetAnimation(running: false, alert: false, lookAround: true);
-        Giggle();
-        yield return new WaitForSeconds(0.6f);
-
-        // Away from granny; if she is standing on top of her, just run forward.
-        Vector3 away = transform.position - player.position;
-        away.y = 0f;
-        if (away.sqrMagnitude < 0.01f) away = transform.forward;
-        away.Normalize();
-
-        Vector3 farPoint = transform.position + away * departDistance;
-        if (NavMesh.SamplePosition(farPoint, out NavMeshHit hit, 10f, NavMesh.AllAreas))
-            farPoint = hit.position;
-
-        navMeshAgent.stoppingDistance = 0f;
-        navMeshAgent.isStopped = false;
-        navMeshAgent.SetDestination(farPoint);
-        SetAnimation(running: true, alert: false, lookAround: false);
-
-        // Run until she gets there, with a timeout so blocked paths never trap her.
-        float timer = 0f;
-        while (timer < 6f)
+        if (runAway)
         {
-            if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= 1f) break;
-            timer += Time.deltaTime;
-            yield return null;
+            FacePlayer();
+            SetAnimation(running: false, alert: false, lookAround: true);
+            Giggle();
+            yield return new WaitForSeconds(0.6f);
+
+            // Away from granny; if she is standing on top of her, just run forward.
+            Vector3 away = transform.position - player.position;
+            away.y = 0f;
+            if (away.sqrMagnitude < 0.01f) away = transform.forward;
+            away.Normalize();
+
+            Vector3 farPoint = transform.position + away * departDistance;
+            if (NavMesh.SamplePosition(farPoint, out NavMeshHit hit, 10f, NavMesh.AllAreas))
+                farPoint = hit.position;
+
+            navMeshAgent.isStopped = false;
+            navMeshAgent.SetDestination(farPoint);
+            SetAnimation(running: true, alert: false, lookAround: false);
+
+            // Run until she gets there, with a timeout so blocked paths never trap her.
+            float timer = 0f;
+            while (timer < 6f)
+            {
+                if (!navMeshAgent.pathPending && navMeshAgent.remainingDistance <= 1f) break;
+                timer += Time.deltaTime;
+                yield return null;
+            }
         }
 
-        navMeshAgent.isStopped = true;
-        SetAnimation(running: false, alert: false, lookAround: false);
+        if (navMeshAgent.enabled) navMeshAgent.isStopped = true;
+        SetAnimation(running: false, alert: false, lookAround: !runAway);
         if (ghostEffect != null) ghostEffect.FadeOut();
         yield return new WaitForSeconds(fadeOutTime);
 
@@ -562,6 +514,7 @@ public class YukiGuide : MonoBehaviour
     private void HideImmediate()
     {
         SetRenderersVisible(false);
+        if (glowLight != null) glowLight.enabled = false;
         if (ghostEffect != null) ghostEffect.SetAlphaImmediate(0f);
         if (fairyParticles != null) fairyParticles.Stop();
         if (navMeshAgent != null) navMeshAgent.enabled = false;
@@ -619,10 +572,13 @@ public class YukiGuide : MonoBehaviour
             transform.rotation = Quaternion.LookRotation(look);
     }
 
+    /// <summary>Cooldown-guarded: hammering C can never machine-gun the laugh.</summary>
     private void Giggle()
     {
-        if (audioSource != null && laughingSound != null)
-            audioSource.PlayOneShot(laughingSound);
+        if (audioSource == null || laughingSound == null) return;
+        if (Time.time - lastGiggleTime < giggleCooldown) return;
+        lastGiggleTime = Time.time;
+        audioSource.PlayOneShot(laughingSound);
     }
 
     private void SetAnimation(bool running, bool alert, bool lookAround)

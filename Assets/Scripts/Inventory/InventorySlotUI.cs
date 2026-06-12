@@ -109,6 +109,7 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
             isQuestItem = inventorySlot.item.category == ItemCategory.Quest;
             itemIcon.enabled = true;
             itemIcon.sprite = inventorySlot.item.icon;
+            itemIcon.preserveAspect = true; // never stretch an icon out of shape
             
             // Show quantity only if more than 1
             quantityText.text = inventorySlot.quantity > 1 ? inventorySlot.quantity.ToString() : "";

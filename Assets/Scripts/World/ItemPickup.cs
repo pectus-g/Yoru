@@ -13,6 +13,12 @@ public class ItemPickup : MonoBehaviour
     
     [Header("Pickup Settings")]
     [SerializeField] private float pickupRadius = 2f; // Trigger size
+
+    [Header("Feedback")]
+    [Tooltip("Played at the item's position the moment it is picked up")]
+    [SerializeField] private AudioClip pickupSound;
+    [Range(0f, 1f)]
+    [SerializeField] private float pickupVolume = 0.9f;
     
     private Collider triggerCollider;
     private bool playerInRange = false;
@@ -122,6 +128,9 @@ public class ItemPickup : MonoBehaviour
             Debug.Log("Bag is full! The item stays where it is.");
             return false;
         }
+
+        if (pickupSound != null)
+            AudioSource.PlayClipAtPoint(pickupSound, transform.position, pickupVolume);
 
         // Try to add to inventory
         bool success = InventoryManager.Instance.AddItem(item, quantity);
