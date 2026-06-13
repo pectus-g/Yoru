@@ -26,6 +26,10 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     [SerializeField] private Color questSlotColor = new Color(1f, 0.84f, 0.35f, 1f);
     [Tooltip("Glow pulse cycles per second-ish. Unscaled time: the bag pauses the game")]
     [SerializeField] private float questGlowSpeed = 2.2f;
+
+    [Header("Icon Sizing")]
+    [Tooltip("Icons are forced (in code) to fill the whole slot minus this many pixels of breathing room on each side. Lower = bigger icon")]
+    [SerializeField] private float iconInset = 4f;
     
     private int slotIndex;
     private InventorySlot inventorySlot;
@@ -47,6 +51,19 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
         }
         rectTransform = GetComponent<RectTransform>();
+
+        // Icon sizing is enforced in CODE (June 2026): whatever size the prefab's icon rect
+        // was hand-made at, it is stretched here to fill the entire slot minus iconInset.
+        // Fixes quest items (and everything else) rendering tiny inside their slot.
+        if (itemIcon != null)
+        {
+            RectTransform iconRect = itemIcon.rectTransform;
+            iconRect.anchorMin = Vector2.zero;
+            iconRect.anchorMax = Vector2.one;
+            iconRect.pivot = new Vector2(0.5f, 0.5f);
+            iconRect.offsetMin = new Vector2(iconInset, iconInset);
+            iconRect.offsetMax = new Vector2(-iconInset, -iconInset);
+        }
 
         // The quest frame: a glowing outline AROUND the slot. The slot background
         // keeps its normal color; only the frame glows (the spec, literally).
