@@ -39,6 +39,7 @@ public class InventoryUI : MonoBehaviour
     private RectTransform inventoryRect;
     
     private NavMeshAgent playerNavAgent;
+    private bool navAgentWasEnabled;
     private ThirdPersonCamera cameraController;
     
     private void Awake()
@@ -261,7 +262,16 @@ public class InventoryUI : MonoBehaviour
         if (pauseGameWhenOpen)
         {
             Time.timeScale = 0f;
-            if (playerNavAgent != null) playerNavAgent.enabled = false;
+            // Remember the agent's real state, then switch it off while paused. It is
+            // restored to THIS value on close, never blindly forced on. PlayerMovement
+            // disables the agent at startup on purpose (the player is CharacterController
+            // driven), so a hardcoded "enabled = true" on close would wake an agent that
+            // must stay asleep and let it fight the controller for the transform.
+            if (playerNavAgent != null)
+            {
+                navAgentWasEnabled = playerNavAgent.enabled;
+                playerNavAgent.enabled = false;
+            }
             
             if (freezeCameraWhenOpen && cameraController != null)
             {
@@ -286,7 +296,9 @@ public class InventoryUI : MonoBehaviour
         if (pauseGameWhenOpen)
         {
             Time.timeScale = 1f;
-            if (playerNavAgent != null) playerNavAgent.enabled = true;
+            // Restore the agent to whatever it was before we opened (disabled during
+            // normal play), never force it on.
+            if (playerNavAgent != null) playerNavAgent.enabled = navAgentWasEnabled;
             
             if (freezeCameraWhenOpen && cameraController != null)
             {
