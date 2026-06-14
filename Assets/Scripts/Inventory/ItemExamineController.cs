@@ -51,6 +51,8 @@ public class ItemExamineController : MonoBehaviour
     [Tooltip("Closest/farthest zoom as a multiplier on the auto-fit distance")]
     [SerializeField] private float minZoom = 0.5f;
     [SerializeField] private float maxZoom = 2.5f;
+    [Tooltip("How quickly zoom eases toward the target. Higher = snappier, lower = slower and smoother. This is what makes scrolling glide instead of stepping")]
+    [SerializeField] private float zoomSmoothing = 12f;
 
     [Header("Lights (isolated to the item)")]
     [SerializeField] private float keyLightIntensity = 1.4f;
@@ -60,6 +62,12 @@ public class ItemExamineController : MonoBehaviour
     [Header("Background")]
     [Range(0f, 1f)]
     [SerializeField] private float backgroundDarken = 0.88f;
+
+    [Header("Inspect Background Particle")]
+    [Tooltip("Optional particle effect that plays BEHIND the item in the 3D inspect view, as a backdrop. Assign a looping ParticleSystem prefab, or leave empty for none. This is separate from each item's world-attract glow. Forced onto unscaled time in code so it animates while the bag is paused")]
+    [SerializeField] private GameObject inspectBackgroundParticle;
+    [Tooltip("How far behind the item the backdrop particle sits. Increase if a large item overlaps it")]
+    [SerializeField] private float backgroundDistance = 3f;
 
     [Header("Labels")]
     [SerializeField] private bool showName = true;
@@ -83,6 +91,8 @@ public class ItemExamineController : MonoBehaviour
 
     private float fitDistance = 3f;
     private float zoom = 1f;
+    private float targetZoom = 1f;
+    private GameObject activeBackground;
 
     // input arming so the double-click that OPENED this does not instantly close it
     private bool armed;
@@ -142,8 +152,10 @@ public class ItemExamineController : MonoBehaviour
         }
 
         zoom = 1f;
+        targetZoom = 1f;
         canvas.gameObject.SetActive(true);
         examineCamera.enabled = true;
+        if (activeBackground != null) activeBackground.SetActive(true);
         IsExamining = true;
 
         // Disarm input briefly so the opening double-click does not register as a close.
@@ -155,6 +167,7 @@ public class ItemExamineController : MonoBehaviour
     public void Close()
     {
         if (currentModel != null) { Destroy(currentModel); currentModel = null; }
+        if (activeBackground != null) activeBackground.SetActive(false);
         if (canvas != null) canvas.gameObject.SetActive(false);
         if (examineCamera != null) examineCamera.enabled = false;
         IsExamining = false;
@@ -200,11 +213,18 @@ public class ItemExamineController : MonoBehaviour
             modelHolder.Rotate(Vector3.up, idleSpinSpeed * Time.unscaledDeltaTime, Space.World);
         }
 
-        // --- zoom with the scroll wheel ---
+        // --- zoom with the scroll wheel (eased so it glides instead of stepping) ---
         float scroll = Input.mouseScrollDelta.y;
         if (Mathf.Abs(scroll) > 0.001f)
         {
-            zoom = Mathf.Clamp(zoom - scroll * zoomSpeed, minZoom, maxZoom);
+            targetZoom = Mathf.Clamp(targetZoom - scroll * zoomSpeed, minZoom, maxZoom);
+        }
+        if (!Mathf.Approximately(zoom, targetZoom))
+        {
+            // Frame-rate independent easing on unscaled time (the bag pauses the game).
+            float t = 1f - Mathf.Exp(-zoomSmoothing * Time.unscaledDeltaTime);
+            zoom = Mathf.Lerp(zoom, targetZoom, t);
+            if (Mathf.Abs(zoom - targetZoom) < 0.0005f) zoom = targetZoom;
             PositionCamera();
         }
     }
@@ -263,6 +283,26 @@ public class ItemExamineController : MonoBehaviour
         fill.intensity = fillLightIntensity;
         fill.color = lightColor;
         fill.cullingMask = 1 << examineLayer;
+
+        // Optional backdrop particle that renders behind the item in the inspect view.
+        // It sits on the examine layer (so the inspect camera sees it) and behind the
+        // model along +Z. The inspect view runs while the game is paused, so its particle
+        // systems are forced onto unscaled time here, otherwise they would sit frozen.
+        if (inspectBackgroundParticle != null)
+        {
+            activeBackground = Instantiate(inspectBackgroundParticle, rigRoot);
+            activeBackground.transform.localPosition = new Vector3(0f, 0f, backgroundDistance);
+            activeBackground.transform.localRotation = Quaternion.identity;
+            SetLayerRecursive(activeBackground.transform, examineLayer);
+
+            foreach (ParticleSystem ps in activeBackground.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                ParticleSystem.MainModule main = ps.main;
+                main.useUnscaledTime = true;
+            }
+
+            activeBackground.SetActive(false); // shown only while the inspect view is open
+        }
 
         BuildUI();
     }
