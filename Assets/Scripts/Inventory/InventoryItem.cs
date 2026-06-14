@@ -34,8 +34,20 @@ public class InventoryItem : ScriptableObject
     public GameObject worldPrefab; // The 3D model that appears in the world when dropped
 
     [Header("World Particle")]
-    [Tooltip("Looping particle effect shown on this item while it sits in the world, to draw the player's eye. It vanishes when the item is collected. A REGULAR item loses this glow when dropped back; a QUEST item keeps glowing even on the ground. Assign a ParticleSystem prefab; leave empty for no glow")]
+    [Tooltip("Particle/glow effect shown on this item while it sits in the world, to draw the player's eye. It vanishes when the item is collected. A REGULAR item loses this glow when dropped back; a QUEST item keeps glowing even on the ground. Assign ANY prefab (a purchased effect, a halo, a light, or your own particle system). Use a looping effect, not a one-shot. Leave empty for no glow")]
     public GameObject attractParticle;
+
+    [Tooltip("Scale multiplier for the attract particle, for when a purchased effect is too big or small for this item. 1 keeps the effect's own size")]
+    public float attractParticleScale = 1f;
+
+    [Tooltip("Nudge for the attract particle. With 'Attract Particle Cover Item' on, this shifts it from the item's center (raise Y to lift it, X and Z to slide it). With that off, it is measured from the item's pivot")]
+    public Vector3 attractParticleOffset = Vector3.zero;
+
+    [Tooltip("When on, the glow is CENTERED on the item so it can cover the whole body. Then raise Attract Particle Scale until the effect wraps the item the way you want. When off, the glow sits at the item's pivot instead")]
+    public bool attractParticleCoverItem = true;
+
+    [Tooltip("When on, the glow turns to face the camera every frame, so it reads correctly from any viewing angle. Recommended on for flat or sprite-style effects")]
+    public bool attractParticleFaceCamera = true;
 }
 
 /// <summary>

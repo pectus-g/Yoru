@@ -29,13 +29,11 @@ public class ThirdPersonCamera : MonoBehaviour
     [Tooltip("DOF turns OFF below this distance, ON above it")]
     [SerializeField] private float dofDisableDistance = 4f;
     
-    [Header("Ground Collision")]
-    [Tooltip("Prevent camera from going underground")]
-    [SerializeField] private bool preventUnderground = true;
-    [Tooltip("Minimum height above ground the camera is allowed")]
+    [Header("Ground Clamp")]
+    [Tooltip("Lowest the camera may sit, measured above the player's footing. At low pitch the " +
+             "orbit math would otherwise place the camera below the ground and bury it. Raise this " +
+             "value if the camera grazes the ground when you tilt down to look up at Yoru.")]
     [SerializeField] private float minHeightAboveGround = 0.5f;
-    [Tooltip("Layers the camera collides with (set to terrain/environment layers)")]
-    [SerializeField] private LayerMask groundLayers = ~0;
     
     [Header("References")]
     [SerializeField] private Transform playerTransform;
@@ -106,7 +104,7 @@ public class ThirdPersonCamera : MonoBehaviour
                 if (dofSettings != null)
                 {
                     dofWasActive = dofSettings.active;
-                    Debug.Log("[Camera] DOF auto-control enabled — will disable when zoomed in");
+                    Debug.Log("[Camera] DOF auto-control enabled, will disable when zoomed in");
                 }
             }
         }
@@ -183,20 +181,15 @@ public class ThirdPersonCamera : MonoBehaviour
             
             Vector3 offset = horizontalBack * currentDistance + Vector3.up * (cameraHeight + formHeightOffset + pitchHeight);
             
-            // Ground collision: prevent camera from going underground
-            if (preventUnderground)
+            // Ground clamp: at low (negative) pitch, sin(pitch) is negative and pulls the vertical
+            // offset down. With a tall enough cameraHeight or a far enough zoom this drives the
+            // camera below the player's footing and buries it underground. Clamp the vertical offset
+            // so the camera is never placed below the pivot by more than this floor allows.
+            // Sideways and overhead occluders (walls, trees, cave roofs) are handled separately by
+            // the Cinemachine Deoccluder on the virtual camera, so this only guards the floor.
+            if (offset.y < minHeightAboveGround)
             {
-                Vector3 worldCamPos = playerTransform.position + offset;
-                
-                Vector3 rayOrigin = new Vector3(worldCamPos.x, playerTransform.position.y + 50f, worldCamPos.z);
-                if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 100f, groundLayers))
-                {
-                    float groundY = hit.point.y + minHeightAboveGround;
-                    if (worldCamPos.y < groundY)
-                    {
-                        offset.y += groundY - worldCamPos.y;
-                    }
-                }
+                offset.y = minHeightAboveGround;
             }
             
             followComponent.FollowOffset = offset;

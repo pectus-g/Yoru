@@ -28,6 +28,7 @@ public class ItemPickup : MonoBehaviour
     private bool playerInRange = false;
     private GameObject activeAttractParticle;
     private bool particleBuilt = false;
+    private Camera faceCamera;
     
     private void Awake()
     {
@@ -88,8 +89,52 @@ public class ItemPickup : MonoBehaviour
         if (!showAttractParticle || item == null || item.attractParticle == null) return;
 
         activeAttractParticle = Instantiate(item.attractParticle, transform);
-        activeAttractParticle.transform.localPosition = Vector3.zero;
+
+        // Center it on the item's visual so the effect can cover the whole body (scale it
+        // up in the inspector to wrap the item). Falls back to the pivot if the item has no
+        // measurable mesh. The per-item offset then nudges from there.
+        if (item.attractParticleCoverItem && TryGetVisualBounds(out Bounds vis))
+        {
+            activeAttractParticle.transform.position = vis.center;
+            activeAttractParticle.transform.localPosition += item.attractParticleOffset;
+        }
+        else
+        {
+            activeAttractParticle.transform.localPosition = item.attractParticleOffset;
+        }
+
         activeAttractParticle.transform.localRotation = Quaternion.identity;
+        if (Mathf.Abs(item.attractParticleScale - 1f) > 0.0001f)
+            activeAttractParticle.transform.localScale *= item.attractParticleScale;
+    }
+
+    /// <summary>
+    /// Combined world-space bounds of this pickup's solid mesh renderers, ignoring any
+    /// particle renderers (so the glow itself is never measured). Used to float the
+    /// attract glow above the item.
+    /// </summary>
+    private bool TryGetVisualBounds(out Bounds bounds)
+    {
+        bounds = new Bounds(transform.position, Vector3.zero);
+        bool found = false;
+        foreach (Renderer r in GetComponentsInChildren<Renderer>())
+        {
+            if (r is ParticleSystemRenderer) continue;
+            if (!found) { bounds = r.bounds; found = true; }
+            else bounds.Encapsulate(r.bounds);
+        }
+        return found;
+    }
+
+    /// <summary>
+    /// Keep the attract glow turned toward the camera so it reads from any angle.
+    /// </summary>
+    private void LateUpdate()
+    {
+        if (activeAttractParticle == null || item == null || !item.attractParticleFaceCamera) return;
+        if (faceCamera == null) faceCamera = Camera.main;
+        if (faceCamera == null) return;
+        activeAttractParticle.transform.rotation = faceCamera.transform.rotation;
     }
     
     /// <summary>
