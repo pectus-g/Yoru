@@ -48,9 +48,10 @@ public class ItemExamineController : MonoBehaviour
     [Tooltip("Slow auto-spin (degrees/sec) while you are NOT dragging. Set 0 for a dead-still item")]
     [SerializeField] private float idleSpinSpeed = 10f;
     [SerializeField] private float zoomSpeed = 0.15f;
-    [Tooltip("Closest/farthest zoom as a multiplier on the auto-fit distance")]
+    [Tooltip("How far you can zoom IN, as a multiplier on the auto-fit distance. Lower lets you get closer. 1 is the default framing. The camera is also stopped from entering the model")]
     [SerializeField] private float minZoom = 0.5f;
-    [SerializeField] private float maxZoom = 2.5f;
+    [Tooltip("How far you can zoom OUT, as a multiplier on the auto-fit distance. Higher lets you pull back further (item looks smaller). The item is kept on-screen and never clipped away")]
+    [SerializeField] private float maxZoom = 2f;
     [Tooltip("How quickly zoom eases toward the target. Higher = snappier, lower = slower and smoother. This is what makes scrolling glide instead of stepping")]
     [SerializeField] private float zoomSmoothing = 12f;
 
@@ -90,6 +91,7 @@ public class ItemExamineController : MonoBehaviour
     private int examineLayer;
 
     private float fitDistance = 3f;
+    private float modelMaxExtent = 1f;
     private float zoom = 1f;
     private float targetZoom = 1f;
     private GameObject activeBackground;
@@ -431,16 +433,27 @@ public class ItemExamineController : MonoBehaviour
 
         float maxExtent = Mathf.Max(b.size.x, b.size.y, b.size.z);
         if (maxExtent < 0.0001f) maxExtent = 1f;
+        modelMaxExtent = maxExtent;
 
         float halfFov = fieldOfView * 0.5f * Mathf.Deg2Rad;
         float needed = (maxExtent * 0.5f) / Mathf.Tan(halfFov);
         fitDistance = needed / Mathf.Max(0.3f, fillFraction);
+
+        // Push the far clip comfortably past the farthest the camera can pull back to, so
+        // the item is never clipped away (vanishes) at full zoom-out, even with a large
+        // model or a high Max Zoom.
+        examineCamera.farClipPlane = fitDistance * maxZoom + maxExtent + 50f;
+        examineCamera.nearClipPlane = 0.01f;
     }
 
     private void PositionCamera()
     {
         if (examineCamera == null || modelHolder == null) return;
         float dist = fitDistance * zoom;
+        // Never let the camera pull INTO the model on full zoom-in (which would make it
+        // vanish from the inside). Keep it just outside the model's own size.
+        float minSafe = modelMaxExtent * 0.5f + 0.05f;
+        if (dist < minSafe) dist = minSafe;
         examineCamera.transform.position = modelHolder.position - Vector3.forward * dist;
         examineCamera.transform.LookAt(modelHolder.position);
     }
