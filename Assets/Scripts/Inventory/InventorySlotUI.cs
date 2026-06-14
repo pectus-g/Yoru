@@ -244,9 +244,19 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     public void OnPointerClick(PointerEventData eventData)
     {
         if (inventorySlot.IsEmpty()) return;
-        
-        // Right click or double click to use item
-        if (eventData.button == PointerEventData.InputButton.Right || eventData.clickCount == 2)
+
+        // DOUBLE LEFT-CLICK: open the full-screen 3D inspect view (every item supports
+        // this). The bag stays paused underneath; double-click again or press I to return.
+        if (eventData.button == PointerEventData.InputButton.Left && eventData.clickCount == 2)
+        {
+            ItemExamineController.ShowItem(inventorySlot.item);
+            if (InventoryUI.Instance != null) InventoryUI.Instance.HideItemPreview();
+            return;
+        }
+
+        // RIGHT-CLICK: consume a consumable. (Use moved here from double-click so
+        // double-click is free for the 3D view. Quest items are blocked in the manager.)
+        if (eventData.button == PointerEventData.InputButton.Right)
         {
             if (inventorySlot.item.isConsumable)
             {

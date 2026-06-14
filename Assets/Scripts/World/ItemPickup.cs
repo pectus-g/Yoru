@@ -19,9 +19,15 @@ public class ItemPickup : MonoBehaviour
     [SerializeField] private AudioClip pickupSound;
     [Range(0f, 1f)]
     [SerializeField] private float pickupVolume = 0.9f;
+
+    [Header("Attract Particle")]
+    [Tooltip("When on, the item's attractParticle (from its InventoryItem) glows while this sits in the world. Hand-placed pickups leave this ON. A dropped REGULAR item turns it OFF; a dropped QUEST item leaves it ON (set automatically when the bag drops an item)")]
+    [SerializeField] private bool showAttractParticle = true;
     
     private Collider triggerCollider;
     private bool playerInRange = false;
+    private GameObject activeAttractParticle;
+    private bool particleBuilt = false;
     
     private void Awake()
     {
@@ -36,7 +42,15 @@ public class ItemPickup : MonoBehaviour
         }
         // If it's a box collider, you might want to adjust size manually in inspector
     }
-    
+
+    private void Start()
+    {
+        // Built in Start, not Awake: dropped items get their item assigned via SetItem
+        // right after Instantiate (after Awake, before Start), so the glow reflects the
+        // final item and the dropped-vs-quest flag.
+        RefreshAttractParticle();
+    }
+
     /// <summary>
     /// Set item data (useful when dropping items)
     /// </summary>
@@ -44,6 +58,38 @@ public class ItemPickup : MonoBehaviour
     {
         item = newItem;
         quantity = newQuantity;
+        if (particleBuilt) RefreshAttractParticle();
+    }
+
+    /// <summary>
+    /// Turn the in-world attract glow on or off. The bag calls this when dropping:
+    /// regular items drop without the glow, quest items keep it.
+    /// </summary>
+    public void SetAttractParticle(bool on)
+    {
+        showAttractParticle = on;
+        if (particleBuilt) RefreshAttractParticle();
+    }
+
+    /// <summary>
+    /// (Re)build the looping attract particle as a child of this pickup. Destroyed with
+    /// the object on pickup, so the glow disappears the moment the item is collected.
+    /// </summary>
+    private void RefreshAttractParticle()
+    {
+        particleBuilt = true;
+
+        if (activeAttractParticle != null)
+        {
+            Destroy(activeAttractParticle);
+            activeAttractParticle = null;
+        }
+
+        if (!showAttractParticle || item == null || item.attractParticle == null) return;
+
+        activeAttractParticle = Instantiate(item.attractParticle, transform);
+        activeAttractParticle.transform.localPosition = Vector3.zero;
+        activeAttractParticle.transform.localRotation = Quaternion.identity;
     }
     
     /// <summary>
@@ -138,7 +184,7 @@ public class ItemPickup : MonoBehaviour
         if (success)
         {
             Debug.Log($"Picked up {quantity}x {item.itemName}");
-            Destroy(gameObject); // Remove from world
+            Destroy(gameObject); // Remove from world (the attract particle child goes with it)
             return true;
         }
         else

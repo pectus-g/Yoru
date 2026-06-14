@@ -217,6 +217,10 @@ public class InventoryManager : MonoBehaviour
             if (pickup != null)
             {
                 pickup.SetItem(slot.item, 1);
+                // A dropped REGULAR item loses its glow; a QUEST item keeps glowing.
+                // (Quest items are blocked above today, so this currently only ever
+                // turns the glow OFF, but it is future-proof if quest drops are allowed.)
+                pickup.SetAttractParticle(slot.item.category == ItemCategory.Quest);
             }
         }
         else

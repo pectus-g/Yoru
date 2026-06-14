@@ -32,6 +32,10 @@ public class InventoryItem : ScriptableObject
     
     [Header("World Representation")]
     public GameObject worldPrefab; // The 3D model that appears in the world when dropped
+
+    [Header("World Particle")]
+    [Tooltip("Looping particle effect shown on this item while it sits in the world, to draw the player's eye. It vanishes when the item is collected. A REGULAR item loses this glow when dropped back; a QUEST item keeps glowing even on the ground. Assign a ParticleSystem prefab; leave empty for no glow")]
+    public GameObject attractParticle;
 }
 
 /// <summary>

@@ -108,6 +108,16 @@ public class InventoryUI : MonoBehaviour
     
     private void Update()
     {
+        // While the 3D item view is open it owns all input (drag to rotate, scroll to
+        // zoom, double-click or I to close). The bag stays paused underneath, so do not
+        // toggle or drop here until the inspect view hands control back.
+        if (ItemExamineController.IsExamining) return;
+
+        // The inspector just closed THIS frame (I or double-click). Swallow this frame's
+        // input so the same press does not also toggle the bag. Update order between the
+        // two is not guaranteed; this is what makes I reliably go back to the grid.
+        if (ItemExamineController.ConsumedCloseThisFrame) return;
+
         if (Input.GetKeyDown(KeyCode.I))
         {
             ToggleInventory();
