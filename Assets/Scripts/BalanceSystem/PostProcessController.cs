@@ -69,6 +69,12 @@ public class PostProcessController : MonoBehaviour
         public bool grainEnabled = false;
         [Range(0, 1)] public float grainIntensity = 0f;
         
+        [Header("Tone: black level + midtone lift (added)")]
+        [Tooltip("Negative deepens true blacks so dark stays dark and atmospheric. 0 = no change.")]
+        [Range(-0.4f, 0.1f)] public float blackPoint = 0f;
+        [Tooltip("Positive lifts the midtones so the ground and path stay readable. 0 = no change.")]
+        [Range(-0.2f, 0.5f)] public float midtoneLift = 0f;
+        
         public static PostProcessPreset Lerp(PostProcessPreset a, PostProcessPreset b, float t)
         {
             return new PostProcessPreset
@@ -90,7 +96,9 @@ public class PostProcessController : MonoBehaviour
                 chromaticEnabled = t > 0.5f ? b.chromaticEnabled : a.chromaticEnabled,
                 chromaticIntensity = Mathf.Lerp(a.chromaticIntensity, b.chromaticIntensity, t),
                 grainEnabled = t > 0.5f ? b.grainEnabled : a.grainEnabled,
-                grainIntensity = Mathf.Lerp(a.grainIntensity, b.grainIntensity, t)
+                grainIntensity = Mathf.Lerp(a.grainIntensity, b.grainIntensity, t),
+                blackPoint = Mathf.Lerp(a.blackPoint, b.blackPoint, t),
+                midtoneLift = Mathf.Lerp(a.midtoneLift, b.midtoneLift, t)
             };
         }
     }
@@ -328,41 +336,46 @@ public class PostProcessController : MonoBehaviour
     [SerializeField] private PostProcessPreset dark1Preset = new PostProcessPreset
     {
         stateName = "Dark1 (2L/1R)",
-        temperature = -5, tint = 2, saturation = -3, contrast = 3,
+        temperature = -5, tint = 1, saturation = -2, contrast = 4,
         bloomIntensity = 0.28f, bloomThreshold = 1f,
-        vignetteIntensity = 0.28f, vignetteColor = new Color(0.1f, 0.06f, 0.12f)
+        vignetteIntensity = 0.24f, vignetteColor = new Color(0.1f, 0.06f, 0.12f),
+        blackPoint = -0.03f, midtoneLift = 0.03f
     };
     
     [SerializeField] private PostProcessPreset dark2Preset = new PostProcessPreset
     {
         stateName = "Dark2 (2L/0R)",
-        temperature = -8, tint = 4, saturation = -6, contrast = 5,
+        temperature = -8, tint = 2, saturation = -3, contrast = 6,
         bloomIntensity = 0.25f, bloomThreshold = 1f,
-        vignetteIntensity = 0.32f, vignetteColor = new Color(0.15f, 0.06f, 0.17f)
+        vignetteIntensity = 0.27f, vignetteColor = new Color(0.15f, 0.06f, 0.17f),
+        blackPoint = -0.05f, midtoneLift = 0.035f
     };
     
     [SerializeField] private PostProcessPreset dark3Preset = new PostProcessPreset
     {
         stateName = "Dark3 (3L/0R, 4L/1R)",
-        temperature = -12, tint = 6, saturation = -10, contrast = 8,
-        bloomIntensity = 0.3f, bloomThreshold = 0.9f,
-        vignetteIntensity = 0.36f, vignetteColor = new Color(0.2f, 0.06f, 0.22f)
+        temperature = -12, tint = 3, saturation = -5, contrast = 8,
+        bloomIntensity = 0.3f, bloomThreshold = 0.92f,
+        vignetteIntensity = 0.3f, vignetteColor = new Color(0.2f, 0.06f, 0.22f),
+        blackPoint = -0.08f, midtoneLift = 0.04f
     };
     
     [SerializeField] private PostProcessPreset dark4Preset = new PostProcessPreset
     {
         stateName = "Dark4 (4L/0R, 5L/1R, 5L/2R, 6L/2R, 6L/3R)",
-        temperature = -16, tint = 8, saturation = -15, contrast = 10,
-        bloomIntensity = 0.35f, bloomThreshold = 0.85f,
-        vignetteIntensity = 0.4f, vignetteColor = new Color(0.25f, 0.06f, 0.27f)
+        temperature = -16, tint = 4, saturation = -7, contrast = 11,
+        bloomIntensity = 0.32f, bloomThreshold = 0.92f,
+        vignetteIntensity = 0.32f, vignetteColor = new Color(0.25f, 0.06f, 0.27f),
+        blackPoint = -0.12f, midtoneLift = 0.045f
     };
     
     [SerializeField] private PostProcessPreset dark5Preset = new PostProcessPreset
     {
         stateName = "Dark5 (5L/0R, 6L/1R, 7L/2R, 7L/3R) - Midnight Visible",
-        temperature = -20, tint = 10, saturation = -20, contrast = 15,
-        bloomIntensity = 0.4f, bloomThreshold = 0.7f,
-        vignetteIntensity = 0.35f, vignetteColor = new Color(0.05f, 0.03f, 0.09f)
+        temperature = -20, tint = 5, saturation = -8, contrast = 12,
+        bloomIntensity = 0.32f, bloomThreshold = 0.92f,
+        vignetteIntensity = 0.32f, vignetteColor = new Color(0.05f, 0.03f, 0.09f),
+        blackPoint = -0.15f, midtoneLift = 0.05f
     };
     
     // ==========================================
@@ -373,49 +386,54 @@ public class PostProcessController : MonoBehaviour
     [SerializeField] private PostProcessPreset darkStage1Preset = new PostProcessPreset
     {
         stateName = "Dark+Stage1 (6L/0R, 7L/1R, 8L/2R) Partly Cloudy",
-        temperature = -22, tint = 11, saturation = -22, contrast = 16,
-        bloomIntensity = 0.35f, bloomThreshold = 0.75f,
-        vignetteIntensity = 0.38f, vignetteColor = new Color(0.05f, 0.03f, 0.09f),
-        chromaticEnabled = true, chromaticIntensity = 0.05f
+        temperature = -18, tint = 5, saturation = -8, contrast = 13,
+        bloomIntensity = 0.3f, bloomThreshold = 0.9f,
+        vignetteIntensity = 0.32f, vignetteColor = new Color(0.05f, 0.03f, 0.09f),
+        chromaticEnabled = true, chromaticIntensity = 0.02f,
+        blackPoint = -0.17f, midtoneLift = 0.05f
     };
     
     [SerializeField] private PostProcessPreset darkStage2Preset = new PostProcessPreset
     {
         stateName = "Dark+Stage2 (7L/0R, 8L/1R, 9L/2R) Overcast",
-        temperature = -25, tint = 12, saturation = -25, contrast = 18,
-        bloomIntensity = 0.32f, bloomThreshold = 0.8f,
-        vignetteIntensity = 0.42f, vignetteColor = new Color(0.04f, 0.02f, 0.08f),
-        chromaticEnabled = true, chromaticIntensity = 0.1f
+        temperature = -19, tint = 5, saturation = -9, contrast = 14,
+        bloomIntensity = 0.3f, bloomThreshold = 0.9f,
+        vignetteIntensity = 0.33f, vignetteColor = new Color(0.04f, 0.02f, 0.08f),
+        chromaticEnabled = true, chromaticIntensity = 0.03f,
+        blackPoint = -0.19f, midtoneLift = 0.055f
     };
     
     [SerializeField] private PostProcessPreset darkStage3Preset = new PostProcessPreset
     {
         stateName = "Dark+Stage3 (8L/0R, 9L/1R) Light Rain",
-        temperature = -28, tint = 14, saturation = -28, contrast = 20,
-        bloomIntensity = 0.28f, bloomThreshold = 0.85f,
-        vignetteIntensity = 0.45f, vignetteColor = new Color(0.04f, 0.02f, 0.07f),
-        chromaticEnabled = true, chromaticIntensity = 0.15f,
-        grainEnabled = true, grainIntensity = 0.1f
+        temperature = -20, tint = 6, saturation = -10, contrast = 14,
+        bloomIntensity = 0.3f, bloomThreshold = 0.9f,
+        vignetteIntensity = 0.33f, vignetteColor = new Color(0.04f, 0.02f, 0.07f),
+        chromaticEnabled = true, chromaticIntensity = 0.04f,
+        grainEnabled = true, grainIntensity = 0.06f,
+        blackPoint = -0.21f, midtoneLift = 0.06f
     };
     
     [SerializeField] private PostProcessPreset darkStage4Preset = new PostProcessPreset
     {
         stateName = "Dark+Stage4 (9L/0R) Heavy Rain",
-        temperature = -32, tint = 16, saturation = -32, contrast = 24,
-        bloomIntensity = 0.25f, bloomThreshold = 0.9f,
-        vignetteIntensity = 0.5f, vignetteColor = new Color(0.03f, 0.02f, 0.06f),
-        chromaticEnabled = true, chromaticIntensity = 0.25f,
-        grainEnabled = true, grainIntensity = 0.2f
+        temperature = -21, tint = 6, saturation = -11, contrast = 15,
+        bloomIntensity = 0.3f, bloomThreshold = 0.9f,
+        vignetteIntensity = 0.34f, vignetteColor = new Color(0.03f, 0.02f, 0.06f),
+        chromaticEnabled = true, chromaticIntensity = 0.05f,
+        grainEnabled = true, grainIntensity = 0.1f,
+        blackPoint = -0.23f, midtoneLift = 0.06f
     };
     
     [SerializeField] private PostProcessPreset darkStage5Preset = new PostProcessPreset
     {
         stateName = "Dark+Stage5 (10L/0R) THUNDERSTORM",
-        temperature = -40, tint = 20, saturation = -40, contrast = 30,
-        bloomIntensity = 0.22f, bloomThreshold = 0.95f,
-        vignetteIntensity = 0.55f, vignetteColor = new Color(0.02f, 0.01f, 0.05f),
-        chromaticEnabled = true, chromaticIntensity = 0.4f,
-        grainEnabled = true, grainIntensity = 0.3f
+        temperature = -22, tint = 7, saturation = -12, contrast = 16,
+        bloomIntensity = 0.32f, bloomThreshold = 0.92f,
+        vignetteIntensity = 0.35f, vignetteColor = new Color(0.02f, 0.01f, 0.05f),
+        chromaticEnabled = true, chromaticIntensity = 0.06f,
+        grainEnabled = true, grainIntensity = 0.12f,
+        blackPoint = -0.25f, midtoneLift = 0.065f
     };
     
     [Header("=== DEBUG ===")]
@@ -695,6 +713,11 @@ public class PostProcessController : MonoBehaviour
             colorGrading.tint.Override(preset.tint);
             colorGrading.saturation.Override(preset.saturation);
             colorGrading.contrast.Override(preset.contrast);
+            // Black level + midtone lift. Lift/Gamma master is neutral at (1,1,1,0), so any
+            // preset leaving blackPoint/midtoneLift at 0 is completely unaffected. Dark presets
+            // push the black point down (deeper true blacks) and the midtones up (readable ground).
+            colorGrading.lift.Override(new Vector4(1f, 1f, 1f, preset.blackPoint));
+            colorGrading.gamma.Override(new Vector4(1f, 1f, 1f, preset.midtoneLift));
         }
         
         if (bloom != null)

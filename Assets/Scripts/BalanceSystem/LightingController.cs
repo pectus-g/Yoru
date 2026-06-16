@@ -46,6 +46,10 @@ public class LightingController : MonoBehaviour
         [Header("Shadow Settings")]
         [Range(0, 1)] public float shadowStrength = 0.7f;
         
+        [Header("Ambient Mode (added)")]
+        [Tooltip("Dark states use a directional gradient ambient instead of flat fill so surfaces keep their form.")]
+        public bool useGradientAmbient = false;
+        
         [Header("Divine Glow (Light Escalation Only)")]
         [Range(0, 3)] public float divineGlowIntensity = 0f;
         
@@ -64,7 +68,8 @@ public class LightingController : MonoBehaviour
                 ambientColor = Color.Lerp(a.ambientColor, b.ambientColor, t),
                 ambientIntensity = Mathf.Lerp(a.ambientIntensity, b.ambientIntensity, t),
                 shadowStrength = Mathf.Lerp(a.shadowStrength, b.shadowStrength, t),
-                divineGlowIntensity = Mathf.Lerp(a.divineGlowIntensity, b.divineGlowIntensity, t)
+                divineGlowIntensity = Mathf.Lerp(a.divineGlowIntensity, b.divineGlowIntensity, t),
+                useGradientAmbient = t > 0.5f ? b.useGradientAmbient : a.useGradientAmbient
             };
         }
     }
@@ -84,6 +89,43 @@ public class LightingController : MonoBehaviour
     
     [Header("=== TRANSITION ===")]
     [SerializeField, Range(0.5f, 5f)] private float transitionDuration = 2f;
+    
+    [Header("=== DARK LOOK TUNING (added) ===")]
+    [Tooltip("How much brighter the sky (upper) ambient is vs the base color in dark states.")]
+    [SerializeField, Range(1f, 3f)] private float ambientSkyMultiplier = 1.5f;
+    [Tooltip("Cool moonlight tint applied to the sky (upper) ambient in dark states.")]
+    [SerializeField] private Color ambientSkyTint = new Color(0.65f, 0.78f, 1f);
+    [Tooltip("How much darker the ground (lower) ambient is vs the base color in dark states.")]
+    [SerializeField, Range(0f, 1f)] private float ambientGroundMultiplier = 0.4f;
+    [Tooltip("Hard cap on the dark-path fill light so it can never flood or wash out Yoru.")]
+    [SerializeField, Range(0f, 3f)] private float darkPathMaxIntensity = 0.8f;
+    [Tooltip("Height of the dark-path fill above the player. Low, not overhead.")]
+    [SerializeField, Range(0f, 3f)] private float darkPathHeight = 0.6f;
+    [Tooltip("Range of the dark-path fill. A small local pool, not a 100m flood.")]
+    [SerializeField, Range(1f, 200f)] private float darkPathRange = 16f;
+    
+    [Header("=== CHARACTER RIM (Drop 2, auto-created) ===")]
+    [Tooltip("Master toggle for the rim edge light that traces Yoru's silhouette.")]
+    [SerializeField] private bool enableCharacterRim = true;
+    [SerializeField] private Light characterRimLight;
+    [Tooltip("The rim lights ONLY this layer, so it never spills onto the world. Put Yoru's body renderer on this layer.")]
+    [SerializeField] private string characterLayerName = "Player";
+    [Tooltip("Brightness of the rim edge. Raise for a stronger silhouette, lower if the edge blows out.")]
+    [SerializeField, Range(0f, 6f)] private float rimIntensity = 1.8f;
+    [Tooltip("Color of the rim edge (cool moonlight by default).")]
+    [SerializeField] private Color rimColor = new Color(0.7f, 0.82f, 1f);
+    [SerializeField, Range(20f, 120f)] private float rimSpotAngle = 55f;
+    [Tooltip("How far behind Yoru (away from the camera) the rim sits.")]
+    [SerializeField, Range(0.5f, 6f)] private float rimDistance = 2.2f;
+    [Tooltip("How high above Yoru the rim sits.")]
+    [SerializeField, Range(0f, 4f)] private float rimHeight = 1.4f;
+    [SerializeField, Range(1f, 30f)] private float rimRange = 8f;
+    [Tooltip("Camera the rim positions relative to. Uses the Main Camera automatically if left empty.")]
+    [SerializeField] private Camera rimCamera;
+    
+    [Header("=== DARK PATH FILL (legacy, off by default) ===")]
+    [Tooltip("The old follow light stuck on Yoru. Replaced by the rim. Leave this off.")]
+    [SerializeField] private bool enableDarkPathFill = false;
     
     [Header("=== NEUTRAL ===")]
     [SerializeField] private LightingPreset neutralPreset = new LightingPreset
@@ -423,13 +465,30 @@ public class LightingController : MonoBehaviour
             // Dark path light follows player (for visibility in dark states)
             if (darkPathLight != null && darkPathLight.enabled)
             {
-                darkPathLight.transform.position = playerTransform.position + Vector3.up * 5f;
+                darkPathLight.transform.position = playerTransform.position + Vector3.up * darkPathHeight;
             }
             
             // Divine glow follows player (for light escalation)
             if (divineGlowLight != null && divineGlowLight.enabled)
             {
                 divineGlowLight.transform.position = playerTransform.position + divineGlowOffset;
+            }
+            
+            // Character rim follows behind Yoru, relative to the camera, so it always
+            // back-lights the silhouette the player is currently looking at.
+            if (characterRimLight != null && characterRimLight.enabled)
+            {
+                if (rimCamera == null) rimCamera = Camera.main;
+                if (rimCamera != null)
+                {
+                    Vector3 toPlayer = playerTransform.position - rimCamera.transform.position;
+                    toPlayer.y = 0f;
+                    if (toPlayer.sqrMagnitude < 0.0001f) toPlayer = playerTransform.forward;
+                    toPlayer.Normalize();
+                    Vector3 rimPos = playerTransform.position + toPlayer * rimDistance + Vector3.up * rimHeight;
+                    characterRimLight.transform.position = rimPos;
+                    characterRimLight.transform.rotation = Quaternion.LookRotation((playerTransform.position + Vector3.up * 0.6f) - rimPos);
+                }
             }
         }
     }
@@ -525,6 +584,32 @@ public class LightingController : MonoBehaviour
             }
         }
         
+        // Character Rim Light (Drop 2): a cool edge that traces Yoru's silhouette so she
+        // separates from dark backgrounds. It lights ONLY the character layer via its culling
+        // mask, so it never spills onto the world or glares into the camera.
+        if (rimCamera == null) rimCamera = Camera.main;
+        var existingRim = transform.Find("YORU_CharacterRim");
+        if (existingRim != null)
+        {
+            characterRimLight = existingRim.GetComponent<Light>();
+            if (logChanges) Debug.Log("[LightingController] ✓ Found existing YORU_CharacterRim");
+        }
+        else if (enableCharacterRim)
+        {
+            var rimObj = new GameObject("YORU_CharacterRim");
+            rimObj.transform.SetParent(transform);
+            characterRimLight = rimObj.AddComponent<Light>();
+            characterRimLight.type = LightType.Spot;
+            characterRimLight.color = rimColor;
+            characterRimLight.intensity = 0f;          // set per state in ApplyPreset
+            characterRimLight.spotAngle = rimSpotAngle;
+            characterRimLight.range = rimRange;
+            characterRimLight.shadows = LightShadows.None;  // a rim never needs shadows
+            characterRimLight.cullingMask = ResolveCharacterMask();
+            characterRimLight.enabled = false;          // enabled in dark states only
+            if (logChanges) Debug.Log("[LightingController] ✓ Created YORU_CharacterRim light");
+        }
+        
         // Log current state
         if (logChanges)
         {
@@ -534,9 +619,49 @@ public class LightingController : MonoBehaviour
     
     void InitializeState()
     {
+        // Dark-path states use the directional gradient ambient. Setting this in code
+        // guarantees it is correct regardless of Inspector overrides, and keeps Eclipse,
+        // Neutral and the Light path untouched on their original flat ambient.
+        EnableGradientAmbientOnDarkStates();
+        
         currentPreset = neutralPreset;
         targetPreset = neutralPreset;
         ApplyPreset(currentPreset);
+    }
+    
+    /// <summary>
+    /// Marks every dark-path preset (Dark1-5 and DarkStage1-5) to use the directional
+    /// gradient ambient. Eclipse, Neutral and the Light path are intentionally excluded.
+    /// </summary>
+    void EnableGradientAmbientOnDarkStates()
+    {
+        dark1Preset.useGradientAmbient = true;
+        dark2Preset.useGradientAmbient = true;
+        dark3Preset.useGradientAmbient = true;
+        dark4Preset.useGradientAmbient = true;
+        dark5Preset.useGradientAmbient = true;
+        darkStage1Preset.useGradientAmbient = true;
+        darkStage2Preset.useGradientAmbient = true;
+        darkStage3Preset.useGradientAmbient = true;
+        darkStage4Preset.useGradientAmbient = true;
+        darkStage5Preset.useGradientAmbient = true;
+    }
+    
+    /// <summary>
+    /// Returns a culling mask covering only the character layer, so the rim light affects
+    /// Yoru and nothing else. Falls back to the player's own layer if the named layer is
+    /// missing, and finally to layer 0 with a warning.
+    /// </summary>
+    int ResolveCharacterMask()
+    {
+        int layer = LayerMask.NameToLayer(characterLayerName);
+        if (layer < 0 && playerTransform != null) layer = playerTransform.gameObject.layer;
+        if (layer < 0)
+        {
+            Debug.LogWarning("[LightingController] ⚠ Rim culling layer not found; rim may light the world. Set Character Layer Name to Yoru's layer.");
+            layer = 0;
+        }
+        return 1 << layer;
     }
     
     void SubscribeToEvents()
@@ -659,24 +784,54 @@ public class LightingController : MonoBehaviour
             }
         }
         
-        // CRITICAL: Set ambient mode to Color so our settings take effect
-        // COZY might set this to Skybox which would override our values
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = preset.ambientColor * preset.ambientIntensity;
-        
-        // Also set ambient intensity for good measure
+        // Ambient lighting.
+        // Dark states use a directional gradient (Trilight): a cooler, brighter sky term,
+        // the base color at the horizon, and a darker ground term. This gives surfaces
+        // their form back instead of the flat single-color fill that washed Yoru out.
+        // Every non-dark state (Neutral, Light, Eclipse, etc.) keeps the original Flat mode.
+        if (preset.useGradientAmbient)
+        {
+            Color baseAmbient = preset.ambientColor * preset.ambientIntensity;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = baseAmbient * ambientSkyMultiplier * ambientSkyTint;
+            RenderSettings.ambientEquatorColor = baseAmbient;
+            RenderSettings.ambientGroundColor = baseAmbient * ambientGroundMultiplier;
+        }
+        else
+        {
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = preset.ambientColor * preset.ambientIntensity;
+        }
         RenderSettings.ambientIntensity = preset.ambientIntensity;
         
-        // Dark Path Light - point light for visibility in dark states
+        // Dark Path Light - soft, low, short-range fill for visibility.
+        // It is now intensity-capped and sits low and close, so it can no longer act as
+        // the strong overhead point that blew out Yoru's fur and flattened the area.
         if (darkPathLight != null)
         {
-            darkPathLight.intensity = preset.darkPathIntensity;
-            darkPathLight.enabled = preset.darkPathIntensity > 0.01f;
+            float cappedIntensity = Mathf.Min(preset.darkPathIntensity, darkPathMaxIntensity);
+            darkPathLight.intensity = cappedIntensity;
+            darkPathLight.enabled = enableDarkPathFill && cappedIntensity > 0.01f;
+            darkPathLight.range = darkPathRange;
             
             // Position at player if available
             if (playerTransform != null)
             {
-                darkPathLight.transform.position = playerTransform.position + Vector3.up * 5f;
+                darkPathLight.transform.position = playerTransform.position + Vector3.up * darkPathHeight;
+            }
+        }
+        
+        // Character Rim - on for dark states only (same set as the gradient ambient).
+        // Gives Yoru a consistent cool edge so she reads the same whether the scene is
+        // bright or pitch dark, without dumping fill light onto her.
+        if (characterRimLight != null)
+        {
+            bool rimOn = enableCharacterRim && preset.useGradientAmbient;
+            characterRimLight.enabled = rimOn;
+            if (rimOn)
+            {
+                characterRimLight.intensity = rimIntensity;
+                characterRimLight.color = rimColor;
             }
         }
         
