@@ -74,6 +74,16 @@ public class EnemyCombat : MonoBehaviour
         public float range = 3.5f;
         [Tooltip("Is this AoE? (damage all in range vs single target)")]
         public bool isAoE = false;
+        [Tooltip("If true, damage scales DOWN with distance: full Damage up close, falling to Min Damage At Range at the edge of Range. Use for a roar/shockwave that hurts more the closer you are. Leave off for flat damage.")]
+        public bool damageFallsOffWithDistance = false;
+        [Tooltip("Damage dealt at the very edge of Range when falloff is on. Point-blank uses the normal Damage value and lerps down to this at max range.")]
+        public int minDamageAtRange = 1;
+
+        [Header("Camera Shake")]
+        [Tooltip("Camera shake intensity when this attack's strike lands (0 = none). Fires on impact whether or not the player is hit, so a leap/slam shakes the ground. Make leap stronger than paw slam.")]
+        public float cameraShakeOnHit = 0f;
+        [Tooltip("How long the camera shake lasts, in seconds.")]
+        public float cameraShakeDuration = 0.3f;
         
         [Header("Player Effects")]
         [Tooltip("Stun player for this duration on hit (0 = no stun)")]
@@ -1208,31 +1218,45 @@ public class EnemyCombat : MonoBehaviour
     #endregion
     
     #region Damage
-    private void DealDamageToPlayer()
+   private void DealDamageToPlayer()
     {
         if (currentAttack == null || player == null) return;
-        
+
+        // Camera shake fires on the strike whether or not it connects, so the ground shakes for a
+        // leap/slam even when the player dodged. Tuned per attack (0 = no shake).
+        if (currentAttack.cameraShakeOnHit > 0f && CameraGameFeel.Instance != null)
+            CameraGameFeel.Instance.Shake(currentAttack.cameraShakeOnHit, currentAttack.cameraShakeDuration);
+
         float dist = DistanceToPlayer();
-        
+
         if (dist > currentAttack.range)
         {
-            DebugLog($"Attack missed — player out of range ({dist:F1}m > {currentAttack.range}m)");
+            DebugLog($"Attack missed, player out of range ({dist:F1}m > {currentAttack.range}m)");
             return;
         }
-        
+
         PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
         if (playerHealth == null) return;
-        
-       // Combo hits read light until the finisher: only the last hit of an active combo
+
+        // Distance falloff (roar/shockwave): full Damage up close, easing to minDamageAtRange at the edge.
+        int dmg = currentAttack.damage;
+        if (currentAttack.damageFallsOffWithDistance && currentAttack.range > 0.01f)
+        {
+            float t = Mathf.Clamp01(dist / currentAttack.range); // 0 = point-blank, 1 = edge of range
+            dmg = Mathf.RoundToInt(Mathf.Lerp(currentAttack.damage, currentAttack.minDamageAtRange, t));
+        }
+
+        // Combo hits read light until the finisher: only the last hit of an active combo
         // forces a heavy reaction. A single attack stays damage-based.
         bool inCombo = !string.IsNullOrEmpty(activeComboName);
         bool isHeavy = inCombo ? (comboQueue.Count == 0) : (currentAttack.damage >= heavyHitThreshold);
-      // Hallucination attacks (Mushroom) skip the knockback pull so it does not interrupt
+
+        // Hallucination attacks (Mushroom) skip the knockback pull so it does not interrupt
         // and cut the hit reaction. Physical attacks still knock back toward the enemy.
         Vector3 reactPos = currentAttack.hallucinationDuration > 0f ? Vector3.zero : transform.position;
-        playerHealth.TakeDamage(currentAttack.damage, isHeavy, reactPos);
-        DebugLog($"⚔️ Hit player for {currentAttack.damage} ({currentAttack.attackName})");
-        
+        playerHealth.TakeDamage(dmg, isHeavy, reactPos);
+        DebugLog($"Hit player for {dmg} ({currentAttack.attackName})");
+
         // Apply stun if attack has it
         if (currentAttack.stunPlayerDuration > 0)
         {

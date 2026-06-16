@@ -1,8 +1,12 @@
 using UnityEngine;
 
 /// <summary>
-/// Universal Enemy Health — works for all enemy tiers.
+/// Universal Enemy Health, works for all enemy tiers.
 /// Updated: passes hit type (heavy/light) to EnemyCombat for stagger.
+/// Updated: optional NON-LETHAL mode, a boss that should yield instead of dying (the Komainu).
+///          When non-lethal, reaching the yield threshold fires OnYield (KomainuBoss handles the
+///          bow + turn-to-stone) and the enemy is never destroyed. Default OFF: normal enemies
+///          behave exactly as before. Also adds SetInvulnerable for "not currently engaged" gating.
 /// </summary>
 public class EnemyHealth : MonoBehaviour
 {
@@ -15,6 +19,12 @@ public class EnemyHealth : MonoBehaviour
     [Header("Hit Reaction")]
     [Tooltip("Damage at or above this in a single hit triggers a STAGGER (big interrupt); anything below triggers a quick HIT-REACT flinch. Heavy attacks also always stagger. Set this between your light and heavy player-attack damage values.")]
     [SerializeField] private int staggerDamageThreshold = 15;
+
+    [Header("Non-Lethal (boss yield)")]
+    [Tooltip("If true, this enemy is NEVER killed: when worn down to 'Yield Health Threshold' it fires OnYield instead of dying, and ignores all further damage. Used by the Komainu (its KomainuBoss plays the bow + turn-to-stone). Leave OFF for normal enemies.")]
+    [SerializeField] private bool nonLethal = false;
+    [Tooltip("HP at or below which a non-lethal enemy yields. 1 = yields when almost worn out. Ignored unless Non Lethal is on.")]
+    [SerializeField] private int yieldHealthThreshold = 1;
     
     [Header("Death Settings")]
     [SerializeField] private float deathDelay = 2f;
@@ -30,6 +40,8 @@ public class EnemyHealth : MonoBehaviour
     private Animator animator;
     private EnemyCombat enemyCombat;
     private bool isDead = false;
+    private bool hasYielded = false;
+    private bool invulnerable = false;
     
     void Start()
     {
@@ -41,7 +53,7 @@ public class EnemyHealth : MonoBehaviour
     }
     
     /// <summary>
-    /// Standard damage — light hit (quick flinch).
+    /// Standard damage, light hit (quick flinch).
     /// </summary>
     public void TakeDamage(int damage)
     {
@@ -49,13 +61,15 @@ public class EnemyHealth : MonoBehaviour
     }
     
     /// <summary>
-    /// Damage with hit type — heavy hits trigger stagger.
+    /// Damage with hit type, heavy hits trigger stagger.
     /// </summary>
     public void TakeDamage(int damage, bool isHeavy)
     {
         if (isDead) return;
+        if (hasYielded) return;     // non-lethal: ignores all hits once it has yielded
+        if (invulnerable) return;   // not currently engaged (dormant statue / patrolling / mid-yield)
 
-        // Hallucination gate — while Nopperabō's Mushroom attack is active, Yoru deals zero
+        // Hallucination gate, while Nopperabō's Mushroom attack is active, Yoru deals zero
         // damage to EVERY enemy. All three TakeDamage overloads funnel through here, so this
         // single check covers normal combos, dash, parry counter, and positional damage.
         if (HallucinationEffect.IsActive)
@@ -70,8 +84,21 @@ public class EnemyHealth : MonoBehaviour
         Debug.Log($"{gameObject.name} took {damage} damage{(isHeavy ? " (HEAVY)" : "")}. HP: {currentHealth}/{maxHealth}");
         
         FlashRed();
-        
-        if (currentHealth <= 0)
+
+        // Non-lethal: worn down instead of killed. Fire OnYield once and stop taking damage.
+        // The bow + turn-to-stone is handled by KomainuBoss (it listens to OnYield).
+        if (nonLethal)
+        {
+            if (currentHealth <= yieldHealthThreshold)
+            {
+                hasYielded = true;
+                Debug.Log($"{gameObject.name} yielded (non-lethal) at {currentHealth} HP");
+                OnYield?.Invoke(this);
+                return; // no death, no stagger after yielding
+            }
+            // Above the yield line, fall through to normal stagger/flinch so the fight reads normally.
+        }
+        else if (currentHealth <= 0)
         {
             Die();
             return;
@@ -121,8 +148,16 @@ public class EnemyHealth : MonoBehaviour
     {
         currentHealth = maxHealth;
         isDead = false;
+        hasYielded = false;
         Debug.Log($"[Health] {gameObject.name} reset to {maxHealth} HP");
     }
+
+    /// <summary>
+    /// Toggle damage immunity. The Komainu's KomainuBoss turns this ON while the lion is a dormant
+    /// statue or patrolling (you engage it through the gate, not by hitting it) and OFF during the
+    /// fight. Default OFF, so normal enemies are always damageable.
+    /// </summary>
+    public void SetInvulnerable(bool value) => invulnerable = value;
     
     /// <summary>
     /// Fired exactly once when this enemy dies, on both death paths (EnemyDeathEffect
@@ -130,6 +165,12 @@ public class EnemyHealth : MonoBehaviour
     /// Parchment; quest DEFEAT_ENEMY steps route through the same hook.
     /// </summary>
     public event System.Action<EnemyHealth> OnDied;
+
+    /// <summary>
+    /// Fired once when a NON-LETHAL enemy is worn down to its yield threshold instead of dying.
+    /// KomainuBoss listens to this to play the bow + turn-to-stone ending.
+    /// </summary>
+    public event System.Action<EnemyHealth> OnYield;
 
     private void Die()
     {
@@ -284,4 +325,6 @@ public class EnemyHealth : MonoBehaviour
     public bool IsDead() => isDead;
     public bool IsAlive() => !isDead;
     public bool IsAtFullHealth() => currentHealth >= maxHealth;
+    public bool HasYielded => hasYielded;
+    public bool IsInvulnerable => invulnerable;
 }
