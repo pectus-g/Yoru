@@ -127,6 +127,22 @@ public class LightingController : MonoBehaviour
     [Tooltip("The old follow light stuck on Yoru. Replaced by the rim. Leave this off.")]
     [SerializeField] private bool enableDarkPathFill = false;
     
+    [Header("=== STORM LIGHTNING (Drop 3, auto-created) ===")]
+    [Tooltip("Master toggle for lightning flashes during the storm stages.")]
+    [SerializeField] private bool enableLightning = true;
+    [SerializeField] private Light lightningLight;
+    [SerializeField] private Color lightningColor = new Color(0.8f, 0.88f, 1f);
+    [Tooltip("Peak brightness of a lightning flash.")]
+    [SerializeField, Range(0f, 8f)] private float lightningPeakIntensity = 2.5f;
+    [Tooltip("How long a single flash lasts, in seconds.")]
+    [SerializeField, Range(0.05f, 1f)] private float lightningFlashDuration = 0.18f;
+    [Tooltip("Shortest gap between flashes, in seconds.")]
+    [SerializeField, Range(1f, 30f)] private float lightningIntervalMin = 4f;
+    [Tooltip("Longest gap between flashes, in seconds.")]
+    [SerializeField, Range(1f, 60f)] private float lightningIntervalMax = 12f;
+    private float lightningTimer = 3f;
+    private float lightningFlash = 0f;
+    
     [Header("=== NEUTRAL ===")]
     [SerializeField] private LightingPreset neutralPreset = new LightingPreset
     {
@@ -491,6 +507,9 @@ public class LightingController : MonoBehaviour
                 }
             }
         }
+        
+        // Lightning flashes during the storm stages (DarkStage3-5).
+        UpdateLightning();
     }
     
     #endregion
@@ -610,6 +629,27 @@ public class LightingController : MonoBehaviour
             if (logChanges) Debug.Log("[LightingController] ✓ Created YORU_CharacterRim light");
         }
         
+        // Storm Lightning (Drop 3): a directional flash that fires during storm stages to
+        // light the whole scene for an instant. Auto-created, off until a storm is active.
+        var existingLightning = transform.Find("YORU_Lightning");
+        if (existingLightning != null)
+        {
+            lightningLight = existingLightning.GetComponent<Light>();
+        }
+        else if (enableLightning)
+        {
+            var lObj = new GameObject("YORU_Lightning");
+            lObj.transform.SetParent(transform);
+            lObj.transform.rotation = Quaternion.Euler(60f, 30f, 0f);
+            lightningLight = lObj.AddComponent<Light>();
+            lightningLight.type = LightType.Directional;
+            lightningLight.color = lightningColor;
+            lightningLight.intensity = 0f;
+            lightningLight.shadows = LightShadows.None;
+            lightningLight.enabled = false;
+            if (logChanges) Debug.Log("[LightingController] ✓ Created YORU_Lightning light");
+        }
+        
         // Log current state
         if (logChanges)
         {
@@ -662,6 +702,51 @@ public class LightingController : MonoBehaviour
             layer = 0;
         }
         return 1 << layer;
+    }
+    
+    /// <summary>
+    /// Drives the storm lightning. Only fires while a rain or thunder stage is the active
+    /// target. Each strike flashes the directional and decays it quickly with a slight
+    /// flicker so it reads like real lightning. Stays off in every non-storm state.
+    /// </summary>
+    void UpdateLightning()
+    {
+        if (!enableLightning || lightningLight == null) return;
+        
+        if (!IsStormActive())
+        {
+            if (lightningLight.enabled) lightningLight.enabled = false;
+            lightningFlash = 0f;
+            return;
+        }
+        
+        lightningTimer -= Time.deltaTime;
+        if (lightningTimer <= 0f)
+        {
+            lightningFlash = 1f;
+            lightningTimer = UnityEngine.Random.Range(lightningIntervalMin, lightningIntervalMax);
+        }
+        
+        if (lightningFlash > 0f)
+        {
+            lightningFlash -= Time.deltaTime / Mathf.Max(0.01f, lightningFlashDuration);
+            lightningLight.enabled = true;
+            // Slight flicker shape so it is not a flat fade.
+            float shaped = lightningFlash * (0.6f + 0.4f * Mathf.Abs(Mathf.Sin(lightningFlash * 28f)));
+            lightningLight.intensity = Mathf.Max(0f, shaped) * lightningPeakIntensity;
+        }
+        else if (lightningLight.enabled)
+        {
+            lightningLight.enabled = false;
+        }
+    }
+    
+    /// <summary>True while a rain or thunderstorm stage (DarkStage3-5) is the target state.</summary>
+    bool IsStormActive()
+    {
+        return targetPreset == darkStage3Preset
+            || targetPreset == darkStage4Preset
+            || targetPreset == darkStage5Preset;
     }
     
     void SubscribeToEvents()
