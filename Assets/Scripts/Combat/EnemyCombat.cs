@@ -181,6 +181,12 @@ public class EnemyCombat : MonoBehaviour
     [Tooltip("Strafe speed when circling player during attack cooldown")]
     [SerializeField] private float strafeSpeed = 2.0f;
     
+    [Header("Animation Smoothing")]
+    [Tooltip("Crossfade time (seconds) into telegraph and attack clips. 0 keeps the old instant hard cut (crisp but spiky); other enemies stay at 0 and are unaffected. 0.12 to 0.25 blends the wind-up and strike in smoothly. Too high feels floaty.")]
+    [SerializeField] private float attackBlendTime = 0f;
+    [Tooltip("If true, the enemy snaps instantly to face the player the instant it commits to a telegraph or attack (keeps a grab/pull aiming true). Uncheck for a heavy quadruped so it turns smoothly via Rotation Speed instead of snapping. A smooth turn can aim slightly behind a fast target; raise Rotation Speed to compensate.")]
+    [SerializeField] private bool snapToFaceOnAttack = true;
+    
     [Header("Attacks")]
     [SerializeField] private EnemyAttack[] attacks;
     
@@ -876,7 +882,7 @@ public class EnemyCombat : MonoBehaviour
                     // resumes after this strike, and snap to face the player so the wind-up aims true.
                     forceRunReengage = false;
                     hallucinationFiredThisAttack = false; // fresh attack
-                    FacePlayerInstant();
+                    if (snapToFaceOnAttack) FacePlayerInstant();
 
                     float speed = currentAttack.telegraphSpeed;
                     // Play from frame 0 (instant, not blended) so the full clip plays start-to-end
@@ -919,7 +925,7 @@ public class EnemyCombat : MonoBehaviour
                         break;
                     }
 
-                    FacePlayerInstant();
+                    if (snapToFaceOnAttack) FacePlayerInstant();
 
                     float speed = currentAttack.attackSpeed;
 
@@ -1849,7 +1855,12 @@ private void TriggerHitFlash()
         }
         
         currentPlayingAnim = stateName;
-        animator.Play(stateName, combatLayerIndex, 0f);
+        // Smoothing: blend into the wind-up/strike instead of a hard cut when attackBlendTime > 0.
+        // 0 keeps the original instant Play, so any enemy left at 0 is byte-for-byte unchanged.
+        if (attackBlendTime > 0f)
+            animator.CrossFadeInFixedTime(stateName, attackBlendTime, combatLayerIndex, 0f);
+        else
+            animator.Play(stateName, combatLayerIndex, 0f);
     }
     
     /// <summary>
@@ -1864,25 +1875,27 @@ private void TriggerHitFlash()
 
         float elapsed = Time.time - attackStateEntryTime;
 
-        // Read the real clip length once the instant Play has settled (one frame in).
-        if (!clipLengthRead && elapsed > AnimSettleTime)
+        // While a crossfade into the attack/telegraph is still running, the "current" state is the
+        // OUTGOING clip; the real clip we want is the transition's NEXT state. Read whichever is the
+        // attack clip so attackBlendTime never makes the length read or completion latch onto the
+        // wrong (previous) clip.
+        bool inTransition = animator.IsInTransition(combatLayerIndex);
+        AnimatorStateInfo clip = inTransition
+            ? animator.GetNextAnimatorStateInfo(combatLayerIndex)
+            : animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+
+        // Read the real clip length once it is available (after settle, once the new clip exists).
+        if (!clipLengthRead && elapsed > AnimSettleTime && clip.length > 0.01f)
         {
-            AnimatorStateInfo s = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-            if (s.length > 0.01f)
-            {
-                cachedClipLength = s.length;
-                clipLengthRead = true;
-            }
+            cachedClipLength = clip.length;
+            clipLengthRead = true;
         }
 
-        // Primary completion — the clip reached its end. normalizedTime accounts for playback
-        // speed and, for a non-looping clip, caps at 1 and holds, so this latches true.
-        if (elapsed > AnimSettleTime)
-        {
-            AnimatorStateInfo s = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-            if (s.normalizedTime >= AnimCompleteThreshold)
-                return true;
-        }
+        // Primary completion: the clip reached its end. Not counted while still blending in (the
+        // incoming clip's normalizedTime climbs from 0); a non-looping clip caps at 1 and holds, so
+        // this latches true once the real strike clip finishes.
+        if (elapsed > AnimSettleTime && !inTransition && clip.normalizedTime >= AnimCompleteThreshold)
+            return true;
 
         // Safety net — derived from the real clip length / speed when known, else a fixed cap.
         float speed = currentState == EnemyState.Telegraph
