@@ -734,7 +734,7 @@ public class EnemyCombat : MonoBehaviour
                 // keeps the forward walk clip matching the motion, so there is no slide.
                 if (navAgent != null && navAgent.isOnNavMesh)
                 {
-                    const float circleLeadAngle = 35f; // degrees ahead on the ring to aim for
+                    const float circleLeadAngle = -35f; // negative circles the other way so the head (turned in the walk clip) faces the player, not outward
                     Vector3 toEnemy = transform.position - player.position;
                     toEnemy.y = 0f;
                     if (toEnemy.sqrMagnitude < 0.0001f) toEnemy = -transform.forward;

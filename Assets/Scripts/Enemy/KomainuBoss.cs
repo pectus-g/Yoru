@@ -111,6 +111,18 @@ public class KomainuBoss : MonoBehaviour
     [SerializeField] private float eyeFadeDuration = 2f;
     #endregion
 
+    #region Fight Music
+    [Header("Fight Music")]
+    [Tooltip("Combat song for this fight. Fades in when the fight starts, fades out when the lion is defeated, persuaded, or gives up and walks back. Leave empty to skip music.")]
+    [SerializeField] private AudioClip fightMusic;
+    [Tooltip("Peak music volume (0-1).")]
+    [SerializeField] [Range(0f, 1f)] private float musicVolume = 0.7f;
+    [Tooltip("Seconds to fade the song in when the fight starts.")]
+    [SerializeField] private float musicFadeIn = 1f;
+    [Tooltip("Seconds to fade the song out when the fight ends.")]
+    [SerializeField] private float musicFadeOut = 2f;
+    #endregion
+
     #region Debug
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
@@ -129,6 +141,10 @@ public class KomainuBoss : MonoBehaviour
     private string currentAnim = "";
     private Material eyeMat;         // instanced eye material (null-safe)
 
+    private AudioSource musicSource; // fight song player (2D, looping), created at Awake
+    private float musicTarget = 0f;  // volume the song is fading toward
+    private float musicFadeRate = 1f;// volume units per second for the current fade
+
     private static readonly int EmissionColorID = Shader.PropertyToID("_EmissionColor");
 
     /// <summary>True once the lion has been dealt with (defeated or persuaded). The gate reads this to open.</summary>
@@ -146,6 +162,14 @@ public class KomainuBoss : MonoBehaviour
         // The fight engine stays OFF until the gate wakes the lion, this is what stops it
         // aggroing on sight. EnemyCombat.Start() runs the first time we enable it.
         if (enemyCombat != null) enemyCombat.enabled = false;
+
+        // Dedicated 2D looping source for the fight song (faded in/out by Update).
+        musicSource = gameObject.AddComponent<AudioSource>();
+        musicSource.loop = true;
+        musicSource.playOnAwake = false;
+        musicSource.volume = 0f;
+        musicSource.spatialBlend = 0f;
+        if (fightMusic != null) musicSource.clip = fightMusic;
     }
 
     private void Start()
@@ -176,6 +200,14 @@ public class KomainuBoss : MonoBehaviour
 
     private void Update()
     {
+        // Fade the fight song every frame, regardless of phase, so it can fade out after the fight.
+        if (musicSource != null)
+        {
+            musicSource.volume = Mathf.MoveTowards(musicSource.volume, musicTarget, musicFadeRate * Time.deltaTime);
+            if (musicTarget <= 0.001f && musicSource.volume <= 0.001f && musicSource.isPlaying)
+                musicSource.Stop();
+        }
+
         if (phase != Phase.Fighting) return;
 
         // EnemyCombat signals a disengage (Yoru fled past the leash, or turned into Granny) by
@@ -250,6 +282,7 @@ public class KomainuBoss : MonoBehaviour
         enemyCombat.BecomeHostile();
 
         phase = Phase.Fighting;
+        StartFightMusic();
         Log("Awake, fighting Yoru.");
     }
 
@@ -258,6 +291,7 @@ public class KomainuBoss : MonoBehaviour
         phase = Phase.Patrolling;
         SetInvulnerable(true);
         HideBossBar();
+        StopFightMusic();
         enemyCombat.ResetCombatState();
         enemyCombat.enabled = false; // stop its per-frame StopNav so we can drive the patrol
         Log("Yoru fled, scanning-walk patrol.");
@@ -328,6 +362,7 @@ public class KomainuBoss : MonoBehaviour
         phase = Phase.Yielding;
         SetInvulnerable(true);
         HideBossBar();
+        StopFightMusic();
         enemyCombat.ResetCombatState();
         enemyCombat.enabled = false;
         StopNav();
@@ -530,6 +565,27 @@ public class KomainuBoss : MonoBehaviour
     private void HideBossBar()
     {
         if (BossHealthBarUI.Instance != null) BossHealthBarUI.Instance.Hide("komainu disengage/yield");
+    }
+
+    /// <summary>Fade the fight song up to musicVolume over musicFadeIn seconds (starts playback if needed).</summary>
+    private void StartFightMusic()
+    {
+        if (musicSource == null || musicSource.clip == null) return;
+        if (!musicSource.isPlaying)
+        {
+            musicSource.volume = 0f;
+            musicSource.Play();
+        }
+        musicTarget = musicVolume;
+        musicFadeRate = musicVolume / Mathf.Max(0.01f, musicFadeIn);
+    }
+
+    /// <summary>Fade the fight song down to silence over musicFadeOut seconds (Update stops it at the end).</summary>
+    private void StopFightMusic()
+    {
+        if (musicSource == null) return;
+        musicTarget = 0f;
+        musicFadeRate = musicVolume / Mathf.Max(0.01f, musicFadeOut);
     }
 
     private void Log(string msg)
