@@ -596,7 +596,11 @@ public class PlayerMovement : MonoBehaviour
     
     /// <summary>Returns true if the player is currently in a running state.</summary>
     public bool IsRunning() => HasState(PlayerState.Running);
+/// <summary>Returns true if the player is currently in a running state.</summary>
+   
     
+    /// <summary>Returns true while the player is off the ground (jumping or falling). Read-only; used by enemies for anti-air timing.</summary>
+    public bool IsAirborne() => !HasState(PlayerState.Grounded);    
     /// <summary>Returns remaining time in the jump window. Used by PlayerCombat for air dodge/dash timing.</summary>
     public float GetJumpWindowTimer() => jumpWindowTimer;
     

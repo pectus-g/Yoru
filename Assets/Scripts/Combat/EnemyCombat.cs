@@ -79,6 +79,18 @@ public class EnemyCombat : MonoBehaviour
         [Tooltip("Damage dealt at the very edge of Range when falloff is on. Point-blank uses the normal Damage value and lerps down to this at max range.")]
         public int minDamageAtRange = 1;
 
+        [Header("Ranged Selection & Lunge (optional, leave at defaults for a normal melee attack)")]
+        [Tooltip("Min distance (m) at which this attack can be CHOSEN. Only used when Max Select Range is above 0.")]
+        public float minSelectRange = 0f;
+        [Tooltip("Max distance (m) at which this attack can be CHOSEN. 0 = legacy behaviour: chosen only at melee (within the enemy's Attack Range), exactly as before. Set above 0 to make it a ranged pick: eligible from Min Select Range out to here, so a charge or leap can fire from far. Tune in scene.")]
+        public float maxSelectRange = 0f;
+        [Tooltip("If true, the enemy drives toward the player while this attack's clip plays, closing the gap to catch a fleeing target (a charge or leap). Leave off for in-place attacks.")]
+        public bool lungeToPlayer = false;
+        [Tooltip("Lunge move speed (m/s) while the attack plays. Higher = harder rush. Only used when Lunge To Player is on.")]
+        public float lungeSpeed = 9f;
+        [Tooltip("Stop lunging once within this planar distance (m) of the player, so the enemy arrives at striking range without bowling past. Only used when Lunge To Player is on.")]
+        public float lungeStopDistance = 1.8f;
+
         [Header("Camera Shake")]
         [Tooltip("Camera shake intensity when this attack's strike lands (0 = none). Fires on impact whether or not the player is hit, so a leap/slam shakes the ground. Make leap stronger than paw slam.")]
         public float cameraShakeOnHit = 0f;
@@ -180,6 +192,10 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float rotationSpeed = 5f;
     [Tooltip("Strafe speed when circling player during attack cooldown")]
     [SerializeField] private float strafeSpeed = 2.0f;
+    [Tooltip("If true, this enemy orbits the player on a fixed-radius circle (walking forward along the ring, facing the way it moves) instead of the default sideways strafe. Use for a heavy quadruped so the forward walk clip matches the motion and does not slide. Other enemies leave this off.")]
+    [SerializeField] private bool circleStrafe = false;
+    [Tooltip("Radius (metres) of that orbit, measured from the player. Keep it at or just inside Attack Range so the enemy stays close enough to strike. Only used when Circle Strafe is on.")]
+    [SerializeField] private float circleRadius = 3f;
     
     [Header("Animation Smoothing")]
     [Tooltip("Crossfade time (seconds) into telegraph and attack clips. 0 keeps the old instant hard cut (crisp but spiky); other enemies stay at 0 and are unaffected. 0.12 to 0.25 blends the wind-up and strike in smoothly. Too high feels floaty.")]
@@ -193,6 +209,15 @@ public class EnemyCombat : MonoBehaviour
     [Header("Combos")]
     [Tooltip("Chained attack sequences. Each step plays full-length with no telegraph between steps. Any attack can also fire alone — combos and singles are both rolled randomly per engagement.")]
     [SerializeField] private EnemyAttackCombo[] combos;
+
+    [Header("Anti-Air (catch a jumping player)")]
+    [Tooltip("If true, when the player is near AND airborne (jumping) this enemy fires the named attack to catch them in the air. Reuses an existing attack entry (e.g. LeapAttack). Off for enemies that should not anti-air.")]
+    [SerializeField] private bool antiAirEnabled = false;
+    [Tooltip("Name of the attack to use as the anti-air, must match an entry in Attacks (e.g. 'LeapAttack').")]
+    [SerializeField] private string antiAirAttackName = "LeapAttack";
+    [Tooltip("How close (m) the player must be, while airborne, for the anti-air to trigger.")]
+    [SerializeField] private float antiAirRange = 6f;
+
     [Tooltip("Chance (0-1) that an engagement opens with a combo instead of a single attack, in Phase 1")]
     [SerializeField, Range(0f, 1f)] private float comboChanceP1 = 0.4f;
     [Tooltip("Chance (0-1) that an engagement opens with a combo instead of a single attack, in Phase 2")]
@@ -660,6 +685,25 @@ public class EnemyCombat : MonoBehaviour
             leashTimer = 0f;
         }
 
+        // ── ANTI-AIR ──────────────────────────────────────────────────────────
+        // If the player jumps while near, punish it: fire the named anti-air attack to catch them
+        // in the air. Off unless antiAirEnabled, so other enemies are unaffected. Respects the
+        // attack cooldown so it cannot spam, and skips while re-engaging from a return.
+        if (antiAirEnabled && playerMovement != null && playerMovement.IsAirborne()
+            && dist <= antiAirRange && cooldownTimer <= 0 && !forceRunReengage)
+        {
+            EnemyAttack air = FindAttackByName(antiAirAttackName);
+            if (air != null && IsAttackValid(air))
+            {
+                comboQueue.Clear();
+                activeComboName = "";
+                currentAttack = air;
+                DebugLog($"Anti-air: {air.attackName} on jumping player (dist {dist:F1}m)");
+                SetState(ShouldSkipTelegraph(currentAttack) ? EnemyState.Attack : EnemyState.Telegraph);
+                return;
+            }
+        }
+
         // ── MELEE BAND (≤ attackRange) ────────────────────────────────────────
         // Attack when ready; otherwise circle the player. This is the ONLY place the walk
         // animation is used (slow circling reads fine up close; walking to close a gap looks wrong).
@@ -677,7 +721,43 @@ public class EnemyCombat : MonoBehaviour
                 }
             }
 
-            // On cooldown — strafe-circle around the player.
+            // On cooldown, circle the player.
+            if (circleStrafe)
+            {
+                // Orbit Yoru on an invisible ring of radius circleRadius. The move target is placed a
+                // fixed arc AHEAD on that ring (circleLeadAngle), far enough that it clears the agent's
+                // stopping distance. If the target sits too close the agent thinks it has arrived and
+                // stands still while the walk clip plays (walking on the spot). The agent walks toward
+                // the lead point at strafeSpeed, and because that point is recomputed from the current
+                // angle every frame the lion keeps following the circle. The target always sits at
+                // circleRadius, so the radius self-corrects if the lion drifts. Facing the way it walks
+                // keeps the forward walk clip matching the motion, so there is no slide.
+                if (navAgent != null && navAgent.isOnNavMesh)
+                {
+                    const float circleLeadAngle = 35f; // degrees ahead on the ring to aim for
+                    Vector3 toEnemy = transform.position - player.position;
+                    toEnemy.y = 0f;
+                    if (toEnemy.sqrMagnitude < 0.0001f) toEnemy = -transform.forward;
+                    Vector3 leadRadial = Quaternion.AngleAxis(circleLeadAngle, Vector3.up) * toEnemy.normalized;
+                    Vector3 ringTarget = player.position + leadRadial * circleRadius;
+
+                    navAgent.isStopped = false;
+                    navAgent.speed = strafeSpeed;
+                    navAgent.SetDestination(ringTarget);
+
+                    Vector3 face = ringTarget - transform.position;
+                    face.y = 0f;
+                    if (face.sqrMagnitude > 0.0001f)
+                    {
+                        Quaternion look = Quaternion.LookRotation(face.normalized);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, look, Time.deltaTime * rotationSpeed);
+                    }
+                }
+                PlayAnimation(walkAnim);
+                return;
+            }
+
+            // Default sideways strafe-circle (unchanged for all other enemies).
             LookAtPlayer();
             if (navAgent != null && navAgent.isOnNavMesh)
             {
@@ -689,6 +769,25 @@ public class EnemyCombat : MonoBehaviour
             }
             PlayAnimation(walkAnim);
             return;
+        }
+
+        // ── RANGED ATTACK BAND (dist > attackRange) ───────────────────────────
+        // A ranged attack (an attack with Max Select Range > 0, e.g. a charge or leap) can be
+        // chosen from out here and will lunge in to close the gap, so the enemy can catch a fleeing
+        // player instead of only ever running in. Inert for enemies whose attacks are all melee
+        // (Max Select Range 0), so they behave exactly as before. Takes priority over teleport/run-in.
+        if (dist > attackRange && cooldownTimer <= 0 && !forceRunReengage)
+        {
+            EnemyAttack ranged = ChooseAttack();
+            if (ranged != null && !ranged.pullsPlayer)
+            {
+                comboQueue.Clear();
+                activeComboName = "";
+                currentAttack = ranged;
+                DebugLog($"Ranged attack: {ranged.attackName} (dist {dist:F1}m)");
+                SetState(ShouldSkipTelegraph(currentAttack) ? EnemyState.Attack : EnemyState.Telegraph);
+                return;
+            }
         }
 
         // ── TELEPORT BAND (detectionRange < dist ≤ escapeRange) ───────────────
@@ -770,9 +869,32 @@ public class EnemyCombat : MonoBehaviour
         // normal per-frame attack handler interfere while it plays.
         if (isGrabbing) return;
 
-        StopNav();
+        // Lunge: a charge/leap attack drives the enemy toward the player while its clip plays,
+        // closing the gap to catch a fleeing target. Stops at lungeStopDistance so it arrives at
+        // striking range without bowling past. Every other attack holds position.
+        bool lunging = currentAttack != null && currentAttack.lungeToPlayer && player != null
+                       && navAgent != null && navAgent.isOnNavMesh;
+        if (lunging)
+        {
+            Vector3 toPlayer = player.position - transform.position;
+            toPlayer.y = 0f;
+            if (toPlayer.magnitude > currentAttack.lungeStopDistance)
+            {
+                navAgent.isStopped = false;
+                navAgent.speed = currentAttack.lungeSpeed;
+                navAgent.SetDestination(player.position);
+            }
+            else
+            {
+                StopNav();
+            }
+        }
+        else
+        {
+            StopNav();
+        }
 
-        // Face player during attack — especially important for skipTelegraph attacks that
+        // Face player during attack, especially important for skipTelegraph attacks that
         // didn't go through Telegraph state where LookAtPlayer is normally called.
         LookAtPlayer();
 
@@ -1043,19 +1165,21 @@ public class EnemyCombat : MonoBehaviour
     {
         if (attacks == null || attacks.Length == 0) return null;
         
+        float dist = DistanceToPlayer();
         // A pull at melee range is pointless (the player is already here) and it crowds out the
-        // real melee attacks, which is why CloseStrike rarely showed. Exclude pulls when in close —
-        // the pull is the pull band's gap-closer, not a melee move.
-        bool atMelee = DistanceToPlayer() <= attackRange;
+        // real melee attacks. Exclude pulls when in close; the pull is the pull band's gap-closer.
+        bool atMelee = dist <= attackRange;
         
-        // Build list of valid attacks for current phase
+        // Build list of valid attacks for the current phase AND eligible at the current distance
+        // (legacy attacks are melee-only; ranged attacks use their Select Range band).
         int totalWeight = 0;
         
         for (int i = 0; i < attacks.Length; i++)
         {
             if (atMelee && attacks[i].pullsPlayer) continue;
-            if (IsAttackValid(attacks[i]))
-                totalWeight += attacks[i].weight;
+            if (!IsAttackValid(attacks[i])) continue;
+            if (!IsAttackInRange(attacks[i], dist)) continue;
+            totalWeight += attacks[i].weight;
         }
         
         if (totalWeight == 0) return null;
@@ -1068,13 +1192,14 @@ public class EnemyCombat : MonoBehaviour
         {
             if (atMelee && attacks[i].pullsPlayer) continue;
             if (!IsAttackValid(attacks[i])) continue;
+            if (!IsAttackInRange(attacks[i], dist)) continue;
             
             running += attacks[i].weight;
             if (roll < running)
                 return attacks[i];
         }
         
-        return null; // No valid non-pull attack at this range
+        return null; // No valid attack eligible at this range
     }
     
     private bool IsAttackValid(EnemyAttack atk)
@@ -1082,6 +1207,18 @@ public class EnemyCombat : MonoBehaviour
         if (atk.phase == AttackPhase.Phase1Only && isPhase2) return false;
         if (atk.phase == AttackPhase.Phase2Only && !isPhase2) return false;
         return true;
+    }
+
+    /// <summary>
+    /// True if this attack may be CHOSEN at the given distance. Legacy attacks (maxSelectRange &lt;= 0)
+    /// are melee-only (chosen within attackRange), exactly as before. A ranged attack
+    /// (maxSelectRange &gt; 0) is eligible from minSelectRange out to maxSelectRange. Phase validity is
+    /// checked separately by IsAttackValid.
+    /// </summary>
+    private bool IsAttackInRange(EnemyAttack atk, float dist)
+    {
+        if (atk.maxSelectRange <= 0f) return dist <= attackRange;
+        return dist >= atk.minSelectRange && dist <= atk.maxSelectRange;
     }
     
     /// <summary>

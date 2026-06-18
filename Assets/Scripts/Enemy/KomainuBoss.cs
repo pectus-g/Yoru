@@ -50,6 +50,8 @@ public class KomainuBoss : MonoBehaviour
     [SerializeField] private string awakenAnim = "Awaken";
     [SerializeField] private string scanningWalkAnim = "ScanningWalk";
     [SerializeField] private string guardianStanceAnim = "GuardianStance";
+    [Tooltip("Pose held while standing and scanning during the post-flee patrol. GuardianStance or an alert Idle both read well.")]
+    [SerializeField] private string scanIdleAnim = "GuardianStance";
     [SerializeField] private string returnToStoneAnim = "ReturnToStone";
     [Tooltip("Animator layer the states above live on. Base Layer = 0.")]
     [SerializeField] private int animatorLayer = 0;
@@ -67,18 +69,34 @@ public class KomainuBoss : MonoBehaviour
     #endregion
 
     #region Scanning-Walk Patrol
-    [Header("Scanning-Walk Patrol (runs after Yoru flees)")]
-    [Tooltip("Total seconds the lion patrols / scans near its post before settling back to stone.")]
-    [SerializeField] private float patrolDuration = 12f;
-    [Tooltip("How far from its post (start position) the lion wanders while patrolling.")]
+    [Header("Scanning-Walk Patrol (runs after Yoru flees, before going back to stone)")]
+    [Tooltip("How many idle-scan + walk cycles the lion does before it is sure Yoru is gone and returns to stone. Higher = waits longer. Each cycle is: stand and scan, then walk to a new spot.")]
+    [SerializeField] private int scanCycles = 4;
+    [Tooltip("Seconds the lion stands and scans (looking around) at each spot before walking to the next.")]
+    [SerializeField] private float idleHoldSeconds = 3f;
+    [Tooltip("How far from its post (start position) the lion wanders while scanning.")]
     [SerializeField] private float patrolRadius = 5f;
-    [Tooltip("Move speed while patrolling.")]
+    [Tooltip("Move speed while scanning / walking home.")]
     [SerializeField] private float patrolSpeed = 2f;
-    [Tooltip("Seconds the lion holds at each scan point before moving to the next.")]
-    [SerializeField] private float patrolPointPause = 1.2f;
-    [Tooltip("Planar distance that counts as 'reached' a patrol point.")]
+    [Tooltip("Planar distance that counts as 'reached' a scan point or the post.")]
     [SerializeField] private float patrolArrive = 0.6f;
+    [Tooltip("Safety cap (seconds) on a single walk leg, so a blocked path can never hang the patrol.")]
+    [SerializeField] private float maxWalkSecondsPerLeg = 6f;
+    [Tooltip("Safety cap (seconds) on the final walk back to the post.")]
+    [SerializeField] private float maxWalkSecondsHome = 10f;
     [SerializeField] private float rotationSpeed = 6f;
+
+    [Header("Scan Look-Around Sweep")]
+    [Tooltip("How far (degrees) the lion turns left/right while standing and scanning. 0 = faces straight ahead, no sweep.")]
+    [SerializeField] private float scanSweepAngle = 45f;
+    [Tooltip("How fast the look-around sweep oscillates while scanning.")]
+    [SerializeField] private float scanSweepSpeed = 1.5f;
+    #endregion
+
+    #region Re-Engage On Approach
+    [Header("Re-Engage On Approach (hear Yoru come back)")]
+    [Tooltip("While the lion is patrolling / walking back to stone, if Yoru comes within this distance the lion hears the footsteps and drops straight into a fresh fight. Keep it well under the combat leash distance so it does not instantly re-trigger the moment Yoru flees.")]
+    [SerializeField] private float reAggroRadius = 10f;
     #endregion
 
     #region Eye Glow
@@ -246,42 +264,53 @@ public class KomainuBoss : MonoBehaviour
 
         if (navAgent != null) navAgent.speed = patrolSpeed;
 
-        float t = 0f;
-        while (t < patrolDuration)
+        // Alternate stand-and-scan with a walk to a new vantage point. The whole time, if Yoru
+        // comes back within earshot the lion drops straight back into a fresh fight.
+        for (int cycle = 0; cycle < scanCycles; cycle++)
         {
-            Vector3 point = RandomPatrolPoint();
+            // Stand and scan: alert pose with a slow left/right look-around sweep.
+            StopNav();
+            float idle = 0f;
+            float baseYaw = transform.eulerAngles.y;
+            while (idle < idleHoldSeconds)
+            {
+                PlayState(scanIdleAnim);
+                if (scanSweepAngle > 0.01f)
+                {
+                    float sweep = Mathf.Sin(idle * scanSweepSpeed) * scanSweepAngle;
+                    transform.rotation = Quaternion.Euler(0f, baseYaw + sweep, 0f);
+                }
+                if (PlayerInEarshot()) { ReEngageFromPatrol(); yield break; }
+                idle += Time.deltaTime;
+                yield return null;
+            }
 
-            // Walk to the scan point.
+            // Walk to a new scan point (safety-capped so a blocked path can't hang the loop).
+            Vector3 point = RandomPatrolPoint();
             if (DriveNavTo(point))
             {
-                while (t < patrolDuration && !ArrivedAt(point))
+                float legTime = 0f;
+                while (!ArrivedAt(point) && legTime < maxWalkSecondsPerLeg)
                 {
                     PlayState(scanningWalkAnim);
                     RotateTowardsVelocity();
-                    t += Time.deltaTime;
+                    if (PlayerInEarshot()) { ReEngageFromPatrol(); yield break; }
+                    legTime += Time.deltaTime;
                     yield return null;
                 }
             }
-
-            // Hold and scan.
-            StopNav();
-            float pause = 0f;
-            while (t < patrolDuration && pause < patrolPointPause)
-            {
-                PlayState(scanningWalkAnim);
-                pause += Time.deltaTime;
-                t += Time.deltaTime;
-                yield return null;
-            }
         }
 
-        // Patrol over, walk home and settle back to stone (re-armable, full health).
+        // No one came back, walk home and settle back to stone (re-armable, full health).
         if (DriveNavTo(postPosition))
         {
-            while (!ArrivedAt(postPosition))
+            float homeTime = 0f;
+            while (!ArrivedAt(postPosition) && homeTime < maxWalkSecondsHome)
             {
                 PlayState(scanningWalkAnim);
                 RotateTowardsVelocity();
+                if (PlayerInEarshot()) { ReEngageFromPatrol(); yield break; }
+                homeTime += Time.deltaTime;
                 yield return null;
             }
         }
@@ -465,6 +494,30 @@ public class KomainuBoss : MonoBehaviour
         Vector3 d = player.position - transform.position;
         d.y = 0f;
         return d.sqrMagnitude > 0.001f ? Quaternion.LookRotation(d.normalized) : transform.rotation;
+    }
+
+    /// <summary>
+    /// True if Yoru is within reAggroRadius (planar). Polled during the patrol / walk-home so the
+    /// lion can "hear" Yoru come back and drop into a fresh fight instead of finishing the patrol.
+    /// </summary>
+    private bool PlayerInEarshot()
+    {
+        if (player == null) return false;
+        Vector3 d = player.position - transform.position;
+        d.y = 0f;
+        return d.sqrMagnitude <= reAggroRadius * reAggroRadius;
+    }
+
+    /// <summary>
+    /// Re-enter combat from the patrol (Yoru came back). Skips the Awaken wind-up since the lion is
+    /// already on its feet, and runs a fresh, full-health fight, same as the gate's re-trigger.
+    /// Sets phase up front so a same-frame gate WakeForCombat can't start a second fight.
+    /// </summary>
+    private void ReEngageFromPatrol()
+    {
+        phase = Phase.Awakening;
+        Log("Heard Yoru return, back into the fight.");
+        StartCoroutine(AwakenAndFight(playAwaken: false));
     }
     #endregion
 
