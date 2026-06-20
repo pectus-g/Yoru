@@ -100,6 +100,8 @@ public class EnemyCombat : MonoBehaviour
         [Header("Player Effects")]
         [Tooltip("Stun player for this duration on hit (0 = no stun)")]
         public float stunPlayerDuration = 0f;
+        [Tooltip("If true, a hit from this attack interrupts Yoru's combo and triggers his hit-react, the normal stagger-on-hit. Turn OFF for a soft utility hit like Mushroom: it still deals its damage but Yoru keeps comboing with no flinch. Leave ON for every physical attack.")]
+        public bool interruptsCombo = true;
         
         [Header("Hallucination Mechanic")]
         [Tooltip("Seconds the magic-mushroom hallucination runs when this attack lands. 0 = no hallucination. While active, HallucinationEffect.IsActive gates ALL of Yoru's outgoing damage to 0 (see EnemyHealth.TakeDamage).")]
@@ -1397,7 +1399,9 @@ public class EnemyCombat : MonoBehaviour
         // Hallucination attacks (Mushroom) skip the knockback pull so it does not interrupt
         // and cut the hit reaction. Physical attacks still knock back toward the enemy.
         Vector3 reactPos = currentAttack.hallucinationDuration > 0f ? Vector3.zero : transform.position;
-        playerHealth.TakeDamage(dmg, isHeavy, reactPos);
+        // interruptsCombo OFF (Mushroom) routes through the feedback-only path: the hit still lands and
+        // shows its received-hit cue, but it does not reset Yoru's combo or play his flinch.
+        playerHealth.TakeDamage(dmg, isHeavy, reactPos, !currentAttack.interruptsCombo);
         DebugLog($"Hit player for {dmg} ({currentAttack.attackName})");
 
         // Apply stun if attack has it

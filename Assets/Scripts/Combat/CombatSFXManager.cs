@@ -33,6 +33,8 @@ public class CombatSFXManager : MonoBehaviour
     [SerializeField] private AudioClip impactLight;
     [SerializeField] private AudioClip impactHeavy;
     [SerializeField] private AudioClip impactCombo3;
+    [Tooltip("Phantom strike sound. Plays instead of the normal impact when a hit is swallowed by the hallucination (no real contact). Use a soft whiff or dud so it reads as the swing passing through.")]
+    [SerializeField] private AudioClip phantomHit;
 
     [Header("Dodge")]
     [SerializeField] private AudioClip dodgeWhoosh;
@@ -137,6 +139,17 @@ public class CombatSFXManager : MonoBehaviour
 
         PlayClip(clip, impactVolume);
         DebugLog($"Impact: {(isHeavy ? "heavy" : "light")}");
+    }
+
+    /// <summary>
+    /// Phantom strike sound. Played instead of the normal impact when Yoru's hit is swallowed by the
+    /// hallucination (no real contact), so a swing during the mushroom haze reads as passing through.
+    /// Assign a soft whiff or dud clip. Safe to leave empty (no sound) until you have one.
+    /// </summary>
+    public void PlayPhantomHit()
+    {
+        PlayClip(phantomHit, impactVolume);
+        DebugLog("Phantom hit (hallucination, no contact)");
     }
 
     /// <summary>

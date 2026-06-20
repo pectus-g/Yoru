@@ -174,6 +174,8 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Frame the 4-leg grab reaction freezes on while held, out of its total frame count.")]
     [SerializeField] private int grabReact4LegFreezeFrame = 25;
     [SerializeField] private int grabReact4LegTotalFrames = 76;
+    [Tooltip("Frame the 4-leg grab reaction is cut on release, out of total frames. The clip is a run-style hit react, so without a cut its locomotion tail plays out while Yoru is still held in place and reads as running without moving. Cut it just after the recoil beat so it blends to idle instead. Keep this above the freeze frame.")]
+    [SerializeField] private int grabReact4LegCutFrame = 50;
     [Tooltip("Blend time into and out of the grab reaction so the transitions stay smooth.")]
     [SerializeField] private float grabReactBlendIn = 0.08f;
     [SerializeField] private float grabReactBlendOut = 0.2f;
@@ -327,10 +329,12 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private LayerMask environmentMask = ~0;
 
     [Header("Combo 3 Beyblade Finisher")]
-    [Tooltip("Hard time cap in seconds for the spin so a big crowd can never trap the player in an endless beyblade. The spin also ends early once every nearby enemy has been hit.")]
+    [Tooltip("Hard time cap in seconds for the spin against a crowd, so a big group can never trap the player in an endless beyblade. A single enemy ends much sooner (one strike plus Beyblade Single Wind Down).")]
     [SerializeField] private float beybladeMaxTime = 1.5f;
     [Tooltip("Seconds between each enemy getting struck during the beyblade. Small = fast one-by-one hits.")]
     [SerializeField] private float beybladeHitInterval = 0.12f;
+    [Tooltip("Single enemy only: after the one strike, Yoru spins this many seconds before stopping, so the spin reads instead of snapping straight back to idle. A crowd ignores this and keeps spinning until Beyblade Max Time.")]
+    [SerializeField] private float beybladeSingleWindDown = 0.3f;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
@@ -436,6 +440,7 @@ public class PlayerCombat : MonoBehaviour
     // Beyblade finisher (Combo 3)
     private bool isBeyblading;              // true while the looping spin is ticking damage one enemy at a time
     private Coroutine beybladeCoroutine;
+    private int beybladeRotationIndex;      // round-robins crowd targets so the spin works the room and circles back
     private int combo3StateHash;            // cached hash of combo3StateName for the spin loop check
 
     // Animation hashes
@@ -1814,9 +1819,16 @@ public class PlayerCombat : MonoBehaviour
         // is visually over, so he can never run around while the body is still mid-reaction.
         const float cutBlendOut = 0.12f;
         float cutNorm = 1f;
-        bool hasCut = state == hitReactHeavy4Leg && heavy4LegHitTotalFrames > 0 && heavy4LegHitCutFrame > 0;
-        if (hasCut)
+        // Both the heavy hit clip and the 4-leg grab clip carry a run/locomotion tail past the
+        // reaction beat. Cut the release at the configured frame so Yoru blends back to idle instead
+        // of playing that tail in place (which reads as running without moving).
+        bool hasHeavyCut = state == hitReactHeavy4Leg && heavy4LegHitTotalFrames > 0 && heavy4LegHitCutFrame > 0;
+        bool hasGrabCut = state == grabReact4LegState && grabReact4LegTotalFrames > 0 && grabReact4LegCutFrame > 0;
+        bool hasCut = hasHeavyCut || hasGrabCut;
+        if (hasHeavyCut)
             cutNorm = Mathf.Clamp01((float)heavy4LegHitCutFrame / heavy4LegHitTotalFrames);
+        else if (hasGrabCut)
+            cutNorm = Mathf.Clamp01((float)grabReact4LegCutFrame / grabReact4LegTotalFrames);
 
         while (true)
         {
@@ -2122,12 +2134,14 @@ public class PlayerCombat : MonoBehaviour
 
     #region Beyblade Finisher (Combo 3)
     /// <summary>
-    /// Begin the beyblade: Combo 3 keeps spinning and strikes every nearby enemy once, one at a time,
-    /// then stops. Capped by beybladeMaxTime so a large crowd can never trap the player in an endless spin.
+    /// Begin the beyblade. Combo 3 spins in place and strikes nearby enemies one at a time. With a
+    /// crowd it keeps spinning and circles back to re-hit until beybladeMaxTime. Against a single
+    /// enemy it strikes once, spins a brief beat (beybladeSingleWindDown), then stops.
     /// </summary>
     private void StartBeyblade()
     {
         isBeyblading = true;
+        beybladeRotationIndex = 0;
         if (beybladeCoroutine != null) StopCoroutine(beybladeCoroutine);
         beybladeCoroutine = StartCoroutine(BeybladeRoutine());
     }
@@ -2135,12 +2149,11 @@ public class PlayerCombat : MonoBehaviour
     private IEnumerator BeybladeRoutine()
     {
         float startTime = Time.time;
-        var hitIds = new System.Collections.Generic.HashSet<int>();
 
         // Let the lunge carry Yoru into the group before the first strike.
         yield return new WaitForSeconds(Mathf.Max(0.01f, lungeDuration));
 
-        while (Time.time - startTime < beybladeMaxTime)
+        while (true)
         {
             if (!isAttacking || isInHitReaction || isDodging || isDashing || isGuarding) break;
 
@@ -2152,25 +2165,40 @@ public class PlayerCombat : MonoBehaviour
                     animator.Play(combo3StateHash, combatLayerIndex, 0f);
             }
 
-            EnemyHealth next = NextBeybladeTarget(hitIds);
-            if (next == null) break; // everyone in range has been hit, finished
+            System.Collections.Generic.List<EnemyHealth> targets = EnemiesInBeybladeRange();
 
-            next.TakeDamage(combo3Damage, false);
-            hitIds.Add(next.GetInstanceID());
+            // Whiffed into empty space: spin the brief beat so it does not snap to idle, then stop.
+            if (targets.Count == 0)
+            {
+                yield return new WaitForSeconds(Mathf.Max(0f, beybladeSingleWindDown));
+                break;
+            }
+
+            // Round-robin so a crowd is worked one by one and then circled back onto (re-hit).
+            if (beybladeRotationIndex >= targets.Count) beybladeRotationIndex = 0;
+            EnemyHealth target = targets[beybladeRotationIndex];
+            beybladeRotationIndex++;
+
+            target.TakeDamage(combo3Damage, false);
             engagedInCombatUntil = Time.time + engagedInCombatDuration;
 
-            Collider c = next.GetComponent<Collider>();
-            Vector3 contact = c != null ? c.ClosestPoint(attackPoint.position) : next.transform.position;
-            if (CombatFeedbackManager.Instance != null)
+            Collider c = target.GetComponent<Collider>();
+            Vector3 contact = c != null ? c.ClosestPoint(attackPoint.position) : target.transform.position;
+            Animator enemyAnim = target.GetComponent<Animator>();
+            if (enemyAnim == null) enemyAnim = target.GetComponentInChildren<Animator>();
+            PlayStrikeFeedback(contact, false, true, enemyAnim);
+
+            // Single enemy: one strike and done. Spin a brief beat so it reads, then stop.
+            if (targets.Count == 1)
             {
-                Animator enemyAnim = next.GetComponent<Animator>();
-                if (enemyAnim == null) enemyAnim = next.GetComponentInChildren<Animator>();
-                CombatFeedbackManager.Instance.PlayHitFeedback(contact, false, animator, enemyAnim);
+                yield return new WaitForSeconds(Mathf.Max(0f, beybladeSingleWindDown));
+                break;
             }
-            if (CombatSFXManager.Instance != null)
-                CombatSFXManager.Instance.PlayImpact(false, true);
 
             yield return new WaitForSeconds(beybladeHitInterval);
+
+            // Crowd hard cap so a big group can never trap the player in an endless spin.
+            if (Time.time - startTime >= beybladeMaxTime) break;
         }
 
         isBeyblading = false;
@@ -2178,21 +2206,19 @@ public class PlayerCombat : MonoBehaviour
         OnAttackEnd();
     }
 
-    /// <summary>Closest live enemy inside attackRange that has not been struck yet this beyblade.</summary>
-    private EnemyHealth NextBeybladeTarget(System.Collections.Generic.HashSet<int> alreadyHit)
+    /// <summary>Live enemies inside attackRange right now, sorted by instance id for a stable rotation order.</summary>
+    private System.Collections.Generic.List<EnemyHealth> EnemiesInBeybladeRange()
     {
+        System.Collections.Generic.List<EnemyHealth> list = new System.Collections.Generic.List<EnemyHealth>();
         Collider[] inRange = Physics.OverlapSphere(attackPoint.position, attackRange, enemyLayer);
-        EnemyHealth best = null;
-        float bestDist = float.MaxValue;
         foreach (Collider col in inRange)
         {
             EnemyHealth eh = col.GetComponent<EnemyHealth>();
             if (eh == null || eh.IsDead()) continue;
-            if (alreadyHit.Contains(eh.GetInstanceID())) continue;
-            float d = (col.transform.position - attackPoint.position).sqrMagnitude;
-            if (d < bestDist) { bestDist = d; best = eh; }
+            if (!list.Contains(eh)) list.Add(eh);
         }
-        return best;
+        list.Sort((a, b) => a.GetInstanceID().CompareTo(b.GetInstanceID()));
+        return list;
     }
     #endregion
 
@@ -2483,20 +2509,33 @@ public class PlayerCombat : MonoBehaviour
                 engagedInCombatUntil = Time.time + engagedInCombatDuration;
 
                 Vector3 contactPoint = enemy.ClosestPoint(attackPoint.position);
-                if (CombatFeedbackManager.Instance != null)
-                {
-                    Animator enemyAnimator = enemy.GetComponent<Animator>();
-                    if (enemyAnimator == null)
-                        enemyAnimator = enemy.GetComponentInChildren<Animator>();
-                    CombatFeedbackManager.Instance.PlayHitFeedback(contactPoint, isHeavy, animator, enemyAnimator);
-                }
-                if (CombatSFXManager.Instance != null)
-                {
-                    bool isCombo3 = !isAerialAttack && currentComboStep == 3;
-                    CombatSFXManager.Instance.PlayImpact(isHeavy, isCombo3);
-                }
+                Animator enemyAnimator = enemy.GetComponent<Animator>();
+                if (enemyAnimator == null)
+                    enemyAnimator = enemy.GetComponentInChildren<Animator>();
+                bool isCombo3 = !isAerialAttack && currentComboStep == 3;
+                PlayStrikeFeedback(contactPoint, isHeavy, isCombo3, enemyAnimator);
             }
         }
+    }
+
+    /// <summary>
+    /// Fire on-hit feedback for one strike. While the hallucination is active the hit deals no real
+    /// damage (EnemyHealth blocks it), so the impact juice (camera shake, FOV punch, hitstop, spark)
+    /// is suppressed and a phantom sound plays instead, so the swing reads as passing through. Only the
+    /// outgoing hit is muted here; received-damage shake (an enemy hitting Yoru) is separate and stays.
+    /// </summary>
+    private void PlayStrikeFeedback(Vector3 contactPoint, bool isHeavy, bool isCombo3, Animator enemyAnimator)
+    {
+        if (HallucinationEffect.IsActive)
+        {
+            if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayPhantomHit();
+            return;
+        }
+
+        if (CombatFeedbackManager.Instance != null)
+            CombatFeedbackManager.Instance.PlayHitFeedback(contactPoint, isHeavy, animator, enemyAnimator);
+        if (CombatSFXManager.Instance != null)
+            CombatSFXManager.Instance.PlayImpact(isHeavy, isCombo3);
     }
     #endregion
 
