@@ -300,8 +300,37 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float engagedInCombatDuration = 5f;
 
     [Header("Combat Targeting (Soft Lock-On)")]
+    [Tooltip("How far Yoru looks for an enemy to home onto when an attack starts.")]
     [SerializeField] private float targetingRange = 8f;
+    [Tooltip("Half-cone in degrees in front of Yoru that counts for acquisition. 90 = a forward cone. Set to 180 for full all-around acquisition (Yoru will turn to face an enemy behind him).")]
     [SerializeField] private float targetingAngle = 90f;
+
+    [Header("Combat Magnet / Lunge")]
+    [Tooltip("Max distance Yoru slides toward the target per attack. He never slides further than this even if the enemy is far (no flying across the arena). Start 2-3m and tune by feel.")]
+    [SerializeField] private float lungeMaxDistance = 2.5f;
+    [Tooltip("How long the slide takes in seconds. Very small = light-speed cat feel. The slide always finishes before the punch connects.")]
+    [SerializeField] private float lungeDuration = 0.06f;
+    [Tooltip("Yoru tries to stop this far from the target so the enemy ends up inside attack range and the hit lands. Keep below Attack Range (Hitbox section).")]
+    [SerializeField] private float lungeStopGap = 1.0f;
+    [Tooltip("Turn speed toward the target while attacking (Slerp factor). Higher = snappier. The initial face on attack start is instant.")]
+    [SerializeField] private float lungeFaceSpeed = 25f;
+    [Tooltip("Damage multiplier applied ONLY when the lunge was capped short of the enemy and Yoru had to reach for the hit (the 'not so forceful' case). 1 = full damage, no reduction. Set below 1 (e.g. 0.6) if you want reaching hits to be weaker.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float reachHitDamageMultiplier = 1.0f;
+
+    [Header("Lunge Safety")]
+    [Tooltip("Stop the slide at ledges so Yoru never lunges off a cliff.")]
+    [SerializeField] private bool useEdgeSafety = true;
+    [Tooltip("How far below Yoru's feet still counts as solid ground for the edge check. If the ground ahead drops more than this, the slide stops at the edge.")]
+    [SerializeField] private float edgeProbeDepth = 1.2f;
+    [Tooltip("Layers treated as ground for the edge check AND as blockers for line of sight (so Yoru will not target or lunge at an enemy behind a wall). Default is Everything; set this to your ground/terrain/wall layers for best results.")]
+    [SerializeField] private LayerMask environmentMask = ~0;
+
+    [Header("Combo 3 Beyblade Finisher")]
+    [Tooltip("Hard time cap in seconds for the spin so a big crowd can never trap the player in an endless beyblade. The spin also ends early once every nearby enemy has been hit.")]
+    [SerializeField] private float beybladeMaxTime = 1.5f;
+    [Tooltip("Seconds between each enemy getting struck during the beyblade. Small = fast one-by-one hits.")]
+    [SerializeField] private float beybladeHitInterval = 0.12f;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
@@ -399,6 +428,16 @@ public class PlayerCombat : MonoBehaviour
     // Pull
     private Coroutine pullCoroutine;
 
+    // Combat magnet / lunge
+    private Transform currentLungeTarget;   // enemy acquired for the current attack (null = no target, lunge straight forward)
+    private Coroutine lungeCoroutine;       // active slide toward the target
+    private bool lungeEndedShort;           // true when the slide was capped before fully closing (drives reachHitDamageMultiplier)
+
+    // Beyblade finisher (Combo 3)
+    private bool isBeyblading;              // true while the looping spin is ticking damage one enemy at a time
+    private Coroutine beybladeCoroutine;
+    private int combo3StateHash;            // cached hash of combo3StateName for the spin loop check
+
     // Animation hashes
     private static readonly int HashIsAttacking = Animator.StringToHash("IsAttacking");
     private static readonly int HashComboStep = Animator.StringToHash("ComboStep");
@@ -437,6 +476,8 @@ public class PlayerCombat : MonoBehaviour
         if (animator != null)
             animator.SetLayerWeight(combatLayerIndex, 1f);
 
+        combo3StateHash = Animator.StringToHash(combo3StateName);
+
         if (guardMovement == null)
             Debug.LogWarning("[Combat] WARNING: GuardMovementController not found! Add it to PlayerYoru_Def.");
 
@@ -463,11 +504,11 @@ public class PlayerCombat : MonoBehaviour
         if (isGuarding)
             UpdateGuardAnimation();
 
-        // Continuous soft lock-on during attacks — Yoru tracks nearest enemy while feet stay planted.
-        // Like God of War: if enemy teleports behind mid-combo, Yoru turns to face them.
-        // Position lock (combo 3, heavy) only locks position, not rotation (see EnforcePositionLock).
-        if (isAttacking && !isInHitReaction && !(playerHealth != null && playerHealth.IsStunned()))
-            FaceNearestEnemy();
+        // Continuous soft lock-on during attacks. Yoru fast-turns to keep facing the acquired enemy
+        // (so a strafing enemy stays in front for the next hit). Skipped during the beyblade, where
+        // the spin animation owns rotation.
+        if (isAttacking && !isBeyblading && !isInHitReaction && !(playerHealth != null && playerHealth.IsStunned()))
+            TrackTarget();
 
         if (!isAttacking && !isInHitReaction && !isDodging && !isDashing && !isGuarding
             && queuedClicks > 0 && currentComboStep > 0 && currentComboStep < 3)
@@ -707,7 +748,7 @@ public class PlayerCombat : MonoBehaviour
             return;
         characterController.enabled = false;
         cachedTransform.position = lockedPosition;
-        // Rotation NOT locked — FaceNearestEnemy needs to track enemies during combo 3 and heavy
+        // Rotation NOT locked. Facing is handled by TrackTarget during combos and heavy.
         characterController.enabled = true;
     }
 
@@ -1569,6 +1610,22 @@ public class PlayerCombat : MonoBehaviour
             }
         }
 
+        if (isBeyblading)
+        {
+            isBeyblading = false;
+            if (beybladeCoroutine != null)
+            {
+                StopCoroutine(beybladeCoroutine);
+                beybladeCoroutine = null;
+            }
+        }
+        if (lungeCoroutine != null)
+        {
+            StopCoroutine(lungeCoroutine);
+            lungeCoroutine = null;
+        }
+        currentLungeTarget = null;
+
         if (animator != null)
         {
             animator.SetBool(HashIsAttacking, false);
@@ -1905,13 +1962,18 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
 
-    #region Combat Targeting
-    private void FaceNearestEnemy()
+    #region Combat Targeting + Magnet Lunge
+    /// <summary>
+    /// Find the best enemy to home onto: the nearest live enemy inside targetingRange, inside the
+    /// targetingAngle cone (set targetingAngle to 180 for full all-around), with a clear line of
+    /// sight. Returns null when there is no valid enemy (the attack then lunges straight forward).
+    /// </summary>
+    private Transform AcquireTarget()
     {
         Collider[] nearby = Physics.OverlapSphere(cachedTransform.position, targetingRange, enemyLayer);
-        if (nearby.Length == 0) return;
+        if (nearby.Length == 0) return null;
 
-        Transform bestTarget = null;
+        Transform best = null;
         float bestScore = float.MaxValue;
 
         foreach (Collider col in nearby)
@@ -1919,29 +1981,218 @@ public class PlayerCombat : MonoBehaviour
             EnemyHealth eh = col.GetComponent<EnemyHealth>();
             if (eh != null && eh.IsDead()) continue;
 
-            Vector3 dirToEnemy = col.transform.position - cachedTransform.position;
-            dirToEnemy.y = 0f;
-            float dist = dirToEnemy.magnitude;
-            if (dist < 0.1f) continue;
+            Vector3 toEnemy = col.transform.position - cachedTransform.position;
+            toEnemy.y = 0f;
+            float dist = toEnemy.magnitude;
+            if (dist < 0.05f) continue;
 
-            float angle = Vector3.Angle(cachedTransform.forward, dirToEnemy);
+            float angle = Vector3.Angle(cachedTransform.forward, toEnemy);
             if (angle > targetingAngle) continue;
+
+            if (!HasLineOfSight(col.transform)) continue;
 
             float score = dist + angle * 0.02f;
             if (score < bestScore)
             {
                 bestScore = score;
-                bestTarget = col.transform;
+                best = col.transform;
             }
         }
+        return best;
+    }
 
-        if (bestTarget != null)
+    /// <summary>True when nothing in environmentMask blocks the straight line from Yoru to the target.</summary>
+    private bool HasLineOfSight(Transform target)
+    {
+        Vector3 eye = cachedTransform.position + Vector3.up * 0.6f;
+        Vector3 targetEye = target.position + Vector3.up * 0.6f;
+        if (Physics.Linecast(eye, targetEye, out RaycastHit hit, environmentMask, QueryTriggerInteraction.Ignore))
         {
-            Vector3 lookDir = bestTarget.position - cachedTransform.position;
-            lookDir.y = 0f;
-            if (lookDir.sqrMagnitude > 0.01f)
-                cachedTransform.rotation = Quaternion.LookRotation(lookDir);
+            Transform hitRoot = hit.collider.transform.root;
+            if (hitRoot != target.root && hitRoot != cachedTransform.root)
+                return false; // a wall or obstacle is in the way
         }
+        return true;
+    }
+
+    /// <summary>Turn toward the target on the horizontal plane. instant=true snaps (used at attack start); false fast-slerps (used while tracking).</summary>
+    private void FaceTargetFast(Transform target, bool instant)
+    {
+        if (target == null) return;
+        Vector3 look = target.position - cachedTransform.position;
+        look.y = 0f;
+        if (look.sqrMagnitude < 0.0001f) return;
+        Quaternion want = Quaternion.LookRotation(look);
+        cachedTransform.rotation = instant
+            ? want
+            : Quaternion.Slerp(cachedTransform.rotation, want, lungeFaceSpeed * Time.deltaTime);
+    }
+
+    /// <summary>Per-frame fast face toward the current target while an attack is active. Drops a dead target.</summary>
+    private void TrackTarget()
+    {
+        if (currentLungeTarget != null)
+        {
+            EnemyHealth eh = currentLungeTarget.GetComponent<EnemyHealth>();
+            if (eh != null && eh.IsDead()) { currentLungeTarget = null; return; }
+        }
+        FaceTargetFast(currentLungeTarget, false);
+    }
+
+    /// <summary>
+    /// Slide toward the target (or straight forward when target is null), capped at lungeMaxDistance,
+    /// stopping lungeStopGap short so the enemy ends inside attack range. Sets lungeEndedShort when the
+    /// cap stops Yoru before he fully closes, which drives the weaker "reach" hit.
+    /// </summary>
+    private void StartLunge(Transform target)
+    {
+        Vector3 dir;
+        float distance;
+        lungeEndedShort = false;
+
+        if (target != null)
+        {
+            Vector3 toTarget = target.position - cachedTransform.position;
+            toTarget.y = 0f;
+            float gap = toTarget.magnitude;
+            dir = gap > 0.01f ? toTarget.normalized : cachedTransform.forward;
+            float want = gap - lungeStopGap;                 // close to just inside attack range
+            distance = Mathf.Clamp(want, 0f, lungeMaxDistance);
+            if (want > lungeMaxDistance) lungeEndedShort = true; // capped short, reach hit is weaker
+        }
+        else
+        {
+            dir = cachedTransform.forward;                   // no enemy: still lunge forward
+            distance = lungeMaxDistance;
+        }
+
+        if (lungeCoroutine != null) StopCoroutine(lungeCoroutine);
+        if (distance > 0.01f)
+            lungeCoroutine = StartCoroutine(LungeRoutine(dir, distance));
+    }
+
+    private IEnumerator LungeRoutine(Vector3 dir, float distance)
+    {
+        float duration = Mathf.Max(0.01f, lungeDuration);
+        float elapsed = 0f;
+        float prevEased = 0f;
+
+        while (elapsed < duration)
+        {
+            // Bail the instant another action takes over.
+            if (isDodging || isDashing || isInHitReaction || isGuarding) break;
+
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = 1f - (1f - t) * (1f - t);          // ease-out: fast start, settles
+            float frameDelta = eased - prevEased;
+            prevEased = eased;
+
+            if (characterController != null && characterController.enabled)
+            {
+                Vector3 step = dir * (distance * frameDelta);
+
+                // Edge safety: do not slide off a ledge. Probe the spot we are about to enter.
+                if (useEdgeSafety && !GroundAhead(cachedTransform.position + step))
+                    break;
+
+                // Wall safety: CharacterController.Move resolves wall collisions, so Yoru cannot pass through one.
+                if (!characterController.isGrounded)
+                    step.y = Physics.gravity.y * Time.deltaTime;
+                characterController.Move(step);
+            }
+            yield return null;
+        }
+        lungeCoroutine = null;
+    }
+
+    /// <summary>Edge probe: is there solid ground (in environmentMask) just below the given world position?</summary>
+    private bool GroundAhead(Vector3 worldPos)
+    {
+        Vector3 origin = worldPos + Vector3.up * 0.3f;
+        float probe = 0.3f + edgeProbeDepth;
+        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, probe, environmentMask, QueryTriggerInteraction.Ignore))
+        {
+            if (hit.collider.transform.root != cachedTransform.root)
+                return true;
+        }
+        return false;
+    }
+    #endregion
+
+    #region Beyblade Finisher (Combo 3)
+    /// <summary>
+    /// Begin the beyblade: Combo 3 keeps spinning and strikes every nearby enemy once, one at a time,
+    /// then stops. Capped by beybladeMaxTime so a large crowd can never trap the player in an endless spin.
+    /// </summary>
+    private void StartBeyblade()
+    {
+        isBeyblading = true;
+        if (beybladeCoroutine != null) StopCoroutine(beybladeCoroutine);
+        beybladeCoroutine = StartCoroutine(BeybladeRoutine());
+    }
+
+    private IEnumerator BeybladeRoutine()
+    {
+        float startTime = Time.time;
+        var hitIds = new System.Collections.Generic.HashSet<int>();
+
+        // Let the lunge carry Yoru into the group before the first strike.
+        yield return new WaitForSeconds(Mathf.Max(0.01f, lungeDuration));
+
+        while (Time.time - startTime < beybladeMaxTime)
+        {
+            if (!isAttacking || isInHitReaction || isDodging || isDashing || isGuarding) break;
+
+            // Keep the spin visually looping (a clean rotational clip restarts seamlessly).
+            if (animator != null)
+            {
+                AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+                if (si.shortNameHash == combo3StateHash && si.normalizedTime >= 1f)
+                    animator.Play(combo3StateHash, combatLayerIndex, 0f);
+            }
+
+            EnemyHealth next = NextBeybladeTarget(hitIds);
+            if (next == null) break; // everyone in range has been hit, finished
+
+            next.TakeDamage(combo3Damage, false);
+            hitIds.Add(next.GetInstanceID());
+            engagedInCombatUntil = Time.time + engagedInCombatDuration;
+
+            Collider c = next.GetComponent<Collider>();
+            Vector3 contact = c != null ? c.ClosestPoint(attackPoint.position) : next.transform.position;
+            if (CombatFeedbackManager.Instance != null)
+            {
+                Animator enemyAnim = next.GetComponent<Animator>();
+                if (enemyAnim == null) enemyAnim = next.GetComponentInChildren<Animator>();
+                CombatFeedbackManager.Instance.PlayHitFeedback(contact, false, animator, enemyAnim);
+            }
+            if (CombatSFXManager.Instance != null)
+                CombatSFXManager.Instance.PlayImpact(false, true);
+
+            yield return new WaitForSeconds(beybladeHitInterval);
+        }
+
+        isBeyblading = false;
+        beybladeCoroutine = null;
+        OnAttackEnd();
+    }
+
+    /// <summary>Closest live enemy inside attackRange that has not been struck yet this beyblade.</summary>
+    private EnemyHealth NextBeybladeTarget(System.Collections.Generic.HashSet<int> alreadyHit)
+    {
+        Collider[] inRange = Physics.OverlapSphere(attackPoint.position, attackRange, enemyLayer);
+        EnemyHealth best = null;
+        float bestDist = float.MaxValue;
+        foreach (Collider col in inRange)
+        {
+            EnemyHealth eh = col.GetComponent<EnemyHealth>();
+            if (eh == null || eh.IsDead()) continue;
+            if (alreadyHit.Contains(eh.GetInstanceID())) continue;
+            float d = (col.transform.position - attackPoint.position).sqrMagnitude;
+            if (d < bestDist) { bestDist = d; best = eh; }
+        }
+        return best;
     }
     #endregion
 
@@ -1967,7 +2218,10 @@ public class PlayerCombat : MonoBehaviour
         combatIdleSettledTimer = 0f;
         movementStuckTimer = 0f;
         attackStartTime = Time.time;
-        FaceNearestEnemy();
+
+        // Magnet: grab the closest valid enemy (cone + range + line of sight) and face it instantly.
+        currentLungeTarget = AcquireTarget();
+        FaceTargetFast(currentLungeTarget, true);
 
         if (currentComboStep > 0 && Time.time - lastAttackTime > comboWindowTime)
         {
@@ -1978,9 +2232,11 @@ public class PlayerCombat : MonoBehaviour
         currentComboStep++;
         if (currentComboStep > 3) currentComboStep = 1;
 
-        DebugLog($"Combo {currentComboStep} — {GetComboDamage(currentComboStep)} dmg");
+        DebugLog($"Combo {currentComboStep}: {GetComboDamage(currentComboStep)} dmg");
 
-        if (currentComboStep == 3) LockPositionNow();
+        // Lunge toward the target (or straight forward when there is none). Every hit re-finds and
+        // re-slides, nothing stays planted. No position freeze.
+        StartLunge(currentLungeTarget);
 
         PlayCombatAnimation(GetComboStateName(currentComboStep));
 
@@ -1993,6 +2249,10 @@ public class PlayerCombat : MonoBehaviour
         isAerialAttack = false;
         canQueueNextAttack = false;
         lastAttackTime = Time.time;
+
+        // Combo 3 is the beyblade finisher: keep spinning and tick every nearby enemy once, then stop.
+        if (currentComboStep == 3)
+            StartBeyblade();
     }
 
     private string GetComboStateName(int step)
@@ -2030,7 +2290,8 @@ public class PlayerCombat : MonoBehaviour
         combatIdleSettledTimer = 0f;
         movementStuckTimer = 0f;
         attackStartTime = Time.time;
-        FaceNearestEnemy();
+        currentLungeTarget = AcquireTarget();
+        FaceTargetFast(currentLungeTarget, true);
         hasUsedAerialAttack = true;
         isAerialAttack = true;
         currentComboStep = 3;
@@ -2082,11 +2343,15 @@ public class PlayerCombat : MonoBehaviour
     private void ReleaseHeavyAttack()
     {
         attackStartTime = Time.time;
-        FaceNearestEnemy();
+        // Re-acquire on release so the strike homes onto the enemy even if it moved while charging
+        // and Yoru's facing drifted.
+        currentLungeTarget = AcquireTarget();
+        FaceTargetFast(currentLungeTarget, true);
         storedHeavyChargePercent = Mathf.Clamp01((Time.time - heavyChargeStartTime) / heavyChargeTimeMax);
         int damage = combo1Damage + Mathf.RoundToInt(storedHeavyChargePercent * heavyChargeBonusMax);
-        DebugLog($"Heavy — {storedHeavyChargePercent * 100f:F0}% = {damage} dmg");
-        LockPositionNow();
+        DebugLog($"Heavy {storedHeavyChargePercent * 100f:F0}% = {damage} dmg");
+        // The release lunges/slides to the enemy (capped) instead of freezing in place.
+        StartLunge(currentLungeTarget);
         PlayCombatAnimation(heavyReleaseState);
         if (vfxManager != null)
         {
@@ -2183,6 +2448,9 @@ public class PlayerCombat : MonoBehaviour
     #region Hit Detection
     public void DealDamage()
     {
+        // During the beyblade finisher, BeybladeRoutine deals the damage one enemy at a time, so the
+        // Combo3 clip's own DealDamage animation event must not also fire (it would double-hit).
+        if (isBeyblading) return;
         int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
         bool isFinisher = !isAerialAttack && currentComboStep == 3;
         DealDamageInRange(damage, isFinisher);
@@ -2196,6 +2464,11 @@ public class PlayerCombat : MonoBehaviour
 
     private void DealDamageInRange(int damage, bool isHeavy)
     {
+        // "Not so forceful": if the lunge was capped short of the target and Yoru had to reach for the
+        // hit, the connecting blow is weaker. Default multiplier 1.0 = no change.
+        if (lungeEndedShort && reachHitDamageMultiplier < 1f)
+            damage = Mathf.Max(1, Mathf.RoundToInt(damage * reachHitDamageMultiplier));
+
         Collider[] hitEnemies = Physics.OverlapSphere(attackPoint.position, attackRange, enemyLayer);
         foreach (Collider enemy in hitEnemies)
         {
@@ -2254,6 +2527,7 @@ public class PlayerCombat : MonoBehaviour
     #region Animation Events — Combat Flow
     public void OnCanQueueNextAttack()
     {
+        if (isBeyblading) return; // no combo chaining during the finisher spin
         canQueueNextAttack = true;
         if (queuedClicks > 0)
         {
@@ -2264,6 +2538,9 @@ public class PlayerCombat : MonoBehaviour
 
     public void OnAttackEnd()
     {
+        // The beyblade owns the end of its spin (BeybladeRoutine clears the flag, then calls this).
+        // Ignore the Combo3 clip's own OnAttackEnd event while the spin is still running.
+        if (isBeyblading) return;
         if (!isAttacking) return;
         isAttacking = false;
         canQueueNextAttack = false;
@@ -2323,6 +2600,21 @@ public class PlayerCombat : MonoBehaviour
                 dashCoroutine = null;
             }
         }
+        if (isBeyblading)
+        {
+            isBeyblading = false;
+            if (beybladeCoroutine != null)
+            {
+                StopCoroutine(beybladeCoroutine);
+                beybladeCoroutine = null;
+            }
+        }
+        if (lungeCoroutine != null)
+        {
+            StopCoroutine(lungeCoroutine);
+            lungeCoroutine = null;
+        }
+        currentLungeTarget = null;
         if (pullCoroutine != null)
         {
             StopCoroutine(pullCoroutine);
