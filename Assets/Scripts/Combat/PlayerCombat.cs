@@ -319,6 +319,8 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Damage multiplier applied ONLY when the lunge was capped short of the enemy and Yoru had to reach for the hit (the 'not so forceful' case). 1 = full damage, no reduction. Set below 1 (e.g. 0.6) if you want reaching hits to be weaker.")]
     [Range(0f, 1f)]
     [SerializeField] private float reachHitDamageMultiplier = 1.0f;
+    [Tooltip("With NO enemy in range, attacks 1 and 2 stay planted (zero slide). Only the 3-hit combo finisher slides forward by this small amount, to give it weight without flying into empty space. The ledge check still applies, so this never carries Yoru off a cliff. Set 0 to keep the finisher planted too.")]
+    [SerializeField] private float noTargetFinisherNudge = 0.5f;
 
     [Header("Lunge Safety")]
     [Tooltip("Stop the slide at ledges so Yoru never lunges off a cliff.")]
@@ -2056,7 +2058,7 @@ public class PlayerCombat : MonoBehaviour
     /// stopping lungeStopGap short so the enemy ends inside attack range. Sets lungeEndedShort when the
     /// cap stops Yoru before he fully closes, which drives the weaker "reach" hit.
     /// </summary>
-    private void StartLunge(Transform target)
+    private void StartLunge(Transform target, bool allowNoTargetNudge)
     {
         Vector3 dir;
         float distance;
@@ -2074,8 +2076,11 @@ public class PlayerCombat : MonoBehaviour
         }
         else
         {
-            dir = cachedTransform.forward;                   // no enemy: still lunge forward
-            distance = lungeMaxDistance;
+            // No enemy in range. Hits 1 and 2 stay planted so Yoru never slides into empty space;
+            // only the combo finisher gets a small committal nudge for weight. The edge probe in
+            // LungeRoutine still runs on this nudge, so it stops at a ledge like any other slide.
+            dir = cachedTransform.forward;
+            distance = allowNoTargetNudge ? noTargetFinisherNudge : 0f;
         }
 
         if (lungeCoroutine != null) StopCoroutine(lungeCoroutine);
@@ -2167,10 +2172,22 @@ public class PlayerCombat : MonoBehaviour
 
             System.Collections.Generic.List<EnemyHealth> targets = EnemiesInBeybladeRange();
 
-            // Whiffed into empty space: spin the brief beat so it does not snap to idle, then stop.
+            // Whiffed into empty space: let the spin clip play out to its natural end before
+            // returning to idle. A flat short wait cuts the ~0.8s swirl off after a fraction of a
+            // second, which reads as a fast, interrupted snap (especially now the finisher no
+            // longer lunges far). Poll the clip and end once it is essentially complete, capped by
+            // beybladeMaxTime so a missing or interrupted Combo3 state can never hang the spin.
             if (targets.Count == 0)
             {
-                yield return new WaitForSeconds(Mathf.Max(0f, beybladeSingleWindDown));
+                float whiffTimer = 0f;
+                while (whiffTimer < beybladeMaxTime)
+                {
+                    if (!isAttacking || isInHitReaction || isDodging || isDashing || isGuarding) break;
+                    AnimatorStateInfo spin = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+                    if (spin.shortNameHash == combo3StateHash && spin.normalizedTime >= 0.95f) break;
+                    whiffTimer += Time.deltaTime;
+                    yield return null;
+                }
                 break;
             }
 
@@ -2260,9 +2277,9 @@ public class PlayerCombat : MonoBehaviour
 
         DebugLog($"Combo {currentComboStep}: {GetComboDamage(currentComboStep)} dmg");
 
-        // Lunge toward the target (or straight forward when there is none). Every hit re-finds and
-        // re-slides, nothing stays planted. No position freeze.
-        StartLunge(currentLungeTarget);
+        // Lunge toward the target, re-found every hit. With no target, hits 1-2 stay planted and
+        // only the finisher (combo step 3) nudges forward — see StartLunge. No position freeze.
+        StartLunge(currentLungeTarget, currentComboStep == 3);
 
         PlayCombatAnimation(GetComboStateName(currentComboStep));
 
@@ -2376,8 +2393,9 @@ public class PlayerCombat : MonoBehaviour
         storedHeavyChargePercent = Mathf.Clamp01((Time.time - heavyChargeStartTime) / heavyChargeTimeMax);
         int damage = combo1Damage + Mathf.RoundToInt(storedHeavyChargePercent * heavyChargeBonusMax);
         DebugLog($"Heavy {storedHeavyChargePercent * 100f:F0}% = {damage} dmg");
-        // The release lunges/slides to the enemy (capped) instead of freezing in place.
-        StartLunge(currentLungeTarget);
+        // The release lunges/slides to the enemy (capped) instead of freezing in place. With no
+        // target it stays planted (no nudge) rather than sliding into empty space.
+        StartLunge(currentLungeTarget, false);
         PlayCombatAnimation(heavyReleaseState);
         if (vfxManager != null)
         {
