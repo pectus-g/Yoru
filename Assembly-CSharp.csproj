@@ -56,6 +56,7 @@
     <Compile Include="Assets/Scripts/Inventory/InventorySlot.cs" />
     <Compile Include="Assets/KriptoFX/MeshEffect/Scripts/ME_ParticleCollisionDecal.cs" />
     <Compile Include="Assets/Mirza Beig/Scripting/Effects/Particle Affectors/Scripts/AttractionParticleAffector.cs" />
+    <Compile Include="Assets/GabrielAguiarProductions/Scripts/UniqueProjectiles/CameraShakeSimpleScript.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/SimpleAI/NPCAnimationController.cs" />
     <Compile Include="Assets/Mirza Beig/Scripting/Effects/Particle Plexus/Scripts (DEMO ONLY)/ParticlePlexusDemo_CameraRig.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/HD/GlobalMeshHD.cs" />
@@ -77,6 +78,7 @@
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/SimpleAI/StateMachine/NPCStateBase.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/StateMachine/StateManager.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Misc/Cull_Particles.cs" />
+    <Compile Include="Assets/GabrielAguiarProductions/Scripts/ParticleSystemController/Serializables.cs" />
     <Compile Include="Assets/Scripts/NPCs/NPCGiveItem.cs" />
     <Compile Include="Assets/Mirza Beig/Scripting/Effects/Particle Force Fields/Scripts (DEMO ONLY)/ParticleForceFieldsDemo_CameraRig.cs" />
     <Compile Include="Assets/Scripts/Enemy/EnemyHealthBar.cs" />
@@ -85,6 +87,7 @@
     <Compile Include="Assets/Mirza Beig/Particle Systems/_Common/Scripts/_Demo/LoopingParticleSystemsManager.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/SD/BeamGeometrySD.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/SD/DynamicOcclusionRaycasting.cs" />
+    <Compile Include="Assets/GabrielAguiarProductions/Scripts/ParticleSystemController/ParticleSystemControllerEditor.cs" />
     <Compile Include="Assets/Scripts/Inventory/InventoryItem.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/CachedLightProperties.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/HarvestingStateMachineCustomInspector.cs" />
@@ -148,6 +151,7 @@
     <Compile Include="Assets/Mirza Beig/Particle Systems/Ultimate VFX/Demos/Wallpapers/Gravity Clock/Scripts/GravityClockInteractivityUVFX.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/HD/VolumetricShadowHD.cs" />
     <Compile Include="Assets/Mirza Beig/Particle Systems/_Common/Scripts/RewindParticleSystemSimple.cs" />
+    <Compile Include="Assets/GabrielAguiarProductions/Scripts/UniqueProjectiles/ProjectileMoveScript.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Misc/FPS_Counter.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/SimpleAI/StateMachine/NPCStateMachine.cs" />
     <Compile Include="Assets/UnityTechnologies/ParticlePack/Shared/Scripts/ProximityActivate.cs" />
@@ -284,6 +288,7 @@
     <Compile Include="Assets/Scripts/BalanceSystem/PostProcessController.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/HD/TrackRealtimeChangesOnLightHD.cs" />
     <Compile Include="Assets/Mirza Beig/Particle Systems/_Common/Scripts/PerlinNoise.cs" />
+    <Compile Include="Assets/GabrielAguiarProductions/Scripts/ParticleSystemController/ParticleSystemController.cs" />
     <Compile Include="Assets/Scripts/BalanceSystem/Worldstatemanager.cs" />
     <Compile Include="Assets/Scripts/BalanceSystem/LightPathFXController.cs" />
     <Compile Include="Assets/Mirza Beig/Scripting/Effects/Particle Affectors/Scripts/TurbulenceParticleAffector.cs" />
@@ -311,6 +316,7 @@
     <Compile Include="Assets/Scripts/Combat/HallucinationEffect.cs" />
     <Compile Include="Assets/Mirza Beig/Particle Systems/_Common/Scripts/Billboard.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/HD/VolumetricLightBeamHD2D.cs" />
+    <Compile Include="Assets/GabrielAguiarProductions/Scripts/ParticleSystemController/SaveParticleSystemScript.cs" />
     <Compile Include="Assets/VolumetricLightBeam/Scripts/Utils.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Misc/Flythrough.cs" />
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/ETFXEffectCycler.cs" />
@@ -337,10 +343,12 @@
     <Compile Include="Assets/Epic Toon FX/Demo/Scripts/VFX Library/UICanvasManager.cs" />
     <Compile Include="Assets/Scripts/Quests/QuestManager.cs" />
     <Compile Include="Assets/Mirza Beig/Scripting/Effects/Particle Lights/Scripts/ParticleLights.cs" />
+    <Compile Include="Assets/GabrielAguiarProductions/Scripts/UniqueProjectiles/RotateToMouseScript.cs" />
     <Compile Include="Assets/Mirza Beig/Particle Systems/_Common/Scripts/RewindParticleSystem.cs" />
     <Compile Include="Assets/Scripts/VolumetricFogDiagnostic.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Gameplay/Harvesting/ModifyCollision Response.cs" />
     <Compile Include="Assets/gardenJapanese/PolyartStudio/SharedResources/Scripts/Tools/River Tool/SplineRiverGenerator.cs" />
+    <Compile Include="Assets/GabrielAguiarProductions/Scripts/UniqueProjectiles/SpawnProjectilesScript.cs" />
     <Compile Include="Assets/Scripts/Player/SoulTest.cs" />
     <Compile Include="Assets/Mirza Beig/Scripting/Effects/Particle Force Fields/Scripts/Noise2.cs" />
     <Compile Include="Assets/VolumetricFog/Extra/DynamicFog/Scripts/DynamicFogExclusive.cs" />
@@ -1605,6 +1613,10 @@
       <HintPath>Library/ScriptAssemblies/Unity.AI.Navigation.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.Formats.Fbx.Runtime">
+      <HintPath>Library/ScriptAssemblies/Unity.Formats.Fbx.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.EditorCoroutines.Editor">
       <HintPath>Library/ScriptAssemblies/Unity.EditorCoroutines.Editor.dll</HintPath>
       <Private>False</Private>
@@ -1681,6 +1693,10 @@
       <HintPath>Library/ScriptAssemblies/Unity.VisualScripting.Flow.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Autodesk.Fbx">
+      <HintPath>Library/ScriptAssemblies/Autodesk.Fbx.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.VisualStudio.Editor">
       <HintPath>Library/ScriptAssemblies/Unity.VisualStudio.Editor.dll</HintPath>
       <Private>False</Private>
@@ -1725,6 +1741,10 @@
       <HintPath>Library/ScriptAssemblies/Unity.Multiplayer.Center.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.Formats.Fbx.Editor">
+      <HintPath>Library/ScriptAssemblies/Unity.Formats.Fbx.Editor.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.Rendering.LightTransport.Runtime">
       <HintPath>Library/ScriptAssemblies/Unity.Rendering.LightTransport.Runtime.dll</HintPath>
       <Private>False</Private>
@@ -1743,6 +1763,10 @@
     </Reference>
     <Reference Include="Unity.ShaderGraph.Editor">
       <HintPath>Library/ScriptAssemblies/Unity.ShaderGraph.Editor.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Autodesk.Fbx.Editor">
+      <HintPath>Library/ScriptAssemblies/Autodesk.Fbx.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Editor.Shared">
