@@ -1,0 +1,568 @@
+using System.Collections;
+using UnityEngine;
+
+/// <summary>
+/// YORU climbing system. Breath of the Wild style auto grab, plus a wall run addition.
+/// Cat (Yoru) form only.
+///
+/// DESIGN
+///   - Grab is contextual, no dedicated key:
+///       * On the ground, Yoru attaches only when he MOVES INTO a climbable surface
+///         (pressing toward the wall), so walking along or away from a cliff base never grabs.
+///       * In the air, Yoru attaches on any contact with a climbable surface (no angle gate).
+///         This is the reliable fall save, a fall never slips past a climbable wall.
+///   - No falling while on the wall. With no stamina yet, Yoru leaves only by letting go (C),
+///     or by mantling at the top. Stamina drops in later at the single ClimbAllowed / speed gate.
+///   - This script NEVER touches PlayerMovement. On grab it disables PlayerMovement (so its
+///     Update and FixedUpdate stop while it owns no Move) and disables PlayerCombat (no attacks
+///     on the wall), runs its OWN controller.Move, then re-enables both on exit. Disabled
+///     MonoBehaviours still expose their public methods, so other scripts are unaffected.
+///   - Animation is driven entirely from code, the same way EnemyCombat does it:
+///     CrossFadeInFixedTime by cached hash on the Climb layer, only when the target state
+///     changes, so the clip does not restart every frame. No transition arrows are wired.
+///
+/// CONTROLS (on the wall)
+///   W / S        climb up / down            (wall relative)
+///   A / D        climb sideways             (ClimbSidewayL / ClimbSidewayR)
+///   Shift + A/D  wall run                   (ClimbWallRunL / ClimbWallRunR)
+///   Shift + W/S  faster climb (speed only, no separate clip)
+///   Space        climb hop up               (BOTW fast climb, stays on the wall)
+///   C            let go                     (detach and drop, never a trap)
+///   top reached  auto mantle                (ClimbMantle, then control returns)
+///
+/// SETUP
+///   1. Put this component on the player root (same GameObject as PlayerMovement, the
+///      CharacterController, PlayerCombat, FormController and the Animator).
+///   2. Assign the Climbable Mask to your new Climbable layer.
+///   3. Climb Layer Name must match the Animator layer ("ClimbLayer"). The index is resolved
+///      automatically by name in Awake, with Climb Layer Index used only as a fallback.
+///   4. Rename the Animator state "ClimpUp" to "ClimbUp" so it matches Climb Up State below,
+///      or change the field to match your state name. All other state names already match.
+///   5. The eight climb states must sit directly in the Climb layer (not inside a sub state
+///      machine), so the state name hash resolves.
+///
+/// FX
+///   This controller fires five climb moments through ClimbFX: Grab, Hop, LetGo, MantleStart,
+///   MantleLand. The per step hand and foot effects are fired by animation events on the clips
+///   (see ClimbFX for the slot names), so the frame timing stays in your hands.
+/// </summary>
+[RequireComponent(typeof(CharacterController))]
+public class ClimbController : MonoBehaviour
+{
+    #region Inspector References
+
+    [Header("References (auto found if left empty)")]
+    [SerializeField] private Animator animator;
+    [SerializeField] private PlayerMovement playerMovement;
+    [SerializeField] private PlayerCombat playerCombat;
+    [SerializeField] private FormController formController;
+    [Tooltip("Per animation climb VFX and SFX library. Auto found if left empty.")]
+    [SerializeField] private ClimbFX climbFX;
+    [Tooltip("Used only to read the ground grab direction (camera relative WASD). Defaults to Camera.main.")]
+    [SerializeField] private Transform cameraTransform;
+
+    #endregion
+
+    #region Animator
+
+    [Header("Animator")]
+    [Tooltip("Name of the dedicated climb layer. The index is resolved from this in Awake.")]
+    [SerializeField] private string climbLayerName = "ClimbLayer";
+    [Tooltip("Fallback index used only if the name above is not found. Base, Combat, Cinematic, Climb means 3.")]
+    [SerializeField] private int climbLayerIndex = 3;
+    [Tooltip("CrossFade blend time between climb states, in seconds.")]
+    [SerializeField] private float climbBlend = 0.1f;
+
+    [Header("Climb State Names (must match the Animator states)")]
+    [SerializeField] private string climbIdleState = "ClimbIdle";
+    [SerializeField] private string climbUpState = "ClimbUp";
+    [SerializeField] private string climbDownState = "ClimbDown";
+    [SerializeField] private string climbSidewayLState = "ClimbSidewayL";
+    [SerializeField] private string climbSidewayRState = "ClimbSidewayR";
+    [SerializeField] private string climbWallRunLState = "ClimbWallRunL";
+    [SerializeField] private string climbWallRunRState = "ClimbWallRunR";
+    [SerializeField] private string climbMantleState = "ClimbMantle";
+
+    #endregion
+
+    #region Detection Settings
+
+    [Header("Surface Detection")]
+    [Tooltip("Which layer(s) count as climbable. Set to your Climbable layer.")]
+    [SerializeField] private LayerMask climbableMask;
+    [Tooltip("How far forward to look for a wall.")]
+    [SerializeField] private float wallCheckDistance = 0.6f;
+    [Tooltip("Radius of the forward sphere cast. Helps with corners and uneven faces.")]
+    [SerializeField] private float wallCheckRadius = 0.35f;
+    [Tooltip("Height above the feet to cast from. Keeps a tiny step from counting as a wall.")]
+    [SerializeField] private float wallCheckHeight = 1.0f;
+    [Tooltip("Surface counts as a wall when its normal Y is at or below this. Lower means only steeper faces climb.")]
+    [SerializeField] private float maxClimbableNormalY = 0.4f;
+    [Tooltip("Reject ceilings: surface ignored when its normal Y is below this.")]
+    [SerializeField] private float minClimbableNormalY = -0.3f;
+    [Tooltip("On the ground, how aligned movement must be with 'into the wall' to grab, in degrees.")]
+    [SerializeField] private float groundGrabAngle = 50f;
+
+    #endregion
+
+    #region Movement Settings
+
+    [Header("Climb Movement")]
+    [SerializeField] private float climbUpSpeed = 2.2f;
+    [SerializeField] private float climbDownSpeed = 2.2f;
+    [SerializeField] private float climbSidewaySpeed = 1.6f;
+    [Tooltip("Sideways speed while Shift is held (wall run).")]
+    [SerializeField] private float wallRunSpeed = 4.5f;
+    [Tooltip("Up and down speed multiplier while Shift is held.")]
+    [SerializeField] private float sprintClimbMultiplier = 1.7f;
+    [Tooltip("Distance Yoru is kept off the wall surface.")]
+    [SerializeField] private float surfaceStickDistance = 0.35f;
+    [Tooltip("How quickly Yoru corrects to the stick distance.")]
+    [SerializeField] private float surfaceStickSpeed = 8f;
+    [Tooltip("How quickly Yoru rotates to face the wall.")]
+    [SerializeField] private float faceWallTurnSpeed = 14f;
+    [SerializeField] private float inputDeadzone = 0.1f;
+
+    [Header("Climb Hop (Space)")]
+    [SerializeField] private float climbHopSpeed = 4.5f;
+    [SerializeField] private float climbHopDuration = 0.25f;
+
+    [Header("Let Go (C)")]
+    [Tooltip("Horizontal push away from the wall when letting go. ApplyExternalPull is horizontal only.")]
+    [SerializeField] private float letGoPushForce = 3.5f;
+    [SerializeField] private float letGoPushDuration = 0.18f;
+
+    [Header("Mantle (top of wall)")]
+    [SerializeField] private float mantleDuration = 0.6f;
+    [Tooltip("Forward inset onto the ledge so Yoru does not finish on the very edge.")]
+    [SerializeField] private float mantleForwardInset = 0.3f;
+    [Tooltip("Height above the feet to probe for the top of the wall.")]
+    [SerializeField] private float topProbeHeight = 1.9f;
+    [SerializeField] private float ledgeForwardProbe = 0.6f;
+    [SerializeField] private float ledgeDownProbe = 1.5f;
+
+    [Header("Re-grab")]
+    [Tooltip("After letting go, jumping or mantling, ignore the air grab for this long so Yoru does not instantly re-stick.")]
+    [SerializeField] private float regrabSuppressTime = 0.35f;
+
+    #endregion
+
+    #region Runtime State
+
+    private CharacterController controller;
+    private bool isClimbing;
+    private bool isMantling;
+    private Vector3 wallNormal;
+    private Vector3 wallPoint;
+    private float hopTimer;
+    private float regrabTimer;
+    private Coroutine mantleRoutine;
+
+    #endregion
+
+    #region Cached Hashes
+
+    private int idleHash;
+    private int upHash;
+    private int downHash;
+    private int sideLHash;
+    private int sideRHash;
+    private int runLHash;
+    private int runRHash;
+    private int mantleHash;
+    private int currentStateHash;
+
+    #endregion
+
+    #region Unity Lifecycle
+
+    private void Awake()
+    {
+        controller = GetComponent<CharacterController>();
+        if (animator == null) animator = GetComponent<Animator>();
+        if (playerMovement == null) playerMovement = GetComponent<PlayerMovement>();
+        if (playerCombat == null) playerCombat = GetComponent<PlayerCombat>();
+        if (formController == null) formController = GetComponent<FormController>();
+        if (climbFX == null) climbFX = GetComponent<ClimbFX>();
+        if (climbFX == null) climbFX = GetComponentInChildren<ClimbFX>();
+        if (cameraTransform == null && Camera.main != null) cameraTransform = Camera.main.transform;
+
+        if (animator != null)
+        {
+            int resolved = animator.GetLayerIndex(climbLayerName);
+            if (resolved >= 0) climbLayerIndex = resolved;
+        }
+
+        idleHash = Animator.StringToHash(climbIdleState);
+        upHash = Animator.StringToHash(climbUpState);
+        downHash = Animator.StringToHash(climbDownState);
+        sideLHash = Animator.StringToHash(climbSidewayLState);
+        sideRHash = Animator.StringToHash(climbSidewayRState);
+        runLHash = Animator.StringToHash(climbWallRunLState);
+        runRHash = Animator.StringToHash(climbWallRunRState);
+        mantleHash = Animator.StringToHash(climbMantleState);
+        currentStateHash = -1;
+    }
+
+    private void Update()
+    {
+        if (regrabTimer > 0f) regrabTimer -= Time.deltaTime;
+
+        if (isClimbing)
+        {
+            if (isMantling) return; // the mantle coroutine owns movement
+            UpdateClimb();
+            return;
+        }
+
+        TryStartClimb();
+    }
+
+    #endregion
+
+    #region Grab Detection
+
+    private void TryStartClimb()
+    {
+        // Cat form only.
+        if (formController != null && formController.IsHuman) return;
+        // Do not snag mid attack or while guarding.
+        if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsGuarding())) return;
+
+        Vector3 moveDir = GetCameraRelativeInput();
+        Vector3 castDir = moveDir.sqrMagnitude > 0.01f ? moveDir.normalized : Flatten(transform.forward);
+
+        if (!TryFindWall(castDir, out Vector3 normal, out Vector3 point)) return;
+        if (!IsClimbableNormal(normal)) return;
+
+        bool airborne = playerMovement != null && playerMovement.IsAirborne();
+
+        if (airborne)
+        {
+            // Air grab: always snap, no angle gate. Suppressed briefly after letting go or jumping.
+            if (regrabTimer > 0f) return;
+            StartClimb(normal, point);
+        }
+        else
+        {
+            // Ground grab: only when pressing into the wall.
+            if (moveDir.sqrMagnitude <= 0.01f) return;
+            if (!IsMovingIntoWall(moveDir, normal)) return;
+            StartClimb(normal, point);
+        }
+    }
+
+    private bool TryFindWall(Vector3 dir, out Vector3 normal, out Vector3 point)
+    {
+        normal = Vector3.zero;
+        point = Vector3.zero;
+        if (dir.sqrMagnitude < 0.001f) return false;
+
+        Vector3 origin = transform.position + Vector3.up * wallCheckHeight;
+        if (Physics.SphereCast(origin, wallCheckRadius, dir, out RaycastHit hit,
+                wallCheckDistance, climbableMask, QueryTriggerInteraction.Ignore))
+        {
+            normal = hit.normal;
+            point = hit.point;
+            return true;
+        }
+        return false;
+    }
+
+    private bool IsClimbableNormal(Vector3 n)
+    {
+        // Steep enough to be a wall, not a floor, not a ceiling.
+        return n.y <= maxClimbableNormalY && n.y >= minClimbableNormalY;
+    }
+
+    private bool IsMovingIntoWall(Vector3 moveDir, Vector3 normal)
+    {
+        Vector3 m = Flatten(moveDir);
+        Vector3 n = Flatten(normal);
+        if (m.sqrMagnitude < 0.001f || n.sqrMagnitude < 0.001f) return false;
+        return Vector3.Dot(m, -n) >= Mathf.Cos(groundGrabAngle * Mathf.Deg2Rad);
+    }
+
+    #endregion
+
+    #region Climb Update
+
+    private void UpdateClimb()
+    {
+        float dt = Time.deltaTime;
+
+        // Safety: dropped out of cat form mid climb.
+        if (formController != null && formController.IsHuman)
+        {
+            EndClimb();
+            return;
+        }
+
+        float v = Input.GetAxisRaw("Vertical");
+        float h = Input.GetAxisRaw("Horizontal");
+        bool sprint = Input.GetKey(KeyCode.LeftShift);
+
+        // Let go.
+        if (Input.GetKeyDown(KeyCode.C))
+        {
+            LetGo();
+            return;
+        }
+
+        // Climb hop (BOTW fast climb).
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            hopTimer = climbHopDuration;
+            if (climbFX != null) climbFX.Play(ClimbFX.Hop);
+        }
+        if (hopTimer > 0f) hopTimer -= dt;
+
+        // Re-acquire the wall in the facing direction so we follow curved faces.
+        Vector3 origin = transform.position + Vector3.up * wallCheckHeight;
+        bool found = Physics.SphereCast(origin, wallCheckRadius, transform.forward, out RaycastHit hit,
+            wallCheckDistance, climbableMask, QueryTriggerInteraction.Ignore);
+
+        if (!found)
+        {
+            // Wall ended. If we were climbing up, this is the top: mantle. Otherwise hold (never fall).
+            if (v > inputDeadzone && TryDetectLedge(out Vector3 ledge))
+            {
+                StartMantle(ledge);
+                return;
+            }
+            PlayClimbState(idleHash);
+            return;
+        }
+
+        wallNormal = hit.normal;
+        wallPoint = hit.point;
+
+        // Surface tilted out of climbable range (rolled into a floor or ceiling): let go cleanly.
+        if (!IsClimbableNormal(wallNormal))
+        {
+            LetGo();
+            return;
+        }
+
+        // Face the wall.
+        Quaternion target = Quaternion.LookRotation(Flatten(-wallNormal));
+        transform.rotation = Quaternion.Slerp(transform.rotation, target, faceWallTurnSpeed * dt);
+
+        // Wall plane basis.
+        Vector3 wallUp = (Vector3.up - wallNormal * Vector3.Dot(Vector3.up, wallNormal)).normalized;
+        Vector3 wallRight = Vector3.Cross(wallUp, wallNormal).normalized;
+        if (Vector3.Dot(wallRight, transform.right) < 0f) wallRight = -wallRight;
+
+        // Vertical movement.
+        float vSpeed = (v > 0f ? climbUpSpeed : climbDownSpeed) * (sprint ? sprintClimbMultiplier : 1f);
+        Vector3 vertVel = wallUp * (v * vSpeed);
+        if (hopTimer > 0f) vertVel += wallUp * climbHopSpeed;
+
+        // Horizontal movement (wall run when sprinting).
+        float hSpeed = sprint ? wallRunSpeed : climbSidewaySpeed;
+        Vector3 horizVel = wallRight * (h * hSpeed);
+
+        // Keep Yoru at the stick distance from the surface.
+        float currentDist = Vector3.Dot(origin - wallPoint, wallNormal);
+        Vector3 stickVel = wallNormal * ((surfaceStickDistance - currentDist) * surfaceStickSpeed);
+
+        controller.Move((vertVel + horizVel + stickVel) * dt);
+
+        UpdateClimbAnimation(v, h, sprint);
+
+        // Reached a ledge while climbing up.
+        if (v > inputDeadzone && TryDetectLedge(out Vector3 topPos))
+        {
+            StartMantle(topPos);
+        }
+    }
+
+    private bool TryDetectLedge(out Vector3 topPos)
+    {
+        topPos = Vector3.zero;
+        Vector3 headOrigin = transform.position + Vector3.up * topProbeHeight;
+
+        // If the wall still continues at head height, there is no ledge yet.
+        if (Physics.Raycast(headOrigin, transform.forward, ledgeForwardProbe, climbableMask,
+                QueryTriggerInteraction.Ignore))
+            return false;
+
+        // No wall above: look for ground just over the lip.
+        Vector3 overLip = headOrigin + transform.forward * ledgeForwardProbe + Vector3.up * 0.2f;
+        if (Physics.Raycast(overLip, Vector3.down, out RaycastHit g, ledgeDownProbe, climbableMask,
+                QueryTriggerInteraction.Ignore))
+        {
+            topPos = g.point;
+            return true;
+        }
+        return false;
+    }
+
+    #endregion
+
+    #region Mantle
+
+    private void StartMantle(Vector3 topPos)
+    {
+        isMantling = true;
+        PlayClimbState(mantleHash);
+        if (climbFX != null) climbFX.Play(ClimbFX.MantleStart);
+        if (mantleRoutine != null) StopCoroutine(mantleRoutine);
+        mantleRoutine = StartCoroutine(MantleRoutine(topPos));
+    }
+
+    private IEnumerator MantleRoutine(Vector3 topPos)
+    {
+        Vector3 start = transform.position;
+        Vector3 forwardInset = Flatten(-wallNormal) * mantleForwardInset;
+        Vector3 end = topPos + forwardInset;
+        Vector3 riseTop = new Vector3(start.x, end.y, start.z);
+
+        float t = 0f;
+        while (t < mantleDuration)
+        {
+            t += Time.deltaTime;
+            float frac = Mathf.Clamp01(t / mantleDuration);
+
+            // First 60 percent rises along the face, last 40 percent moves forward onto the ledge.
+            Vector3 pos;
+            if (frac < 0.6f) pos = Vector3.Lerp(start, riseTop, frac / 0.6f);
+            else pos = Vector3.Lerp(riseTop, end, (frac - 0.6f) / 0.4f);
+
+            transform.position = pos;
+            yield return null;
+        }
+
+        transform.position = end;
+        mantleRoutine = null;
+        if (climbFX != null) climbFX.Play(ClimbFX.MantleLand);
+        EndClimb();
+        regrabTimer = regrabSuppressTime;
+    }
+
+    #endregion
+
+    #region Enter / Exit
+
+    private void StartClimb(Vector3 normal, Vector3 point)
+    {
+        isClimbing = true;
+        isMantling = false;
+        wallNormal = normal;
+        wallPoint = point;
+
+        if (playerMovement != null) playerMovement.enabled = false;
+        if (playerCombat != null) playerCombat.enabled = false;
+        if (animator != null) animator.SetLayerWeight(climbLayerIndex, 1f);
+
+        // Snap to face the wall so the first climb pose reads correctly.
+        transform.rotation = Quaternion.LookRotation(Flatten(-wallNormal));
+
+        hopTimer = 0f;
+        currentStateHash = -1;
+        PlayClimbState(idleHash);
+        if (climbFX != null) climbFX.Play(ClimbFX.Grab);
+    }
+
+    private void LetGo()
+    {
+        if (climbFX != null) climbFX.Play(ClimbFX.LetGo);
+        EndClimb();
+        if (playerMovement != null)
+        {
+            Vector3 push = Flatten(wallNormal) * letGoPushForce;
+            playerMovement.ApplyExternalPull(push, letGoPushDuration);
+        }
+        regrabTimer = regrabSuppressTime;
+    }
+
+    private void EndClimb()
+    {
+        isClimbing = false;
+        isMantling = false;
+        if (mantleRoutine != null)
+        {
+            StopCoroutine(mantleRoutine);
+            mantleRoutine = null;
+        }
+        if (animator != null) animator.SetLayerWeight(climbLayerIndex, 0f);
+        if (playerMovement != null) playerMovement.enabled = true;
+        if (playerCombat != null) playerCombat.enabled = true;
+        currentStateHash = -1;
+    }
+
+    #endregion
+
+    #region Animation
+
+    private void UpdateClimbAnimation(float v, float h, bool sprint)
+    {
+        int target;
+        if (Mathf.Abs(v) > inputDeadzone || hopTimer > 0f)
+        {
+            target = (v >= 0f || hopTimer > 0f) ? upHash : downHash;
+        }
+        else if (Mathf.Abs(h) > inputDeadzone)
+        {
+            if (sprint) target = h < 0f ? runLHash : runRHash;
+            else target = h < 0f ? sideLHash : sideRHash;
+        }
+        else
+        {
+            target = idleHash;
+        }
+
+        PlayClimbState(target);
+    }
+
+    /// <summary>
+    /// CrossFades to a climb state by hash, only when it changes, so the clip does not restart
+    /// every frame. Same pattern as EnemyCombat.
+    /// </summary>
+    private void PlayClimbState(int stateHash)
+    {
+        if (stateHash == currentStateHash) return;
+        if (animator == null) return;
+        animator.CrossFadeInFixedTime(stateHash, climbBlend, climbLayerIndex);
+        currentStateHash = stateHash;
+    }
+
+    #endregion
+
+    #region Utility
+
+    private Vector3 GetCameraRelativeInput()
+    {
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
+
+        Vector3 camF = cameraTransform != null ? Flatten(cameraTransform.forward) : Vector3.forward;
+        Vector3 camR = cameraTransform != null ? Flatten(cameraTransform.right) : Vector3.right;
+
+        Vector3 dir = camF * v + camR * h;
+        return dir;
+    }
+
+    private static Vector3 Flatten(Vector3 v)
+    {
+        v.y = 0f;
+        return v.sqrMagnitude > 0.0001f ? v.normalized : Vector3.zero;
+    }
+
+    /// <summary>True while Yoru is on a wall. Other systems can read this.</summary>
+    public bool IsClimbing => isClimbing;
+
+    #endregion
+
+    #region Gizmos
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = isClimbing ? Color.cyan : Color.yellow;
+        Vector3 origin = transform.position + Vector3.up * wallCheckHeight;
+        Gizmos.DrawWireSphere(origin + transform.forward * wallCheckDistance, wallCheckRadius);
+        Gizmos.DrawLine(origin, origin + transform.forward * wallCheckDistance);
+    }
+
+    #endregion
+}
