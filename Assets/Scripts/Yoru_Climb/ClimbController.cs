@@ -147,9 +147,18 @@ public class ClimbController : MonoBehaviour
 
     #endregion
 
+    #region Debug
+
+    [Header("Debug")]
+    [Tooltip("Logs grab checks and setup to the Console. Turn off once climbing works.")]
+    [SerializeField] private bool debugLogs = true;
+
+    #endregion
+
     #region Runtime State
 
     private CharacterController controller;
+    private bool wallWasFound;
     private bool isClimbing;
     private bool isMantling;
     private Vector3 wallNormal;
@@ -202,6 +211,15 @@ public class ClimbController : MonoBehaviour
         runRHash = Animator.StringToHash(climbWallRunRState);
         mantleHash = Animator.StringToHash(climbMantleState);
         currentStateHash = -1;
+
+        if (debugLogs)
+        {
+            string maskInfo = climbableMask.value == 0 ? "EMPTY" : climbableMask.value.ToString();
+            Debug.Log($"[ClimbController] Active on {name}. ClimbLayer index={climbLayerIndex}, mask={maskInfo}, " +
+                $"animator={(animator != null)}, playerMovement={(playerMovement != null)}, climbFX={(climbFX != null)}.");
+            if (climbableMask.value == 0)
+                Debug.LogError("[ClimbController] Climbable Mask is not set. Assign it to the Climbable layer in the Inspector, or climbing can never trigger.");
+        }
     }
 
     private void Update()
@@ -232,10 +250,22 @@ public class ClimbController : MonoBehaviour
         Vector3 moveDir = GetCameraRelativeInput();
         Vector3 castDir = moveDir.sqrMagnitude > 0.01f ? moveDir.normalized : Flatten(transform.forward);
 
-        if (!TryFindWall(castDir, out Vector3 normal, out Vector3 point)) return;
-        if (!IsClimbableNormal(normal)) return;
+        if (!TryFindWall(castDir, out Vector3 normal, out Vector3 point))
+        {
+            wallWasFound = false;
+            return;
+        }
 
         bool airborne = playerMovement != null && playerMovement.IsAirborne();
+        bool steepEnough = IsClimbableNormal(normal);
+        bool intoWall = IsMovingIntoWall(moveDir, normal);
+
+        // Log once each time a climbable layer surface comes into range, with the deciding values.
+        if (debugLogs && !wallWasFound)
+            Debug.Log($"[ClimbController] Wall in range. normal.y={normal.y:F2} steepEnough={steepEnough} airborne={airborne} pressingIntoWall={intoWall}");
+        wallWasFound = true;
+
+        if (!steepEnough) return;
 
         if (airborne)
         {
@@ -247,7 +277,7 @@ public class ClimbController : MonoBehaviour
         {
             // Ground grab: only when pressing into the wall.
             if (moveDir.sqrMagnitude <= 0.01f) return;
-            if (!IsMovingIntoWall(moveDir, normal)) return;
+            if (!intoWall) return;
             StartClimb(normal, point);
         }
     }
@@ -462,6 +492,7 @@ public class ClimbController : MonoBehaviour
         currentStateHash = -1;
         PlayClimbState(idleHash);
         if (climbFX != null) climbFX.Play(ClimbFX.Grab);
+        if (debugLogs) Debug.Log("[ClimbController] Grabbed wall, entering climb.");
     }
 
     private void LetGo()
