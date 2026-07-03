@@ -1195,7 +1195,20 @@ public class PlayerCombat : MonoBehaviour
 
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
-        Vector3 dodgeDir = GetInputDirectionCameraRelative(h, v);
+        // Neutral dodge (no directional input) flips along Yoru's current
+        // facing instead of snapping to camera-forward, so a side-on idle
+        // frontflip travels the way she is already looking.
+        Vector3 dodgeDir;
+        if (Mathf.Abs(h) < 0.1f && Mathf.Abs(v) < 0.1f)
+        {
+            Vector3 facing = cachedTransform.forward;
+            facing.y = 0f;
+            dodgeDir = facing.sqrMagnitude > 0.0001f ? facing.normalized : cachedTransform.forward;
+        }
+        else
+        {
+            dodgeDir = GetInputDirectionCameraRelative(h, v);
+        }
 
         bool is4Leg = Input.GetKey(KeyCode.LeftShift) ||
                       (playerMovement != null && playerMovement.IsRunning());
@@ -1244,44 +1257,75 @@ public class PlayerCombat : MonoBehaviour
         if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayDodge();
 
         if (dodgeCoroutine != null) StopCoroutine(dodgeCoroutine);
-        dodgeCoroutine = StartCoroutine(DodgeMovement(moveDir, distance));
+        dodgeCoroutine = StartCoroutine(DodgeMovement(moveDir, animState, distance));
     }
 
-    private IEnumerator DodgeMovement(Vector3 direction, float distance)
+    private IEnumerator DodgeMovement(Vector3 direction, string dodgeStateName, float distance)
     {
+        // Movement is slaved to the dodge clip's own playback so it can never
+        // outrun the animation. Previously the duration was read from
+        // GetCurrentAnimatorStateInfo one frame after the entry CrossFade, which
+        // returns the OUTGOING state (Combat_Empty / idle), not the dodge clip.
+        // Its length latched in and the character kept sliding after the flip
+        // had visually finished, which read as the frozen "moving while not
+        // animated" beat before locomotion resumed.
+        // dodgeFallbackDuration now only covers the brief entry-crossfade window
+        // before the dodge state becomes current, plus the safety case where the
+        // state name cannot be resolved at all.
+        int dodgeHash = Animator.StringToHash(dodgeStateName);
         float duration = dodgeFallbackDuration;
-        bool needsClipUpdate = true;
-        if (animator != null)
-        {
-            AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-            if (stateInfo.length > 0.1f)
-            {
-                duration = stateInfo.length;
-                needsClipUpdate = false;
-            }
-        }
         currentDodgeDuration = duration;
 
         float elapsed = 0f;
         float previousEased = 0f;
         float previousArc = 0f;
+        bool clipResolved = false;
 
-        while (elapsed < duration)
+        while (true)
         {
             elapsed += Time.deltaTime;
 
-            if (needsClipUpdate && animator != null)
+            float t;
+            if (animator != null)
             {
-                AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-                if (si.length > 0.1f)
+                // During the entry transition the dodge clip is the NEXT state,
+                // not the current one, so check both.
+                AnimatorStateInfo cur = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+                bool haveState = false;
+                AnimatorStateInfo dodgeState = cur;
+
+                if (animator.IsInTransition(combatLayerIndex))
                 {
-                    duration = si.length;
-                    currentDodgeDuration = duration;
+                    AnimatorStateInfo nxt = animator.GetNextAnimatorStateInfo(combatLayerIndex);
+                    if (nxt.shortNameHash == dodgeHash)
+                    {
+                        dodgeState = nxt;
+                        haveState = true;
+                    }
                 }
-                needsClipUpdate = false;
+                if (!haveState && cur.shortNameHash == dodgeHash)
+                {
+                    dodgeState = cur;
+                    haveState = true;
+                }
+
+                if (haveState && dodgeState.length > 0.1f)
+                {
+                    duration = dodgeState.length;
+                    currentDodgeDuration = duration;
+                    clipResolved = true;
+                    t = Mathf.Clamp01(dodgeState.normalizedTime);
+                }
+                else
+                {
+                    t = Mathf.Clamp01(elapsed / duration);
+                }
+            }
+            else
+            {
+                t = Mathf.Clamp01(elapsed / duration);
             }
 
-            float t = Mathf.Clamp01(elapsed / duration);
             float eased = t * t * (3f - 2f * t);
             float frameDelta = eased - previousEased;
             previousEased = eased;
@@ -1294,7 +1338,7 @@ public class PlayerCombat : MonoBehaviour
                 {
                     // Use eased t (not raw t) for zero-velocity arc endpoints:
                     // sin(smoothstep(t) * PI) has derivative=0 at t=0 and t=1,
-                    // eliminating sudden Y jolts that cause camera overshoot
+                    // eliminating sudden Y jolts that cause camera overshoot.
                     float arc = Mathf.Sin(eased * Mathf.PI) * dodgeHeight;
                     float arcDelta = arc - previousArc;
                     previousArc = arc;
@@ -1317,6 +1361,19 @@ public class PlayerCombat : MonoBehaviour
                     DebugLog($"Dodge early exit at {t * 100f:F0}% (movement input)");
                     break;
                 }
+            }
+
+            // End the instant the clip completes so EndDodge blends to
+            // locomotion with no frozen tail. Before the clip resolves, fall
+            // back to the timer so a missing or renamed state can never hang
+            // the coroutine.
+            if (clipResolved)
+            {
+                if (t >= 0.999f) break;
+            }
+            else if (elapsed >= duration)
+            {
+                break;
             }
 
             yield return null;
