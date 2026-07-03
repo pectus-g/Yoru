@@ -13,13 +13,21 @@ using UnityEngine;
 ///         This is the reliable fall save, a fall never slips past a climbable wall.
 ///   - No falling while on the wall. With no stamina yet, Yoru leaves only by letting go (C),
 ///     or by mantling at the top. Stamina drops in later at the single ClimbAllowed / speed gate.
+///   - Low poly rock is forgiving: a miss frame or one briefly too flat polygon never freezes
+///     the animation or ends the climb. Movement and animation continue on the last good wall,
+///     an angled corner probe follows curved faces while strafing, and only a persistent loss
+///     (Wall Loss Forgive Time) exits.
+///   - Mantle is guarded: it needs a minimum climb time first, the ledge ground must be flat
+///     enough to stand on, and the head probe is a small sphere so a polygon crease on the
+///     face never reads as the top. A bump on the cliff can not fake a mantle.
 ///   - This script NEVER touches PlayerMovement. On grab it disables PlayerMovement (so its
 ///     Update and FixedUpdate stop while it owns no Move) and disables PlayerCombat (no attacks
 ///     on the wall), runs its OWN controller.Move, then re-enables both on exit. Disabled
 ///     MonoBehaviours still expose their public methods, so other scripts are unaffected.
 ///   - Animation is driven entirely from code, the same way EnemyCombat does it:
 ///     CrossFadeInFixedTime by cached hash on the Climb layer, only when the target state
-///     changes, so the clip does not restart every frame. No transition arrows are wired.
+///     changes, so the clip does not restart every frame. A minimum state hold time stops
+///     rapid strobing between states. No transition arrows are wired.
 ///
 /// CONTROLS (on the wall)
 ///   W / S        climb up / down            (wall relative)
@@ -70,8 +78,10 @@ public class ClimbController : MonoBehaviour
     [SerializeField] private string climbLayerName = "ClimbLayer";
     [Tooltip("Fallback index used only if the name above is not found. Base, Combat, Cinematic, Climb means 3.")]
     [SerializeField] private int climbLayerIndex = 3;
-    [Tooltip("CrossFade blend time between climb states, in seconds.")]
-    [SerializeField] private float climbBlend = 0.1f;
+    [Tooltip("CrossFade blend time between climb states, in seconds. Raise toward 0.2 for softer blends.")]
+    [SerializeField] private float climbBlend = 0.15f;
+    [Tooltip("Minimum time a climb state plays before it may switch to another. Stops the animation strobing when input or the wall cast flickers frame to frame. Grab and mantle ignore this.")]
+    [SerializeField] private float animMinStateTime = 0.15f;
 
     [Header("Climb State Names (must match the Animator states)")]
     [SerializeField] private string climbIdleState = "ClimbIdle";
@@ -96,10 +106,14 @@ public class ClimbController : MonoBehaviour
     [SerializeField] private float wallCheckRadius = 0.35f;
     [Tooltip("Height above the feet to cast from. Keeps a tiny step from counting as a wall.")]
     [SerializeField] private float wallCheckHeight = 1.0f;
-    [Tooltip("Surface counts as a wall when its normal Y is at or below this. Lower means only steeper faces climb.")]
+    [Tooltip("ENTERING a climb: surface counts as a wall when its normal Y is at or below this. Lower means only steeper faces climb. While already climbing, Sustain Max Normal Y applies instead.")]
     [SerializeField] private float maxClimbableNormalY = 0.4f;
     [Tooltip("Reject ceilings: surface ignored when its normal Y is below this.")]
     [SerializeField] private float minClimbableNormalY = -0.3f;
+    [Tooltip("WHILE climbing, surfaces stay climbable up to this normal Y before the forgive timer starts. Higher than Max Climbable Normal Y so one flat-ish low poly polygon crossed while strafing does not end the climb.")]
+    [SerializeField] private float sustainMaxNormalY = 0.55f;
+    [Tooltip("When the forward wall cast misses while strafing, retry once angled this many degrees toward the strafe direction, so Yoru follows curved faces around corners instead of losing the wall.")]
+    [SerializeField] private float cornerProbeAngle = 35f;
     [Tooltip("On the ground, how aligned movement must be with 'into the wall' to grab, in degrees.")]
     [SerializeField] private float groundGrabAngle = 50f;
 
@@ -140,6 +154,10 @@ public class ClimbController : MonoBehaviour
     [SerializeField] private float topProbeHeight = 1.9f;
     [SerializeField] private float ledgeForwardProbe = 0.6f;
     [SerializeField] private float ledgeDownProbe = 1.5f;
+    [Tooltip("The ledge ground must be at least this flat (normal Y) to mantle onto. Stops a bump on the cliff face from reading as the top and mantling Yoru into the rock.")]
+    [SerializeField] private float mantleMinGroundNormalY = 0.6f;
+    [Tooltip("A climb must last at least this long before a mantle can trigger, so a fresh grab at the base of a wall can never instantly convert into a mantle.")]
+    [SerializeField] private float minClimbTimeBeforeMantle = 0.3f;
 
     [Header("Re-grab")]
     [Tooltip("After letting go, jumping or mantling, ignore the air grab for this long so Yoru does not instantly re-stick.")]
@@ -169,6 +187,8 @@ public class ClimbController : MonoBehaviour
     private float hopTimer;
     private float regrabTimer;
     private float wallLossTimer;
+    private float climbTime;
+    private float lastStateChangeTime;
     private Coroutine mantleRoutine;
 
     #endregion
@@ -215,6 +235,7 @@ public class ClimbController : MonoBehaviour
         runRHash = Animator.StringToHash(climbWallRunRState);
         mantleHash = Animator.StringToHash(climbMantleState);
         currentStateHash = -1;
+        lastStateChangeTime = -999f;
 
         if (debugLogs)
         {
@@ -305,8 +326,14 @@ public class ClimbController : MonoBehaviour
 
     private bool IsClimbableNormal(Vector3 n)
     {
-        // Steep enough to be a wall, not a floor, not a ceiling.
+        // Steep enough to be a wall, not a floor, not a ceiling. Used for ENTERING a climb.
         return n.y <= maxClimbableNormalY && n.y >= minClimbableNormalY;
+    }
+
+    private bool IsSustainableNormal(Vector3 n)
+    {
+        // While already on the wall, tolerate flatter polygons before the forgive timer starts.
+        return n.y <= sustainMaxNormalY && n.y >= minClimbableNormalY;
     }
 
     private bool IsMovingIntoWall(Vector3 moveDir, Vector3 normal)
@@ -324,6 +351,7 @@ public class ClimbController : MonoBehaviour
     private void UpdateClimb()
     {
         float dt = Time.deltaTime;
+        climbTime += dt;
 
         // Safety: dropped out of cat form mid climb.
         if (formController != null && formController.IsHuman)
@@ -339,6 +367,7 @@ public class ClimbController : MonoBehaviour
         // Let go.
         if (Input.GetKeyDown(KeyCode.C))
         {
+            if (debugLogs) Debug.Log("[ClimbController] Letting go, C pressed.");
             LetGo();
             return;
         }
@@ -351,11 +380,25 @@ public class ClimbController : MonoBehaviour
         }
         if (hopTimer > 0f) hopTimer -= dt;
 
+        // A fresh grab must climb for a moment before any mantle can trigger.
+        bool mantleAllowed = climbTime >= minClimbTimeBeforeMantle;
+
         // Re-acquire the wall in the facing direction so we follow curved faces.
         Vector3 origin = transform.position + Vector3.up * wallCheckHeight;
         bool found = Physics.SphereCast(origin, wallCheckRadius, transform.forward, out RaycastHit hit,
             wallCheckDistance, climbableMask, QueryTriggerInteraction.Ignore);
-        bool goodSurface = found && IsClimbableNormal(hit.normal);
+
+        // Outside corner while strafing: the straight ahead cast slides off the silhouette
+        // edge of the rock. Retry once angled toward the strafe direction so Yoru hugs the
+        // curve instead of losing the wall.
+        if (!found && Mathf.Abs(h) > inputDeadzone)
+        {
+            Vector3 angled = Quaternion.AngleAxis(cornerProbeAngle * Mathf.Sign(h), Vector3.up) * transform.forward;
+            found = Physics.SphereCast(origin, wallCheckRadius, angled, out hit,
+                wallCheckDistance, climbableMask, QueryTriggerInteraction.Ignore);
+        }
+
+        bool goodSurface = found && IsSustainableNormal(hit.normal);
 
         if (goodSurface)
         {
@@ -366,8 +409,9 @@ public class ClimbController : MonoBehaviour
         else
         {
             // Wall missing, or one low poly polygon briefly reads too flat. Do NOT drop Yoru
-            // onto a mid face polygon: keep the last good wall for a moment and keep climbing.
-            if (!found && v > inputDeadzone && TryDetectLedge(out Vector3 ledge))
+            // onto a mid face polygon and do NOT freeze the animation: movement and animation
+            // continue on the last good wall below, and only a persistent loss exits.
+            if (mantleAllowed && !found && v > inputDeadzone && TryDetectLedge(out Vector3 ledge))
             {
                 StartMantle(ledge);
                 return;
@@ -384,13 +428,7 @@ public class ClimbController : MonoBehaviour
                 LetGo();
                 return;
             }
-
-            if (!found)
-            {
-                // Nothing to stick to this frame: hold in place on the last good wall.
-                PlayClimbState(idleHash);
-                return;
-            }
+            // Fall through on the last good wallNormal / wallPoint for the forgive window.
         }
 
         // Face the wall.
@@ -412,7 +450,7 @@ public class ClimbController : MonoBehaviour
         Vector3 horizVel = wallRight * (h * hSpeed);
 
         // Keep Yoru at the hold distance: capsule radius + skin + gap, measured on the capsule axis.
-        // Using the real controller size is what stops the body from sinking into the rock.
+        // Using the real controller size is what stops the capsule from sinking into the rock.
         float axisHoldDistance = controller.radius + controller.skinWidth + wallSurfaceGap;
         float currentDist = Vector3.Dot(origin - wallPoint, wallNormal);
         Vector3 stickVel = wallNormal * ((axisHoldDistance - currentDist) * surfaceStickSpeed);
@@ -422,7 +460,7 @@ public class ClimbController : MonoBehaviour
         UpdateClimbAnimation(v, h, sprint);
 
         // Reached a ledge while climbing up.
-        if (v > inputDeadzone && TryDetectLedge(out Vector3 topPos))
+        if (mantleAllowed && v > inputDeadzone && TryDetectLedge(out Vector3 topPos))
         {
             StartMantle(topPos);
         }
@@ -433,9 +471,11 @@ public class ClimbController : MonoBehaviour
         topPos = Vector3.zero;
         Vector3 headOrigin = transform.position + Vector3.up * topProbeHeight;
 
-        // If the wall still continues at head height, there is no ledge yet.
-        if (Physics.Raycast(headOrigin, transform.forward, ledgeForwardProbe, climbableMask,
-                QueryTriggerInteraction.Ignore))
+        // If the wall still continues at head height, there is no ledge yet. A small sphere
+        // instead of a thin ray, so a polygon crease on the face can not slip through and
+        // read as open air.
+        if (Physics.SphereCast(headOrigin, 0.15f, transform.forward, out _, ledgeForwardProbe,
+                climbableMask, QueryTriggerInteraction.Ignore))
             return false;
 
         // No wall above: look for ground just over the lip.
@@ -443,6 +483,9 @@ public class ClimbController : MonoBehaviour
         if (Physics.Raycast(overLip, Vector3.down, out RaycastHit g, ledgeDownProbe, climbableMask,
                 QueryTriggerInteraction.Ignore))
         {
+            // Only mantle onto ground flat enough to stand on. A steep hit here is a bump on
+            // the cliff face, not the top, and mantling onto it buries Yoru in the rock.
+            if (g.normal.y < mantleMinGroundNormalY) return false;
             topPos = g.point;
             return true;
         }
@@ -457,7 +500,7 @@ public class ClimbController : MonoBehaviour
     {
         if (debugLogs) Debug.Log("[ClimbController] Mantling over the top.");
         isMantling = true;
-        PlayClimbState(mantleHash);
+        PlayClimbState(mantleHash, true);
         if (climbFX != null) climbFX.Play(ClimbFX.MantleStart);
         if (mantleRoutine != null) StopCoroutine(mantleRoutine);
         mantleRoutine = StartCoroutine(MantleRoutine(topPos));
@@ -515,8 +558,9 @@ public class ClimbController : MonoBehaviour
 
         hopTimer = 0f;
         wallLossTimer = 0f;
+        climbTime = 0f;
         currentStateHash = -1;
-        PlayClimbState(idleHash);
+        PlayClimbState(idleHash, true);
         if (climbFX != null) climbFX.Play(ClimbFX.Grab);
         if (debugLogs) Debug.Log("[ClimbController] Grabbed wall, entering climb.");
     }
@@ -574,15 +618,18 @@ public class ClimbController : MonoBehaviour
 
     /// <summary>
     /// CrossFades to a climb state by hash, only when it changes, so the clip does not restart
-    /// every frame. Same pattern as EnemyCombat. Logs the state name so the Console narrates
-    /// which climb animation is running.
+    /// every frame. A minimum hold time (Anim Min State Time) stops rapid strobing between
+    /// states; grab and mantle pass force to bypass it. Same pattern as EnemyCombat. Logs the
+    /// state name so the Console narrates which climb animation is running.
     /// </summary>
-    private void PlayClimbState(int stateHash)
+    private void PlayClimbState(int stateHash, bool force = false)
     {
         if (stateHash == currentStateHash) return;
         if (animator == null) return;
+        if (!force && Time.time - lastStateChangeTime < animMinStateTime) return;
         animator.CrossFadeInFixedTime(stateHash, climbBlend, climbLayerIndex);
         currentStateHash = stateHash;
+        lastStateChangeTime = Time.time;
         if (debugLogs) Debug.Log($"[ClimbController] Anim -> {StateNameForHash(stateHash)}");
     }
 
