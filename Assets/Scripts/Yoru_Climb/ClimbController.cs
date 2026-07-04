@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -21,9 +22,10 @@ using UnityEngine;
 ///     enough to stand on, and the head probe is a small sphere so a polygon crease on the
 ///     face never reads as the top. A bump on the cliff can not fake a mantle.
 ///   - BODY ON THE WALL (visual only). The Zelda approach: the collision capsule and the
-///     visible body are two separate things. While climbing, the visible body (bodyYoru) is
+///     visible body are two separate things. While climbing, every model container under the
+///     player root (found by its skinned meshes, e.g. Cat_All_10_Tails_v4 and bodyYoru) is
 ///     tilted to lie on the sampled rock surface and nudged out along the surface normal, so
-///     the mesh stops sinking into slopes and cliffs. The CharacterController capsule is NEVER
+///     the rendered cat stops sinking into slopes and cliffs. The CharacterController capsule is NEVER
 ///     moved or resized by this script, so combat, dodge and normal movement are untouched.
 ///     The pose eases in on grab, eases out on release, and fully restores after.
 ///   - SOFT TRANSITIONS. Nothing snaps: the turn to face the wall eases in through the same
@@ -59,8 +61,8 @@ using UnityEngine;
 ///      or change the field to match your state name. All other state names already match.
 ///   5. The eight climb states must sit directly in the Climb layer (not inside a sub state
 ///      machine), so the state name hash resolves.
-///   6. Body Visual auto finds the child named "bodyYoru". Only assign it manually if that
-///      child is ever renamed.
+///   6. Body Visual is an optional override. Left empty, every model container under the
+///      player root is found automatically by its skinned meshes and posed together.
 ///
 /// FX
 ///   This controller fires five climb moments through ClimbFX: Grab, Hop, LetGo, MantleStart,
@@ -81,7 +83,7 @@ public class ClimbController : MonoBehaviour
     [SerializeField] private ClimbFX climbFX;
     [Tooltip("Used only to read the ground grab direction (camera relative WASD). Defaults to Camera.main.")]
     [SerializeField] private Transform cameraTransform;
-    [Tooltip("Yoru's visible body child (bodyYoru). While climbing it is tilted onto the rock surface and nudged out of it, VISUAL ONLY, the capsule is never moved. Auto found by name if left empty.")]
+    [Tooltip("Optional override for the wall pose target. Leave empty to auto find every model container under the player root by its skinned meshes and pose them together, VISUAL ONLY, the capsule is never moved.")]
     [SerializeField] private Transform bodyVisual;
 
     #endregion
@@ -217,11 +219,15 @@ public class ClimbController : MonoBehaviour
     private float layerWeightCurrent;
     private Coroutine mantleRoutine;
 
-    // Body on the wall (visual only).
+    // Body on the wall (visual only). bodyRoots holds every model container found under the
+    // player root. posedRoots holds the containers actually captured and posed this climb
+    // (only the ones active at grab), with their rest poses for the exact restore.
+    private readonly List<Transform> bodyRoots = new List<Transform>();
+    private readonly List<Transform> posedRoots = new List<Transform>();
+    private readonly List<Vector3> posedBasePos = new List<Vector3>();
+    private readonly List<Quaternion> posedBaseRot = new List<Quaternion>();
     private bool bodyPoseActive;
     private float bodyBlend;
-    private Vector3 bodyBaseLocalPos;
-    private Quaternion bodyBaseLocalRot;
     private Vector3 bodyPlaneNormal = Vector3.forward;
 
     // Geometry of the two surface samples under the body, from the root along the wall's
@@ -261,7 +267,7 @@ public class ClimbController : MonoBehaviour
         if (climbFX == null) climbFX = GetComponent<ClimbFX>();
         if (climbFX == null) climbFX = GetComponentInChildren<ClimbFX>();
         if (cameraTransform == null && Camera.main != null) cameraTransform = Camera.main.transform;
-        if (bodyVisual == null) bodyVisual = FindBodyVisual();
+        BuildBodyRoots();
 
         if (animator != null)
         {
@@ -286,11 +292,11 @@ public class ClimbController : MonoBehaviour
             string maskInfo = climbableMask.value == 0 ? "EMPTY" : climbableMask.value.ToString();
             Debug.Log($"[ClimbController] Active on {name}. ClimbLayer index={climbLayerIndex}, mask={maskInfo}, " +
                 $"animator={(animator != null)}, playerMovement={(playerMovement != null)}, climbFX={(climbFX != null)}, " +
-                $"bodyVisual={(bodyVisual != null ? bodyVisual.name : "NOT FOUND")}.");
+                $"bodyRoots=[{string.Join(", ", bodyRoots.ConvertAll(t => t.name))}].");
             if (climbableMask.value == 0)
                 Debug.LogError("[ClimbController] Climbable Mask is not set. Assign it to the Climbable layer in the Inspector, or climbing can never trigger.");
-            if (bodyVisual == null)
-                Debug.LogWarning("[ClimbController] Body Visual not found (child named 'bodyYoru'). Climbing still works, but the visible body will not be aligned onto the rock surface.");
+            if (bodyRoots.Count == 0)
+                Debug.LogWarning("[ClimbController] No model containers with skinned meshes found under the player root. Climbing still works, but the visible body will not be aligned onto the rock surface.");
         }
     }
 
@@ -569,18 +575,26 @@ public class ClimbController : MonoBehaviour
     #region Body On The Wall (visual only)
 
     /// <summary>
-    /// Finds the visible body child by name. Direct child first, then a deep search, so a
-    /// reparented model still resolves without any manual setup.
+    /// Collects the model containers to pose: the direct children of the player root that
+    /// carry skinned meshes anywhere in their subtree. Matching by what actually renders,
+    /// instead of by name, is what makes this follow the real cat (the rendered rig lives
+    /// under Cat_All_10_Tails_v4, while bodyYoru holds an older duplicate body plus the paw
+    /// VFX anchors, and both should ride the same wall pose). If Body Visual is assigned in
+    /// the Inspector, only that container is used.
     /// </summary>
-    private Transform FindBodyVisual()
+    private void BuildBodyRoots()
     {
-        Transform direct = transform.Find("bodyYoru");
-        if (direct != null) return direct;
-        foreach (Transform t in GetComponentsInChildren<Transform>(true))
+        bodyRoots.Clear();
+        if (bodyVisual != null)
         {
-            if (t != transform && t.name == "bodyYoru") return t;
+            bodyRoots.Add(bodyVisual);
+            return;
         }
-        return null;
+        foreach (Transform child in transform)
+        {
+            if (child.GetComponentInChildren<SkinnedMeshRenderer>(true) != null)
+                bodyRoots.Add(child);
+        }
     }
 
     /// <summary>
@@ -591,7 +605,7 @@ public class ClimbController : MonoBehaviour
     /// </summary>
     private void SampleBodyPlane(float dt, Vector3 wallUp)
     {
-        if (bodyVisual == null) return;
+        if (bodyRoots.Count == 0) return;
 
         Vector3 castDir = -wallNormal;
         Vector3 baseOrigin = transform.position + wallNormal * BodyCastStartOut;
@@ -611,34 +625,27 @@ public class ClimbController : MonoBehaviour
     }
 
     /// <summary>
-    /// Lays the visible body onto the sampled surface: a tilt from the upright vertical wall
-    /// assumption onto the real surface plane, pivoted at the root so the paws stay planted,
-    /// plus a small outward nudge along the surface normal. Blended in and out over Body Align
-    /// Time. On a truly vertical wall the tilt is zero, so nothing that already looks right
-    /// changes there. The pose is rebuilt every frame from the base local pose captured at
-    /// grab, so nothing compounds, and it fully restores once the blend reaches zero.
+    /// Lays the visible model containers onto the sampled surface: a tilt from the upright
+    /// vertical wall assumption onto the real surface plane, pivoted at the root so the paws
+    /// stay planted, plus a small outward nudge along the surface normal. Blended in and out
+    /// over Body Align Time. On a truly vertical wall the tilt is zero, so nothing that
+    /// already looks right changes there. Each container is rebuilt every frame from the rest
+    /// pose captured at grab, so nothing compounds, and everything restores exactly once the
+    /// blend reaches zero.
     /// </summary>
     private void ApplyBodyWallPose(float dt)
     {
-        if (bodyVisual == null) return;
+        if (posedRoots.Count == 0) return;
 
         bool wantPose = isClimbing && !isMantling && bodyPoseActive;
         float blendTarget = wantPose ? 1f : 0f;
         bodyBlend = Mathf.MoveTowards(bodyBlend, blendTarget, dt / Mathf.Max(0.01f, bodyAlignTime));
-
-        if (!bodyPoseActive) return;
 
         if (bodyBlend <= 0.0001f && !wantPose)
         {
             RestoreBodyPose();
             return;
         }
-
-        // Base pose in world space, rebuilt from the captured local pose (never from the
-        // already modified transform), so this frame's tilt never stacks on last frame's.
-        Transform parent = bodyVisual.parent;
-        Vector3 baseWorldPos = parent != null ? parent.TransformPoint(bodyBaseLocalPos) : bodyBaseLocalPos;
-        Quaternion baseWorldRot = (parent != null ? parent.rotation : Quaternion.identity) * bodyBaseLocalRot;
 
         // The animation is authored against an upright wall. Tilt by exactly the difference
         // between that upright plane and the sampled real one, capped for safety.
@@ -650,22 +657,38 @@ public class ClimbController : MonoBehaviour
             tilt = Quaternion.RotateTowards(Quaternion.identity, fullTilt, MaxBodyTiltAngle);
         }
         Quaternion frameTilt = Quaternion.Slerp(Quaternion.identity, tilt, bodyBlend);
-
+        Vector3 outward = bodyPlaneNormal * (bodyOutwardOffset * bodyBlend);
         Vector3 pivot = transform.position;
-        Vector3 pos = pivot + frameTilt * (baseWorldPos - pivot)
-            + bodyPlaneNormal * (bodyOutwardOffset * bodyBlend);
-        Quaternion rot = frameTilt * baseWorldRot;
-        bodyVisual.SetPositionAndRotation(pos, rot);
+
+        for (int i = 0; i < posedRoots.Count; i++)
+        {
+            Transform root = posedRoots[i];
+            if (root == null) continue;
+
+            // Rest pose in world space, rebuilt from the captured local pose (never from the
+            // already modified transform), so this frame's tilt never stacks on last frame's.
+            Transform parent = root.parent;
+            Vector3 baseWorldPos = parent != null ? parent.TransformPoint(posedBasePos[i]) : posedBasePos[i];
+            Quaternion baseWorldRot = (parent != null ? parent.rotation : Quaternion.identity) * posedBaseRot[i];
+
+            Vector3 pos = pivot + frameTilt * (baseWorldPos - pivot) + outward;
+            Quaternion rot = frameTilt * baseWorldRot;
+            root.SetPositionAndRotation(pos, rot);
+        }
     }
 
-    /// <summary>Puts the visible body back exactly where the prefab has it and stops posing.</summary>
+    /// <summary>Puts every posed container back exactly where the prefab has it and stops posing.</summary>
     private void RestoreBodyPose()
     {
-        if (bodyPoseActive && bodyVisual != null)
+        for (int i = 0; i < posedRoots.Count; i++)
         {
-            bodyVisual.localPosition = bodyBaseLocalPos;
-            bodyVisual.localRotation = bodyBaseLocalRot;
+            if (posedRoots[i] == null) continue;
+            posedRoots[i].localPosition = posedBasePos[i];
+            posedRoots[i].localRotation = posedBaseRot[i];
         }
+        posedRoots.Clear();
+        posedBasePos.Clear();
+        posedBaseRot.Clear();
         bodyPoseActive = false;
         bodyBlend = 0f;
     }
@@ -734,13 +757,23 @@ public class ClimbController : MonoBehaviour
         // fraction of a second, and the wall loss forgive window covers the cast while the
         // facing settles. The climb layer weight fades in through TickLayerWeightFade.
 
-        // Capture the visible body's rest pose once, so it can be posed onto the surface and
-        // later restored exactly. A quick re-grab mid ease-out keeps the original capture.
-        if (bodyVisual != null && !bodyPoseActive)
+        // Capture each active model container's rest pose once, so they can be posed onto
+        // the surface and later restored exactly. Containers inactive at grab (for example
+        // the hidden human model) are skipped. A quick re-grab mid ease-out keeps the
+        // original capture.
+        if (!bodyPoseActive && bodyRoots.Count > 0)
         {
-            bodyBaseLocalPos = bodyVisual.localPosition;
-            bodyBaseLocalRot = bodyVisual.localRotation;
-            bodyPoseActive = true;
+            posedRoots.Clear();
+            posedBasePos.Clear();
+            posedBaseRot.Clear();
+            foreach (Transform root in bodyRoots)
+            {
+                if (root == null || !root.gameObject.activeInHierarchy) continue;
+                posedRoots.Add(root);
+                posedBasePos.Add(root.localPosition);
+                posedBaseRot.Add(root.localRotation);
+            }
+            bodyPoseActive = posedRoots.Count > 0;
         }
         bodyPlaneNormal = wallNormal;
 
