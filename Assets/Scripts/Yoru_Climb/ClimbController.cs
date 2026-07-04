@@ -20,6 +20,17 @@ using UnityEngine;
 ///   - Mantle is guarded: it needs a minimum climb time first, the ledge ground must be flat
 ///     enough to stand on, and the head probe is a small sphere so a polygon crease on the
 ///     face never reads as the top. A bump on the cliff can not fake a mantle.
+///   - BODY ON THE WALL (visual only). The Zelda approach: the collision capsule and the
+///     visible body are two separate things. While climbing, the visible body (bodyYoru) is
+///     tilted to lie on the sampled rock surface and nudged out along the surface normal, so
+///     the mesh stops sinking into slopes and cliffs. The CharacterController capsule is NEVER
+///     moved or resized by this script, so combat, dodge and normal movement are untouched.
+///     The pose eases in on grab, eases out on release, and fully restores after.
+///   - SOFT TRANSITIONS. Nothing snaps: the turn to face the wall eases in through the same
+///     Slerp that runs during the climb, the climb layer weight fades in and out instead of
+///     switching, the first climb pose is picked from the input actually held (no forced idle
+///     flash), and a short idle return delay keeps a move playing across brief input gaps so
+///     the pose does not flicker to idle between key presses.
 ///   - This script NEVER touches PlayerMovement. On grab it disables PlayerMovement (so its
 ///     Update and FixedUpdate stop while it owns no Move) and disables PlayerCombat (no attacks
 ///     on the wall), runs its OWN controller.Move, then re-enables both on exit. Disabled
@@ -48,6 +59,8 @@ using UnityEngine;
 ///      or change the field to match your state name. All other state names already match.
 ///   5. The eight climb states must sit directly in the Climb layer (not inside a sub state
 ///      machine), so the state name hash resolves.
+///   6. Body Visual auto finds the child named "bodyYoru". Only assign it manually if that
+///      child is ever renamed.
 ///
 /// FX
 ///   This controller fires five climb moments through ClimbFX: Grab, Hop, LetGo, MantleStart,
@@ -68,6 +81,8 @@ public class ClimbController : MonoBehaviour
     [SerializeField] private ClimbFX climbFX;
     [Tooltip("Used only to read the ground grab direction (camera relative WASD). Defaults to Camera.main.")]
     [SerializeField] private Transform cameraTransform;
+    [Tooltip("Yoru's visible body child (bodyYoru). While climbing it is tilted onto the rock surface and nudged out of it, VISUAL ONLY, the capsule is never moved. Auto found by name if left empty.")]
+    [SerializeField] private Transform bodyVisual;
 
     #endregion
 
@@ -82,6 +97,10 @@ public class ClimbController : MonoBehaviour
     [SerializeField] private float climbBlend = 0.15f;
     [Tooltip("Minimum time a climb state plays before it may switch to another. Stops the animation strobing when input or the wall cast flickers frame to frame. Grab and mantle ignore this.")]
     [SerializeField] private float animMinStateTime = 0.15f;
+    [Tooltip("Seconds to fade the climb layer in on grab and out on release, instead of switching it on and off instantly.")]
+    [SerializeField] private float layerFadeTime = 0.2f;
+    [Tooltip("How long input must stay released before the pose returns to ClimbIdle. Keeps the current move playing across brief input gaps, which removes the idle flicker that hides the sideway clips.")]
+    [SerializeField] private float idleReturnDelay = 0.2f;
 
     [Header("Climb State Names (must match the Animator states)")]
     [SerializeField] private string climbIdleState = "ClimbIdle";
@@ -137,6 +156,12 @@ public class ClimbController : MonoBehaviour
     [SerializeField] private float faceWallTurnSpeed = 14f;
     [SerializeField] private float inputDeadzone = 0.1f;
 
+    [Header("Body On The Wall (visual only, capsule untouched)")]
+    [Tooltip("How far the visible body is pushed out along the rock surface, in meters. This pulls the sunken mesh OUT to the surface, it does not hover Yoru. Raise a little if the belly still dips into rock, lower toward 0 if the paws ever hover.")]
+    [SerializeField] private float bodyOutwardOffset = 0.15f;
+    [Tooltip("Seconds for the visible body to ease onto the wall pose on grab and back to normal on release. Also smooths the surface tilt across low poly polygon edges.")]
+    [SerializeField] private float bodyAlignTime = 0.15f;
+
     [Header("Climb Hop (Space)")]
     [SerializeField] private float climbHopSpeed = 4.5f;
     [SerializeField] private float climbHopDuration = 0.25f;
@@ -162,7 +187,6 @@ public class ClimbController : MonoBehaviour
     [Header("Re-grab")]
     [Tooltip("After letting go, jumping or mantling, ignore the air grab for this long so Yoru does not instantly re-stick.")]
     [SerializeField] private float regrabSuppressTime = 0.35f;
-
     [Tooltip("On low poly rock the wall cast can hit a briefly too flat polygon or miss for a frame. The climb keeps the last good wall for this long before letting go, instead of dropping Yoru onto a mid face polygon.")]
     [SerializeField] private float wallLossForgiveTime = 0.25f;
 
@@ -189,7 +213,25 @@ public class ClimbController : MonoBehaviour
     private float wallLossTimer;
     private float climbTime;
     private float lastStateChangeTime;
+    private float noInputTimer;
+    private float layerWeightCurrent;
     private Coroutine mantleRoutine;
+
+    // Body on the wall (visual only).
+    private bool bodyPoseActive;
+    private float bodyBlend;
+    private Vector3 bodyBaseLocalPos;
+    private Quaternion bodyBaseLocalRot;
+    private Vector3 bodyPlaneNormal = Vector3.forward;
+
+    // Geometry of the two surface samples under the body, from the root along the wall's
+    // up direction. These describe the cat's proportions, not feel, so they are constants.
+    private const float BodySampleLow = 0.3f;
+    private const float BodySampleHigh = 1.1f;
+    private const float BodyCastStartOut = 0.8f;
+    private const float BodyCastLength = 1.8f;
+    // Cap on how far the visible body may tilt onto a flat-ish polygon, in degrees.
+    private const float MaxBodyTiltAngle = 55f;
 
     #endregion
 
@@ -219,6 +261,7 @@ public class ClimbController : MonoBehaviour
         if (climbFX == null) climbFX = GetComponent<ClimbFX>();
         if (climbFX == null) climbFX = GetComponentInChildren<ClimbFX>();
         if (cameraTransform == null && Camera.main != null) cameraTransform = Camera.main.transform;
+        if (bodyVisual == null) bodyVisual = FindBodyVisual();
 
         if (animator != null)
         {
@@ -236,19 +279,25 @@ public class ClimbController : MonoBehaviour
         mantleHash = Animator.StringToHash(climbMantleState);
         currentStateHash = -1;
         lastStateChangeTime = -999f;
+        layerWeightCurrent = 0f;
 
         if (debugLogs)
         {
             string maskInfo = climbableMask.value == 0 ? "EMPTY" : climbableMask.value.ToString();
             Debug.Log($"[ClimbController] Active on {name}. ClimbLayer index={climbLayerIndex}, mask={maskInfo}, " +
-                $"animator={(animator != null)}, playerMovement={(playerMovement != null)}, climbFX={(climbFX != null)}.");
+                $"animator={(animator != null)}, playerMovement={(playerMovement != null)}, climbFX={(climbFX != null)}, " +
+                $"bodyVisual={(bodyVisual != null ? bodyVisual.name : "NOT FOUND")}.");
             if (climbableMask.value == 0)
                 Debug.LogError("[ClimbController] Climbable Mask is not set. Assign it to the Climbable layer in the Inspector, or climbing can never trigger.");
+            if (bodyVisual == null)
+                Debug.LogWarning("[ClimbController] Body Visual not found (child named 'bodyYoru'). Climbing still works, but the visible body will not be aligned onto the rock surface.");
         }
     }
 
     private void Update()
     {
+        TickLayerWeightFade(Time.deltaTime);
+
         if (regrabTimer > 0f) regrabTimer -= Time.deltaTime;
 
         if (isClimbing)
@@ -259,6 +308,22 @@ public class ClimbController : MonoBehaviour
         }
 
         TryStartClimb();
+    }
+
+    private void LateUpdate()
+    {
+        // After the Animator has written this frame's pose, lay the visible body onto the
+        // sampled rock surface. Runs after release too, until the ease out reaches zero.
+        ApplyBodyWallPose(Time.deltaTime);
+    }
+
+    private void OnDisable()
+    {
+        // Safety: never leave the visible body tilted or the climb layer up if the component
+        // is disabled mid climb.
+        RestoreBodyPose();
+        layerWeightCurrent = 0f;
+        if (animator != null) animator.SetLayerWeight(climbLayerIndex, 0f);
     }
 
     #endregion
@@ -353,10 +418,10 @@ public class ClimbController : MonoBehaviour
         float dt = Time.deltaTime;
         climbTime += dt;
 
-        // Safety: dropped out of cat form mid climb.
+        // Safety: dropped out of cat form mid climb. Instant exit, no eased pose on a human.
         if (formController != null && formController.IsHuman)
         {
-            EndClimb();
+            EndClimb(true);
             return;
         }
 
@@ -431,7 +496,7 @@ public class ClimbController : MonoBehaviour
             // Fall through on the last good wallNormal / wallPoint for the forgive window.
         }
 
-        // Face the wall.
+        // Face the wall (the only turn, there is no snap anywhere).
         Quaternion target = Quaternion.LookRotation(Flatten(-wallNormal));
         transform.rotation = Quaternion.Slerp(transform.rotation, target, faceWallTurnSpeed * dt);
 
@@ -451,12 +516,19 @@ public class ClimbController : MonoBehaviour
 
         // Keep Yoru at the hold distance: capsule radius + skin + gap, measured on the capsule axis.
         // Using the real controller size is what stops the capsule from sinking into the rock.
+        // Measure to the TRUE surface point straight along the normal: the sphere cast contact
+        // point can sit off to the side on angled low poly faces, which skews the distance.
+        Vector3 measurePoint = wallPoint;
+        if (Physics.Raycast(origin, -wallNormal, out RaycastHit axial, wallCheckDistance + 1f,
+                climbableMask, QueryTriggerInteraction.Ignore))
+            measurePoint = axial.point;
         float axisHoldDistance = controller.radius + controller.skinWidth + wallSurfaceGap;
-        float currentDist = Vector3.Dot(origin - wallPoint, wallNormal);
+        float currentDist = Vector3.Dot(origin - measurePoint, wallNormal);
         Vector3 stickVel = wallNormal * ((axisHoldDistance - currentDist) * surfaceStickSpeed);
 
         controller.Move((vertVel + horizVel + stickVel) * dt);
 
+        SampleBodyPlane(dt, wallUp);
         UpdateClimbAnimation(v, h, sprint);
 
         // Reached a ledge while climbing up.
@@ -490,6 +562,112 @@ public class ClimbController : MonoBehaviour
             return true;
         }
         return false;
+    }
+
+    #endregion
+
+    #region Body On The Wall (visual only)
+
+    /// <summary>
+    /// Finds the visible body child by name. Direct child first, then a deep search, so a
+    /// reparented model still resolves without any manual setup.
+    /// </summary>
+    private Transform FindBodyVisual()
+    {
+        Transform direct = transform.Find("bodyYoru");
+        if (direct != null) return direct;
+        foreach (Transform t in GetComponentsInChildren<Transform>(true))
+        {
+            if (t != transform && t.name == "bodyYoru") return t;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Samples the rock under the body at two heights along the wall's up direction and keeps
+    /// a smoothed surface normal. Two samples give both the lean of a mountain face and the
+    /// local curve of something like a tree trunk, and the smoothing stops the body popping
+    /// when a low poly polygon edge crosses under it.
+    /// </summary>
+    private void SampleBodyPlane(float dt, Vector3 wallUp)
+    {
+        if (bodyVisual == null) return;
+
+        Vector3 castDir = -wallNormal;
+        Vector3 baseOrigin = transform.position + wallNormal * BodyCastStartOut;
+        bool hitHigh = Physics.Raycast(baseOrigin + wallUp * BodySampleHigh, castDir, out RaycastHit high,
+            BodyCastLength, climbableMask, QueryTriggerInteraction.Ignore);
+        bool hitLow = Physics.Raycast(baseOrigin + wallUp * BodySampleLow, castDir, out RaycastHit low,
+            BodyCastLength, climbableMask, QueryTriggerInteraction.Ignore);
+
+        Vector3 sampled;
+        if (hitHigh && hitLow) sampled = (high.normal + low.normal).normalized;
+        else if (hitHigh) sampled = high.normal;
+        else if (hitLow) sampled = low.normal;
+        else sampled = wallNormal;
+
+        float k = Mathf.Clamp01(dt / Mathf.Max(0.01f, bodyAlignTime));
+        bodyPlaneNormal = Vector3.Slerp(bodyPlaneNormal, sampled, k).normalized;
+    }
+
+    /// <summary>
+    /// Lays the visible body onto the sampled surface: a tilt from the upright vertical wall
+    /// assumption onto the real surface plane, pivoted at the root so the paws stay planted,
+    /// plus a small outward nudge along the surface normal. Blended in and out over Body Align
+    /// Time. On a truly vertical wall the tilt is zero, so nothing that already looks right
+    /// changes there. The pose is rebuilt every frame from the base local pose captured at
+    /// grab, so nothing compounds, and it fully restores once the blend reaches zero.
+    /// </summary>
+    private void ApplyBodyWallPose(float dt)
+    {
+        if (bodyVisual == null) return;
+
+        bool wantPose = isClimbing && !isMantling && bodyPoseActive;
+        float blendTarget = wantPose ? 1f : 0f;
+        bodyBlend = Mathf.MoveTowards(bodyBlend, blendTarget, dt / Mathf.Max(0.01f, bodyAlignTime));
+
+        if (!bodyPoseActive) return;
+
+        if (bodyBlend <= 0.0001f && !wantPose)
+        {
+            RestoreBodyPose();
+            return;
+        }
+
+        // Base pose in world space, rebuilt from the captured local pose (never from the
+        // already modified transform), so this frame's tilt never stacks on last frame's.
+        Transform parent = bodyVisual.parent;
+        Vector3 baseWorldPos = parent != null ? parent.TransformPoint(bodyBaseLocalPos) : bodyBaseLocalPos;
+        Quaternion baseWorldRot = (parent != null ? parent.rotation : Quaternion.identity) * bodyBaseLocalRot;
+
+        // The animation is authored against an upright wall. Tilt by exactly the difference
+        // between that upright plane and the sampled real one, capped for safety.
+        Vector3 uprightNormal = Flatten(bodyPlaneNormal);
+        Quaternion tilt = Quaternion.identity;
+        if (uprightNormal.sqrMagnitude > 0.0001f)
+        {
+            Quaternion fullTilt = Quaternion.FromToRotation(uprightNormal, bodyPlaneNormal);
+            tilt = Quaternion.RotateTowards(Quaternion.identity, fullTilt, MaxBodyTiltAngle);
+        }
+        Quaternion frameTilt = Quaternion.Slerp(Quaternion.identity, tilt, bodyBlend);
+
+        Vector3 pivot = transform.position;
+        Vector3 pos = pivot + frameTilt * (baseWorldPos - pivot)
+            + bodyPlaneNormal * (bodyOutwardOffset * bodyBlend);
+        Quaternion rot = frameTilt * baseWorldRot;
+        bodyVisual.SetPositionAndRotation(pos, rot);
+    }
+
+    /// <summary>Puts the visible body back exactly where the prefab has it and stops posing.</summary>
+    private void RestoreBodyPose()
+    {
+        if (bodyPoseActive && bodyVisual != null)
+        {
+            bodyVisual.localPosition = bodyBaseLocalPos;
+            bodyVisual.localRotation = bodyBaseLocalRot;
+        }
+        bodyPoseActive = false;
+        bodyBlend = 0f;
     }
 
     #endregion
@@ -551,16 +729,34 @@ public class ClimbController : MonoBehaviour
 
         if (playerMovement != null) playerMovement.enabled = false;
         if (playerCombat != null) playerCombat.enabled = false;
-        if (animator != null) animator.SetLayerWeight(climbLayerIndex, 1f);
 
-        // Snap to face the wall so the first climb pose reads correctly.
-        transform.rotation = Quaternion.LookRotation(Flatten(-wallNormal));
+        // No snap to face the wall. The Slerp in UpdateClimb turns Yoru in over the first
+        // fraction of a second, and the wall loss forgive window covers the cast while the
+        // facing settles. The climb layer weight fades in through TickLayerWeightFade.
+
+        // Capture the visible body's rest pose once, so it can be posed onto the surface and
+        // later restored exactly. A quick re-grab mid ease-out keeps the original capture.
+        if (bodyVisual != null && !bodyPoseActive)
+        {
+            bodyBaseLocalPos = bodyVisual.localPosition;
+            bodyBaseLocalRot = bodyVisual.localRotation;
+            bodyPoseActive = true;
+        }
+        bodyPlaneNormal = wallNormal;
 
         hopTimer = 0f;
         wallLossTimer = 0f;
         climbTime = 0f;
+        noInputTimer = 0f;
         currentStateHash = -1;
-        PlayClimbState(idleHash, true);
+
+        // First pose comes from the input actually held, so a moving grab goes straight into
+        // the matching move instead of flashing through ClimbIdle first.
+        float v = Input.GetAxisRaw("Vertical");
+        float h = Input.GetAxisRaw("Horizontal");
+        bool sprint = Input.GetKey(KeyCode.LeftShift);
+        PlayClimbState(SelectClimbState(v, h, sprint), true);
+
         if (climbFX != null) climbFX.Play(ClimbFX.Grab);
         if (debugLogs) Debug.Log("[ClimbController] Grabbed wall, entering climb.");
     }
@@ -577,7 +773,12 @@ public class ClimbController : MonoBehaviour
         regrabTimer = regrabSuppressTime;
     }
 
-    private void EndClimb()
+    /// <summary>
+    /// Leaves the climb. By default the climb layer fades out and the visible body eases back
+    /// over Body Align Time. Pass instant for hard exits (form change to human), which snaps
+    /// the layer to zero and restores the body immediately.
+    /// </summary>
+    private void EndClimb(bool instant = false)
     {
         isClimbing = false;
         isMantling = false;
@@ -586,7 +787,12 @@ public class ClimbController : MonoBehaviour
             StopCoroutine(mantleRoutine);
             mantleRoutine = null;
         }
-        if (animator != null) animator.SetLayerWeight(climbLayerIndex, 0f);
+        if (instant)
+        {
+            layerWeightCurrent = 0f;
+            if (animator != null) animator.SetLayerWeight(climbLayerIndex, 0f);
+            RestoreBodyPose();
+        }
         if (playerMovement != null) playerMovement.enabled = true;
         if (playerCombat != null) playerCombat.enabled = true;
         currentStateHash = -1;
@@ -596,21 +802,48 @@ public class ClimbController : MonoBehaviour
 
     #region Animation
 
+    /// <summary>
+    /// Fades the climb layer toward 1 while climbing and toward 0 otherwise, over Layer Fade
+    /// Time, replacing the old instant on and off switch. Runs every frame from Update so the
+    /// fade out continues after the climb has already ended.
+    /// </summary>
+    private void TickLayerWeightFade(float dt)
+    {
+        if (animator == null) return;
+        float target = isClimbing ? 1f : 0f;
+        if (Mathf.Approximately(layerWeightCurrent, target)) return;
+        layerWeightCurrent = Mathf.MoveTowards(layerWeightCurrent, target, dt / Mathf.Max(0.01f, layerFadeTime));
+        animator.SetLayerWeight(climbLayerIndex, layerWeightCurrent);
+    }
+
+    /// <summary>
+    /// Picks the climb state for the input held right now. W and S win over A and D, Shift
+    /// turns sideways into a wall run, no input means ClimbIdle.
+    /// </summary>
+    private int SelectClimbState(float v, float h, bool sprint)
+    {
+        if (Mathf.Abs(v) > inputDeadzone || hopTimer > 0f)
+            return (v >= 0f || hopTimer > 0f) ? upHash : downHash;
+        if (Mathf.Abs(h) > inputDeadzone)
+            return sprint ? (h < 0f ? runLHash : runRHash) : (h < 0f ? sideLHash : sideRHash);
+        return idleHash;
+    }
+
     private void UpdateClimbAnimation(float v, float h, bool sprint)
     {
-        int target;
-        if (Mathf.Abs(v) > inputDeadzone || hopTimer > 0f)
+        int target = SelectClimbState(v, h, sprint);
+
+        // Idle only after the input has been released for a moment. A one or two frame gap
+        // between key presses keeps the current move playing instead of flickering through
+        // ClimbIdle, which is what made the sideway clips hard to see.
+        if (target == idleHash)
         {
-            target = (v >= 0f || hopTimer > 0f) ? upHash : downHash;
-        }
-        else if (Mathf.Abs(h) > inputDeadzone)
-        {
-            if (sprint) target = h < 0f ? runLHash : runRHash;
-            else target = h < 0f ? sideLHash : sideRHash;
+            noInputTimer += Time.deltaTime;
+            if (noInputTimer < idleReturnDelay) return;
         }
         else
         {
-            target = idleHash;
+            noInputTimer = 0f;
         }
 
         PlayClimbState(target);
