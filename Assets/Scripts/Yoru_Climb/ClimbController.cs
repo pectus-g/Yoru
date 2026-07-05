@@ -22,10 +22,14 @@ using UnityEngine;
 ///     enough to stand on, and the head probe is a small sphere so a polygon crease on the
 ///     face never reads as the top. A bump on the cliff can not fake a mantle.
 ///   - BODY ON THE WALL (visual only). The Zelda approach: the collision capsule and the
-///     visible body are two separate things. While climbing, every model container under the
-///     player root (found by its skinned meshes, e.g. Cat_All_10_Tails_v4 and bodyYoru) is
-///     tilted to lie on the sampled rock surface and nudged out along the surface normal, so
-///     the rendered cat stops sinking into slopes and cliffs. The CharacterController capsule is NEVER
+///     visible body are two separate things. While climbing, the cat's live spine (root bone
+///     to Head_M) is measured every frame and the model containers under the player root are
+///     rotated by exactly the amount that lays that spine flat onto the sampled rock surface,
+///     plus a small outward clearance. A head diving into the rock gets pitched up along the
+///     wall, a sideways crawl keeps its direction, slanted mountain faces and vertical cliffs
+///     use the same math. The CharacterController capsule is NEVER moved or resized by this
+///     script, so combat, dodge and normal movement are untouched. The pose eases in on grab,
+///     eases out on release, and fully restores after. The CharacterController capsule is NEVER
 ///     moved or resized by this script, so combat, dodge and normal movement are untouched.
 ///     The pose eases in on grab, eases out on release, and fully restores after.
 ///   - SOFT TRANSITIONS. Nothing snaps: the turn to face the wall eases in through the same
@@ -230,14 +234,28 @@ public class ClimbController : MonoBehaviour
     private float bodyBlend;
     private Vector3 bodyPlaneNormal = Vector3.forward;
 
+    // TEMP DIAGNOSTIC state for the [BodyPose] log. Strip together with the log blocks once
+    // the embedding is closed.
+    private float bodyDebugTimer;
+    private float bodyDebugDrift;
+    private Vector3 bodyDebugExpectedPos;
+    private bool bodyDebugHasExpected;
+
+    // Live spine measurement for the axis flatten correction. Resolved once from the first
+    // posed container at grab: spine base = a skinned mesh root bone, head = the Head_M bone.
+    private Transform bodySpineBase;
+    private Transform bodyHeadBone;
+    private Quaternion bodyCorrSmoothed = Quaternion.identity;
+
     // Geometry of the two surface samples under the body, from the root along the wall's
     // up direction. These describe the cat's proportions, not feel, so they are constants.
     private const float BodySampleLow = 0.3f;
     private const float BodySampleHigh = 1.1f;
     private const float BodyCastStartOut = 0.8f;
     private const float BodyCastLength = 1.8f;
-    // Cap on how far the visible body may tilt onto a flat-ish polygon, in degrees.
-    private const float MaxBodyTiltAngle = 55f;
+    // Cap on the spine flatten correction, in degrees. The dive of a floor authored crawl
+    // pose can be steep, so this allows up to a right angle.
+    private const float MaxBodyTiltAngle = 90f;
 
     #endregion
 
@@ -625,17 +643,21 @@ public class ClimbController : MonoBehaviour
     }
 
     /// <summary>
-    /// Lays the visible model containers onto the sampled surface: a tilt from the upright
-    /// vertical wall assumption onto the real surface plane, pivoted at the root so the paws
-    /// stay planted, plus a small outward nudge along the surface normal. Blended in and out
-    /// over Body Align Time. On a truly vertical wall the tilt is zero, so nothing that
-    /// already looks right changes there. Each container is rebuilt every frame from the rest
-    /// pose captured at grab, so nothing compounds, and everything restores exactly once the
-    /// blend reaches zero.
+    /// Lays the visible model containers onto the sampled surface: the measured spine flatten
+    /// rotation, pivoted at the root so the rear stays planted while the head end swings out
+    /// of the rock, plus a small outward clearance along the surface normal. Blended in and
+    /// out over Body Align Time. Each container is rebuilt every frame from the rest pose
+    /// captured at grab, so nothing compounds, and everything restores exactly once the blend
+    /// reaches zero.
     /// </summary>
     private void ApplyBodyWallPose(float dt)
     {
         if (posedRoots.Count == 0) return;
+
+        // TEMP DIAGNOSTIC. Any other script or animation curve writing this container between
+        // my frames shows up here as drift from the position written last LateUpdate.
+        if (debugLogs && bodyDebugHasExpected && posedRoots[0] != null)
+            bodyDebugDrift = Mathf.Max(bodyDebugDrift, Vector3.Distance(posedRoots[0].position, bodyDebugExpectedPos));
 
         bool wantPose = isClimbing && !isMantling && bodyPoseActive;
         float blendTarget = wantPose ? 1f : 0f;
@@ -647,16 +669,33 @@ public class ClimbController : MonoBehaviour
             return;
         }
 
-        // The animation is authored against an upright wall. Tilt by exactly the difference
-        // between that upright plane and the sampled real one, capped for safety.
-        Vector3 uprightNormal = Flatten(bodyPlaneNormal);
-        Quaternion tilt = Quaternion.identity;
-        if (uprightNormal.sqrMagnitude > 0.0001f)
+        // Measure the live spine and rotate the body by exactly the amount that lays that
+        // spine flat onto the sampled wall plane. A head diving into the rock gets pitched up
+        // along the wall, a sideways crawl already lying in the plane gets rotated by almost
+        // nothing, so every climb state keeps its authored direction. Measured with the
+        // container reset to its rest pose first, so the correction never feeds back into
+        // itself, and the projection onto the sampled plane makes slanted mountain faces and
+        // vertical cliffs both come out right with the same math.
+        Quaternion corrTarget = Quaternion.identity;
+        if (bodySpineBase != null && bodyHeadBone != null && posedRoots[0] != null)
         {
-            Quaternion fullTilt = Quaternion.FromToRotation(uprightNormal, bodyPlaneNormal);
-            tilt = Quaternion.RotateTowards(Quaternion.identity, fullTilt, MaxBodyTiltAngle);
+            Transform measure = posedRoots[0];
+            Transform mParent = measure.parent;
+            Vector3 mBasePos = mParent != null ? mParent.TransformPoint(posedBasePos[0]) : posedBasePos[0];
+            Quaternion mBaseRot = (mParent != null ? mParent.rotation : Quaternion.identity) * posedBaseRot[0];
+            measure.SetPositionAndRotation(mBasePos, mBaseRot);
+
+            Vector3 spine = bodyHeadBone.position - bodySpineBase.position;
+            Vector3 flatSpine = Vector3.ProjectOnPlane(spine, bodyPlaneNormal);
+            if (spine.sqrMagnitude > 0.0001f && flatSpine.sqrMagnitude > 0.0001f)
+            {
+                Quaternion full = Quaternion.FromToRotation(spine.normalized, flatSpine.normalized);
+                corrTarget = Quaternion.RotateTowards(Quaternion.identity, full, MaxBodyTiltAngle);
+            }
         }
-        Quaternion frameTilt = Quaternion.Slerp(Quaternion.identity, tilt, bodyBlend);
+        float smoothK = Mathf.Clamp01(dt / Mathf.Max(0.01f, bodyAlignTime));
+        bodyCorrSmoothed = Quaternion.Slerp(bodyCorrSmoothed, corrTarget, smoothK);
+        Quaternion frameTilt = Quaternion.Slerp(Quaternion.identity, bodyCorrSmoothed, bodyBlend);
         Vector3 outward = bodyPlaneNormal * (bodyOutwardOffset * bodyBlend);
         Vector3 pivot = transform.position;
 
@@ -674,6 +713,23 @@ public class ClimbController : MonoBehaviour
             Vector3 pos = pivot + frameTilt * (baseWorldPos - pivot) + outward;
             Quaternion rot = frameTilt * baseWorldRot;
             root.SetPositionAndRotation(pos, rot);
+
+            if (i == 0) { bodyDebugExpectedPos = pos; bodyDebugHasExpected = true; } // TEMP DIAGNOSTIC
+        }
+
+        // TEMP DIAGNOSTIC. One line per second while posed: what is actually being applied.
+        if (debugLogs)
+        {
+            bodyDebugTimer += dt;
+            if (bodyDebugTimer >= 1f && posedRoots[0] != null)
+            {
+                bodyDebugTimer = 0f;
+                Debug.Log($"[BodyPose] target={posedRoots[0].name} blend={bodyBlend:F2} " +
+                    $"offsetApplied={bodyOutwardOffset * bodyBlend:F3}m spineFlatten={Quaternion.Angle(Quaternion.identity, frameTilt):F1}deg " +
+                    $"planeNormalY={bodyPlaneNormal.y:F2} driftSinceMyLastWrite={bodyDebugDrift:F3}m " +
+                    $"(offsetField={bodyOutwardOffset:F2}, alignTime={bodyAlignTime:F2})");
+                bodyDebugDrift = 0f;
+            }
         }
     }
 
@@ -691,6 +747,10 @@ public class ClimbController : MonoBehaviour
         posedBaseRot.Clear();
         bodyPoseActive = false;
         bodyBlend = 0f;
+        bodyCorrSmoothed = Quaternion.identity;
+        bodyDebugHasExpected = false; // TEMP DIAGNOSTIC
+        bodyDebugTimer = 0f;          // TEMP DIAGNOSTIC
+        bodyDebugDrift = 0f;          // TEMP DIAGNOSTIC
     }
 
     #endregion
@@ -774,6 +834,20 @@ public class ClimbController : MonoBehaviour
                 posedBaseRot.Add(root.localRotation);
             }
             bodyPoseActive = posedRoots.Count > 0;
+
+            // Resolve the spine once from the rendered container: base from a skinned mesh
+            // root bone, head from the Head_M bone of the same rig.
+            if (posedRoots.Count > 0 && (bodySpineBase == null || bodyHeadBone == null))
+            {
+                SkinnedMeshRenderer smr = posedRoots[0].GetComponentInChildren<SkinnedMeshRenderer>(true);
+                if (smr != null && smr.rootBone != null) bodySpineBase = smr.rootBone;
+                foreach (Transform t in posedRoots[0].GetComponentsInChildren<Transform>(true))
+                {
+                    if (t.name == "Head_M") { bodyHeadBone = t; break; }
+                }
+                if (debugLogs)
+                    Debug.Log($"[ClimbController] Spine measure: base={(bodySpineBase != null ? bodySpineBase.name : "NOT FOUND")}, head={(bodyHeadBone != null ? bodyHeadBone.name : "NOT FOUND")} under {posedRoots[0].name}.");
+            }
         }
         bodyPlaneNormal = wallNormal;
 
