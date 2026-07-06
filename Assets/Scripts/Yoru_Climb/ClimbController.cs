@@ -20,18 +20,20 @@ using UnityEngine;
 ///     (Wall Loss Forgive Time) exits.
 ///   - Mantle is guarded: it needs a minimum climb time first, the ledge ground must be flat
 ///     enough to stand on, and the head probe is a small sphere so a polygon crease on the
-///     face never reads as the top. A bump on the cliff can not fake a mantle.
+///     face never reads as the top. A bump on the cliff can not fake a mantle. The landing
+///     spot is pushed far enough onto the ledge that the whole capsule clears the lip, its
+///     ground height is re probed there, and the mantle is REFUSED outright (Yoru keeps
+///     climbing) when the landing, the top of the rise, or the rise itself is blocked by
+///     anything solid on ANY layer, so a bush or crate on the lip is never ground through.
 ///   - BODY ON THE WALL (visual only). The Zelda approach: the collision capsule and the
-///     visible body are two separate things. While climbing, the cat's live spine (root bone
-///     to Head_M) is measured every frame and the model containers under the player root are
-///     rotated by exactly the amount that lays that spine flat onto the sampled rock surface,
-///     plus a small outward clearance. A head diving into the rock gets pitched up along the
-///     wall, a sideways crawl keeps its direction, slanted mountain faces and vertical cliffs
-///     use the same math. The CharacterController capsule is NEVER moved or resized by this
-///     script, so combat, dodge and normal movement are untouched. The pose eases in on grab,
-///     eases out on release, and fully restores after. The CharacterController capsule is NEVER
-///     moved or resized by this script, so combat, dodge and normal movement are untouched.
-///     The pose eases in on grab, eases out on release, and fully restores after.
+///     visible body are two separate things. The climb clips are authored FOR the wall
+///     (upright, paws reaching forward), so the body is NOT rotated at all, the clips play
+///     as made. The only thing this does is hold the visible cat at the right depth: the
+///     model containers are shifted along the surface normal by Body Outward Offset so the
+///     paws sit ON the rock instead of sinking into it or hovering off it. The
+///     CharacterController capsule is NEVER moved or resized by this script, so combat,
+///     dodge and normal movement are untouched. The shift eases in on grab, out on release,
+///     and fully restores after.
 ///   - SOFT TRANSITIONS. Nothing snaps: the turn to face the wall eases in through the same
 ///     Slerp that runs during the climb, the climb layer weight fades in and out instead of
 ///     switching, the first climb pose is picked from the input actually held (no forced idle
@@ -163,8 +165,8 @@ public class ClimbController : MonoBehaviour
     [SerializeField] private float inputDeadzone = 0.1f;
 
     [Header("Body On The Wall (visual only, capsule untouched)")]
-    [Tooltip("How far the visible body is pushed out along the rock surface, in meters. This pulls the sunken mesh OUT to the surface, it does not hover Yoru. Raise a little if the belly still dips into rock, lower toward 0 if the paws ever hover.")]
-    [SerializeField] private float bodyOutwardOffset = 0.15f;
+    [Tooltip("Depth of the visible cat on the wall, in meters. The clips are wall authored, so start at 0. If the paws sink into the rock, raise it slightly. If the paws hover off the rock, go slightly negative to pull the cat in. No rotation, this only moves the body along the surface normal.")]
+    [SerializeField] private float bodyOutwardOffset = 0f;
     [Tooltip("Seconds for the visible body to ease onto the wall pose on grab and back to normal on release. Also smooths the surface tilt across low poly polygon edges.")]
     [SerializeField] private float bodyAlignTime = 0.15f;
 
@@ -233,19 +235,10 @@ public class ClimbController : MonoBehaviour
     private bool bodyPoseActive;
     private float bodyBlend;
     private Vector3 bodyPlaneNormal = Vector3.forward;
+    private float bodyPoseLogTimer;
 
-    // TEMP DIAGNOSTIC state for the [BodyPose] log. Strip together with the log blocks once
-    // the embedding is closed.
-    private float bodyDebugTimer;
-    private float bodyDebugDrift;
-    private Vector3 bodyDebugExpectedPos;
-    private bool bodyDebugHasExpected;
-
-    // Live spine measurement for the axis flatten correction. Resolved once from the first
-    // posed container at grab: spine base = a skinned mesh root bone, head = the Head_M bone.
-    private Transform bodySpineBase;
-    private Transform bodyHeadBone;
-    private Quaternion bodyCorrSmoothed = Quaternion.identity;
+    // Scratch buffer for the mantle fit checks, reused so those checks never allocate.
+    private readonly Collider[] mantleOverlapBuffer = new Collider[8];
 
     // Geometry of the two surface samples under the body, from the root along the wall's
     // up direction. These describe the cat's proportions, not feel, so they are constants.
@@ -253,9 +246,12 @@ public class ClimbController : MonoBehaviour
     private const float BodySampleHigh = 1.1f;
     private const float BodyCastStartOut = 0.8f;
     private const float BodyCastLength = 1.8f;
-    // Cap on the spine flatten correction, in degrees. The dive of a floor authored crawl
-    // pose can be steep, so this allows up to a right angle.
-    private const float MaxBodyTiltAngle = 90f;
+    // Safety clamp on the visual push along the surface normal, in meters, so a bad value
+    // can never fling the cat off the wall.
+    private const float MaxBodyShift = 0.8f;
+    // Lift above the probed ground for the mantle landing, keeps the capsule bottom from
+    // starting the stand intersected with the ledge.
+    private const float MantleLandLift = 0.05f;
 
     #endregion
 
@@ -556,15 +552,15 @@ public class ClimbController : MonoBehaviour
         UpdateClimbAnimation(v, h, sprint);
 
         // Reached a ledge while climbing up.
-        if (mantleAllowed && v > inputDeadzone && TryDetectLedge(out Vector3 topPos))
+        if (mantleAllowed && v > inputDeadzone && TryDetectLedge(out Vector3 landPos))
         {
-            StartMantle(topPos);
+            StartMantle(landPos);
         }
     }
 
-    private bool TryDetectLedge(out Vector3 topPos)
+    private bool TryDetectLedge(out Vector3 landPos)
     {
-        topPos = Vector3.zero;
+        landPos = Vector3.zero;
         Vector3 headOrigin = transform.position + Vector3.up * topProbeHeight;
 
         // If the wall still continues at head height, there is no ledge yet. A small sphere
@@ -576,16 +572,85 @@ public class ClimbController : MonoBehaviour
 
         // No wall above: look for ground just over the lip.
         Vector3 overLip = headOrigin + transform.forward * ledgeForwardProbe + Vector3.up * 0.2f;
-        if (Physics.Raycast(overLip, Vector3.down, out RaycastHit g, ledgeDownProbe, climbableMask,
+        if (!Physics.Raycast(overLip, Vector3.down, out RaycastHit g, ledgeDownProbe, climbableMask,
                 QueryTriggerInteraction.Ignore))
+            return false;
+
+        // Only mantle onto ground flat enough to stand on. A steep hit here is a bump on
+        // the cliff face, not the top, and mantling onto it buries Yoru in the rock.
+        if (g.normal.y < mantleMinGroundNormalY) return false;
+
+        // Landing spot: pushed far enough onto the ledge that the WHOLE capsule clears the
+        // lip. The ledge ray lands roughly at the lip, and an inset smaller than the capsule
+        // radius leaves Yoru perched half over the edge, so the inset is floored at the
+        // radius.
+        float inset = Mathf.Max(mantleForwardInset, controller.radius + 0.1f);
+        Vector3 candidate = g.point + Flatten(-wallNormal) * inset + Vector3.up * MantleLandLift;
+
+        // Ground height at the ACTUAL landing spot, on any solid layer: the ledge can rise or
+        // dip between the lip and here, and a prop top counts as ground for the fit check.
+        if (Physics.Raycast(candidate + Vector3.up * 1f, Vector3.down, out RaycastHit landG, 2.5f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
         {
-            // Only mantle onto ground flat enough to stand on. A steep hit here is a bump on
-            // the cliff face, not the top, and mantling onto it buries Yoru in the rock.
-            if (g.normal.y < mantleMinGroundNormalY) return false;
-            topPos = g.point;
-            return true;
+            if (landG.normal.y < mantleMinGroundNormalY) return false;
+            candidate = landG.point + Vector3.up * MantleLandLift;
         }
-        return false;
+
+        // Refuse the mantle outright when it can not end cleanly, and Yoru just keeps
+        // climbing. The capsule must fit at the landing spot and at the top of the rise, and
+        // the rise itself must be clear. These see EVERY solid layer (own colliders filtered
+        // out), so a bush or crate on the lip blocks the mantle instead of being ground
+        // through mid path.
+        if (!CapsuleFitsAt(candidate)) return false;
+        Vector3 riseTop = new Vector3(transform.position.x, candidate.y, transform.position.z);
+        if (!CapsuleFitsAt(riseTop)) return false;
+        if (!RiseIsClear(transform.position, candidate.y)) return false;
+
+        landPos = candidate;
+        return true;
+    }
+
+    /// <summary>
+    /// True when Yoru's capsule fits at the given feet position with nothing solid inside it,
+    /// on ANY layer. Own colliders are filtered out, triggers ignored, and the radius shrunk
+    /// by the skin width so a grazing wall does not read as a blocker.
+    /// </summary>
+    private bool CapsuleFitsAt(Vector3 feetPos)
+    {
+        float radius = Mathf.Max(0.05f, controller.radius - controller.skinWidth);
+        Vector3 center = feetPos + controller.center;
+        float half = Mathf.Max(0f, controller.height * 0.5f - controller.radius);
+        Vector3 top = center + Vector3.up * half;
+        Vector3 bottom = center - Vector3.up * half;
+        int count = Physics.OverlapCapsuleNonAlloc(top, bottom, radius, mantleOverlapBuffer,
+            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < count; i++)
+        {
+            Collider c = mantleOverlapBuffer[i];
+            if (c == null) continue;
+            if (c.transform == transform || c.transform.IsChildOf(transform)) continue;
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// True when the straight rise from the current feet position up to the landing height is
+    /// clear on ANY layer. Colliders the capsule already overlaps at the start (the wall it
+    /// hugs, its own controller) are ignored by the sweep, so only real geometry over Yoru's
+    /// head, like an overhang or a branch, refuses the mantle.
+    /// </summary>
+    private bool RiseIsClear(Vector3 fromFeet, float toFeetY)
+    {
+        float rise = toFeetY - fromFeet.y;
+        if (rise <= 0.01f) return true;
+        float radius = Mathf.Max(0.05f, controller.radius - controller.skinWidth);
+        Vector3 center = fromFeet + controller.center;
+        float half = Mathf.Max(0f, controller.height * 0.5f - controller.radius);
+        Vector3 top = center + Vector3.up * half;
+        Vector3 bottom = center - Vector3.up * half;
+        return !Physics.CapsuleCast(top, bottom, radius, Vector3.up, out _, rise,
+            Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
     }
 
     #endregion
@@ -643,21 +708,15 @@ public class ClimbController : MonoBehaviour
     }
 
     /// <summary>
-    /// Lays the visible model containers onto the sampled surface: the measured spine flatten
-    /// rotation, pivoted at the root so the rear stays planted while the head end swings out
-    /// of the rock, plus a small outward clearance along the surface normal. Blended in and
-    /// out over Body Align Time. Each container is rebuilt every frame from the rest pose
-    /// captured at grab, so nothing compounds, and everything restores exactly once the blend
-    /// reaches zero.
+    /// Holds the visible model containers at the right depth on the wall. The climb clips are
+    /// authored for the wall, so there is NO rotation here: each container is rebuilt from its
+    /// rest pose and shifted along the surface normal by Body Outward Offset, so the paws sit
+    /// on the rock instead of sinking or hovering. Blended in on grab and out on release, and
+    /// restored exactly once the blend reaches zero.
     /// </summary>
     private void ApplyBodyWallPose(float dt)
     {
         if (posedRoots.Count == 0) return;
-
-        // TEMP DIAGNOSTIC. Any other script or animation curve writing this container between
-        // my frames shows up here as drift from the position written last LateUpdate.
-        if (debugLogs && bodyDebugHasExpected && posedRoots[0] != null)
-            bodyDebugDrift = Mathf.Max(bodyDebugDrift, Vector3.Distance(posedRoots[0].position, bodyDebugExpectedPos));
 
         bool wantPose = isClimbing && !isMantling && bodyPoseActive;
         float blendTarget = wantPose ? 1f : 0f;
@@ -669,35 +728,11 @@ public class ClimbController : MonoBehaviour
             return;
         }
 
-        // Measure the live spine and rotate the body by exactly the amount that lays that
-        // spine flat onto the sampled wall plane. A head diving into the rock gets pitched up
-        // along the wall, a sideways crawl already lying in the plane gets rotated by almost
-        // nothing, so every climb state keeps its authored direction. Measured with the
-        // container reset to its rest pose first, so the correction never feeds back into
-        // itself, and the projection onto the sampled plane makes slanted mountain faces and
-        // vertical cliffs both come out right with the same math.
-        Quaternion corrTarget = Quaternion.identity;
-        if (bodySpineBase != null && bodyHeadBone != null && posedRoots[0] != null)
-        {
-            Transform measure = posedRoots[0];
-            Transform mParent = measure.parent;
-            Vector3 mBasePos = mParent != null ? mParent.TransformPoint(posedBasePos[0]) : posedBasePos[0];
-            Quaternion mBaseRot = (mParent != null ? mParent.rotation : Quaternion.identity) * posedBaseRot[0];
-            measure.SetPositionAndRotation(mBasePos, mBaseRot);
-
-            Vector3 spine = bodyHeadBone.position - bodySpineBase.position;
-            Vector3 flatSpine = Vector3.ProjectOnPlane(spine, bodyPlaneNormal);
-            if (spine.sqrMagnitude > 0.0001f && flatSpine.sqrMagnitude > 0.0001f)
-            {
-                Quaternion full = Quaternion.FromToRotation(spine.normalized, flatSpine.normalized);
-                corrTarget = Quaternion.RotateTowards(Quaternion.identity, full, MaxBodyTiltAngle);
-            }
-        }
-        float smoothK = Mathf.Clamp01(dt / Mathf.Max(0.01f, bodyAlignTime));
-        bodyCorrSmoothed = Quaternion.Slerp(bodyCorrSmoothed, corrTarget, smoothK);
-        Quaternion frameTilt = Quaternion.Slerp(Quaternion.identity, bodyCorrSmoothed, bodyBlend);
-        Vector3 outward = bodyPlaneNormal * (bodyOutwardOffset * bodyBlend);
-        Vector3 pivot = transform.position;
+        // Pure outward shift along the sampled surface normal, no rotation. Positive pushes
+        // the visible cat off the rock, negative pulls it toward the rock. Clamped so a bad
+        // value can never fling it away.
+        float shift = Mathf.Clamp(bodyOutwardOffset, -MaxBodyShift, MaxBodyShift);
+        Vector3 outward = bodyPlaneNormal * (shift * bodyBlend);
 
         for (int i = 0; i < posedRoots.Count; i++)
         {
@@ -705,30 +740,25 @@ public class ClimbController : MonoBehaviour
             if (root == null) continue;
 
             // Rest pose in world space, rebuilt from the captured local pose (never from the
-            // already modified transform), so this frame's tilt never stacks on last frame's.
+            // already shifted transform), so this frame's shift never stacks on last frame's.
+            // Rotation is left exactly as the clip drives it.
             Transform parent = root.parent;
             Vector3 baseWorldPos = parent != null ? parent.TransformPoint(posedBasePos[i]) : posedBasePos[i];
             Quaternion baseWorldRot = (parent != null ? parent.rotation : Quaternion.identity) * posedBaseRot[i];
 
-            Vector3 pos = pivot + frameTilt * (baseWorldPos - pivot) + outward;
-            Quaternion rot = frameTilt * baseWorldRot;
-            root.SetPositionAndRotation(pos, rot);
-
-            if (i == 0) { bodyDebugExpectedPos = pos; bodyDebugHasExpected = true; } // TEMP DIAGNOSTIC
+            root.SetPositionAndRotation(baseWorldPos + outward, baseWorldRot);
         }
 
-        // TEMP DIAGNOSTIC. One line per second while posed: what is actually being applied.
+        // Verification log, one line per second while posed, so a stale build shows itself.
         if (debugLogs)
         {
-            bodyDebugTimer += dt;
-            if (bodyDebugTimer >= 1f && posedRoots[0] != null)
+            bodyPoseLogTimer += dt;
+            if (bodyPoseLogTimer >= 1f && posedRoots[0] != null)
             {
-                bodyDebugTimer = 0f;
-                Debug.Log($"[BodyPose] target={posedRoots[0].name} blend={bodyBlend:F2} " +
-                    $"offsetApplied={bodyOutwardOffset * bodyBlend:F3}m spineFlatten={Quaternion.Angle(Quaternion.identity, frameTilt):F1}deg " +
-                    $"planeNormalY={bodyPlaneNormal.y:F2} driftSinceMyLastWrite={bodyDebugDrift:F3}m " +
-                    $"(offsetField={bodyOutwardOffset:F2}, alignTime={bodyAlignTime:F2})");
-                bodyDebugDrift = 0f;
+                bodyPoseLogTimer = 0f;
+                Debug.Log($"[ClimbPose] target={posedRoots[0].name} blend={bodyBlend:F2} " +
+                    $"shiftApplied={shift * bodyBlend:F3}m planeNormalY={bodyPlaneNormal.y:F2} " +
+                    $"(no rotation, offsetField={bodyOutwardOffset:F2})");
             }
         }
     }
@@ -747,32 +777,29 @@ public class ClimbController : MonoBehaviour
         posedBaseRot.Clear();
         bodyPoseActive = false;
         bodyBlend = 0f;
-        bodyCorrSmoothed = Quaternion.identity;
-        bodyDebugHasExpected = false; // TEMP DIAGNOSTIC
-        bodyDebugTimer = 0f;          // TEMP DIAGNOSTIC
-        bodyDebugDrift = 0f;          // TEMP DIAGNOSTIC
+        bodyPoseLogTimer = 0f;
     }
 
     #endregion
 
     #region Mantle
 
-    private void StartMantle(Vector3 topPos)
+    private void StartMantle(Vector3 landPos)
     {
         if (debugLogs) Debug.Log("[ClimbController] Mantling over the top.");
         isMantling = true;
         PlayClimbState(mantleHash, true);
         if (climbFX != null) climbFX.Play(ClimbFX.MantleStart);
         if (mantleRoutine != null) StopCoroutine(mantleRoutine);
-        mantleRoutine = StartCoroutine(MantleRoutine(topPos));
+        mantleRoutine = StartCoroutine(MantleRoutine(landPos));
     }
 
-    private IEnumerator MantleRoutine(Vector3 topPos)
+    private IEnumerator MantleRoutine(Vector3 landPos)
     {
         Vector3 start = transform.position;
-        Vector3 forwardInset = Flatten(-wallNormal) * mantleForwardInset;
-        // Small lift so the capsule bottom lands ON the ledge, not intersecting it.
-        Vector3 end = topPos + forwardInset + Vector3.up * 0.05f;
+        // The landing spot arrives fully validated from TryDetectLedge: inset past the lip,
+        // ground height re probed there, capsule fit and rise clearance already checked.
+        Vector3 end = landPos;
         Vector3 riseTop = new Vector3(start.x, end.y, start.z);
 
         float t = 0f;
@@ -834,20 +861,6 @@ public class ClimbController : MonoBehaviour
                 posedBaseRot.Add(root.localRotation);
             }
             bodyPoseActive = posedRoots.Count > 0;
-
-            // Resolve the spine once from the rendered container: base from a skinned mesh
-            // root bone, head from the Head_M bone of the same rig.
-            if (posedRoots.Count > 0 && (bodySpineBase == null || bodyHeadBone == null))
-            {
-                SkinnedMeshRenderer smr = posedRoots[0].GetComponentInChildren<SkinnedMeshRenderer>(true);
-                if (smr != null && smr.rootBone != null) bodySpineBase = smr.rootBone;
-                foreach (Transform t in posedRoots[0].GetComponentsInChildren<Transform>(true))
-                {
-                    if (t.name == "Head_M") { bodyHeadBone = t; break; }
-                }
-                if (debugLogs)
-                    Debug.Log($"[ClimbController] Spine measure: base={(bodySpineBase != null ? bodySpineBase.name : "NOT FOUND")}, head={(bodyHeadBone != null ? bodyHeadBone.name : "NOT FOUND")} under {posedRoots[0].name}.");
-            }
         }
         bodyPlaneNormal = wallNormal;
 
@@ -865,7 +878,7 @@ public class ClimbController : MonoBehaviour
         PlayClimbState(SelectClimbState(v, h, sprint), true);
 
         if (climbFX != null) climbFX.Play(ClimbFX.Grab);
-        if (debugLogs) Debug.Log("[ClimbController] Grabbed wall, entering climb.");
+        if (debugLogs) Debug.Log($"[ClimbController] Grabbed wall, entering climb. Body containers held: {posedRoots.Count} (no rotation, shift only).");
     }
 
     private void LetGo()
