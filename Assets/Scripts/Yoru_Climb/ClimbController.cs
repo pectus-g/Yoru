@@ -208,7 +208,7 @@ public class ClimbController : MonoBehaviour
 
     #region Runtime State
 
-    private const string BuildVersion = "Rebuild R1";
+    private const string BuildVersion = "Rebuild R2";
 
     private CharacterController controller;
     private bool wallWasFound;
@@ -524,6 +524,38 @@ public class ClimbController : MonoBehaviour
         Vector3 wallUp = WallUpFrom(wallNormal);
         Vector3 wallRight = Vector3.Cross(wallUp, wallNormal).normalized;
         if (Vector3.Dot(wallRight, transform.right) < 0f) wallRight = -wallRight;
+
+        // INNER corner and dent handling. The re-acquire cast above aims at the CURRENT wall,
+        // so at a concave corner it keeps succeeding while the capsule grinds against the
+        // second wall, and nothing ever turns Yoru. Probe along the direction he is actually
+        // trying to move. When a DIFFERENT climbable wall sits in the path, adopt it as the
+        // current wall, and the capped turn orientation walks him around the corner or through
+        // the dent on its own. Small radius on purpose, a wide sphere overlaps at start this
+        // close to the corner and Unity returns degenerate contact data for it. The sustain
+        // gate keeps floors and ceilings from ever being adopted.
+        Vector3 desiredDir = Vector3.zero;
+        if (Mathf.Abs(v) > inputDeadzone) desiredDir += wallUp * Mathf.Sign(v);
+        if (Mathf.Abs(h) > inputDeadzone) desiredDir += wallRight * Mathf.Sign(h);
+        if (desiredDir.sqrMagnitude > 0.001f)
+        {
+            desiredDir.Normalize();
+            float aheadLen = controller.radius + controller.skinWidth + wallSurfaceGap + 0.35f;
+            if (Physics.SphereCast(origin, 0.15f, desiredDir, out RaycastHit ahead, aheadLen,
+                    climbableMask, QueryTriggerInteraction.Ignore)
+                && IsSustainableNormal(ahead.normal)
+                && Vector3.Dot(ahead.normal, wallNormal) < 0.95f)
+            {
+                wallNormal = ahead.normal;
+                wallPoint = ahead.point;
+                wallLossTimer = 0f;
+                // Rebuild the basis on the adopted wall so this frame already moves along it
+                // instead of grinding into it.
+                wallUp = WallUpFrom(wallNormal);
+                wallRight = Vector3.Cross(wallUp, wallNormal).normalized;
+                if (Vector3.Dot(wallRight, transform.right) < 0f) wallRight = -wallRight;
+                if (debugLogs) Debug.Log($"[ClimbController] Inner corner: adopted wall in move direction (normal.y={ahead.normal.y:F2}).");
+            }
+        }
 
         // Vertical movement.
         float vSpeed = (v > 0f ? climbUpSpeed : climbDownSpeed) * (sprint ? sprintClimbMultiplier : 1f);
