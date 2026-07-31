@@ -190,6 +190,12 @@ public class ClimbController : MonoBehaviour
     [Tooltip("A climb must last at least this long before a mantle can trigger, so a fresh grab at the base of a wall can never instantly convert into a mantle.")]
     [SerializeField] private float minClimbTimeBeforeMantle = 0.3f;
 
+    [Header("Stand Up (walkable ground)")]
+    [Tooltip("How far Yoru must have risen above the height he grabbed at before the climb is allowed to end by standing up. Stops the floor at the base of a wall from ejecting him the instant he grabs.")]
+    [SerializeField] private float standUpMinRise = 1f;
+    [Tooltip("How far below the feet to look for standable ground. The walkable ANGLE is not set here, it is read from the CharacterController's own Slope Limit so climbing and walking can never disagree.")]
+    [SerializeField] private float standUpGroundProbe = 0.35f;
+
     [Header("Re-grab")]
     [Tooltip("After letting go, jumping or mantling, ignore the air grab for this long so Yoru does not instantly re-stick.")]
     [SerializeField] private float regrabSuppressTime = 0.35f;
@@ -208,7 +214,7 @@ public class ClimbController : MonoBehaviour
 
     #region Runtime State
 
-    private const string BuildVersion = "Rebuild R2";
+    private const string BuildVersion = "Rebuild R4";
 
     private CharacterController controller;
     private bool wallWasFound;
@@ -220,6 +226,10 @@ public class ClimbController : MonoBehaviour
     private float regrabTimer;
     private float wallLossTimer;
     private float climbTime;
+    // Height Yoru grabbed at. The stand up exit measures its rise from this.
+    private float climbStartY;
+    // Throttle for the temporary mantle reject diagnostics.
+    private float lastLedgeRejectTime = -99f;
     private float layerWeightCurrent;
     private Coroutine mantleRoutine;
 
@@ -531,8 +541,11 @@ public class ClimbController : MonoBehaviour
         // trying to move. When a DIFFERENT climbable wall sits in the path, adopt it as the
         // current wall, and the capped turn orientation walks him around the corner or through
         // the dent on its own. Small radius on purpose, a wide sphere overlaps at start this
-        // close to the corner and Unity returns degenerate contact data for it. The sustain
-        // gate keeps floors and ceilings from ever being adopted.
+        // close to the corner and Unity returns degenerate contact data for it. Adopting a
+        // NEW surface uses the strict ENTER gate, never the loose sustain gate: sustain exists
+        // to forgive one flat polygon on a wall Yoru already holds, and reusing it here let
+        // sloped ground (normal.y around 0.6) be adopted as a wall, which glued him to
+        // walkable terraces. A newly adopted wall must be as steep as one he could have grabbed.
         Vector3 desiredDir = Vector3.zero;
         if (Mathf.Abs(v) > inputDeadzone) desiredDir += wallUp * Mathf.Sign(v);
         if (Mathf.Abs(h) > inputDeadzone) desiredDir += wallRight * Mathf.Sign(h);
@@ -542,7 +555,7 @@ public class ClimbController : MonoBehaviour
             float aheadLen = controller.radius + controller.skinWidth + wallSurfaceGap + 0.35f;
             if (Physics.SphereCast(origin, 0.15f, desiredDir, out RaycastHit ahead, aheadLen,
                     climbableMask, QueryTriggerInteraction.Ignore)
-                && IsSustainableNormal(ahead.normal)
+                && IsClimbableNormal(ahead.normal)
                 && Vector3.Dot(ahead.normal, wallNormal) < 0.95f)
             {
                 wallNormal = ahead.normal;
@@ -582,11 +595,58 @@ public class ClimbController : MonoBehaviour
 
         UpdateClimbAnimation(v, h, sprint, dt);
 
-        // Reached a ledge while climbing up.
+        // Reached a ledge while climbing up. Mantle always gets first refusal.
         if (mantleAllowed && v > inputDeadzone && TryDetectLedge(out Vector3 landPos))
         {
             StartMantle(landPos);
+            return;
         }
+
+        // Topped out onto ground he can simply walk on. This is the fallback for everything the
+        // mantle refuses: a walkable slope must never trap him on the wall.
+        if (mantleAllowed && TryStandUp(out float standNormalY))
+        {
+            if (debugLogs) Debug.Log($"[ClimbController] Standing up, ground under the feet is walkable (normal.y={standNormalY:F2}).");
+            EndClimb();
+            return;
+        }
+    }
+
+    /// <summary>
+    /// True when Yoru is resting on ground his own CharacterController could walk on, so the
+    /// climb should hand back to PlayerMovement instead of holding him against a slope.
+    ///
+    /// The walkable threshold is READ FROM the controller's own Slope Limit, not a second
+    /// hand tuned number, so this can never disagree with what walking actually permits. That
+    /// disagreement was the trap: grab needs normal.y at or below Max Climbable Normal Y while
+    /// walking needs it at or above cos(Slope Limit), which left surfaces in between unable to
+    /// be climbed OR walked.
+    ///
+    /// Guarded by Stand Up Min Rise, measured from the grab height. Without it the floor at the
+    /// base of a wall sits right under his feet at the moment of grabbing and would eject him
+    /// instantly.
+    /// </summary>
+    private bool TryStandUp(out float groundNormalY)
+    {
+        groundNormalY = 0f;
+        if (transform.position.y - climbStartY < standUpMinRise) return false;
+
+        float walkableNormalY = Mathf.Cos(Mathf.Clamp(controller.slopeLimit, 0f, 89f) * Mathf.Deg2Rad);
+
+        // Ground under the feet on ANY solid layer, because the surface he steps out onto is
+        // often terrain or Default, not the Climbable layer.
+        Vector3 probeOrigin = transform.position + Vector3.up * 0.4f;
+        if (!Physics.Raycast(probeOrigin, Vector3.down, out RaycastHit g, 0.4f + standUpGroundProbe,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            return false;
+        if (g.collider == null) return false;
+        if (g.collider.transform == transform || g.collider.transform.IsChildOf(transform)) return false;
+
+        groundNormalY = g.normal.y;
+        if (g.normal.y < walkableNormalY) return false;
+
+        // Refuse under an overhang: if the standing capsule does not fit, he keeps climbing.
+        return CapsuleFitsAt(g.point + Vector3.up * MantleLandLift);
     }
 
     private bool TryDetectLedge(out Vector3 landPos)
@@ -601,19 +661,29 @@ public class ClimbController : MonoBehaviour
         // If the wall still continues at head height, there is no ledge yet. A small sphere
         // instead of a thin ray, so a polygon crease on the face can not slip through and
         // read as open air.
-        if (Physics.SphereCast(headOrigin, 0.15f, face, out _, ledgeForwardProbe,
+        if (Physics.SphereCast(headOrigin, 0.15f, face, out RaycastHit headHit, ledgeForwardProbe,
                 climbableMask, QueryTriggerInteraction.Ignore))
+        {
+            LedgeReject($"GATE 1 head probe still finds wall at head height (hit '{headHit.collider.name}' at {headHit.distance:F2}m of {ledgeForwardProbe:F2}m). Not at the top yet.");
             return false;
+        }
 
         // No wall above: look for ground just over the lip.
         Vector3 overLip = headOrigin + face * ledgeForwardProbe + Vector3.up * 0.2f;
         if (!Physics.Raycast(overLip, Vector3.down, out RaycastHit g, ledgeDownProbe, climbableMask,
                 QueryTriggerInteraction.Ignore))
+        {
+            LedgeReject($"GATE 2 no CLIMBABLE-layer ground found under the lip within {ledgeDownProbe:F2}m. The top surface is probably on another layer, or the lip is further than Ledge Forward Probe ({ledgeForwardProbe:F2}m).");
             return false;
+        }
 
         // Only mantle onto ground flat enough to stand on. A steep hit here is a bump on
         // the cliff face, not the top, and mantling onto it buries Yoru in the rock.
-        if (g.normal.y < mantleMinGroundNormalY) return false;
+        if (g.normal.y < mantleMinGroundNormalY)
+        {
+            LedgeReject($"GATE 3 lip ground too steep to stand on (normal.y={g.normal.y:F2}, needs {mantleMinGroundNormalY:F2}) on '{g.collider.name}'.");
+            return false;
+        }
 
         // Landing spot: pushed far enough onto the ledge that the WHOLE capsule clears the
         // lip. The ledge ray lands roughly at the lip, and an inset smaller than the capsule
@@ -626,7 +696,11 @@ public class ClimbController : MonoBehaviour
         if (Physics.Raycast(candidate + Vector3.up * 1f, Vector3.down, out RaycastHit landG, 2.5f,
                 Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
         {
-            if (landG.normal.y < mantleMinGroundNormalY) return false;
+            if (landG.normal.y < mantleMinGroundNormalY)
+            {
+                LedgeReject($"GATE 4 ground at the landing spot too steep (normal.y={landG.normal.y:F2}, needs {mantleMinGroundNormalY:F2}) on '{landG.collider.name}'.");
+                return false;
+            }
             candidate = landG.point + Vector3.up * MantleLandLift;
         }
 
@@ -635,13 +709,55 @@ public class ClimbController : MonoBehaviour
         // the rise itself must be clear. These see EVERY solid layer (own colliders filtered
         // out), so a bush or crate on the lip blocks the mantle instead of being ground
         // through mid path.
-        if (!CapsuleFitsAt(candidate)) return false;
+        if (!CapsuleFitsAt(candidate))
+        {
+            LedgeReject($"GATE 5 capsule does not fit at the landing spot (blocked by '{NameOfBlocker(candidate)}'). Something solid is on the ledge.");
+            return false;
+        }
         Vector3 riseTop = new Vector3(transform.position.x, candidate.y, transform.position.z);
-        if (!CapsuleFitsAt(riseTop)) return false;
-        if (!RiseIsClear(transform.position, candidate.y)) return false;
+        if (!CapsuleFitsAt(riseTop))
+        {
+            LedgeReject($"GATE 6 capsule does not fit at the top of the rise, straight above the current spot (blocked by '{NameOfBlocker(riseTop)}').");
+            return false;
+        }
+        if (!RiseIsClear(transform.position, candidate.y))
+        {
+            LedgeReject($"GATE 7 the rise up to the ledge is blocked (rise {candidate.y - transform.position.y:F2}m).");
+            return false;
+        }
 
         landPos = candidate;
         return true;
+    }
+
+    /// <summary>
+    /// TEMPORARY diagnostic. Names which mantle gate refused, at most once per second so the
+    /// Console stays readable. Remove once the mantle is fixed.
+    /// </summary>
+    private void LedgeReject(string reason)
+    {
+        if (!debugLogs) return;
+        if (Time.time - lastLedgeRejectTime < 1f) return;
+        lastLedgeRejectTime = Time.time;
+        Debug.Log($"[ClimbMantle] REFUSED: {reason}");
+    }
+
+    /// <summary>Diagnostic helper: first solid collider sitting inside the capsule at a spot.</summary>
+    private string NameOfBlocker(Vector3 feetPos)
+    {
+        float radius = Mathf.Max(0.05f, controller.radius - controller.skinWidth);
+        Vector3 center = feetPos + controller.center;
+        float half = Mathf.Max(0f, controller.height * 0.5f - controller.radius);
+        int count = Physics.OverlapCapsuleNonAlloc(center + Vector3.up * half, center - Vector3.up * half,
+            radius, mantleOverlapBuffer, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < count; i++)
+        {
+            Collider c = mantleOverlapBuffer[i];
+            if (c == null) continue;
+            if (c.transform == transform || c.transform.IsChildOf(transform)) continue;
+            return $"{c.name} (layer {LayerMask.LayerToName(c.gameObject.layer)})";
+        }
+        return "unknown";
     }
 
     /// <summary>
@@ -930,6 +1046,7 @@ public class ClimbController : MonoBehaviour
         hopTimer = 0f;
         wallLossTimer = 0f;
         climbTime = 0f;
+        climbStartY = transform.position.y;
         blendLogTimer = 0f;
 
         // The blend values start ON the held input, not at idle, so a moving grab goes
