@@ -42,6 +42,10 @@ public class ThirdPersonCamera : MonoBehaviour
     private float yaw = 0f;
     private float pitch = 0f;
     private bool cameraEnabled = true;
+
+    // Aim mode: while true the mouse rotates the camera without holding right-click, and right-click
+    // is left alone for the tail shot to consume as its fire button. Set by TailAimController.
+    private bool aimModeActive = false;
     
     private CinemachineFollow followComponent;
     private CinemachineHardLookAt lookAtComponent;
@@ -127,7 +131,8 @@ public class ThirdPersonCamera : MonoBehaviour
         }
         
         // === Double-tap right-click detection (zoom reset) ===
-        if (Input.GetMouseButtonDown(1))
+        // Skipped while aiming so the fire click does not reset the zoom.
+        if (!aimModeActive && Input.GetMouseButtonDown(1))
         {
             if (Time.unscaledTime - lastRightClickTime < doubleTapWindow)
             {
@@ -140,8 +145,10 @@ public class ThirdPersonCamera : MonoBehaviour
             }
         }
         
-        // Right-click to rotate camera
-        if (Input.GetMouseButton(1))
+        // Right-click to rotate camera.
+        // While aiming the mouse rotates the view freely without holding right-click,
+        // so the player can angle the shot while right-click stays free to fire.
+        if (aimModeActive || Input.GetMouseButton(1))
         {
             float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
             float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
@@ -151,8 +158,8 @@ public class ThirdPersonCamera : MonoBehaviour
             pitch = Mathf.Clamp(pitch, minVerticalAngle, maxVerticalAngle);
         }
         
-        // === Scroll wheel zoom — ONLY when right-click is NOT held ===
-        if (!Input.GetMouseButton(1))
+        // === Scroll wheel zoom — ONLY when right-click is NOT held and not aiming ===
+        if (!aimModeActive && !Input.GetMouseButton(1))
         {
             float rawScroll = Input.mouseScrollDelta.y;
             if (Mathf.Abs(rawScroll) > 0.01f)
@@ -200,6 +207,16 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         cameraEnabled = enabled;
     }
+
+    /// <summary>
+    /// Enter or leave aim mode. While active the mouse rotates the camera without holding
+    /// right-click, and right-click is left free for the tail shot to fire. Called by
+    /// TailAimController when the draw starts and ends.
+    /// </summary>
+    public void SetAimMode(bool active)
+    {
+        aimModeActive = active;
+    }
     
     public Vector3 GetCameraForward()
     {
@@ -215,7 +232,7 @@ public class ThirdPersonCamera : MonoBehaviour
     
     /// <summary>
     /// Adjust camera follow height by a runtime offset (added to cameraHeight in the offset calc).
-    /// Called by FormController on cat ↔ Granny transform so Granny's taller silhouette frames
+    /// Called by FormController on cat → Granny transform so Granny's taller silhouette frames
     /// the same way as cat-Yoru. Pass 0 to reset (cat form).
     /// </summary>
     public void SetFormHeightOffset(float offset)
@@ -228,7 +245,7 @@ public class ThirdPersonCamera : MonoBehaviour
     /// The aim point is (target.position + LookAtOffset). In cat form this should sit at
     /// Yoru's head (~1.0 above the player root pivot). In Granny form Yoru's head is well
     /// below Granny's head, so without this update the camera converges on Granny's chest
-    /// when zooming in. Called by FormController on cat ↔ Granny transform.
+    /// when zooming in. Called by FormController on cat → Granny transform.
     /// </summary>
     public void SetFormLookAtOffset(float yOffset)
     {
