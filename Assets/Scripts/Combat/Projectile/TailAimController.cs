@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Unity.Cinemachine;
 
 /// <summary>
 /// Left tail air shot. Zelda style. While airborne, hold the draw key to enter a slowed aim, move
@@ -7,9 +8,23 @@ using UnityEngine.UI;
 /// The whole game clock is slowed (the same approach Flurry Rush uses) so enemies, projectiles and
 /// gravity all slow together while the aim stays responsive. PlayerMovement is never touched.
 ///
+/// Two clocks are handled on entry and restored exactly on every exit path:
+///  - Time.fixedDeltaTime is scaled together with Time.timeScale. Without this, anything stepped
+///    by the physics clock (PlayerMovement moves in FixedUpdate) ticks only a few times per real
+///    second during the slow and reads as choppy frame by frame motion.
+///  - The CinemachineBrain's IgnoreTimeScale switch is turned ON for the duration of the draw only,
+///    so camera damping runs on real time and the mouse look stays responsive instead of dragging
+///    a 1 second damp out across 10 real seconds. Nothing else about the camera is touched, and
+///    outside the draw the brain is exactly as it was.
+///
 /// The draw clip is not frozen on a pose. It simply plays under the slow time, so a short clip
 /// stretches out across the aim window and never reaches its release until you fire. This keeps
 /// it clear of the hitstop system, which owns Animator.speed.
+///
+/// Releasing the draw key always cancels with no shot and returns everything to normal instantly.
+/// Every exit (fire, cancel, landing, disable) crossfades the combat layer back to Combat_Empty,
+/// the same idle state PlayerCombat's ReturnToIdle uses, so the layer releases and base locomotion
+/// shows through instead of pinning the draw pose.
 ///
 /// Setup:
 ///  - Put this on the player, the same object as PlayerCombat and PlayerMovement.
@@ -21,33 +36,37 @@ using UnityEngine.UI;
 ///    aimed toward the target, so make a small empty child of the tail tip bone if you want to
 ///    fine tune where it leaves the tail.
 ///  - Keep Aim Duration shorter than (draw clip length divided by Slow Factor) so the draw does not
-///    finish before the window ends. With the defaults that is about 5.5s, well above the 3s window.
+///    finish before the window ends. With the defaults that is about 11s, well above the 3s window.
+///  - Scene instances serialized before this version keep their old Inspector values. Check that
+///    Draw Key is R and Slow Factor is 0.1 on the player after updating.
 /// </summary>
 public class TailAimController : MonoBehaviour
 {
     #region Inspector
     [Header("Input")]
-    [Tooltip("Hold this while airborne to draw and slow time. Control by default. On a Mac trackpad Control plus click is the system right click, so use a real mouse for testing.")]
-    [SerializeField] private KeyCode drawKey = KeyCode.LeftControl;
+    [Tooltip("Hold this while airborne to draw and slow time. R by default. Control is hard to reach on a Mac and Control plus click is the system right click on a trackpad.")]
+    [SerializeField] private KeyCode drawKey = KeyCode.R;
     [Tooltip("Mouse button that fires the bolt. 1 is the right mouse button.")]
     [SerializeField] private int fireMouseButton = 1;
 
     [Header("Slow Motion")]
-    [Tooltip("Game time scale while aiming. 0.2 is a 5x slow. Lower is slower.")]
+    [Tooltip("Game time scale while aiming. 0.1 is a 10x slow. Lower is slower. The physics clock is scaled with it so the slow stays smooth.")]
     [Range(0.05f, 1f)]
-    [SerializeField] private float slowFactor = 0.2f;
+    [SerializeField] private float slowFactor = 0.1f;
     [Tooltip("Real seconds you may stay in the draw before it force fires straight ahead.")]
     [SerializeField] private float aimDuration = 3f;
 
     [Header("Animation")]
     [Tooltip("Animator state that plays the draw (the Ability_LeftTail_Fast clip) on the combat layer. Set this to whatever that state is named in your controller.")]
-    [SerializeField] private string drawStateName = "LeftTailCast";
+    [SerializeField] private string drawStateName = "LeftTail_Fast";
     [Tooltip("Combat layer index. PlayerCombat uses 1.")]
     [SerializeField] private int combatLayerIndex = 1;
     [Tooltip("Crossfade time into the draw state.")]
     [SerializeField] private float drawCrossfade = 0.08f;
-    [Tooltip("Optional combat state to crossfade back to when the draw is cancelled. Leave blank to let the animator transitions handle it.")]
-    [SerializeField] private string cancelStateName = "";
+    [Tooltip("Combat layer state to crossfade back to on every exit (fire, cancel or landing). Combat_Empty is the layer's default state and the same idle PlayerCombat returns to, so the layer releases and base locomotion plays. Without this the layer stays pinned on the draw pose and Yoru looks frozen.")]
+    [SerializeField] private string exitStateName = "Combat_Empty";
+    [Tooltip("Crossfade time out of the draw state on exit.")]
+    [SerializeField] private float exitCrossfade = 0.12f;
     [Tooltip("Turn Yoru to face the aim direction while drawing so the draw points the right way.")]
     [SerializeField] private bool faceAimWhileDrawing = true;
 
@@ -100,12 +119,22 @@ public class TailAimController : MonoBehaviour
     private PlayerCombat playerCombat;
     private FormController formController;
     private ThirdPersonCamera thirdPersonCamera;
+    private CinemachineBrain cinemachineBrain;
     private Camera mainCamera;
 
     private bool aiming;
     private float aimStartUnscaled;
     private float lastFireTime = -999f;
-    private float cachedLayerWeight;
+
+    // Clock and camera state cached on aim entry and restored exactly on every exit path.
+    // fixedDeltaTime must scale with timeScale or every FixedUpdate driven system steps at a
+    // visible stutter. The brain flag makes camera damping run on real time during the slow.
+    private float cachedTimeScale = 1f;
+    private float cachedFixedDeltaTime = 0.02f;
+    private bool cachedBrainIgnoreTimeScale;
+
+    private int drawStateHash;
+    private int exitStateHash;
 
     private Transform lockedTarget;
     private Collider lockedCollider;
@@ -113,7 +142,7 @@ public class TailAimController : MonoBehaviour
     // Reusable buffer for the target scan so aiming does not allocate every frame.
     private readonly Collider[] targetBuffer = new Collider[16];
 
-    // Reticle UI, built at runtime.
+    // Reticle UI, built at runtime as a root canvas so it never inherits the player's transform.
     private Canvas reticleCanvas;
     private Image reticleImage;
     private Image lockImage;
@@ -128,6 +157,10 @@ public class TailAimController : MonoBehaviour
         formController = GetComponent<FormController>();
         mainCamera = Camera.main;
         thirdPersonCamera = FindObjectOfType<ThirdPersonCamera>();
+        cinemachineBrain = FindObjectOfType<CinemachineBrain>();
+
+        drawStateHash = Animator.StringToHash(drawStateName);
+        exitStateHash = Animator.StringToHash(exitStateName);
 
         if (leftTailTip == null) FindLeftTailTip();
         BuildReticle();
@@ -137,6 +170,12 @@ public class TailAimController : MonoBehaviour
     {
         // Never leave the game stuck in slow motion if this is turned off mid aim.
         if (aiming) EndAim(safetyOnly: true);
+    }
+
+    private void OnDestroy()
+    {
+        // The reticle canvas is a root object, so it does not die with the player automatically.
+        if (reticleCanvas != null) Destroy(reticleCanvas.gameObject);
     }
 
     private void Update()
@@ -201,11 +240,22 @@ public class TailAimController : MonoBehaviour
         lockedTarget = null;
         lockedCollider = null;
 
+        // Slow the game clock AND the physics clock together. PlayerMovement moves in FixedUpdate,
+        // so leaving fixedDeltaTime unscaled makes her fall in visible steps instead of smoothly.
+        cachedTimeScale = Time.timeScale;
+        cachedFixedDeltaTime = Time.fixedDeltaTime;
         Time.timeScale = slowFactor;
+        Time.fixedDeltaTime = cachedFixedDeltaTime * slowFactor;
 
-        cachedLayerWeight = animator.GetLayerWeight(combatLayerIndex);
+        // Camera damping on real time for the duration of the draw only, restored on exit.
+        if (cinemachineBrain != null)
+        {
+            cachedBrainIgnoreTimeScale = cinemachineBrain.IgnoreTimeScale;
+            cinemachineBrain.IgnoreTimeScale = true;
+        }
+
         animator.SetLayerWeight(combatLayerIndex, 1f);
-        animator.CrossFadeInFixedTime(Animator.StringToHash(drawStateName), drawCrossfade, combatLayerIndex);
+        animator.CrossFadeInFixedTime(drawStateHash, drawCrossfade, combatLayerIndex);
 
         if (thirdPersonCamera != null) thirdPersonCamera.SetAimMode(true);
         ShowReticle(true);
@@ -231,13 +281,10 @@ public class TailAimController : MonoBehaviour
 
     private void CancelAim()
     {
-        if (!string.IsNullOrEmpty(cancelStateName))
-            animator.CrossFadeInFixedTime(Animator.StringToHash(cancelStateName), drawCrossfade, combatLayerIndex);
-
         EndAim(safetyOnly: false);
     }
 
-    /// <summary>Shared teardown. safetyOnly is the minimal path used when disabled mid aim, restoring only time.</summary>
+    /// <summary>Shared teardown. safetyOnly is the minimal path used when disabled mid aim, restoring the clocks, the brain flag and the animator.</summary>
     private void EndAim(bool safetyOnly)
     {
         aiming = false;
@@ -245,8 +292,24 @@ public class TailAimController : MonoBehaviour
         lockedTarget = null;
         lockedCollider = null;
 
-        Time.timeScale = 1f;
-        animator.SetLayerWeight(combatLayerIndex, cachedLayerWeight);
+        // Restore both clocks to their exact cached values. Never assume 1 and 0.02, so this stays
+        // polite if some other system (Flurry Rush) had its own scale running.
+        Time.timeScale = cachedTimeScale;
+        Time.fixedDeltaTime = cachedFixedDeltaTime;
+
+        // Put the brain back exactly as it was.
+        if (cinemachineBrain != null)
+            cinemachineBrain.IgnoreTimeScale = cachedBrainIgnoreTimeScale;
+
+        // Always leave the combat layer on Combat_Empty, the same idle PlayerCombat returns to.
+        // Restoring a cached weight is not enough: PlayerCombat keeps the layer at weight 1
+        // permanently, so a pinned LeftTail_Fast pose sits on top of locomotion forever and reads
+        // as a freeze. Crossfading to the empty state releases the layer and base locomotion plays.
+        if (animator != null)
+        {
+            animator.SetLayerWeight(combatLayerIndex, 1f);
+            animator.CrossFadeInFixedTime(exitStateHash, exitCrossfade, combatLayerIndex);
+        }
 
         if (safetyOnly) return;
 
@@ -332,12 +395,18 @@ public class TailAimController : MonoBehaviour
     #region Reticle UI
     private void BuildReticle()
     {
+        // Root object, no parent. Parenting the canvas under the player made a ScreenSpaceOverlay
+        // canvas inherit the player transform, which pushed the crosshair off screen centre and
+        // onto Yoru herself.
         GameObject canvasGo = new GameObject("TailAimReticle");
-        canvasGo.transform.SetParent(transform, false);
         reticleCanvas = canvasGo.AddComponent<Canvas>();
         reticleCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
         reticleCanvas.sortingOrder = 500;
-        canvasGo.AddComponent<CanvasScaler>();
+
+        CanvasScaler scaler = canvasGo.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
 
         Sprite dot = reticleSprite != null ? reticleSprite : MakeCircleSprite(64, 0f);
         Sprite ring = lockSprite != null ? lockSprite : MakeCircleSprite(64, 0.72f);
