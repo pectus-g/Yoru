@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6704615222301524092}
+  - component: {fileID: 8695701531992162171}
   m_Layer: 0
   m_Name: YoruLeftTailBolt
   m_TagString: Untagged
@@ -32,6 +33,40 @@ Transform:
   - {fileID: 967195343681571773}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8695701531992162171
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5130653392197225010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84d4df64979454daf83a2d1f0da324f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TailProjectile
+  speed: 20
+  lifetime: 3
+  castRadius: 0.25
+  damage: 20
+  isHeavy: 0
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 1024
+  environmentMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  muzzlePrefab: {fileID: 1232470965182556, guid: c7889a59d58ece34eb095079be665d85, type: 3}
+  muzzleLifetime: 1.5
+  launchSfx: {fileID: 0}
+  impactPrefab: {fileID: 1433295770268946, guid: 87ccfc4847395fb47aa1a2b64a08ba58, type: 3}
+  impactAlignment: 0
+  impactSurfaceOffset: 0.1
+  impactLifetime: 2
+  impactSfx: {fileID: 0}
+  detachTrailsOnHit: 1
+  trailNameContains: Trail
+  trailLinger: 2
 --- !u!1001 &964473442609732021
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -46,15 +81,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4033515565896200, guid: 5ee2402c00157d84db5c7658adfd8c61, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -833.87
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4033515565896200, guid: 5ee2402c00157d84db5c7658adfd8c61, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -102.17717
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4033515565896200, guid: 5ee2402c00157d84db5c7658adfd8c61, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -1048.3
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4033515565896200, guid: 5ee2402c00157d84db5c7658adfd8c61, type: 3}
       propertyPath: m_LocalRotation.w
@@ -90,50 +125,8 @@ PrefabInstance:
     - {fileID: 54013935248017186, guid: 5ee2402c00157d84db5c7658adfd8c61, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 1961964258596952, guid: 5ee2402c00157d84db5c7658adfd8c61, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 5590005249145124577}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5ee2402c00157d84db5c7658adfd8c61, type: 3}
---- !u!1 &965044761754796525 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 1961964258596952, guid: 5ee2402c00157d84db5c7658adfd8c61, type: 3}
-  m_PrefabInstance: {fileID: 964473442609732021}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &5590005249145124577
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 965044761754796525}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 84d4df64979454daf83a2d1f0da324f5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TailProjectile
-  speed: 25
-  lifetime: 3
-  castRadius: 0.25
-  damage: 20
-  isHeavy: 0
-  hitMask:
-    serializedVersion: 2
-    m_Bits: 0
-  environmentMask:
-    serializedVersion: 2
-    m_Bits: 0
-  muzzlePrefab: {fileID: 1232470965182556, guid: c7889a59d58ece34eb095079be665d85, type: 3}
-  muzzleLifetime: 1.5
-  launchSfx: {fileID: 0}
-  impactPrefab: {fileID: 1433295770268946, guid: 87ccfc4847395fb47aa1a2b64a08ba58, type: 3}
-  impactAlignment: 0
-  impactSurfaceOffset: 0.1
-  impactLifetime: 2
-  impactSfx: {fileID: 0}
-  detachTrailsOnHit: 1
-  trailNameContains: Trail
-  trailLinger: 2
 --- !u!4 &967195343681571773 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4033515565896200, guid: 5ee2402c00157d84db5c7658adfd8c61, type: 3}
