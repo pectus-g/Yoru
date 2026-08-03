@@ -16,7 +16,8 @@ using UnityEngine.UI;
 ///  - Assign Bolt Prefab (give it the TailProjectile component and your bolt visual).
 ///  - Set Draw State Name to the animator state that plays Ability_LeftTail_Fast on the combat layer.
 ///  - Set Enemy Layer and Environment Layer to match the rest of combat.
-///  - Assign Left Tail Tip, or leave it blank to auto find Tail159_L. The bolt spawns here and is
+///  - Assign Left Tail Tip, or leave it blank to auto find the bone named in Tail Tip Bone Name
+///    (Tail6_L_end_end by default). The bolt spawns here and is
 ///    aimed toward the target, so make a small empty child of the tail tip bone if you want to
 ///    fine tune where it leaves the tail.
 ///  - Keep Aim Duration shorter than (draw clip length divided by Slow Factor) so the draw does not
@@ -53,8 +54,10 @@ public class TailAimController : MonoBehaviour
     [Header("Bolt")]
     [Tooltip("Prefab with a TailProjectile component. Spawned from the left tail tip on fire.")]
     [SerializeField] private GameObject boltPrefab;
-    [Tooltip("Left tail tip spawn point. Auto finds Tail159_L if left blank.")]
+    [Tooltip("Left tail tip spawn point. Auto finds the bone named below if left blank.")]
     [SerializeField] private Transform leftTailTip;
+    [Tooltip("Bone name used to auto find the tail tip when Left Tail Tip is empty.")]
+    [SerializeField] private string tailTipBoneName = "Tail6_L_end_end";
     [Tooltip("How far ahead the straight aim point sits when no enemy is locked.")]
     [SerializeField] private float aimRayDistance = 60f;
 
@@ -418,16 +421,32 @@ public class TailAimController : MonoBehaviour
     #endregion
 
     #region Helpers
+    /// <summary>Locate the tail tip bone to spawn the bolt from, by exact name first, then by best guess.</summary>
     private void FindLeftTailTip()
     {
-        foreach (Transform t in GetComponentsInChildren<Transform>())
+        Transform[] bones = GetComponentsInChildren<Transform>();
+
+        // Exact match on the configured bone name.
+        foreach (Transform t in bones)
         {
-            if (t.name == "Tail159_L") { leftTailTip = t; return; }
+            if (t.name == tailTipBoneName) { leftTailTip = t; return; }
         }
-        foreach (Transform t in GetComponentsInChildren<Transform>())
+
+        // Fallback: prefer the deepest left tail bone, since tip bones carry the most _end suffixes.
+        Transform best = null;
+        int bestDepth = -1;
+        foreach (Transform t in bones)
         {
-            if (t.name.Contains("Tail") && t.name.Contains("_L")) { leftTailTip = t; return; }
+            if (!t.name.Contains("Tail") || !t.name.Contains("_L")) continue;
+
+            int depth = 0;
+            for (Transform p = t; p != null; p = p.parent) depth++;
+            if (depth > bestDepth) { bestDepth = depth; best = t; }
         }
+
+        leftTailTip = best;
+        if (leftTailTip == null)
+            Debug.LogWarning("[TailAimController] No left tail tip bone found. Assign Left Tail Tip in the Inspector.");
     }
     #endregion
 }
