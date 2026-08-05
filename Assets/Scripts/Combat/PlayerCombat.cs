@@ -290,6 +290,18 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Visual model root (auto-finds bodyYoru). Offset during guard/dash for paw clipping fix.")]
     [SerializeField] private Transform visualModelRoot;
 
+    [Header("Air Pose Height Pin")]
+    [Tooltip("Stops the body dropping or popping when a combat animation takes over in mid air. The jump clips hold the body high in the POSE (they are Generic clips with no root motion node, so the rise is baked into the skeleton, not into the transform). Every combat and ability clip is authored standing at floor height. So the instant the combat layer takes the body in mid air, the body snaps down to floor height, and it pops back up when the layer hands back, while the transform never moves. This pins the body at the height the jump pose had, using the same bodyYoru offset the guard and dash fixes use. Physics, jump force, the jump clips and ground combat are all untouched.")]
+    [SerializeField] private bool pinBodyHeightInAir = true;
+    [Tooltip("Pose driven bone used to measure the body height above the transform. Auto-finds the name below. This is only read, never written.")]
+    [SerializeField] private Transform poseHeightBone;
+    [Tooltip("Bone searched for when Pose Height Bone is empty. Root_M is the top of the animated chain (DeformationSystem/root/Root_M).")]
+    [SerializeField] private string poseHeightBoneName = "Root_M";
+    [Tooltip("Real seconds to ease the pin out on landing. Poses agree on the ground, so this only needs to be short.")]
+    [SerializeField] private float airPinReleaseRamp = 0.12f;
+    [Tooltip("Log the measured pose height difference each time the pin engages. Useful once, noisy forever.")]
+    [SerializeField] private bool logAirPin = true;
+
     [Header("Hitbox")]
     [SerializeField] private float attackRange = 1.5f;
     [SerializeField] private LayerMask enemyLayer;
@@ -428,6 +440,14 @@ public class PlayerCombat : MonoBehaviour
     private float guardIdleDebounceTimer;   // prevents flicker during quick walk direction changes (W→S passes through 0)
     private bool modelOffsetActive;         // true when bodyYoru Y offset is applied
     private float currentModelYOffset;      // current interpolated offset for smooth transitions
+
+    // Air pose height pin. airPinComp is the metres currently added to bodyYoru to cancel the
+    // jump-pose-versus-combat-pose height difference; airPinHeldPoseY is the body height above
+    // the transform captured on the frame the pin engaged (the height the jump pose was giving).
+    private float airPinComp;
+    private float airPinHeldPoseY;
+    private bool airPinEngaged;
+    private int combatIdleHash;
     private float combatIdleSettledTimer;   // tracks how long Animator combat layer has been in idle
     private float movementStuckTimer;       // tracks how long WASD held while movement blocked by combat flags
 
@@ -497,6 +517,22 @@ public class PlayerCombat : MonoBehaviour
         }
         if (visualModelRoot != null)
             originalModelLocalPos = visualModelRoot.localPosition;
+
+        // Air pose height pin setup. The bone is only ever READ, to measure how high the current
+        // pose is holding the body above the transform.
+        combatIdleHash = Animator.StringToHash(combatIdleStateName);
+        if (poseHeightBone == null && !string.IsNullOrEmpty(poseHeightBoneName))
+        {
+            Transform searchRoot = visualModelRoot != null ? visualModelRoot : cachedTransform;
+            foreach (Transform t in searchRoot.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == poseHeightBoneName) { poseHeightBone = t; break; }
+            }
+        }
+        if (pinBodyHeightInAir && poseHeightBone == null)
+            Debug.LogWarning("[Combat] Air pose pin OFF: bone '" + poseHeightBoneName
+                + "' not found. Assign Pose Height Bone on PlayerCombat, or the mid air body"
+                + " snap cannot be cancelled.");
 
         DebugLog("PlayerCombat initialized — Phase 3C v27");
     }
@@ -732,11 +768,15 @@ public class PlayerCombat : MonoBehaviour
                 : 10f;
             currentModelYOffset = Mathf.MoveTowards(currentModelYOffset, targetOffset, Time.deltaTime * rampSpeed);
 
-            bool needsOffset = currentModelYOffset > 0.001f;
+            // Air pose height pin, composed into the same single write below.
+            UpdateAirPoseHeightPin();
+
+            float totalOffset = currentModelYOffset + airPinComp;
+            bool needsOffset = Mathf.Abs(totalOffset) > 0.001f;
             if (needsOffset)
             {
                 Vector3 pos = originalModelLocalPos;
-                pos.y += currentModelYOffset;
+                pos.y += totalOffset;
                 visualModelRoot.localPosition = pos;
                 modelOffsetActive = true;
             }
@@ -747,6 +787,67 @@ public class PlayerCombat : MonoBehaviour
                 modelOffsetActive = false;
             }
         }
+    }
+
+    /// <summary>
+    /// Cancels the mid air body snap.
+    ///
+    /// Why it exists: every clip in this project is Generic with no root motion node, so each one
+    /// carries its own absolute body height inside the POSE. The jump clips hold the body high;
+    /// the combat and ability clips are authored standing at floor height. The combat layer is
+    /// unmasked and full body at weight 1, so the moment any combat state takes the body in mid
+    /// air the body drops to floor height, and it pops back up when the layer hands back. The
+    /// transform never moves, which is why the world stays steady and only the body jumps.
+    ///
+    /// How it works: while airborne and the combat layer owns a real state (anything other than
+    /// the empty idle), the body height above the transform is held at whatever the jump pose was
+    /// giving on the frame the pin engaged. The compensation is recomputed every frame from the
+    /// live pose, so it tracks crossfades exactly instead of guessing a constant, and it falls to
+    /// zero by itself as the layer blends back to the jump pose. Landing eases it out, since the
+    /// poses agree on the ground. Only bodyYoru's local Y is touched: no physics, no transform, no
+    /// jump force, no clip, no importer setting, and nothing changes while grounded.
+    /// </summary>
+    private void UpdateAirPoseHeightPin()
+    {
+        if (!pinBodyHeightInAir || poseHeightBone == null || animator == null)
+        {
+            airPinComp = 0f;
+            airPinEngaged = false;
+            return;
+        }
+
+        // Body height the CURRENT pose is producing, with last frame's compensation removed so the
+        // measurement stays raw.
+        float rawPoseY = poseHeightBone.position.y - cachedTransform.position.y - airPinComp;
+
+        bool airborne = characterController != null && !characterController.isGrounded;
+        int combatState = animator.GetCurrentAnimatorStateInfo(combatLayerIndex).shortNameHash;
+        if (animator.IsInTransition(combatLayerIndex))
+            combatState = animator.GetNextAnimatorStateInfo(combatLayerIndex).shortNameHash;
+        bool combatOwnsBody = combatState != combatIdleHash;
+
+        if (airborne && combatOwnsBody)
+        {
+            if (!airPinEngaged)
+            {
+                // Engage on the frame the takeover starts, holding the height the jump pose had.
+                airPinEngaged = true;
+                airPinHeldPoseY = rawPoseY;
+                if (logAirPin)
+                    Debug.Log("[AirPosePin] engaged, holding body at " + airPinHeldPoseY.ToString("F3")
+                        + "m above the transform");
+            }
+            airPinComp = airPinHeldPoseY - rawPoseY;
+            return;
+        }
+
+        if (airPinEngaged && logAirPin)
+            Debug.Log("[AirPosePin] released, peak correction was " + airPinComp.ToString("F3") + "m");
+        airPinEngaged = false;
+
+        // Off the pin: airborne hand back settles itself as the pose blends home, landing eases out.
+        float ease = airPinReleaseRamp > 0.001f ? Time.unscaledDeltaTime / airPinReleaseRamp : 1f;
+        airPinComp = Mathf.MoveTowards(airPinComp, 0f, Mathf.Abs(airPinComp) * ease + 0.0005f);
     }
 
     private void EnforcePositionLock()
@@ -819,6 +920,24 @@ public class PlayerCombat : MonoBehaviour
         // Captured/stunned (e.g. enemy grab): no attacks, guard, dodge, dash, or tail abilities.
         // The freeze is time-boxed in PlayerHealth, so this self-releases.
         if (playerHealth != null && playerHealth.IsStunned()) return;
+
+        // Tail air shot lockout: while the R slow motion ability is active, or its released
+        // shot motion is still finishing after a landing, ALL combat input stands down. LMB
+        // must not start the air swirl or the heavy charge during the slow, and nothing may
+        // stomp the combat layer while the cast is still firing. TailAimController owns both
+        // flags. Diagnostic logs ONLY on actual input frames, same pattern as the Granny gate:
+        // if you click during the slow and do NOT see this log, this gate did not make it in.
+        if (TailAimController.IsAiming || TailAimController.IsShotRunning)
+        {
+            if (Input.GetKeyDown(KeyCode.C)
+                || Input.GetMouseButtonDown(0)
+                || Input.GetMouseButtonDown(2)
+                || Input.GetKeyDown(KeyCode.Q))
+            {
+                Debug.Log("[PlayerCombat] Combat input BLOCKED during tail air shot.");
+            }
+            return;
+        }
 
         // === GUARD INPUT (Q key) ===
         // Cooldown prevents rapid Q tap from corrupting Animator (same principle as dodge cooldown)
@@ -2117,6 +2236,14 @@ public class PlayerCombat : MonoBehaviour
     /// </summary>
     private void StartLunge(Transform target, bool allowNoTargetNudge)
     {
+        // Airborne attacks never slide. The magnet is a grounded tool: running the slide in the
+        // air fights PlayerMovement's fall, and its keep-down step applied gravity as a per frame
+        // position jump, which reads as a sudden height drop. Heavy release is the path that could
+        // reach here airborne (charge on the ground, jump, release in the air). The strike still
+        // plays, only the slide is skipped.
+        if (characterController == null || !characterController.isGrounded)
+            return;
+
         Vector3 dir;
         float distance;
         lungeEndedShort = false;

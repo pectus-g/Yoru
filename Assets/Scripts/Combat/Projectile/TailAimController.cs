@@ -3,80 +3,106 @@ using UnityEngine.UI;
 using Unity.Cinemachine;
 
 /// <summary>
-/// Left tail air shot. Zelda style. While airborne, hold the draw key to enter a slowed aim, move
-/// the mouse to angle the shot, then press the fire button to loose a straight bolt at the reticle.
-/// The whole game clock is slowed (the same approach Flurry Rush uses) so enemies, projectiles and
-/// gravity all slow together while the aim stays responsive. PlayerMovement is never touched.
+/// Right tail air shot, bow style. Locked spec Aug 5.
 ///
-/// Two clocks are handled on entry and restored exactly on every exit path:
-///  - Time.fixedDeltaTime is scaled together with Time.timeScale. Without this, anything stepped
-///    by the physics clock (PlayerMovement moves in FixedUpdate) ticks only a few times per real
-///    second during the slow and reads as choppy frame by frame motion.
-///  - The CinemachineBrain's IgnoreTimeScale switch is turned ON for the duration of the draw only,
-///    so camera damping runs on real time and the mouse look stays responsive instead of dragging
-///    a 1 second damp out across 10 real seconds. Nothing else about the camera is touched, and
-///    outside the draw the brain is exactly as it was.
+/// Flow:
+///  - Hold R while airborne in a 2 LEG jump (base layer state JumpWith2Legs): the whole game clock
+///    slows instantly. No animation yet. The 4 leg jump refuses the ability.
+///  - Press and HOLD the fire mouse button (RMB): the draw state (RightTail_Fast) plays frames
+///    0 to 4 at its real pace and stops frozen on frame 4. Holding RMB also turns the camera
+///    exactly like normal play, and that camera turn is the aiming. The camera scripts are not
+///    touched, not suppressed, not called. Nothing here talks to ThirdPersonCamera.
+///  - RELEASE RMB: the motion runs from frame 4 to the end and the arrow fires WHEN THE MOTION
+///    FINISHES, from the right tail tip, toward the screen centre. Press RMB again for the next
+///    shot, from frame 0 again. As many shots as fit in the jump.
+///  - No timer. Only releasing R or landing ends the ability.
+///  - Landing or releasing R while the shot motion is running: the motion finishes at normal
+///    pace and still fires (the slow ends immediately, the clip does not).
+///  - Landing while frozen on frame 4 (or still drawing): the slow ends, the motion completes on
+///    the ground at normal pace and fires at the end.
+///  - Releasing R while frozen on frame 4 in the air: clean cancel, no arrow.
+///  - LMB does nothing while the ability or its shot motion is active. PlayerCombat carries a
+///    matching gate that returns out of HandleInput while IsAiming or IsShotRunning is true.
 ///
-/// The draw clip is not frozen on a pose. It simply plays under the slow time, so a short clip
-/// stretches out across the aim window and never reaches its release until you fire. This keeps
-/// it clear of the hitstop system, which owns Animator.speed.
+/// HARD DEPENDENCY, both must be in the project or the feature misbehaves:
+///  1. This file.
+///  2. The gate block near the top of PlayerCombat.HandleInput reading the two statics below.
+///     Without it, LMB during the slow starts the air swirl / heavy charge and dirties the
+///     combat layer. If you click LMB during the slow and do NOT see
+///     "[PlayerCombat] Combat input BLOCKED during tail air shot." the gate is missing.
 ///
-/// Releasing the draw key always cancels with no shot and returns everything to normal instantly.
-/// Every exit (fire, cancel, landing, disable) crossfades the combat layer back to Combat_Empty,
-/// the same idle state PlayerCombat's ReturnToIdle uses, so the layer releases and base locomotion
-/// shows through instead of pinning the draw pose.
+/// Animator setup, one time, in the Animator window:
+///  1. Parameters tab: add a FLOAT named TailCastSpeed, default 1.
+///  2. Combat layer, select the RightTail_Fast state: tick the Parameter box on the Speed
+///     Multiplier and pick TailCastSpeed. Leave the state's own Speed at 1.
+///  This script drives that parameter: 0 = frozen on frame 4, otherwise castPace divided by the
+///  current time scale, so the clip NEVER slows down with the world and plays at the same real
+///  pace on the ground. Animator.speed is never touched, hitstop owns it. A missing parameter is
+///  reported loudly in the Console at Start.
 ///
-/// Setup:
-///  - Put this on the player, the same object as PlayerCombat and PlayerMovement.
-///  - Assign Bolt Prefab (give it the TailProjectile component and your bolt visual).
-///  - Set Draw State Name to the animator state that plays Ability_LeftTail_Fast on the combat layer.
-///  - Set Enemy Layer and Environment Layer to match the rest of combat.
-///  - Assign Left Tail Tip, or leave it blank to auto find the bone named in Tail Tip Bone Name
-///    (Tail6_L_end_end by default). The bolt spawns here and is
-///    aimed toward the target, so make a small empty child of the tail tip bone if you want to
-///    fine tune where it leaves the tail.
-///  - Keep Aim Duration shorter than (draw clip length divided by Slow Factor) so the draw does not
-///    finish before the window ends. With the defaults that is about 11s, well above the 3s window.
-///  - Scene instances serialized before this version keep their old Inspector values. Check that
-///    Draw Key is R and Slow Factor is 0.1 on the player after updating.
+/// Inspector on the player after updating (scene values override code defaults):
+///  - Draw State Name: RightTail_Fast  (old scenes still say LeftTail_Fast, flip it by hand)
+///  - Fire Mouse Button: 1 (RMB, already the serialized value)
+///  - Right Tail Tip: leave empty, it auto finds Tail6_R_end_end and logs what it found.
+///
+/// Kept from the baseline because they are correct: fixedDeltaTime scaled together with
+/// timeScale (PlayerMovement moves in FixedUpdate), the CinemachineBrain IgnoreTimeScale toggle
+/// during the slow restored exactly on exit, every exit crossfades the combat layer back to
+/// Combat_Empty, and the reticle as a root canvas at true screen centre.
+///
+/// Height snap suspects from the old build are designed out: no updateMode switching, no per
+/// frame Play re pinning (frame 4 is pinned with a single Play call), no Animator.speed use.
+/// Every phase change logs Y, timeScale and fixedDeltaTime so a bad frame names itself.
 /// </summary>
 public class TailAimController : MonoBehaviour
 {
     #region Inspector
     [Header("Input")]
-    [Tooltip("Hold this while airborne to draw and slow time. R by default. Control is hard to reach on a Mac and Control plus click is the system right click on a trackpad.")]
+    [Tooltip("Hold this while airborne in a 2 leg jump to slow time. R by default.")]
     [SerializeField] private KeyCode drawKey = KeyCode.R;
-    [Tooltip("Mouse button that fires the bolt. 1 is the right mouse button.")]
+    [Tooltip("Mouse button that draws and shoots. 1 is the right mouse button. Hold to draw and aim, release to shoot.")]
     [SerializeField] private int fireMouseButton = 1;
 
     [Header("Slow Motion")]
-    [Tooltip("Game time scale while aiming. 0.1 is a 10x slow. Lower is slower. The physics clock is scaled with it so the slow stays smooth.")]
+    [Tooltip("Game time scale while the ability is active. 0.1 is a 10x slow. The physics clock is scaled with it so the slow stays smooth.")]
     [Range(0.05f, 1f)]
     [SerializeField] private float slowFactor = 0.1f;
-    [Tooltip("Real seconds you may stay in the draw before it force fires straight ahead.")]
-    [SerializeField] private float aimDuration = 3f;
 
     [Header("Animation")]
-    [Tooltip("Animator state that plays the draw (the Ability_LeftTail_Fast clip) on the combat layer. Set this to whatever that state is named in your controller.")]
-    [SerializeField] private string drawStateName = "LeftTail_Fast";
+    [Tooltip("Animator state of the cast clip on the combat layer. Must be RightTail_Fast. Old scene values may still say LeftTail_Fast, flip this by hand in the Inspector.")]
+    [SerializeField] private string drawStateName = "RightTail_Fast";
     [Tooltip("Combat layer index. PlayerCombat uses 1.")]
     [SerializeField] private int combatLayerIndex = 1;
-    [Tooltip("Crossfade time into the draw state.")]
+    [Tooltip("Blend time into the draw, in real seconds. Kept tiny so the draw feels crisp.")]
     [SerializeField] private float drawCrossfade = 0.08f;
-    [Tooltip("Combat layer state to crossfade back to on every exit (fire, cancel or landing). Combat_Empty is the layer's default state and the same idle PlayerCombat returns to, so the layer releases and base locomotion plays. Without this the layer stays pinned on the draw pose and Yoru looks frozen.")]
+    [Tooltip("Combat layer state to crossfade back to on every exit. Combat_Empty releases the layer so base locomotion shows through.")]
     [SerializeField] private string exitStateName = "Combat_Empty";
-    [Tooltip("Crossfade time out of the draw state on exit.")]
+    [Tooltip("Blend time out of the cast on exit, in real seconds.")]
     [SerializeField] private float exitCrossfade = 0.12f;
-    [Tooltip("Turn Yoru to face the aim direction while drawing so the draw points the right way.")]
+    [Tooltip("Float parameter on the animator wired as the RightTail_Fast state's speed multiplier. 0 freezes the pose, this script drives it.")]
+    [SerializeField] private string castSpeedParamName = "TailCastSpeed";
+    [Tooltip("YOUR pace knob. How fast the cast plays in real time, no matter how slow the world is. 1 = the clip's authored pace, 2 = twice as fast.")]
+    [SerializeField] private float castPace = 1f;
+    [Tooltip("The frame the draw freezes on as the ready pose.")]
+    [SerializeField] private int readyFrame = 4;
+    [Tooltip("Total frames of the cast clip. RightTail_Fast is 1.40s at 30 samples = 42.")]
+    [SerializeField] private int clipFrameCount = 42;
+    [Tooltip("Turn Yoru to face the aim direction while drawing and holding the ready pose.")]
     [SerializeField] private bool faceAimWhileDrawing = true;
 
+    [Header("Jump Gate")]
+    [Tooltip("Base layer state of the 2 leg jump. Only this jump may use the ability.")]
+    [SerializeField] private string twoLegJumpStateName = "JumpWith2Legs";
+    [Tooltip("Base layer state of the 4 leg jump. Seeing it clears the permission for this airtime.")]
+    [SerializeField] private string fourLegJumpStateName = "JumpWith4Legs";
+
     [Header("Bolt")]
-    [Tooltip("Prefab with a TailProjectile component. Spawned from the left tail tip on fire.")]
+    [Tooltip("Prefab with a TailProjectile component. Spawned from the right tail tip when the motion finishes.")]
     [SerializeField] private GameObject boltPrefab;
-    [Tooltip("Left tail tip spawn point. Auto finds the bone named below if left blank.")]
-    [SerializeField] private Transform leftTailTip;
-    [Tooltip("Bone name used to auto find the tail tip when Left Tail Tip is empty.")]
-    [SerializeField] private string tailTipBoneName = "Tail6_L_end_end";
+    [Tooltip("Right tail tip spawn point. Auto finds the bone named below if left blank.")]
+    [SerializeField] private Transform rightTailTip;
+    [Tooltip("Bone name used to auto find the tail tip when Right Tail Tip is empty.")]
+    [SerializeField] private string rightTailTipBoneName = "Tail6_R_end_end";
     [Tooltip("How far ahead the straight aim point sits when no enemy is locked.")]
     [SerializeField] private float aimRayDistance = 60f;
 
@@ -87,16 +113,16 @@ public class TailAimController : MonoBehaviour
     [SerializeField] private float snapRadiusPixels = 120f;
     [Tooltip("Layers searched for lockable enemies. Set to your Enemy layer.")]
     [SerializeField] private LayerMask enemyLayer;
-    [Tooltip("Layers that block line of sight to a target (walls, terrain).")]
+    [Tooltip("Layers that block line of sight and the aim ray (Ground + Interactable, never Enemy or Player).")]
     [SerializeField] private LayerMask environmentMask = ~0;
     [Tooltip("Require a clear line of sight before an enemy can be locked.")]
     [SerializeField] private bool requireLineOfSight = true;
 
     [Header("Behaviour")]
-    [Tooltip("If true, landing during the draw cancels with no shot. If false, landing force fires straight.")]
-    [SerializeField] private bool landCancels = false;
-    [Tooltip("Real seconds of cooldown after a shot fires. The old scheme used 3. Zero is best for testing.")]
+    [Tooltip("Real seconds of cooldown on ability entry after a shot. Production value 3, zero for testing.")]
     [SerializeField] private float cooldownAfterFire = 0f;
+    [Tooltip("Console diagnostics for every phase change, with height and clock values.")]
+    [SerializeField] private bool debugLogs = true;
 
     [Header("Reticle")]
     [Tooltip("Optional crosshair sprite. A simple dot is generated if left blank.")]
@@ -111,30 +137,39 @@ public class TailAimController : MonoBehaviour
     #endregion
 
     #region State
-    /// <summary>True while the draw is active. Other systems can read this to stand down (for example to suppress the air spin).</summary>
+    /// <summary>True while the slow motion ability is active (from R entry until cancel, exit or handoff to the finisher). PlayerCombat's gate reads this.</summary>
     public static bool IsAiming { get; private set; }
+
+    /// <summary>True while a released shot motion is still running after the ability itself ended (landed or R released mid motion). PlayerCombat's gate reads this too, so nothing stomps the combat layer before the arrow is out.</summary>
+    public static bool IsShotRunning { get; private set; }
+
+    private enum Phase { Inactive, Slow, Drawing, Ready, Casting, Finisher }
+    private Phase phase = Phase.Inactive;
 
     private Animator animator;
     private PlayerMovement playerMovement;
     private PlayerCombat playerCombat;
     private FormController formController;
-    private ThirdPersonCamera thirdPersonCamera;
     private CinemachineBrain cinemachineBrain;
     private Camera mainCamera;
 
-    private bool aiming;
-    private float aimStartUnscaled;
     private float lastFireTime = -999f;
+    private bool lastJumpWas2Leg;
 
-    // Clock and camera state cached on aim entry and restored exactly on every exit path.
-    // fixedDeltaTime must scale with timeScale or every FixedUpdate driven system steps at a
-    // visible stutter. The brain flag makes camera damping run on real time during the slow.
+    // Clock and camera brain state cached on entry and restored exactly on every exit path.
     private float cachedTimeScale = 1f;
     private float cachedFixedDeltaTime = 0.02f;
     private bool cachedBrainIgnoreTimeScale;
 
     private int drawStateHash;
     private int exitStateHash;
+    private int twoLegJumpHash;
+    private int fourLegJumpHash;
+    private int castSpeedParamHash;
+
+    // The point the arrow flies toward. Refreshed while drawing, holding and casting, frozen for
+    // the finisher so a shot that outlives the aim still goes where she aimed last.
+    private Vector3 lastAimPoint;
 
     private Transform lockedTarget;
     private Collider lockedCollider;
@@ -146,6 +181,9 @@ public class TailAimController : MonoBehaviour
     private Canvas reticleCanvas;
     private Image reticleImage;
     private Image lockImage;
+
+    private float ReadyNormalized => clipFrameCount > 0 ? (float)readyFrame / clipFrameCount : 0.095f;
+    private const float EndNormalized = 0.99f;
     #endregion
 
     #region Unity
@@ -156,20 +194,47 @@ public class TailAimController : MonoBehaviour
         playerCombat = GetComponent<PlayerCombat>();
         formController = GetComponent<FormController>();
         mainCamera = Camera.main;
-        thirdPersonCamera = FindObjectOfType<ThirdPersonCamera>();
         cinemachineBrain = FindObjectOfType<CinemachineBrain>();
 
         drawStateHash = Animator.StringToHash(drawStateName);
         exitStateHash = Animator.StringToHash(exitStateName);
+        twoLegJumpHash = Animator.StringToHash(twoLegJumpStateName);
+        fourLegJumpHash = Animator.StringToHash(fourLegJumpStateName);
+        castSpeedParamHash = Animator.StringToHash(castSpeedParamName);
 
-        if (leftTailTip == null) FindLeftTailTip();
+        if (rightTailTip == null) FindRightTailTip();
         BuildReticle();
+    }
+
+    private void Start()
+    {
+        // Loud setup checks so a missed import or a missed Animator click is visible in the log
+        // instead of silently misbehaving.
+        bool paramFound = false;
+        foreach (AnimatorControllerParameter p in animator.parameters)
+        {
+            if (p.nameHash == castSpeedParamHash && p.type == AnimatorControllerParameterType.Float)
+            {
+                paramFound = true;
+                break;
+            }
+        }
+        if (!paramFound)
+            Debug.LogWarning("[TailAirShot] Animator float parameter '" + castSpeedParamName
+                + "' is MISSING. Add it in the Animator Parameters tab and tick the Speed Multiplier"
+                + " Parameter box on the " + drawStateName + " state, or the draw cannot pause on frame "
+                + readyFrame + ".");
+
+        if (debugLogs)
+            Debug.Log("[TailAirShot] Ready. drawState=" + drawStateName
+                + " tailTip=" + (rightTailTip != null ? rightTailTip.name : "NOT FOUND")
+                + " castParam=" + castSpeedParamName + (paramFound ? " (found)" : " (MISSING)"));
     }
 
     private void OnDisable()
     {
-        // Never leave the game stuck in slow motion if this is turned off mid aim.
-        if (aiming) EndAim(safetyOnly: true);
+        // Never leave the game stuck in slow motion if this is turned off mid ability.
+        HardCancel("component disabled");
     }
 
     private void OnDestroy()
@@ -183,62 +248,162 @@ public class TailAimController : MonoBehaviour
         // Yoru form only. In Granny form the tail abilities are disabled.
         if (formController != null && formController.IsHuman)
         {
-            if (aiming) CancelAim();
+            HardCancel("Granny form");
+            UpdateCastParam();
             return;
         }
 
-        if (!aiming)
+        UpdateJumpLatch();
+
+        switch (phase)
         {
-            if (CanStartAim() && Input.GetKeyDown(drawKey)) StartAim();
-            return;
+            case Phase.Inactive: TickInactive(); break;
+            case Phase.Slow: TickSlow(); break;
+            case Phase.Drawing: TickDrawing(); break;
+            case Phase.Ready: TickReady(); break;
+            case Phase.Casting: TickCasting(); break;
+            case Phase.Finisher: TickFinisher(); break;
         }
 
-        // Aiming.
-        if (Input.GetMouseButtonDown(fireMouseButton)) { Fire(); return; }
-
-        if (!Input.GetKey(drawKey)) { CancelAim(); return; }
-
-        if (playerMovement != null && !playerMovement.IsAirborne())
-        {
-            if (landCancels) CancelAim(); else Fire();
-            return;
-        }
-
-        if (Time.unscaledTime - aimStartUnscaled >= aimDuration) { Fire(); return; }
-
-        UpdateLock();
+        UpdateCastParam();
     }
 
     private void LateUpdate()
     {
-        if (!aiming) return;
+        if (phase != Phase.Drawing && phase != Phase.Ready) return;
         if (faceAimWhileDrawing) FaceAim();
         UpdateReticlePositions();
     }
     #endregion
 
-    #region Aim flow
-    private bool CanStartAim()
+    #region Phase ticks
+    private void TickInactive()
     {
-        if (playerMovement == null || !playerMovement.IsAirborne()) return false;
-        if (Time.unscaledTime - lastFireTime < cooldownAfterFire) return false;
+        // Refusal diagnostics only on the press frame and only in the air, so a pre jump R hold
+        // on the ground does not spam. This is the log that answers "why did it not trigger".
+        if (debugLogs && Input.GetKeyDown(drawKey)
+            && playerMovement != null && playerMovement.IsAirborne())
+        {
+            string why = WhyRefused();
+            if (why != null) Log("entry refused: " + why);
+        }
 
-        // Do not interrupt another combat action.
+        if (!Input.GetKey(drawKey)) return;
+        if (WhyRefused() != null) return;
+
+        EnterAbility();
+    }
+
+    private void TickSlow()
+    {
+        // Landing with nothing playing: clean exit, no arrow.
+        if (playerMovement != null && !playerMovement.IsAirborne()) { ExitAbility("landed, nothing drawn"); return; }
+
+        // R released with nothing playing: clean exit.
+        if (!Input.GetKey(drawKey)) { ExitAbility("R released, nothing drawn"); return; }
+
+        // RMB pressed: start the draw. The camera keeps doing its own vanilla RMB work in parallel.
+        if (Input.GetMouseButtonDown(fireMouseButton)) StartDraw();
+    }
+
+    private void TickDrawing()
+    {
+        // Landing while drawing: the slow ends, the motion completes on the ground and fires.
+        if (playerMovement != null && !playerMovement.IsAirborne()) { ToFinisher("landed during draw"); return; }
+
+        // R released while drawing, still airborne: clean cancel, no arrow.
+        if (!Input.GetKey(drawKey)) { CancelDraw("R released during draw"); return; }
+
+        // RMB released before frame 4: a quick shot. Skip the pause and let it run to the end.
+        if (!Input.GetMouseButton(fireMouseButton)) { BeginCast("released early, quick shot"); return; }
+
+        // Reached frame 4: pin it exactly once and freeze.
+        if (InDrawState(out AnimatorStateInfo info) && info.normalizedTime >= ReadyNormalized)
+        {
+            animator.Play(drawStateHash, combatLayerIndex, ReadyNormalized);
+            phase = Phase.Ready;
+            Log("READY, frozen on frame " + readyFrame);
+        }
+
+        UpdateLock();
+        lastAimPoint = GetAimPoint();
+    }
+
+    private void TickReady()
+    {
+        if (!InDrawState(out _)) { Interrupted("ready pose"); return; }
+
+        // Landing on the frozen pose: the slow ends, the motion completes on the ground and fires.
+        if (playerMovement != null && !playerMovement.IsAirborne()) { ToFinisher("landed on ready pose"); return; }
+
+        // R released on the frozen pose in the air: clean cancel, no arrow.
+        if (!Input.GetKey(drawKey)) { CancelDraw("R released on ready pose"); return; }
+
+        // RMB released: loose. The motion runs and the arrow fires when it finishes.
+        if (!Input.GetMouseButton(fireMouseButton)) { BeginCast("released from ready pose"); return; }
+
+        UpdateLock();
+        lastAimPoint = GetAimPoint();
+    }
+
+    private void TickCasting()
+    {
+        if (!InDrawState(out AnimatorStateInfo info)) { Interrupted("cast"); return; }
+
+        // Landing or dropping R mid motion: aim ends now, the motion keeps running and still fires.
+        if (playerMovement != null && !playerMovement.IsAirborne()) { ToFinisher("landed mid motion"); return; }
+        if (!Input.GetKey(drawKey)) { ToFinisher("R released mid motion"); return; }
+
+        lastAimPoint = GetAimPoint();
+
+        if (info.normalizedTime >= EndNormalized)
+        {
+            SpawnArrow();
+            // Release the layer, stay in the ability, wait for the next RMB press.
+            CrossfadeToExit(scaledToWorld: true);
+            phase = Phase.Slow;
+            Log("back to slow, ready for next shot");
+        }
+    }
+
+    private void TickFinisher()
+    {
+        if (!InDrawState(out AnimatorStateInfo info)) { Interrupted("finisher"); return; }
+
+        if (info.normalizedTime >= EndNormalized)
+        {
+            SpawnArrow();
+            CrossfadeToExit(scaledToWorld: false);
+            IsShotRunning = false;
+            phase = Phase.Inactive;
+            Log("finisher done, fully idle");
+        }
+    }
+    #endregion
+
+    #region Ability flow
+    /// <summary>Null when entry is legal, otherwise the reason, which is also what the refusal log prints.</summary>
+    private string WhyRefused()
+    {
+        if (playerMovement == null || !playerMovement.IsAirborne()) return "not airborne";
+        if (!lastJumpWas2Leg) return "this airtime is not a 2 leg jump";
+        if (Time.unscaledTime - lastFireTime < cooldownAfterFire) return "cooldown";
+
         if (playerCombat != null && (playerCombat.IsAttacking() || playerCombat.IsChargingHeavy()
             || playerCombat.IsDodging() || playerCombat.IsDashing()
             || playerCombat.IsGuarding() || playerCombat.IsInHitReaction()))
-            return false;
+            return "combat busy (attack/heavy/dodge/dash/guard/hit)";
 
-        return true;
+        return null;
     }
 
-    private void StartAim()
+    private void EnterAbility()
     {
-        aiming = true;
+        phase = Phase.Slow;
         IsAiming = true;
-        aimStartUnscaled = Time.unscaledTime;
         lockedTarget = null;
         lockedCollider = null;
+        lastAimPoint = transform.position + transform.forward * aimRayDistance;
 
         // Slow the game clock AND the physics clock together. PlayerMovement moves in FixedUpdate,
         // so leaving fixedDeltaTime unscaled makes her fall in visible steps instead of smoothly.
@@ -247,74 +412,186 @@ public class TailAimController : MonoBehaviour
         Time.timeScale = slowFactor;
         Time.fixedDeltaTime = cachedFixedDeltaTime * slowFactor;
 
-        // Camera damping on real time for the duration of the draw only, restored on exit.
+        // Camera damping on real time for the duration of the slow only, restored on exit.
+        // This is the only camera adjacent thing this script touches and it is the approved one.
         if (cinemachineBrain != null)
         {
             cachedBrainIgnoreTimeScale = cinemachineBrain.IgnoreTimeScale;
             cinemachineBrain.IgnoreTimeScale = true;
         }
 
+        Log("ENTER, slow on, waiting for RMB, drawState=" + drawStateName);
+    }
+
+    private void StartDraw()
+    {
+        phase = Phase.Drawing;
         animator.SetLayerWeight(combatLayerIndex, 1f);
-        animator.CrossFadeInFixedTime(drawStateHash, drawCrossfade, combatLayerIndex);
-
-        if (thirdPersonCamera != null) thirdPersonCamera.SetAimMode(true);
+        // The blend duration is passed in scaled time so it costs the same REAL time at any
+        // time scale. The clip itself runs through the speed parameter, never through the world clock.
+        float blend = drawCrossfade * Mathf.Max(Time.timeScale, 0.01f);
+        animator.CrossFadeInFixedTime(drawStateHash, blend, combatLayerIndex, 0f);
         ShowReticle(true);
+        Log("DRAW started");
     }
 
-    private void Fire()
+    /// <summary>RMB released: the motion runs from wherever it is to the end and fires there.</summary>
+    private void BeginCast(string reason)
     {
-        // Resolve the shot while the lock is still valid, then restore time before the bolt spawns
-        // so it travels at full speed from its very first frame.
-        Vector3 spawn = leftTailTip != null ? leftTailTip.position : transform.position + Vector3.up;
-        Vector3 dir = (GetAimPoint() - spawn).normalized;
-
-        lastFireTime = Time.unscaledTime;
-        EndAim(safetyOnly: false);
-
-        if (boltPrefab != null)
-        {
-            GameObject bolt = Instantiate(boltPrefab, spawn, Quaternion.LookRotation(dir));
-            TailProjectile proj = bolt.GetComponent<TailProjectile>();
-            if (proj != null) proj.Launch(dir);
-        }
+        phase = Phase.Casting;
+        ShowReticle(false);
+        Log("SHOT released (" + reason + ")");
     }
 
-    private void CancelAim()
+    /// <summary>Clean cancel of a draw or the frozen pose: no arrow, layer released, ability over.</summary>
+    private void CancelDraw(string reason)
     {
-        EndAim(safetyOnly: false);
-    }
-
-    /// <summary>Shared teardown. safetyOnly is the minimal path used when disabled mid aim, restoring the clocks, the brain flag and the animator.</summary>
-    private void EndAim(bool safetyOnly)
-    {
-        aiming = false;
+        RestoreClocksAndBrain();
         IsAiming = false;
-        lockedTarget = null;
-        lockedCollider = null;
+        ShowReticle(false);
+        CrossfadeToExit(scaledToWorld: false);
+        phase = Phase.Inactive;
+        Log("CANCEL (" + reason + "), no arrow");
+    }
 
+    /// <summary>The aim ends now but the motion must complete and fire. Used for landing and for R released mid motion.</summary>
+    private void ToFinisher(string reason)
+    {
+        RestoreClocksAndBrain();
+        IsAiming = false;
+        IsShotRunning = true;
+        ShowReticle(false);
+        phase = Phase.Finisher;
+        Log("FINISHER (" + reason + "), motion completes and fires");
+    }
+
+    /// <summary>Clean end of the ability from the Slow phase, nothing was drawn.</summary>
+    private void ExitAbility(string reason)
+    {
+        RestoreClocksAndBrain();
+        IsAiming = false;
+        ShowReticle(false);
+        phase = Phase.Inactive;
+        Log("EXIT (" + reason + ")");
+    }
+
+    /// <summary>The draw state got stomped (a hit reaction is the usual cause). Tear down safely, no arrow.</summary>
+    private void Interrupted(string where)
+    {
+        if (IsAiming) RestoreClocksAndBrain();
+        IsAiming = false;
+        IsShotRunning = false;
+        ShowReticle(false);
+        phase = Phase.Inactive;
+        Log("INTERRUPTED during " + where + ", no arrow");
+    }
+
+    /// <summary>Full safety teardown for disable and form change, restores everything it may have touched.</summary>
+    private void HardCancel(string reason)
+    {
+        if (phase == Phase.Inactive) return;
+        if (IsAiming) RestoreClocksAndBrain();
+        IsAiming = false;
+        IsShotRunning = false;
+        ShowReticle(false);
+        if (animator != null && animator.isActiveAndEnabled)
+            CrossfadeToExit(scaledToWorld: false);
+        phase = Phase.Inactive;
+        Log("HARD CANCEL (" + reason + ")");
+    }
+
+    private void RestoreClocksAndBrain()
+    {
         // Restore both clocks to their exact cached values. Never assume 1 and 0.02, so this stays
         // polite if some other system (Flurry Rush) had its own scale running.
         Time.timeScale = cachedTimeScale;
         Time.fixedDeltaTime = cachedFixedDeltaTime;
 
-        // Put the brain back exactly as it was.
         if (cinemachineBrain != null)
             cinemachineBrain.IgnoreTimeScale = cachedBrainIgnoreTimeScale;
+    }
 
-        // Always leave the combat layer on Combat_Empty, the same idle PlayerCombat returns to.
-        // Restoring a cached weight is not enough: PlayerCombat keeps the layer at weight 1
-        // permanently, so a pinned LeftTail_Fast pose sits on top of locomotion forever and reads
-        // as a freeze. Crossfading to the empty state releases the layer and base locomotion plays.
-        if (animator != null)
+    private void CrossfadeToExit(bool scaledToWorld)
+    {
+        // Always leave the combat layer on Combat_Empty, the same idle PlayerCombat returns to,
+        // so the layer releases and base locomotion shows through instead of pinning the pose.
+        if (animator == null) return;
+        animator.SetLayerWeight(combatLayerIndex, 1f);
+        float blend = scaledToWorld ? exitCrossfade * Mathf.Max(Time.timeScale, 0.01f) : exitCrossfade;
+        animator.CrossFadeInFixedTime(exitStateHash, blend, combatLayerIndex);
+    }
+
+    /// <summary>Drives the state speed multiplier every frame. 0 freezes the ready pose. While the
+    /// motion runs it is castPace divided by the world time scale, so the clip plays at the same
+    /// REAL pace during the slow and on the ground, and never slows down with the world. Neutral 1
+    /// when idle so manual previews and debug tools play the clip normally.</summary>
+    private void UpdateCastParam()
+    {
+        if (animator == null) return;
+        float value;
+        switch (phase)
         {
-            animator.SetLayerWeight(combatLayerIndex, 1f);
-            animator.CrossFadeInFixedTime(exitStateHash, exitCrossfade, combatLayerIndex);
+            case Phase.Ready: value = 0f; break;
+            case Phase.Drawing:
+            case Phase.Casting:
+            case Phase.Finisher:
+                value = castPace / Mathf.Max(Time.timeScale, 0.01f);
+                break;
+            default: value = 1f; break;
+        }
+        animator.SetFloat(castSpeedParamHash, value);
+    }
+
+    /// <summary>True while the combat layer is in (or blending into) the draw state.</summary>
+    private bool InDrawState(out AnimatorStateInfo info)
+    {
+        info = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+        if (info.shortNameHash == drawStateHash) return true;
+        if (animator.IsInTransition(combatLayerIndex))
+        {
+            info = animator.GetNextAnimatorStateInfo(combatLayerIndex);
+            if (info.shortNameHash == drawStateHash) return true;
+        }
+        return false;
+    }
+
+    /// <summary>Tracks whether this airtime belongs to a 2 leg jump by reading the base layer.
+    /// Seeing the 4 leg jump state clears it, landing clears it. No PlayerMovement changes.</summary>
+    private void UpdateJumpLatch()
+    {
+        if (playerMovement == null || animator == null) return;
+        if (!playerMovement.IsAirborne()) { lastJumpWas2Leg = false; return; }
+
+        int current = animator.GetCurrentAnimatorStateInfo(0).shortNameHash;
+        if (animator.IsInTransition(0))
+            current = animator.GetNextAnimatorStateInfo(0).shortNameHash;
+
+        if (current == twoLegJumpHash) lastJumpWas2Leg = true;
+        else if (current == fourLegJumpHash) lastJumpWas2Leg = false;
+    }
+    #endregion
+
+    #region Arrow
+    private void SpawnArrow()
+    {
+        Vector3 spawn = rightTailTip != null ? rightTailTip.position : transform.position + Vector3.up;
+        Vector3 dir = lastAimPoint - spawn;
+        if (dir.sqrMagnitude < 0.0001f) dir = transform.forward;
+        dir.Normalize();
+
+        lastFireTime = Time.unscaledTime;
+
+        if (boltPrefab == null)
+        {
+            Debug.LogWarning("[TailAirShot] FIRE but no Bolt Prefab is assigned on TailAimController.");
+            return;
         }
 
-        if (safetyOnly) return;
+        GameObject bolt = Instantiate(boltPrefab, spawn, Quaternion.LookRotation(dir));
+        TailProjectile proj = bolt.GetComponent<TailProjectile>();
+        if (proj != null) proj.Launch(dir);
 
-        if (thirdPersonCamera != null) thirdPersonCamera.SetAimMode(false);
-        ShowReticle(false);
+        Log("FIRE, arrow away, dir=" + dir.ToString("F2"));
     }
     #endregion
 
@@ -365,7 +642,9 @@ public class TailAimController : MonoBehaviour
         return true;
     }
 
-    /// <summary>The world point the bolt should fly toward: the locked enemy, or a point straight ahead.</summary>
+    /// <summary>The world point the arrow flies toward: the locked enemy, or whatever sits at the
+    /// screen centre. The ray ORIGIN is pushed forward to Yoru's depth, so ground between the
+    /// camera and Yoru can never become the target and send the arrow backward.</summary>
     private Vector3 GetAimPoint()
     {
         if (lockedTarget != null)
@@ -374,9 +653,11 @@ public class TailAimController : MonoBehaviour
         if (mainCamera != null)
         {
             Ray ray = mainCamera.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
-            if (Physics.Raycast(ray, out RaycastHit hit, aimRayDistance, environmentMask, QueryTriggerInteraction.Ignore))
+            float toYoru = Vector3.Dot(transform.position - ray.origin, ray.direction);
+            Vector3 origin = ray.GetPoint(Mathf.Max(toYoru, 0f));
+            if (Physics.Raycast(origin, ray.direction, out RaycastHit hit, aimRayDistance, environmentMask, QueryTriggerInteraction.Ignore))
                 return hit.point;
-            return ray.origin + ray.direction * aimRayDistance;
+            return origin + ray.direction * aimRayDistance;
         }
 
         return transform.position + transform.forward * aimRayDistance;
@@ -490,32 +771,42 @@ public class TailAimController : MonoBehaviour
     #endregion
 
     #region Helpers
-    /// <summary>Locate the tail tip bone to spawn the bolt from, by exact name first, then by best guess.</summary>
-    private void FindLeftTailTip()
+    /// <summary>Locate the right tail tip bone to spawn the arrow from, by exact name first, then by best guess.</summary>
+    private void FindRightTailTip()
     {
         Transform[] bones = GetComponentsInChildren<Transform>();
 
         // Exact match on the configured bone name.
         foreach (Transform t in bones)
         {
-            if (t.name == tailTipBoneName) { leftTailTip = t; return; }
+            if (t.name == rightTailTipBoneName) { rightTailTip = t; return; }
         }
 
-        // Fallback: prefer the deepest left tail bone, since tip bones carry the most _end suffixes.
+        // Fallback: prefer the deepest right tail bone, since tip bones carry the most _end suffixes.
         Transform best = null;
         int bestDepth = -1;
         foreach (Transform t in bones)
         {
-            if (!t.name.Contains("Tail") || !t.name.Contains("_L")) continue;
+            if (!t.name.Contains("Tail") || !t.name.Contains("_R")) continue;
 
             int depth = 0;
             for (Transform p = t; p != null; p = p.parent) depth++;
             if (depth > bestDepth) { bestDepth = depth; best = t; }
         }
 
-        leftTailTip = best;
-        if (leftTailTip == null)
-            Debug.LogWarning("[TailAimController] No left tail tip bone found. Assign Left Tail Tip in the Inspector.");
+        rightTailTip = best;
+        if (rightTailTip == null)
+            Debug.LogWarning("[TailAirShot] No right tail tip bone found. Assign Right Tail Tip in the Inspector.");
     }
+
+    private void Log(string msg)
+    {
+        if (!debugLogs) return;
+        Debug.Log("[TailAirShot] " + msg
+            + " | y=" + transform.position.y.ToString("F2")
+            + " ts=" + Time.timeScale.ToString("F2")
+            + " fdt=" + Time.fixedDeltaTime.ToString("F4"));
+    }
+
     #endregion
 }
