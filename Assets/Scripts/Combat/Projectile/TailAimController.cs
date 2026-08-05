@@ -85,6 +85,8 @@ public class TailAimController : MonoBehaviour
     [SerializeField] private float castPace = 1f;
     [Tooltip("The frame the draw freezes on as the ready pose.")]
     [SerializeField] private int readyFrame = 4;
+    [Tooltip("The frame the arrow actually leaves the tail, read off the clip in the Preview window. The motion keeps playing to the end after it, so the throw follows through. Nudge this by one if the arrow reads early or late.")]
+    [SerializeField] private int fireFrame = 12;
     [Tooltip("Total frames of the cast clip. RightTail_Fast is 1.40s at 30 samples = 42.")]
     [SerializeField] private int clipFrameCount = 42;
     [Tooltip("Turn Yoru to face the aim direction while drawing and holding the ready pose.")]
@@ -99,10 +101,10 @@ public class TailAimController : MonoBehaviour
     [Header("Bolt")]
     [Tooltip("Prefab with a TailProjectile component. Spawned from the right tail tip when the motion finishes.")]
     [SerializeField] private GameObject boltPrefab;
-    [Tooltip("Right tail tip spawn point. Auto finds the bone named below if left blank.")]
+    [Tooltip("Where the arrow is born. Drag any transform here (an empty child parented to the very end of the right tail is ideal). Left blank it auto finds, in order: the name below, then RightTailVFX, then the deepest right tail bone. Whatever it lands on is printed in the Console at Start.")]
     [SerializeField] private Transform rightTailTip;
-    [Tooltip("Bone name used to auto find the tail tip when Right Tail Tip is empty.")]
-    [SerializeField] private string rightTailTipBoneName = "Tail6_R_end_end";
+    [Tooltip("First name tried when Right Tail Tip is empty. RightTailVFX is the anchor YoruVFXManager already uses for right tail effects, so the arrow leaves from the same place as the tail VFX.")]
+    [SerializeField] private string rightTailTipBoneName = "RightTailVFX";
     [Tooltip("How far ahead the straight aim point sits when no enemy is locked.")]
     [SerializeField] private float aimRayDistance = 60f;
 
@@ -182,7 +184,17 @@ public class TailAimController : MonoBehaviour
     private Image reticleImage;
     private Image lockImage;
 
+    // True once this shot's arrow has left the tail, so the release cannot fire twice even if the
+    // motion is interrupted, handed to the finisher or replayed.
+    private bool shotFired;
+
+    // The fire frame is detected in Update, but the arrow is spawned in LateUpdate, after the
+    // Animator has posed the skeleton for THIS frame. Reading the tail tip in Update would give
+    // last frame's pose, and during a fast throw the tip travels a long way in one frame.
+    private bool arrowPending;
+
     private float ReadyNormalized => clipFrameCount > 0 ? (float)readyFrame / clipFrameCount : 0.095f;
+    private float FireNormalized => clipFrameCount > 0 ? (float)fireFrame / clipFrameCount : 0.286f;
     private const float EndNormalized = 0.99f;
     #endregion
 
@@ -270,6 +282,14 @@ public class TailAimController : MonoBehaviour
 
     private void LateUpdate()
     {
+        // Spawn here, once the skeleton is posed for this frame, so the arrow starts exactly at
+        // the tail tip you can see rather than one frame behind it.
+        if (arrowPending)
+        {
+            arrowPending = false;
+            SpawnArrow();
+        }
+
         if (phase != Phase.Drawing && phase != Phase.Ready) return;
         if (faceAimWhileDrawing) FaceAim();
         UpdateReticlePositions();
@@ -356,9 +376,16 @@ public class TailAimController : MonoBehaviour
 
         lastAimPoint = GetAimPoint();
 
+        // The arrow leaves the tail on its own frame, not at the end of the clip, so the throw and
+        // the shot read as one motion. The rest of the clip is the follow through.
+        if (!shotFired && info.normalizedTime >= FireNormalized)
+        {
+            arrowPending = true;
+            shotFired = true;
+        }
+
         if (info.normalizedTime >= EndNormalized)
         {
-            SpawnArrow();
             // Release the layer, stay in the ability, wait for the next RMB press.
             CrossfadeToExit(scaledToWorld: true);
             phase = Phase.Slow;
@@ -370,9 +397,14 @@ public class TailAimController : MonoBehaviour
     {
         if (!InDrawState(out AnimatorStateInfo info)) { Interrupted("finisher"); return; }
 
+        if (!shotFired && info.normalizedTime >= FireNormalized)
+        {
+            arrowPending = true;
+            shotFired = true;
+        }
+
         if (info.normalizedTime >= EndNormalized)
         {
-            SpawnArrow();
             CrossfadeToExit(scaledToWorld: false);
             IsShotRunning = false;
             phase = Phase.Inactive;
@@ -426,6 +458,8 @@ public class TailAimController : MonoBehaviour
     private void StartDraw()
     {
         phase = Phase.Drawing;
+        shotFired = false;
+        arrowPending = false;
         animator.SetLayerWeight(combatLayerIndex, 1f);
         // The blend duration is passed in scaled time so it costs the same REAL time at any
         // time scale. The clip itself runs through the speed parameter, never through the world clock.
@@ -774,15 +808,30 @@ public class TailAimController : MonoBehaviour
     /// <summary>Locate the right tail tip bone to spawn the arrow from, by exact name first, then by best guess.</summary>
     private void FindRightTailTip()
     {
-        Transform[] bones = GetComponentsInChildren<Transform>();
+        Transform[] bones = GetComponentsInChildren<Transform>(true);
 
-        // Exact match on the configured bone name.
-        foreach (Transform t in bones)
+        // Ordered by how close each one sits to the visible end of the tail. RightTailVFX is the
+        // anchor YoruVFXManager already spawns right tail effects from, so the arrow and the tail
+        // VFX agree. The plain bone chain ends at Tail6_R_end_end_end; Tail6_R_end_end is one
+        // joint short of the tip, which is why a bolt spawned there reads as coming from mid tail.
+        string[] preferred =
         {
-            if (t.name == rightTailTipBoneName) { rightTailTip = t; return; }
+            rightTailTipBoneName,
+            "RightTailVFX",
+            "Tail6_R_end_end_end",
+            "Tail6_R_end_end"
+        };
+
+        foreach (string wanted in preferred)
+        {
+            if (string.IsNullOrEmpty(wanted)) continue;
+            foreach (Transform t in bones)
+            {
+                if (t.name == wanted) { rightTailTip = t; return; }
+            }
         }
 
-        // Fallback: prefer the deepest right tail bone, since tip bones carry the most _end suffixes.
+        // Last resort: the deepest right tail transform in the hierarchy.
         Transform best = null;
         int bestDepth = -1;
         foreach (Transform t in bones)
@@ -796,7 +845,7 @@ public class TailAimController : MonoBehaviour
 
         rightTailTip = best;
         if (rightTailTip == null)
-            Debug.LogWarning("[TailAirShot] No right tail tip bone found. Assign Right Tail Tip in the Inspector.");
+            Debug.LogWarning("[TailAirShot] No right tail tip found. Assign Right Tail Tip in the Inspector.");
     }
 
     private void Log(string msg)

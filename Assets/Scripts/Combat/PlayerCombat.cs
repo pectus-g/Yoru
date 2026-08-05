@@ -290,6 +290,14 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Visual model root (auto-finds bodyYoru). Offset during guard/dash for paw clipping fix.")]
     [SerializeField] private Transform visualModelRoot;
 
+    [Header("Aerial Spin Airtime Window")]
+    [Tooltip("Least remaining airtime, in seconds, the aerial spin needs before it is allowed to start. Trigger it any lower than this and the clip gets cut off by the landing, which is the movement cutting and reading wrong. Same idea as the multi jump window in PlayerMovement: if the window is gone, the move simply does not happen. The spin clip is around 0.8s, so 0.55 lets it read without demanding the whole clip. Set to 0 to allow the spin at any height.")]
+    [SerializeField] private float aerialSpinMinAirtime = 0.55f;
+    [Tooltip("How far down to look for the ground when working out the remaining airtime. Nothing found inside this range counts as plenty of airtime, so the spin is allowed over a long drop.")]
+    [SerializeField] private float airtimeProbeDistance = 40f;
+    [Tooltip("Log why an aerial spin was refused. Useful while tuning the window, noisy afterwards.")]
+    [SerializeField] private bool logAerialSpinRefusals = true;
+
     [Header("Air Pose Height Pin")]
     [Tooltip("Stops the body dropping or popping when a combat animation takes over in mid air. The jump clips hold the body high in the POSE (they are Generic clips with no root motion node, so the rise is baked into the skeleton, not into the transform). Every combat and ability clip is authored standing at floor height. So the instant the combat layer takes the body in mid air, the body snaps down to floor height, and it pops back up when the layer hands back, while the transform never moves. This pins the body at the height the jump pose had, using the same bodyYoru offset the guard and dash fixes use. Physics, jump force, the jump clips and ground combat are all untouched.")]
     [SerializeField] private bool pinBodyHeightInAir = true;
@@ -448,6 +456,12 @@ public class PlayerCombat : MonoBehaviour
     private float airPinHeldPoseY;
     private bool airPinEngaged;
     private int combatIdleHash;
+
+    // Fall acceleration measured live from the controller, so the remaining airtime estimate uses
+    // whatever gravity PlayerMovement actually applies instead of assuming Physics.gravity.
+    private float prevVelocityY;
+    private float measuredFallAccel;
+    private readonly RaycastHit[] groundProbeBuffer = new RaycastHit[8];
     private float combatIdleSettledTimer;   // tracks how long Animator combat layer has been in idle
     private float movementStuckTimer;       // tracks how long WASD held while movement blocked by combat flags
 
@@ -540,6 +554,8 @@ public class PlayerCombat : MonoBehaviour
     private void Update()
     {
         EnforcePositionLock();
+        // Sampled before input, so the airtime window the aerial spin checks is this frame's value.
+        TrackFallAcceleration();
         UpdateHitReaction();
         HandleInput();
         CheckGroundedStatus();
@@ -2509,7 +2525,85 @@ public class PlayerCombat : MonoBehaviour
     private void TryAerialSpin()
     {
         if (hasUsedAerialAttack || isAttacking) return;
+
+        // Airtime window. Starting the spin with no room left means the landing cuts the clip off
+        // partway, which is the movement cutting out and reading wrong. Below the window the move
+        // simply never happens, the same rule the multi jump window uses in PlayerMovement.
+        float airtimeLeft = EstimateTimeToLand();
+        if (aerialSpinMinAirtime > 0f && airtimeLeft >= 0f && airtimeLeft < aerialSpinMinAirtime)
+        {
+            if (logAerialSpinRefusals)
+                Debug.Log("[Combat] Aerial spin refused: only " + airtimeLeft.ToString("F2")
+                    + "s of airtime left, needs " + aerialSpinMinAirtime.ToString("F2")
+                    + "s. (fall accel " + measuredFallAccel.ToString("F1") + ")");
+            return;
+        }
+
         PerformAerialSpin();
+    }
+
+    /// <summary>
+    /// Seconds until Yoru reaches the ground below her, or -1 when nothing is within probe range
+    /// (a long drop, which counts as plenty of time). Uses the live fall acceleration sampled from
+    /// the controller, so it stays right whatever gravity PlayerMovement applies, and it accounts
+    /// for still rising by adding the climb to the apex and the fall back down.
+    /// </summary>
+    private float EstimateTimeToLand()
+    {
+        if (characterController == null) return -1f;
+        if (characterController.isGrounded) return 0f;
+
+        const float originLift = 0.3f;
+        Vector3 origin = cachedTransform.position + Vector3.up * originLift;
+
+        // Nearest hit that is NOT Yoru herself. Environment Mask is Everything by default, so a
+        // plain Raycast starts inside her own capsule and reports zero distance, which reads as
+        // zero airtime and refuses every spin.
+        int count = Physics.RaycastNonAlloc(origin, Vector3.down, groundProbeBuffer,
+            airtimeProbeDistance, environmentMask, QueryTriggerInteraction.Ignore);
+        float nearest = -1f;
+        for (int i = 0; i < count; i++)
+        {
+            if (groundProbeBuffer[i].transform == null) continue;
+            if (groundProbeBuffer[i].transform.root == cachedTransform.root) continue; // self
+            if (nearest < 0f || groundProbeBuffer[i].distance < nearest)
+                nearest = groundProbeBuffer[i].distance;
+        }
+        if (nearest < 0f) return -1f;
+
+        float distance = Mathf.Max(0f, nearest - originLift);
+        float g = Mathf.Abs(measuredFallAccel) > 0.5f ? Mathf.Abs(measuredFallAccel) : Mathf.Abs(Physics.gravity.y);
+        if (g < 0.5f) return -1f;
+
+        float vy = characterController.velocity.y;
+        if (vy > 0f)
+        {
+            // Still rising: time up to the apex, then the fall from that extra height.
+            float apexRise = (vy * vy) / (2f * g);
+            return (vy / g) + Mathf.Sqrt(2f * (distance + apexRise) / g);
+        }
+
+        float fallSpeed = -vy;
+        return (Mathf.Sqrt(fallSpeed * fallSpeed + 2f * g * distance) - fallSpeed) / g;
+    }
+
+    /// <summary>Samples how hard Yoru is actually accelerating downward while airborne.</summary>
+    private void TrackFallAcceleration()
+    {
+        if (characterController == null) return;
+
+        float vy = characterController.velocity.y;
+        if (!characterController.isGrounded && Time.deltaTime > 0.0001f)
+        {
+            float accel = (vy - prevVelocityY) / Time.deltaTime;
+            // Only downward acceleration inside a sane range, so jump impulses and landing spikes
+            // cannot poison the reading.
+            if (accel < -0.5f && accel > -200f)
+                measuredFallAccel = measuredFallAccel < -0.5f
+                    ? Mathf.Lerp(measuredFallAccel, accel, 0.2f)
+                    : accel;
+        }
+        prevVelocityY = vy;
     }
 
     private void PerformAerialSpin()
