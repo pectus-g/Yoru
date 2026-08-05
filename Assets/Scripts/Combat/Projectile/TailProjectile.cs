@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Left tail bolt. Owns all the logic for the shot so it does not depend on any VFX pack's own
+/// Right tail bolt. Owns all the logic for the shot so it does not depend on any VFX pack's own
 /// mover script. It flies straight along the launch direction, detects the first thing on the hit
 /// or environment mask with a per frame sphere cast (so a fast bolt cannot tunnel), damages an
 /// EnemyHealth, spawns a muzzle on launch and an impact on landing, and despawns. Movement is
@@ -23,6 +23,10 @@ public class TailProjectile : MonoBehaviour
     }
 
     #region Inspector
+    [Header("Time")]
+    [Tooltip("Fly, land and play effects on REAL time, so the shot keeps its normal speed while the tail aim slow motion is running. The world stays slowed, the arrow does not, which is what keeps the release motion and the arrow leaving the tail in sync. Turn this off to have the bolt crawl with the world.")]
+    [SerializeField] private bool ignoreTimeScale = true;
+
     [Header("Flight")]
     [Tooltip("Travel speed in units per second once launched.")]
     [SerializeField] private float speed = 25f;
@@ -76,6 +80,11 @@ public class TailProjectile : MonoBehaviour
     private Vector3 direction;
     private bool launched;
     private float launchTime;
+
+    // One clock for the whole bolt. Real time by default so a shot fired inside the aim slow
+    // motion still travels, lands, ages out and plays its effects at its authored speed.
+    private float Now => ignoreTimeScale ? Time.unscaledTime : Time.time;
+    private float DeltaTime => ignoreTimeScale ? Time.unscaledDeltaTime : Time.deltaTime;
     #endregion
 
     /// <summary>Send the bolt flying along worldDirection. Call this right after spawning it.</summary>
@@ -83,13 +92,18 @@ public class TailProjectile : MonoBehaviour
     {
         direction = worldDirection.sqrMagnitude > 0.0001f ? worldDirection.normalized : transform.forward;
         transform.rotation = Quaternion.LookRotation(direction);
-        launchTime = Time.time;
+        launchTime = Now;
         launched = true;
+
+        // The bolt's own trail and body particles run on the same clock as its movement, or a
+        // fast bolt would outrun a slowed trail.
+        ApplyClockToParticles(gameObject);
 
         if (muzzlePrefab != null)
         {
             GameObject muzzle = Instantiate(muzzlePrefab, transform.position, Quaternion.LookRotation(direction));
-            Destroy(muzzle, muzzleLifetime);
+            ApplyClockToParticles(muzzle);
+            DestroyTimed(muzzle, muzzleLifetime);
         }
 
         if (launchSfx != null)
@@ -100,13 +114,13 @@ public class TailProjectile : MonoBehaviour
     {
         if (!launched) return;
 
-        if (Time.time - launchTime >= lifetime)
+        if (Now - launchTime >= lifetime)
         {
             Destroy(gameObject);
             return;
         }
 
-        float step = speed * Time.deltaTime;
+        float step = speed * DeltaTime;
         int combinedMask = hitMask | environmentMask;
 
         if (Physics.SphereCast(transform.position, castRadius, direction, out RaycastHit hit, step, combinedMask, QueryTriggerInteraction.Ignore))
@@ -146,7 +160,8 @@ public class TailProjectile : MonoBehaviour
                 : Quaternion.LookRotation(normal);
 
             GameObject fx = Instantiate(impactPrefab, pos, rot);
-            Destroy(fx, impactLifetime);
+            ApplyClockToParticles(fx);
+            DestroyTimed(fx, impactLifetime);
         }
 
         if (impactSfx != null)
@@ -165,7 +180,54 @@ public class TailProjectile : MonoBehaviour
             if (!string.IsNullOrEmpty(trailNameContains) && !ps.gameObject.name.Contains(trailNameContains)) continue;
 
             ps.transform.SetParent(null);
-            Destroy(ps.gameObject, trailLinger);
+            DestroyTimed(ps.gameObject, trailLinger);
         }
+    }
+
+    /// <summary>Put every particle system under root on the bolt's clock, so effects fired inside the aim slow motion play at their authored speed instead of crawling.</summary>
+    private void ApplyClockToParticles(GameObject root)
+    {
+        if (!ignoreTimeScale || root == null) return;
+
+        ParticleSystem[] systems = root.GetComponentsInChildren<ParticleSystem>(true);
+        foreach (ParticleSystem ps in systems)
+        {
+            ParticleSystem.MainModule main = ps.main;
+            main.useUnscaledTime = true;
+        }
+    }
+
+    /// <summary>Despawn on the bolt's clock. Timed Destroy runs on scaled time, which would leave
+    /// a muzzle or an impact hanging around ten times too long during the slow motion. The timer
+    /// rides on the spawned object itself, so it still fires after this bolt is gone.</summary>
+    private void DestroyTimed(GameObject go, float seconds)
+    {
+        if (go == null) return;
+
+        if (!ignoreTimeScale)
+        {
+            Destroy(go, seconds);
+            return;
+        }
+
+        UnscaledDespawn despawn = go.AddComponent<UnscaledDespawn>();
+        despawn.seconds = seconds;
+    }
+}
+
+/// <summary>
+/// Destroys its own GameObject after a number of REAL seconds. Added at runtime by TailProjectile
+/// to muzzles, impacts and detached trails, so effects spawned during the tail aim slow motion
+/// clean up on schedule instead of stretching with the game clock.
+/// </summary>
+public class UnscaledDespawn : MonoBehaviour
+{
+    public float seconds = 2f;
+    private float elapsed;
+
+    private void Update()
+    {
+        elapsed += Time.unscaledDeltaTime;
+        if (elapsed >= seconds) Destroy(gameObject);
     }
 }
