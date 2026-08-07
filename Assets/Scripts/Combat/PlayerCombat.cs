@@ -851,7 +851,14 @@ public class PlayerCombat : MonoBehaviour
         int combatState = animator.GetCurrentAnimatorStateInfo(combatLayerIndex).shortNameHash;
         if (animator.IsInTransition(combatLayerIndex))
             combatState = animator.GetNextAnimatorStateInfo(combatLayerIndex).shortNameHash;
-        bool combatOwnsBody = combatState != combatIdleHash;
+        // The tail air shot owns her body for its WHOLE length, not only while a cast clip happens
+        // to be playing. Between shots it parks the combat layer back on the empty state, and
+        // without this line the pin let go there and grabbed again on the next draw, so her body
+        // sank and rose once per shot. That cycling is the up and down she is seeing. Counting the
+        // ability itself as owning the body means one height is captured when she presses R and
+        // held until she lands or lets go of R, so nothing moves between shots.
+        bool tailShotActive = TailAimController.IsAiming || TailAimController.IsShotRunning;
+        bool combatOwnsBody = combatState != combatIdleHash || tailShotActive;
 
         if (airborne && combatOwnsBody)
         {

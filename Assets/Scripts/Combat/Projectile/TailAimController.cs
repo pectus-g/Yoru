@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using Unity.Cinemachine;
@@ -125,6 +126,14 @@ public class TailAimController : MonoBehaviour
     [SerializeField] private float cooldownAfterFire = 0f;
     [Tooltip("Console diagnostics for every phase change, with height and clock values.")]
     [SerializeField] private bool debugLogs = true;
+
+    [Header("Spawn Marker, for looking at only")]
+    [Tooltip("Drops two coloured balls the moment the arrow is born so you can SEE where it came from. GREEN sticks to the spot the arrow is fired from and rides the tail. MAGENTA stays put in the world at the exact place the arrow was born. Look at them and tell me which of these you see: (a) green is on her tail tip and magenta is on top of it, (b) green is on her tail tip but magenta is somewhere else, (c) green is not on her tail tip at all. Turn this off once you have looked.")]
+    [SerializeField] private bool showSpawnMarker = true;
+    [Tooltip("How long the balls stay up, in real seconds.")]
+    [SerializeField] private float spawnMarkerSeconds = 2f;
+    [Tooltip("How big the balls are, in metres.")]
+    [SerializeField] private float spawnMarkerSize = 0.08f;
 
     [Header("Reticle")]
     [Tooltip("Optional crosshair sprite. A simple dot is generated if left blank.")]
@@ -615,6 +624,10 @@ public class TailAimController : MonoBehaviour
 
         lastFireTime = Time.unscaledTime;
 
+        // Runs before the bolt check on purpose, so the markers still appear even if the prefab
+        // slot is empty and there is no arrow to look at.
+        if (showSpawnMarker) DropSpawnMarkers(spawn);
+
         if (boltPrefab == null)
         {
             Debug.LogWarning("[TailAirShot] FIRE but no Bolt Prefab is assigned on TailAimController.");
@@ -626,6 +639,100 @@ public class TailAimController : MonoBehaviour
         if (proj != null) proj.Launch(dir);
 
         Log("FIRE, arrow away, dir=" + dir.ToString("F2"));
+    }
+
+    /// <summary>
+    /// Diagnostic only, nothing here touches how the game plays. Two balls go up when the arrow is
+    /// born: a green one stuck to the transform the arrow is fired from, so it rides her tail and
+    /// shows where the game thinks the tip is, and a magenta one left standing in the world at the
+    /// exact point the arrow came out of. Comparing the two answers the question on its own. It
+    /// also kicks off the drift check below.
+    /// </summary>
+    private void DropSpawnMarkers(Vector3 spawn)
+    {
+        if (rightTailTip != null)
+        {
+            GameObject tipBall = MakeMarkerBall("TailTipMarker", Color.green);
+            tipBall.transform.SetParent(rightTailTip, false);
+            tipBall.transform.localPosition = Vector3.zero;
+            tipBall.transform.localRotation = Quaternion.identity;
+
+            // The tail bones carry the rig's own scale, so the ball has to be divided by it or it
+            // comes out either invisible or enormous.
+            Vector3 boneScale = rightTailTip.lossyScale;
+            float size = Mathf.Max(0.01f, spawnMarkerSize);
+            tipBall.transform.localScale = new Vector3(
+                size / Mathf.Max(0.0001f, Mathf.Abs(boneScale.x)),
+                size / Mathf.Max(0.0001f, Mathf.Abs(boneScale.y)),
+                size / Mathf.Max(0.0001f, Mathf.Abs(boneScale.z)));
+
+            StartCoroutine(KillAfterRealSeconds(tipBall, spawnMarkerSeconds));
+        }
+
+        GameObject spawnBall = MakeMarkerBall("ArrowSpawnMarker", Color.magenta);
+        spawnBall.transform.position = spawn;
+        StartCoroutine(KillAfterRealSeconds(spawnBall, spawnMarkerSeconds));
+
+        StartCoroutine(ReportSpawnDriftAtEndOfFrame(spawn));
+    }
+
+    /// <summary>A plain unlit looking ball with no collider and no shadows, so it cannot affect anything.</summary>
+    private GameObject MakeMarkerBall(string ballName, Color color)
+    {
+        GameObject ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        ball.name = ballName;
+
+        Collider col = ball.GetComponent<Collider>();
+        if (col != null) Destroy(col);
+
+        Renderer rend = ball.GetComponent<Renderer>();
+        if (rend != null)
+        {
+            // Both property names, so the colour lands whichever render pipeline the project is on.
+            rend.material.color = color;
+            if (rend.material.HasProperty("_BaseColor")) rend.material.SetColor("_BaseColor", color);
+            if (rend.material.HasProperty("_EmissionColor"))
+            {
+                rend.material.EnableKeyword("_EMISSION");
+                rend.material.SetColor("_EmissionColor", color);
+            }
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rend.receiveShadows = false;
+        }
+
+        ball.transform.localScale = Vector3.one * Mathf.Max(0.01f, spawnMarkerSize);
+        return ball;
+    }
+
+    /// <summary>Real seconds, not game seconds, so the balls do not linger for twenty seconds during the slow.</summary>
+    private IEnumerator KillAfterRealSeconds(GameObject go, float seconds)
+    {
+        yield return new WaitForSecondsRealtime(Mathf.Max(0.1f, seconds));
+        if (go != null) Destroy(go);
+    }
+
+    /// <summary>
+    /// Reads the tail tip again at the very end of the SAME frame the arrow was born on.
+    ///
+    /// PlayerCombat moves her body in its own LateUpdate (the air pose height pin) and this script
+    /// reads the tail in its LateUpdate. Unity does not promise which of the two runs first. If
+    /// PlayerCombat ran second, the arrow was born from where her tail was BEFORE her body was put
+    /// at the right height, which would put it well off the tip. This log measures exactly that:
+    /// the drift number is roughly how far off the arrow is, and a big one names the cause.
+    /// </summary>
+    private IEnumerator ReportSpawnDriftAtEndOfFrame(Vector3 spawn)
+    {
+        yield return new WaitForEndOfFrame();
+        if (rightTailTip == null) yield break;
+
+        Vector3 settled = rightTailTip.position;
+        float drift = Vector3.Distance(settled, spawn);
+        Debug.Log("[TailAirShot] spawn drift check: arrow born at " + spawn.ToString("F3")
+            + ", tail tip at end of frame " + settled.ToString("F3")
+            + ", drift " + drift.ToString("F3") + "m"
+            + (drift > 0.05f
+                ? "  <<< THE ARROW IS BORN FROM A STALE POSITION, this is the miss"
+                : "  (spawn point is current, the tip is not the problem)"));
     }
     #endregion
 
