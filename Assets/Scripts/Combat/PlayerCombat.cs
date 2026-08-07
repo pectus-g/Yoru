@@ -290,13 +290,17 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Visual model root (auto-finds bodyYoru). Offset during guard/dash for paw clipping fix.")]
     [SerializeField] private Transform visualModelRoot;
 
-    [Header("Aerial Spin Airtime Window")]
-    [Tooltip("Least remaining airtime, in seconds, the aerial spin needs before it is allowed to start. Trigger it any lower than this and the clip gets cut off by the landing, which is the movement cutting and reading wrong. Same idea as the multi jump window in PlayerMovement: if the window is gone, the move simply does not happen. The spin clip is around 0.8s, so 0.55 lets it read without demanding the whole clip. Set to 0 to allow the spin at any height.")]
-    [SerializeField] private float aerialSpinMinAirtime = 0.55f;
-    [Tooltip("How far down to look for the ground when working out the remaining airtime. Nothing found inside this range counts as plenty of airtime, so the spin is allowed over a long drop.")]
+    [Header("Aerial Spin")]
+    [Tooltip("Seconds between damage ticks while the spin runs. The spin hurts everything close to her for its whole length, in the air and on the ground, so this is how fast that damage repeats. 0.15 is about five hits across the clip.")]
+    [SerializeField] private float aerialSpinTickInterval = 0.15f;
+    [Tooltip("Damage per tick to every enemy in range. Kept separate from Aerial Spin Damage (the old single hit value) so the spin's total can be tuned without touching anything else.")]
+    [SerializeField] private int aerialSpinTickDamage = 10;
+    [Tooltip("Hard safety cap in seconds. The spin normally ends when its clip finishes; this only exists so an interrupted or missing clip can never leave Yoru spinning forever.")]
+    [SerializeField] private float aerialSpinMaxTime = 2f;
+    [Tooltip("Let Yoru run around while she finishes the spin on the ground, the way the Tasmanian Devil keeps travelling while spinning. Off means her feet stay planted until the spin ends, like every other attack.")]
+    [SerializeField] private bool moveWhileSpinningOnGround = true;
+    [Tooltip("How far down to look for the ground when working out how long until she lands. Used to settle her body before touchdown, so nothing snaps at the landing.")]
     [SerializeField] private float airtimeProbeDistance = 40f;
-    [Tooltip("Log why an aerial spin was refused. Useful while tuning the window, noisy afterwards.")]
-    [SerializeField] private bool logAerialSpinRefusals = true;
 
     [Header("Air Pose Height Pin")]
     [Tooltip("Stops the body dropping or popping when a combat animation takes over in mid air. The jump clips hold the body high in the POSE (they are Generic clips with no root motion node, so the rise is baked into the skeleton, not into the transform). Every combat and ability clip is authored standing at floor height. So the instant the combat layer takes the body in mid air, the body snaps down to floor height, and it pops back up when the layer hands back, while the transform never moves. This pins the body at the height the jump pose had, using the same bodyYoru offset the guard and dash fixes use. Physics, jump force, the jump clips and ground combat are all untouched.")]
@@ -305,8 +309,10 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private Transform poseHeightBone;
     [Tooltip("Bone searched for when Pose Height Bone is empty. Root_M is the top of the animated chain (DeformationSystem/root/Root_M).")]
     [SerializeField] private string poseHeightBoneName = "Root_M";
-    [Tooltip("Real seconds to ease the pin out on landing. Poses agree on the ground, so this only needs to be short.")]
+    [Tooltip("Real seconds to ease the pin out when the combat layer hands the body back while she is still in the air.")]
     [SerializeField] private float airPinReleaseRamp = 0.12f;
+    [Tooltip("Seconds before touchdown that her body starts settling to standing height. The correction is faded out across this window so it reaches zero exactly as her paws land, which is why nothing snaps at the landing. Longer is gentler but starts the settle higher up.")]
+    [SerializeField] private float airPinSettleBeforeLanding = 0.18f;
     [Tooltip("Log the measured pose height difference each time the pin engages. Useful once, noisy forever.")]
     [SerializeField] private bool logAirPin = true;
 
@@ -462,6 +468,11 @@ public class PlayerCombat : MonoBehaviour
     private float prevVelocityY;
     private float measuredFallAccel;
     private readonly RaycastHit[] groundProbeBuffer = new RaycastHit[8];
+
+    // Aerial spin lifecycle. The routine owns the spin from the press until the clip finishes,
+    // straight through the landing, and ticks damage the whole way.
+    private Coroutine aerialSpinCoroutine;
+    private bool aerialSpinTicking;
     private float combatIdleSettledTimer;   // tracks how long Animator combat layer has been in idle
     private float movementStuckTimer;       // tracks how long WASD held while movement blocked by combat flags
 
@@ -853,7 +864,20 @@ public class PlayerCombat : MonoBehaviour
                     Debug.Log("[AirPosePin] engaged, holding body at " + airPinHeldPoseY.ToString("F3")
                         + "m above the transform");
             }
-            airPinComp = airPinHeldPoseY - rawPoseY;
+            float correction = airPinHeldPoseY - rawPoseY;
+
+            // Settle before touchdown. Her body has to come from its in air height down to standing
+            // height at some point; doing it at the landing frame is the snap. So the correction is
+            // faded out across the last moments of the fall and reaches zero exactly as she lands,
+            // leaving nothing to move at the landing itself.
+            if (airPinSettleBeforeLanding > 0.001f)
+            {
+                float timeToLand = EstimateTimeToLand();
+                if (timeToLand >= 0f)
+                    correction *= Mathf.Clamp01(timeToLand / airPinSettleBeforeLanding);
+            }
+
+            airPinComp = correction;
             return;
         }
 
@@ -861,7 +885,16 @@ public class PlayerCombat : MonoBehaviour
             Debug.Log("[AirPosePin] released, peak correction was " + airPinComp.ToString("F3") + "m");
         airPinEngaged = false;
 
-        // Off the pin: airborne hand back settles itself as the pose blends home, landing eases out.
+        // On the ground the correction is already zero, because the settle above finished it during
+        // the fall. Anything left is rounding, so clear it rather than ease it and risk a float.
+        if (!airborne)
+        {
+            airPinComp = 0f;
+            return;
+        }
+
+        // Still airborne, so the combat layer handed the body back mid air. The pose blends home on
+        // its own, so unwind gently and let the two move together.
         float ease = airPinReleaseRamp > 0.001f ? Time.unscaledDeltaTime / airPinReleaseRamp : 1f;
         airPinComp = Mathf.MoveTowards(airPinComp, 0f, Mathf.Abs(airPinComp) * ease + 0.0005f);
     }
@@ -886,9 +919,13 @@ public class PlayerCombat : MonoBehaviour
             // the event to never fire → isAttacking stuck permanently → movement frozen.
             // 0.15s grace prevents false trigger on the frame right after jump (isGrounded
             // can be stale for 1-2 frames before CharacterController.Move applies velocity).
-            if (isAerialAttack && isAttacking && Time.time - attackStartTime > 0.15f)
+            // The landing no longer ends the spin: it carries on and finishes on the ground, which
+            // is the only way it can ever complete (the clip is about 0.8s, a 2 leg jump gives
+            // about 0.45s of air). AerialSpinRoutine owns the ending and always closes out, so this
+            // only fires for a spin with no routine running, which would be a stuck flag.
+            if (isAerialAttack && isAttacking && !aerialSpinTicking && Time.time - attackStartTime > 0.15f)
             {
-                DebugLog("Aerial spin: force-ending on landing (animation event unreliable mid-air)");
+                DebugLog("Aerial spin: force-ending on landing (no spin routine running)");
                 OnAttackEnd();
             }
 
@@ -2526,19 +2563,9 @@ public class PlayerCombat : MonoBehaviour
     {
         if (hasUsedAerialAttack || isAttacking) return;
 
-        // Airtime window. Starting the spin with no room left means the landing cuts the clip off
-        // partway, which is the movement cutting out and reading wrong. Below the window the move
-        // simply never happens, the same rule the multi jump window uses in PlayerMovement.
-        float airtimeLeft = EstimateTimeToLand();
-        if (aerialSpinMinAirtime > 0f && airtimeLeft >= 0f && airtimeLeft < aerialSpinMinAirtime)
-        {
-            if (logAerialSpinRefusals)
-                Debug.Log("[Combat] Aerial spin refused: only " + airtimeLeft.ToString("F2")
-                    + "s of airtime left, needs " + aerialSpinMinAirtime.ToString("F2")
-                    + "s. (fall accel " + measuredFallAccel.ToString("F1") + ")");
-            return;
-        }
-
+        // No airtime refusal any more. The spin used to be cut off by the landing, so it had to be
+        // refused when there was no room left; now it carries through the landing and finishes on
+        // the ground, so there is nothing to protect against and it may always start.
         PerformAerialSpin();
     }
 
@@ -2625,6 +2652,73 @@ public class PlayerCombat : MonoBehaviour
         canQueueNextAttack = false;
         queuedClicks = 0;
         lastAttackTime = Time.time;
+
+        // The routine owns the spin from here: it keeps hurting everything close for the whole
+        // clip and carries the spin through the landing so it finishes on the ground.
+        if (aerialSpinCoroutine != null) StopCoroutine(aerialSpinCoroutine);
+        aerialSpinCoroutine = StartCoroutine(AerialSpinRoutine());
+    }
+
+    /// <summary>
+    /// Runs the spin for its whole clip, landing included, ticking damage onto every enemy in range
+    /// as it goes. Ends when the clip is essentially complete, when another action takes over, or
+    /// at the safety cap, whichever comes first. The landing never ends it.
+    /// </summary>
+    private IEnumerator AerialSpinRoutine()
+    {
+        aerialSpinTicking = true;
+        float startTime = Time.time;
+        float nextTick = 0f;
+
+        while (isAttacking && isAerialAttack)
+        {
+            if (isInHitReaction || isDodging || isDashing || isGuarding) break;
+            if (Time.time - startTime >= aerialSpinMaxTime) break;
+
+            if (Time.time >= nextTick)
+            {
+                nextTick = Time.time + Mathf.Max(0.02f, aerialSpinTickInterval);
+                TickAerialSpinDamage();
+            }
+
+            // End on the clip's own finish, never on the landing. Reaching the state can take a
+            // frame or two through the crossfade, hence the state check before reading progress.
+            if (animator != null)
+            {
+                AnimatorStateInfo spin = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+                if (spin.shortNameHash == combo3StateHash && spin.normalizedTime >= 0.95f) break;
+            }
+
+            yield return null;
+        }
+
+        aerialSpinTicking = false;
+        aerialSpinCoroutine = null;
+
+        // Only close the attack out if nothing else already did (the clip's own OnAttackEnd event,
+        // a hit reaction, a dodge), so this can never end an action it does not own.
+        if (isAttacking && isAerialAttack) OnAttackEnd();
+    }
+
+    /// <summary>One damage tick: every live enemy inside attack range takes the spin's tick damage.</summary>
+    private void TickAerialSpinDamage()
+    {
+        if (attackPoint == null) return;
+
+        System.Collections.Generic.List<EnemyHealth> targets = EnemiesInBeybladeRange();
+        foreach (EnemyHealth target in targets)
+        {
+            if (target == null || target.IsDead()) continue;
+
+            target.TakeDamage(aerialSpinTickDamage, false);
+            engagedInCombatUntil = Time.time + engagedInCombatDuration;
+
+            Collider c = target.GetComponent<Collider>();
+            Vector3 contact = c != null ? c.ClosestPoint(attackPoint.position) : target.transform.position;
+            Animator enemyAnim = target.GetComponent<Animator>();
+            if (enemyAnim == null) enemyAnim = target.GetComponentInChildren<Animator>();
+            PlayStrikeFeedback(contact, false, true, enemyAnim);
+        }
     }
     #endregion
 
@@ -2773,6 +2867,8 @@ public class PlayerCombat : MonoBehaviour
         // During the beyblade finisher, BeybladeRoutine deals the damage one enemy at a time, so the
         // Combo3 clip's own DealDamage animation event must not also fire (it would double-hit).
         if (isBeyblading) return;
+        // Same for the aerial spin, where AerialSpinRoutine ticks the damage for the whole clip.
+        if (aerialSpinTicking) return;
         int damage = isAerialAttack ? aerialSpinDamage : GetComboDamage(currentComboStep);
         bool isFinisher = !isAerialAttack && currentComboStep == 3;
         DealDamageInRange(damage, isFinisher);
@@ -2987,6 +3083,15 @@ public class PlayerCombat : MonoBehaviour
             ForceResetCombat();
             return false;
         }
+
+        // Taz rule: while she is finishing the spin ON THE GROUND, this reports "not attacking" so
+        // PlayerMovement lets her run around instead of planting her feet. PlayerMovement is not
+        // touched; it simply gets a different answer for that short window. Internally the attack
+        // is still live (the field, not this accessor), so nothing else about the spin changes.
+        if (moveWhileSpinningOnGround && aerialSpinTicking && isAerialAttack
+            && characterController != null && characterController.isGrounded)
+            return false;
+
         return isAttacking;
     }
     public bool IsChargingHeavy() => isChargingHeavy;
