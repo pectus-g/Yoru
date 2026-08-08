@@ -92,6 +92,8 @@ public class TailAimController : MonoBehaviour
     [SerializeField] private int clipFrameCount = 42;
     [Tooltip("Turn Yoru to face the aim direction while drawing and holding the ready pose.")]
     [SerializeField] private bool faceAimWhileDrawing = true;
+    [Tooltip("How fast she turns to follow the camera while you are aiming, in degrees per REAL second. She used to be slammed onto the camera direction every single frame with no easing at all, while the camera itself is smoothed, so every small mouse move jolted her whole body. That is the juddering. Higher is snappier, lower is heavier. Set to 0 to go back to the old instant snap for comparison.")]
+    [SerializeField] private float aimTurnSpeed = 720f;
 
     [Header("Jump Gate")]
     [Tooltip("Base layer state of the 2 leg jump. Only this jump may use the ability.")]
@@ -822,13 +824,33 @@ public class TailAimController : MonoBehaviour
         return transform.position + transform.forward * aimRayDistance;
     }
 
+    /// <summary>
+    /// Turns her body to follow the camera while aiming.
+    ///
+    /// This only changes which way her BODY points. Where the arrow goes is worked out from the
+    /// camera in GetAimPoint, never from her rotation, so nothing here can move your shot.
+    ///
+    /// The speed is measured in real seconds on purpose. During the slow the world runs at a tenth
+    /// speed but your hand on the mouse does not, and the camera is already running on real time,
+    /// so measuring her turn in game time would make her crawl ten times behind your hand.
+    /// </summary>
     private void FaceAim()
     {
         if (mainCamera == null) return;
         Vector3 flat = mainCamera.transform.forward;
         flat.y = 0f;
         if (flat.sqrMagnitude < 0.0001f) return;
-        transform.rotation = Quaternion.LookRotation(flat);
+
+        Quaternion wanted = Quaternion.LookRotation(flat);
+
+        if (aimTurnSpeed <= 0f)
+        {
+            transform.rotation = wanted;
+            return;
+        }
+
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation, wanted, aimTurnSpeed * Time.unscaledDeltaTime);
     }
     #endregion
 
