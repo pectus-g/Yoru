@@ -102,12 +102,14 @@ public class TailAimController : MonoBehaviour
     [Header("Bolt")]
     [Tooltip("Prefab with a TailProjectile component. Spawned from the right tail tip when the motion finishes.")]
     [SerializeField] private GameObject boltPrefab;
-    [Tooltip("Where the arrow is born. Drag any transform here (an empty child parented to the very end of the right tail is ideal). Left blank it auto finds, in order: the name below, then RightTailVFX, then the deepest right tail bone. Whatever it lands on is printed in the Console at Start.")]
+    [Tooltip("Where the arrow is born. YOU set this. The script never goes looking on its own any more. Drag in an empty child of the last right tail bone, moved out by hand to the fluffy end of the tail. Left empty, the Console says so at Start and no arrow is ever fired, so a wrong bone can never be picked for you.")]
     [SerializeField] private Transform rightTailTip;
-    [Tooltip("First name tried when Right Tail Tip is empty. RightTailVFX is the anchor YoruVFXManager already uses for right tail effects, so the arrow leaves from the same place as the tail VFX.")]
-    [SerializeField] private string rightTailTipBoneName = "RightTailVFX";
     [Tooltip("How far ahead the straight aim point sits when no enemy is locked.")]
     [SerializeField] private float aimRayDistance = 60f;
+
+    [Header("Aim VFX")]
+    [Tooltip("Your own effect, already sitting in the scene, ideally a child of the same tail tip object above. Leave it unticked in the Hierarchy. This script only ticks it on while she is aiming and unticks it the moment she looses the shot. It is never copied, never moved, never rebuilt, and nothing about lighting, materials or shaders is touched.")]
+    [SerializeField] private GameObject aimVFX;
 
     [Header("Targeting")]
     [Tooltip("How far to look for an enemy to snap onto.")]
@@ -223,7 +225,6 @@ public class TailAimController : MonoBehaviour
         fourLegJumpHash = Animator.StringToHash(fourLegJumpStateName);
         castSpeedParamHash = Animator.StringToHash(castSpeedParamName);
 
-        if (rightTailTip == null) FindRightTailTip();
         BuildReticle();
     }
 
@@ -246,10 +247,16 @@ public class TailAimController : MonoBehaviour
                 + " Parameter box on the " + drawStateName + " state, or the draw cannot pause on frame "
                 + readyFrame + ".");
 
+        // The tip is yours now, so an empty slot is an error and not something to paper over.
+        if (rightTailTip == null)
+            Debug.LogError("[TailAirShot] Right Tail Tip is EMPTY on TailAimController. Nothing will be"
+                + " fired. Drag the tail tip object into that slot in the Inspector.");
+
         if (debugLogs)
             Debug.Log("[TailAirShot] Ready. drawState=" + drawStateName
-                + " tailTip=" + (rightTailTip != null ? rightTailTip.name : "NOT FOUND")
-                + " castParam=" + castSpeedParamName + (paramFound ? " (found)" : " (MISSING)"));
+                + " castParam=" + castSpeedParamName + (paramFound ? " (found)" : " (MISSING)")
+                + "\n  arrow leaves: " + FullPath(rightTailTip)
+                + "\n  aim VFX: " + (aimVFX != null ? FullPath(aimVFX.transform) : "none assigned"));
     }
 
     private void OnDisable()
@@ -291,6 +298,10 @@ public class TailAimController : MonoBehaviour
 
     private void LateUpdate()
     {
+        // Driven off the phase in one place rather than sprinkled through every exit, so there is no
+        // way out of the ability that can leave your effect stuck on.
+        UpdateAimVFX();
+
         // Spawn here, once the skeleton is posed for this frame, so the arrow starts exactly at
         // the tail tip you can see rather than one frame behind it.
         if (arrowPending)
@@ -617,7 +628,14 @@ public class TailAimController : MonoBehaviour
     #region Arrow
     private void SpawnArrow()
     {
-        Vector3 spawn = rightTailTip != null ? rightTailTip.position : transform.position + Vector3.up;
+        if (rightTailTip == null)
+        {
+            Debug.LogError("[TailAirShot] FIRE but Right Tail Tip is EMPTY. No arrow. The script will"
+                + " not guess a bone for you. Assign it in the Inspector.");
+            return;
+        }
+
+        Vector3 spawn = rightTailTip.position;
         Vector3 dir = lastAimPoint - spawn;
         if (dir.sqrMagnitude < 0.0001f) dir = transform.forward;
         dir.Normalize();
@@ -913,46 +931,29 @@ public class TailAimController : MonoBehaviour
 
     #region Helpers
     /// <summary>Locate the right tail tip bone to spawn the arrow from, by exact name first, then by best guess.</summary>
-    private void FindRightTailTip()
+    /// <summary>
+    /// Ticks your aim effect on while she is aiming and off the instant she looses the shot.
+    ///
+    /// Aiming is RMB held, which is the Drawing and Ready phases, exactly as the locked spec has it.
+    /// Reading the phase every frame instead of switching it at each exit means no cancel, landing,
+    /// interruption or form change can strand it switched on. The object itself is never copied,
+    /// moved or rebuilt, only its checkbox is touched.
+    /// </summary>
+    private void UpdateAimVFX()
     {
-        Transform[] bones = GetComponentsInChildren<Transform>(true);
+        if (aimVFX == null) return;
 
-        // Ordered by how close each one sits to the visible end of the tail. RightTailVFX is the
-        // anchor YoruVFXManager already spawns right tail effects from, so the arrow and the tail
-        // VFX agree. The plain bone chain ends at Tail6_R_end_end_end; Tail6_R_end_end is one
-        // joint short of the tip, which is why a bolt spawned there reads as coming from mid tail.
-        string[] preferred =
-        {
-            rightTailTipBoneName,
-            "RightTailVFX",
-            "Tail6_R_end_end_end",
-            "Tail6_R_end_end"
-        };
+        bool aiming = phase == Phase.Drawing || phase == Phase.Ready;
+        if (aimVFX.activeSelf != aiming) aimVFX.SetActive(aiming);
+    }
 
-        foreach (string wanted in preferred)
-        {
-            if (string.IsNullOrEmpty(wanted)) continue;
-            foreach (Transform t in bones)
-            {
-                if (t.name == wanted) { rightTailTip = t; return; }
-            }
-        }
-
-        // Last resort: the deepest right tail transform in the hierarchy.
-        Transform best = null;
-        int bestDepth = -1;
-        foreach (Transform t in bones)
-        {
-            if (!t.name.Contains("Tail") || !t.name.Contains("_R")) continue;
-
-            int depth = 0;
-            for (Transform p = t; p != null; p = p.parent) depth++;
-            if (depth > bestDepth) { bestDepth = depth; best = t; }
-        }
-
-        rightTailTip = best;
-        if (rightTailTip == null)
-            Debug.LogWarning("[TailAirShot] No right tail tip found. Assign Right Tail Tip in the Inspector.");
+    /// <summary>Full hierarchy path, so the Console names exactly which object and which skeleton.</summary>
+    private static string FullPath(Transform t)
+    {
+        if (t == null) return "NOT ASSIGNED";
+        string path = t.name;
+        for (Transform p = t.parent; p != null; p = p.parent) path = p.name + "/" + path;
+        return path;
     }
 
     private void Log(string msg)
