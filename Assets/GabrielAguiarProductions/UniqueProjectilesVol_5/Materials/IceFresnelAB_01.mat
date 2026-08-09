@@ -21,12 +21,16 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: IceFresnelAB_01
-  m_Shader: {fileID: -6465566751694194690, guid: 47b462fd4df366e4eac78ae3f583846a,
-    type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 47b462fd4df366e4eac78ae3f583846a, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
+  - _BUILTIN_ALPHATEST_ON
+  - _BUILTIN_AlphaClip
+  - _BUILTIN_SURFACE_TYPE_TRANSPARENT
+  m_InvalidKeywords:
   - _ALPHATEST_ON
   - _SURFACE_TYPE_TRANSPARENT
-  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -36,6 +40,7 @@ Material:
   disabledShaderPasses:
   - DepthOnly
   - SHADOWCASTER
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -117,6 +122,7 @@ Material:
     - _MainTexSpeed: {r: 0.2, g: 1, b: 0, a: 0}
     - _MainTexTiling: {r: 1, g: -1, b: 0, a: 0}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!114 &1284865503178745557
 MonoBehaviour:
   m_ObjectHideFlags: 11

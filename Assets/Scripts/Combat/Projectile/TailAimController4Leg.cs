@@ -126,9 +126,16 @@ public class TailAimController4Leg : MonoBehaviour
     [Tooltip("How far ahead the straight aim point sits when no enemy is locked.")]
     [SerializeField] private float aimRayDistance = 60f;
 
-    [Header("Aim VFX")]
-    [Tooltip("Your own effect, already sitting in the scene, ideally a child of the same tail tip object above. Leave it unticked in the Hierarchy. This script only ticks it on while she is aiming and unticks it the moment she looses the shot. It is never copied, never moved, never rebuilt, and nothing about lighting, materials or shaders is touched.")]
-    [SerializeField] private GameObject aimVFX;
+    [Header("Damage")]
+    [Tooltip("Multiplies the bolt prefab's own damage for THIS ability only, applied to each arrow the moment it is born. 2 means twice as hard. The bolt prefab on disk is never edited, so the 2 leg shot keeps its normal damage even though both share the same prefab. If you swap in a beefier looking bolt prefab later this still works, it just multiplies whatever that one is set to. The Console prints the real number on every shot so you never have to do the sum in your head.")]
+    [Min(0.01f)]
+    [SerializeField] private float damageMultiplier = 2f;
+
+    [Header("Aim VFX, one per tail")]
+    [Tooltip("The glow on the LEFT tail tip. Your own effect, already sitting in the scene, ideally a child of the left tail anchor. Leave it unticked in the Hierarchy. This script only ticks it on while she is aiming and unticks it the moment she looses the shot. It is never copied, never moved, never rebuilt, and nothing about lighting, materials or shaders is touched.")]
+    [SerializeField] private GameObject aimVfxLeft;
+    [Tooltip("The glow on the RIGHT tail tip. Same rules as the left one. It must be a DIFFERENT object from the one the 2 leg shot uses. If both scripts are handed the same object they each set its checkbox every frame and fight over it, and whichever runs last wins.")]
+    [SerializeField] private GameObject aimVfxRight;
 
     [Header("Targeting")]
     [Tooltip("How far to look for an enemy to snap onto.")]
@@ -243,6 +250,18 @@ public class TailAimController4Leg : MonoBehaviour
     /// <summary>True once the real time slow budget is spent. A budget of 0 switches the timer off.</summary>
     private bool SlowBudgetSpent => maxSlowSeconds > 0.001f
         && Time.unscaledTime - abilityStartRealTime >= maxSlowSeconds;
+
+    /// <summary>
+    /// The pointer is up for the WHOLE ability, from the R press until it ends, not only while the
+    /// fire button is held.
+    ///
+    /// The 2 leg version only shows it during the draw, and that is fine there because the draw is
+    /// long. This clip reaches its ready pose in five frames, about a sixth of a real second, so a
+    /// pointer that only appears then is gone before you can look at it. Keeping it up through the
+    /// Slow phase means it is on screen the entire time the world is crawling and you are choosing
+    /// a target. It goes off the moment the shot leaves.
+    /// </summary>
+    private bool ReticleShouldShow => phase == Phase.Slow || phase == Phase.Drawing || phase == Phase.Ready;
     #endregion
 
     #region Unity
@@ -293,19 +312,43 @@ public class TailAimController4Leg : MonoBehaviour
         if (tailTip == null)
             Debug.LogError("[TailAirShot4Leg] Tail Tip is EMPTY on TailAimController4Leg. Nothing will"
                 + " be fired. Drag the tail tip object into that slot in the Inspector.");
-        else if (IsUnderDeadSkeleton(tailTip))
-            Debug.LogError("[TailAirShot4Leg] Tail Tip is parented under bodyYoru, which is SWITCHED"
-                + " OFF and is never posed by the animator. It will sit frozen in its bind pose and"
-                + " every arrow will be born in the same wrong place. Move the anchor under"
-                + " Cat_All_10_Tails_v4.\n  current path: " + FullPath(tailTip));
+        else
+            WarnIfDead("Tail Tip", tailTip);
+
+        // Both glows get the same check. The left tail is the newer anchor and bodyYoru still owns
+        // an object called LeftTailVFX, so this is the exact trap that is easiest to walk into.
+        if (aimVfxLeft != null) WarnIfDead("Aim VFX Left", aimVfxLeft.transform);
+        if (aimVfxRight != null) WarnIfDead("Aim VFX Right", aimVfxRight.transform);
+
+        if (aimVfxLeft != null && aimVfxRight != null && aimVfxLeft == aimVfxRight)
+            Debug.LogWarning("[TailAirShot4Leg] Aim VFX Left and Aim VFX Right are the SAME object,"
+                + " so only one tail will glow. Give each tail its own effect.");
+
+        if (damageMultiplier <= 0f)
+            Debug.LogWarning("[TailAirShot4Leg] Damage Multiplier is " + damageMultiplier.ToString("F2")
+                + ", which is ignored rather than obeyed, because zero or negative damage is never"
+                + " what anyone means. Every arrow will do the bolt prefab's own damage instead."
+                + " Set it to 2 for twice as hard.");
 
         if (debugLogs)
             Debug.Log("[TailAirShot4Leg] Ready. drawState=" + drawStateName
                 + " castParam=" + castSpeedParamName + (paramFound ? " (found)" : " (MISSING)")
                 + " readyFrame=" + readyFrame + " fireFrame=" + fireFrame + " frames=" + clipFrameCount
                 + " slowBudget=" + (maxSlowSeconds > 0.001f ? maxSlowSeconds + "s real" : "off")
+                + " damageMultiplier=" + damageMultiplier.ToString("F2")
                 + "\n  arrow leaves: " + FullPath(tailTip)
-                + "\n  aim VFX: " + (aimVFX != null ? FullPath(aimVFX.transform) : "none assigned"));
+                + "\n  aim VFX left:  " + (aimVfxLeft != null ? FullPath(aimVfxLeft.transform) : "none assigned")
+                + "\n  aim VFX right: " + (aimVfxRight != null ? FullPath(aimVfxRight.transform) : "none assigned"));
+    }
+
+    /// <summary>Names an object that has been parented under the switched off skeleton, loudly, at Start.</summary>
+    private static void WarnIfDead(string slotName, Transform t)
+    {
+        if (!IsUnderDeadSkeleton(t)) return;
+        Debug.LogError("[TailAirShot4Leg] " + slotName + " is parented under bodyYoru, which is"
+            + " SWITCHED OFF and is never posed by the animator. It will sit frozen in its bind pose"
+            + " out at her side forever. Move it under Cat_All_10_Tails_v4."
+            + "\n  current path: " + FullPath(t));
     }
 
     private void OnDisable()
@@ -316,6 +359,9 @@ public class TailAimController4Leg : MonoBehaviour
 
     private void OnDestroy()
     {
+        // Same reason as OnDisable: no more LateUpdate, so the glows have to be told out loud.
+        ForceVisualsOff();
+
         // The reticle canvas is a root object, so it does not die with the player automatically.
         if (reticleCanvas != null) Destroy(reticleCanvas.gameObject);
     }
@@ -347,9 +393,10 @@ public class TailAimController4Leg : MonoBehaviour
 
     private void LateUpdate()
     {
-        // Driven off the phase in one place rather than sprinkled through every exit, so there is no
-        // way out of the ability that can leave your effect stuck on.
+        // Both of these are driven off the phase in one place rather than sprinkled through every
+        // exit, so there is no way out of the ability that can leave a glow or the pointer stuck on.
         UpdateAimVFX();
+        UpdateReticleVisibility();
 
         // Spawn here, once the skeleton is posed for this frame, so the arrow starts exactly at
         // the tail tip you can see rather than one frame behind it.
@@ -359,9 +406,14 @@ public class TailAimController4Leg : MonoBehaviour
             SpawnArrow();
         }
 
-        if (phase != Phase.Drawing && phase != Phase.Ready) return;
-        if (faceAimWhileDrawing) FaceAim();
+        // The pointer is up for the whole ability, so it also has to be positioned for the whole
+        // ability, otherwise the lock ring would freeze on the last enemy while she is just holding R.
+        if (!ReticleShouldShow) return;
         UpdateReticlePositions();
+
+        // Her body only turns to the camera once she is actually drawing. Holding R on its own does
+        // not spin her round, which is the behaviour the 2 leg shot already has.
+        if (faceAimWhileDrawing && (phase == Phase.Drawing || phase == Phase.Ready)) FaceAim();
     }
     #endregion
 
@@ -396,6 +448,11 @@ public class TailAimController4Leg : MonoBehaviour
 
         // Fire button pressed: start the draw. The camera keeps doing its own vanilla work in parallel.
         if (Input.GetMouseButtonDown(fireMouseButton)) StartDraw();
+
+        // The pointer is on screen through this whole phase now, so the enemy lock has to be live
+        // here too. Without this the ring would sit on whoever was locked when the last shot left.
+        UpdateLock();
+        lastAimPoint = GetAimPoint();
     }
 
     private void TickDrawing()
@@ -619,6 +676,12 @@ public class TailAimController4Leg : MonoBehaviour
     /// <summary>Full safety teardown for disable and form change, restores everything it may have touched.</summary>
     private void HardCancel(string reason)
     {
+        // Before the early return, deliberately. LateUpdate is what normally switches the glows and
+        // the pointer off, and a disabled component gets no LateUpdate at all. If this is reached on
+        // the frame the phase already went Inactive, the early return below would skip everything
+        // and both tail tips would stay lit forever with nothing left running to turn them off.
+        ForceVisualsOff();
+
         if (phase == Phase.Inactive) return;
         if (IsAiming) RestoreClocksAndBrain();
         IsAiming = false;
@@ -739,9 +802,22 @@ public class TailAimController4Leg : MonoBehaviour
 
         GameObject bolt = Instantiate(boltPrefab, spawn, Quaternion.LookRotation(dir));
         TailProjectile proj = bolt.GetComponent<TailProjectile>();
-        if (proj != null) proj.Launch(dir);
 
-        Log("FIRE, arrow away, dir=" + dir.ToString("F2"));
+        string damageNote = "";
+        if (proj != null)
+        {
+            // Scaled on the spawned copy only. The prefab on disk is never edited, so the 2 leg
+            // shot keeps its own damage even though both abilities fire the same prefab.
+            int before = proj.Damage;
+            proj.ScaleDamage(damageMultiplier);
+            damageNote = " damage=" + proj.Damage + (damageMultiplier > 0f
+                ? " (" + before + " x " + damageMultiplier.ToString("F2") + ")"
+                : " (Damage Multiplier is " + damageMultiplier.ToString("F2")
+                    + " and was IGNORED, this is the bolt prefab's own number)");
+            proj.Launch(dir);
+        }
+
+        Log("FIRE, arrow away, dir=" + dir.ToString("F2") + damageNote);
     }
 
     /// <summary>
@@ -1045,10 +1121,40 @@ public class TailAimController4Leg : MonoBehaviour
     /// </summary>
     private void UpdateAimVFX()
     {
-        if (aimVFX == null) return;
-
         bool aiming = phase == Phase.Drawing || phase == Phase.Ready;
-        if (aimVFX.activeSelf != aiming) aimVFX.SetActive(aiming);
+        SetGlow(aimVfxLeft, aiming);
+        SetGlow(aimVfxRight, aiming);
+    }
+
+    /// <summary>Ticks one glow's checkbox, and only when it actually needs to change.</summary>
+    private static void SetGlow(GameObject glow, bool on)
+    {
+        if (glow == null) return;
+        if (glow.activeSelf != on) glow.SetActive(on);
+    }
+
+    /// <summary>
+    /// Puts the pointer up and takes it down from one place, off the phase, for the same reason the
+    /// glows are done this way: no cancel, landing, interruption, timer expiry or form change can
+    /// leave a crosshair stranded on the screen.
+    /// </summary>
+    private void UpdateReticleVisibility()
+    {
+        ShowReticle(ReticleShouldShow);
+    }
+
+    /// <summary>
+    /// Switches both glows and the pointer off immediately, without waiting for LateUpdate.
+    ///
+    /// LateUpdate owning all three is what makes it impossible for a cancel, a landing, a timer
+    /// expiry or a form change to strand them. Disable and destroy are the two cases that escape
+    /// that rule, because a component that is off gets no LateUpdate, so they say it explicitly.
+    /// </summary>
+    private void ForceVisualsOff()
+    {
+        SetGlow(aimVfxLeft, false);
+        SetGlow(aimVfxRight, false);
+        ShowReticle(false);
     }
 
     /// <summary>

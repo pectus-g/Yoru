@@ -110,6 +110,29 @@ public class TailProjectile : MonoBehaviour
             AudioSource.PlayClipAtPoint(launchSfx, transform.position);
     }
 
+    /// <summary>The damage this bolt will actually deal, so the firing script can log a real number.</summary>
+    public int Damage => damage;
+
+    /// <summary>
+    /// Multiplies this bolt's damage. Call it right after Instantiate, before Launch.
+    ///
+    /// Added for the 4 leg air shot, which fires the same bolt prefab as the 2 leg shot but is
+    /// meant to hit harder. Keeping the number on the ability that owns the rule means one bolt
+    /// prefab to maintain instead of two that can drift apart. This is purely additive: nothing
+    /// calls it unless it asks to, so the 2 leg shot still does exactly what it did before.
+    /// </summary>
+    public void ScaleDamage(float multiplier)
+    {
+        // Zero or negative is never what anyone means, so it is ignored rather than obeyed. The
+        // caller reports it in the Console.
+        if (multiplier <= 0f) return;
+
+        // Floor of value plus a half, not RoundToInt. RoundToInt sends halves to the nearest EVEN
+        // number, so a fractional multiplier would round 37.5 up to 38 and 22.5 down to 22, which
+        // looks like a bug in the damage numbers. This always rounds a half upward.
+        damage = Mathf.Max(1, Mathf.FloorToInt(damage * multiplier + 0.5f));
+    }
+
     private void Update()
     {
         if (!launched) return;
