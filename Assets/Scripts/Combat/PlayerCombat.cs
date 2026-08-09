@@ -857,7 +857,11 @@ public class PlayerCombat : MonoBehaviour
         // sank and rose once per shot. That cycling is the up and down she is seeing. Counting the
         // ability itself as owning the body means one height is captured when she presses R and
         // held until she lands or lets go of R, so nothing moves between shots.
-        bool tailShotActive = TailAimController.IsAiming || TailAimController.IsShotRunning;
+        // The 4 leg air shot (TailAimController4Leg) needs exactly the same treatment. It is a
+        // separate script with its own flags, and leaving it out here would bring the sink and
+        // rise back for every 4 leg shot.
+        bool tailShotActive = TailAimController.IsAiming || TailAimController.IsShotRunning
+            || TailAimController4Leg.IsAiming || TailAimController4Leg.IsShotRunning;
         bool combatOwnsBody = combatState != combatIdleHash || tailShotActive;
 
         if (airborne && combatOwnsBody)
@@ -987,7 +991,11 @@ public class PlayerCombat : MonoBehaviour
         // stomp the combat layer while the cast is still firing. TailAimController owns both
         // flags. Diagnostic logs ONLY on actual input frames, same pattern as the Granny gate:
         // if you click during the slow and do NOT see this log, this gate did not make it in.
-        if (TailAimController.IsAiming || TailAimController.IsShotRunning)
+        // TailAimController4Leg is the same ability on the 4 leg jump and needs the same lockout.
+        // It also means the 4 leg shot can safely use the LEFT mouse button if you set its Fire
+        // Mouse Button to 0: this gate stops LMB reaching the air swirl while R is held.
+        if (TailAimController.IsAiming || TailAimController.IsShotRunning
+            || TailAimController4Leg.IsAiming || TailAimController4Leg.IsShotRunning)
         {
             if (Input.GetKeyDown(KeyCode.C)
                 || Input.GetMouseButtonDown(0)
