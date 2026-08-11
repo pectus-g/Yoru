@@ -1815,16 +1815,16 @@ NavMeshAgent:
   m_GameObject: {fileID: 1765026170}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.5
+  m_Radius: 1.4
   m_Speed: 3.5
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120
-  m_StoppingDistance: 0
+  m_StoppingDistance: 2.8
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
-  m_Height: 2
+  m_Height: 6
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
@@ -1879,10 +1879,10 @@ MonoBehaviour:
   currentState: 0
   detectionRange: 9
   attackRange: 3.5
-  pullRange: 6
+  pullRange: 0
   escapeRange: 15
   visionAngle: 120
-  closeAttackName: CloseStrike
+  closeAttackName: 
   closeFinisherBonusDamage: 3
   grabDropAmount: 2
   grabLeanAngle: 35
@@ -1894,10 +1894,10 @@ MonoBehaviour:
   recoveryDuration: 0.4
   hitReactDuration: 0.5
   hitReactCooldown: 1
-  staggerDuration: 1
+  staggerDuration: 1.2
   attackCooldown: 3
   patrolSpeed: 1.5
-  chaseSpeed: 3
+  chaseSpeed: 4.5
   rotationSpeed: 5
   strafeSpeed: 2
   circleStrafe: 0
@@ -1908,8 +1908,8 @@ MonoBehaviour:
   - attackName: Club_Swing
     telegraphAnim: 
     attackAnim: Club_Swing
-    telegraphSpeed: 0
-    attackSpeed: 0
+    telegraphSpeed: 1
+    attackSpeed: 1
     telegraphDuration: 0
     attackDuration: 0
     damage: 16
@@ -1925,20 +1925,20 @@ MonoBehaviour:
     cameraShakeOnHit: 0
     cameraShakeDuration: 0
     stunPlayerDuration: 0
-    interruptsCombo: 0
+    interruptsCombo: 1
     hallucinationDuration: 0
     hallucinationOnTelegraph: 0
     pullsPlayer: 0
     pullSpeed: 0
     pullStopDistance: 0
-    skipTelegraph: 0
+    skipTelegraph: 1
     phase: 0
     weight: 50
   - attackName: ClubSwing2
     telegraphAnim: 
     attackAnim: Club_swing2
-    telegraphSpeed: 0
-    attackSpeed: 0
+    telegraphSpeed: 1
+    attackSpeed: 1
     telegraphDuration: 0
     attackDuration: 0
     damage: 16
@@ -1954,20 +1954,20 @@ MonoBehaviour:
     cameraShakeOnHit: 0
     cameraShakeDuration: 0
     stunPlayerDuration: 0
-    interruptsCombo: 0
+    interruptsCombo: 1
     hallucinationDuration: 0
     hallucinationOnTelegraph: 0
     pullsPlayer: 0
     pullSpeed: 0
     pullStopDistance: 0
-    skipTelegraph: 0
+    skipTelegraph: 1
     phase: 0
     weight: 40
   - attackName: ClubSlam
     telegraphAnim: 
     attackAnim: Club_Slam
-    telegraphSpeed: 0
-    attackSpeed: 0
+    telegraphSpeed: 1
+    attackSpeed: 1
     telegraphDuration: 0
     attackDuration: 0
     damage: 20
@@ -1983,20 +1983,20 @@ MonoBehaviour:
     cameraShakeOnHit: 0
     cameraShakeDuration: 0
     stunPlayerDuration: 0
-    interruptsCombo: 0
+    interruptsCombo: 1
     hallucinationDuration: 0
     hallucinationOnTelegraph: 0
     pullsPlayer: 0
     pullSpeed: 0
     pullStopDistance: 0
-    skipTelegraph: 0
+    skipTelegraph: 1
     phase: 0
     weight: 30
   - attackName: Oni_Charge
     telegraphAnim: 
     attackAnim: Oni_Charge
-    telegraphSpeed: 0
-    attackSpeed: 0
+    telegraphSpeed: 1
+    attackSpeed: 1
     telegraphDuration: 0
     attackDuration: 0
     damage: 18
@@ -2012,13 +2012,13 @@ MonoBehaviour:
     cameraShakeOnHit: 0
     cameraShakeDuration: 0
     stunPlayerDuration: 0
-    interruptsCombo: 0
+    interruptsCombo: 1
     hallucinationDuration: 0
     hallucinationOnTelegraph: 0
     pullsPlayer: 0
     pullSpeed: 0
     pullStopDistance: 0
-    skipTelegraph: 0
+    skipTelegraph: 1
     phase: 0
     weight: 25
   combos:
@@ -2034,7 +2034,7 @@ MonoBehaviour:
     - ClubSwing2
     - ClubSlam
     phase: 0
-    weight: 0
+    weight: 40
   antiAirEnabled: 0
   antiAirAttackName: LeapAttack
   antiAirRange: 6
@@ -2042,11 +2042,11 @@ MonoBehaviour:
   comboChanceP2: 0.6
   pullChanceP1: 0.5
   pullChanceP2: 0.7
-  hasPhases: 0
+  hasPhases: 1
   phaseThreshold: 0.5
   chaseSpeedP2: 4
   attackCooldownP2: 2
-  bossBarName: 
+  bossBarName: Oni
   canTeleport: 0
   teleportDistance: 5
   teleportSpeed: 1
@@ -2054,7 +2054,7 @@ MonoBehaviour:
   teleportOutDuration: 0.5
   teleportInDuration: 0.4
   teleportCooldown: 1.5
-  idleAnim: idle
+  idleAnim: Idle
   walkAnim: Walk
   runAnim: run
   alertAnim: Oni_Alert
