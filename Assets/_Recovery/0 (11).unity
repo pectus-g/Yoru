@@ -516,120 +516,6 @@ Texture2D:
     offset: 0
     size: 0
     path: 
---- !u!28 &240257335
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
---- !u!1 &253393125
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 253393128}
-  - component: {fileID: 253393127}
-  - component: {fileID: 253393126}
-  m_Layer: 0
-  m_Name: EventSystem
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &253393126
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 253393125}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4f231c4fb786f3946a6b90b886c48677, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.StandaloneInputModule
-  m_SendPointerHoverToParent: 1
-  m_HorizontalAxis: Horizontal
-  m_VerticalAxis: Vertical
-  m_SubmitButton: Submit
-  m_CancelButton: Cancel
-  m_InputActionsPerSecond: 10
-  m_RepeatDelay: 0.5
-  m_ForceModuleActive: 0
---- !u!114 &253393127
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 253393125}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76c392e42b5098c458856cdf6ecaaaa1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.EventSystem
-  m_FirstSelected: {fileID: 0}
-  m_sendNavigationEvents: 1
-  m_DragThreshold: 10
---- !u!4 &253393128
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 253393125}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &283845563
 GameObject:
   m_ObjectHideFlags: 0
@@ -819,7 +705,7 @@ Texture2D:
     offset: 0
     size: 0
     path: 
---- !u!28 &512857987
+--- !u!28 &549936533
 Texture2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -873,10 +759,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 412086539833808575, guid: 670a72d83120a40b08b1e68dcb9b96be, type: 3}
-      propertyPath: maxHealth
-      value: 999
-      objectReference: {fileID: 0}
     - target: {fileID: 459466663816164386, guid: 670a72d83120a40b08b1e68dcb9b96be, type: 3}
       propertyPath: _renderingResources.emptyNormalmap
       value: 
@@ -2169,52 +2051,6 @@ Texture2D:
     offset: 0
     size: 0
     path: 
---- !u!28 &1116734052
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!28 &1238912310
 Texture2D:
   m_ObjectHideFlags: 0
@@ -2556,6 +2392,52 @@ Texture2D:
     offset: 0
     size: 0
     path: 
+--- !u!28 &1570604123
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!28 &1598455771
 Texture2D:
   m_ObjectHideFlags: 0
@@ -2648,158 +2530,6 @@ Texture2D:
     offset: 0
     size: 0
     path: 
---- !u!1 &1732041826
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1732041831}
-  - component: {fileID: 1732041830}
-  - component: {fileID: 1732041829}
-  - component: {fileID: 1732041828}
-  - component: {fileID: 1732041827}
-  m_Layer: 5
-  m_Name: BossHealthBar
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1732041827
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1732041826}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9f9d4129b5c3f45c0bb4d8975425f4c8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BossHealthBarUI
-  barWidth: 620
-  barHeight: 30
-  topMargin: 60
-  titleFontSize: 36
-  titleFont: {fileID: 0}
-  titleColor: {r: 0.92, g: 0.95, b: 1, a: 1}
-  titleGlowColor: {r: 0.3, g: 0.55, b: 1, a: 0.55}
-  trailSpeed: 1.5
-  healthColorP1: {r: 0.22, g: 0.52, b: 1, a: 1}
-  glowColorP1: {r: 0.25, g: 0.55, b: 1, a: 1}
-  trailColorP1: {r: 0.95, g: 0.3, b: 0.2, a: 0.95}
-  healthColorP2: {r: 0.95, g: 0.18, b: 0.22, a: 1}
-  glowColorP2: {r: 1, g: 0.25, b: 0.2, a: 1}
-  trailColorP2: {r: 1, g: 0.85, b: 0.35, a: 0.95}
-  phase2PulseSpeed: 4.5
-  phase2ShimmerSpeed: 11
-  phase2ShimmerAmount: 0.1
-  phaseFlashColor: {r: 1, g: 1, b: 1, a: 0.9}
-  phaseFlashDuration: 0.45
-  glowPadding: 30
-  glowBaseAlpha: 0.6
-  glowPulseSpeed: 2
-  glowPulseAmount: 0.08
-  glowLowHealthBoost: 0.18
-  fadeInDuration: 0.3
-  fadeOutDuration: 1.5
-  deathFadeDelay: 2
-  backgroundColor: {r: 0.05, g: 0.07, b: 0.16, a: 0.9}
-  borderColor: {r: 0.55, g: 0.72, b: 1, a: 0.7}
-  cornerRadius: 9
-  borderThickness: 2.5
-  sheenStrength: 0.3
-  damageGlowColor: {r: 1, g: 0.35, b: 0.2, a: 1}
-  damageFlashDuration: 0.6
-  redFlashOnDeath: 1
-  deathFlashColor: {r: 0.9, g: 0.12, b: 0.1, a: 0.9}
-  deathFlashSpeed: 8
-  showDebugLogs: 1
---- !u!114 &1732041828
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1732041826}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dc42784cf147c0c48a680349fa168899, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.GraphicRaycaster
-  m_IgnoreReversedGraphics: 1
-  m_BlockingObjects: 0
-  m_BlockingMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
---- !u!114 &1732041829
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1732041826}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.CanvasScaler
-  m_UiScaleMode: 0
-  m_ReferencePixelsPerUnit: 100
-  m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
-  m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0
-  m_PhysicalUnit: 3
-  m_FallbackScreenDPI: 96
-  m_DefaultSpriteDPI: 96
-  m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
---- !u!223 &1732041830
-Canvas:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1732041826}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_RenderMode: 0
-  m_Camera: {fileID: 0}
-  m_PlaneDistance: 100
-  m_PixelPerfect: 0
-  m_ReceivesEvents: 1
-  m_OverrideSorting: 0
-  m_OverridePixelPerfect: 0
-  m_SortingBucketNormalizedSize: 0
-  m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 0
-  m_UpdateRectTransformForStandalone: 0
-  m_SortingLayerID: 0
-  m_SortingOrder: 0
-  m_TargetDisplay: 0
---- !u!224 &1732041831
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1732041826}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0, y: 0}
 --- !u!1 &1765026170 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: b8507e9b9d78e4fa182b7480109e24ca, type: 3}
@@ -2847,7 +2577,7 @@ NavMeshAgent:
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120
-  m_StoppingDistance: 2.2
+  m_StoppingDistance: 2.8
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
@@ -2931,7 +2661,7 @@ MonoBehaviour:
   strafeSpeed: 2
   circleStrafe: 0
   circleRadius: 3
-  attackBlendTime: 0.15
+  attackBlendTime: 0
   snapToFaceOnAttack: 1
   attacks:
   - attackName: Club_Swing
@@ -2942,7 +2672,7 @@ MonoBehaviour:
     telegraphDuration: 0
     attackDuration: 0
     damage: 16
-    range: 3.5
+    range: 3
     isAoE: 0
     damageFallsOffWithDistance: 0
     minDamageAtRange: 0
@@ -2971,7 +2701,7 @@ MonoBehaviour:
     telegraphDuration: 0
     attackDuration: 0
     damage: 16
-    range: 3.5
+    range: 3
     isAoE: 0
     damageFallsOffWithDistance: 0
     minDamageAtRange: 0
@@ -3033,8 +2763,8 @@ MonoBehaviour:
     isAoE: 0
     damageFallsOffWithDistance: 0
     minDamageAtRange: 0
-    minSelectRange: 10
-    maxSelectRange: 15
+    minSelectRange: 7
+    maxSelectRange: 12
     lungeToPlayer: 1
     lungeSpeed: 10
     lungeStopDistance: 3
@@ -3050,35 +2780,6 @@ MonoBehaviour:
     skipTelegraph: 1
     phase: 0
     weight: 25
-  - attackName: KanaboSweep
-    telegraphAnim: 
-    attackAnim: KanaboSweep
-    telegraphSpeed: 1
-    attackSpeed: 1
-    telegraphDuration: 0
-    attackDuration: 0
-    damage: 15
-    range: 3.5
-    isAoE: 0
-    damageFallsOffWithDistance: 0
-    minDamageAtRange: 0
-    minSelectRange: 0
-    maxSelectRange: 0
-    lungeToPlayer: 0
-    lungeSpeed: 0
-    lungeStopDistance: 0
-    cameraShakeOnHit: 0
-    cameraShakeDuration: 0
-    stunPlayerDuration: 0
-    interruptsCombo: 1
-    hallucinationDuration: 0
-    hallucinationOnTelegraph: 0
-    pullsPlayer: 0
-    pullSpeed: 0
-    pullStopDistance: 0
-    skipTelegraph: 1
-    phase: 0
-    weight: 1
   combos:
   - comboName: swing1-2
     attackNames:
@@ -3093,18 +2794,6 @@ MonoBehaviour:
     - ClubSlam
     phase: 0
     weight: 40
-  - comboName: "Charge\u2192Slam:"
-    attackNames:
-    - Oni_Charge
-    - ClubSlam
-    phase: 0
-    weight: 25
-  - comboName: "Charge\u2192Sweep"
-    attackNames:
-    - Oni_Charge
-    - KanaboSweep
-    phase: 2
-    weight: 25
   antiAirEnabled: 0
   antiAirAttackName: LeapAttack
   antiAirRange: 6
@@ -3160,12 +2849,6 @@ MonoBehaviour:
   lightReactState: HitReact_medium
   mediumReactState: Hit_react_light
   reactCrossfade: 0.08
-  wakeOnAnyHit: 1
-  watchState: Watch
-  watchRange: 15
-  watchHysteresis: 1.5
-  driveBossBar: 1
-  bossBarDisplayName: Oni
   showDebugLogs: 1
 --- !u!1001 &1813886608
 PrefabInstance:
@@ -5229,6 +4912,52 @@ Material:
     - _XFurVFX2Color: {r: 0.85, g: 0.95, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
+--- !u!28 &2135376238
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1001 &3714792184531341
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6506,5 +6235,3 @@ SceneRoots:
   - {fileID: 579000411}
   - {fileID: 808080802}
   - {fileID: 1334269767}
-  - {fileID: 1732041831}
-  - {fileID: 253393128}

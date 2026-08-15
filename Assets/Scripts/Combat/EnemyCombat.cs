@@ -780,6 +780,23 @@ public class EnemyCombat : MonoBehaviour
         // (Max Select Range 0), so they behave exactly as before. Takes priority over teleport/run-in.
         if (dist > attackRange && cooldownTimer <= 0 && !forceRunReengage)
         {
+            // Ranged COMBO opener (e.g. Oni Charge→Slam): rolled with the same phase combo chance
+            // as the melee band, but only combos whose FIRST attack has a Select Range band that
+            // contains the current distance qualify (ChooseRangedCombo). Enemies whose combo
+            // openers are all melee never produce a candidate here — behavior unchanged for them.
+            float rangedComboChance = isPhase2 ? comboChanceP2 : comboChanceP1;
+            if (Random.value < rangedComboChance)
+            {
+                EnemyAttackCombo rangedCombo = ChooseRangedCombo(dist);
+                if (rangedCombo != null && QueueComboSequence(rangedCombo))
+                {
+                    currentAttack = comboQueue.Dequeue();
+                    DebugLog($"Ranged combo started: {rangedCombo.comboName} ({comboQueue.Count + 1} steps, dist {dist:F1}m)");
+                    SetState(ShouldSkipTelegraph(currentAttack) ? EnemyState.Attack : EnemyState.Telegraph);
+                    return;
+                }
+            }
+
             EnemyAttack ranged = ChooseAttack();
             if (ranged != null && !ranged.pullsPlayer)
             {
@@ -1243,28 +1260,90 @@ public class EnemyCombat : MonoBehaviour
     private EnemyAttackCombo ChooseCombo()
     {
         if (combos == null || combos.Length == 0) return null;
-        
+
+        float dist = DistanceToPlayer();
+
         int totalWeight = 0;
         for (int i = 0; i < combos.Length; i++)
         {
-            if (IsComboValid(combos[i]))
+            if (IsComboValid(combos[i]) && ComboOpenerDistanceOk(combos[i], dist))
                 totalWeight += combos[i].weight;
         }
-        
+
         if (totalWeight == 0) return null;
-        
+
         int roll = Random.Range(0, totalWeight);
         int running = 0;
         for (int i = 0; i < combos.Length; i++)
         {
-            if (!IsComboValid(combos[i])) continue;
-            
+            if (!IsComboValid(combos[i]) || !ComboOpenerDistanceOk(combos[i], dist)) continue;
+
             running += combos[i].weight;
             if (roll < running)
                 return combos[i];
         }
-        
+
         return null;
+    }
+
+    /// <summary>
+    /// Distance gate for a combo's FIRST attack. An opener with a Select Range band
+    /// (maxSelectRange > 0, e.g. Oni Charge 7–12m) only allows its combo when the player is
+    /// inside that band — so a far-range opener can never fire point-blank through the combo
+    /// path. Window-less openers (all legacy melee attacks, band 0/0) always pass: zero behavior
+    /// change for existing enemies. An unresolved opener name also passes, keeping its original
+    /// fallback (QueueComboSequence warns and degrades to a single attack).
+    /// </summary>
+    private bool ComboOpenerDistanceOk(EnemyAttackCombo combo, float dist)
+    {
+        EnemyAttack opener = FindAttackByName(combo.attackNames[0]);
+        if (opener == null) return true;
+        if (opener.maxSelectRange <= 0f) return true;
+        return IsAttackInRange(opener, dist);
+    }
+
+    /// <summary>
+    /// Combo pick for the RANGED band: only combos whose first attack is genuinely
+    /// ranged-capable right now — a Select Range band (maxSelectRange > 0) containing the current
+    /// distance, valid in this phase, and not a pull (pulls belong to the pull band). Weighted and
+    /// phase-filtered exactly like ChooseCombo. Returns null when nothing qualifies, which is
+    /// always the case for enemies whose combo openers are all melee.
+    /// </summary>
+    private EnemyAttackCombo ChooseRangedCombo(float dist)
+    {
+        if (combos == null || combos.Length == 0) return null;
+
+        int totalWeight = 0;
+        for (int i = 0; i < combos.Length; i++)
+        {
+            if (RangedComboEligible(combos[i], dist))
+                totalWeight += combos[i].weight;
+        }
+
+        if (totalWeight == 0) return null;
+
+        int roll = Random.Range(0, totalWeight);
+        int running = 0;
+        for (int i = 0; i < combos.Length; i++)
+        {
+            if (!RangedComboEligible(combos[i], dist)) continue;
+
+            running += combos[i].weight;
+            if (roll < running)
+                return combos[i];
+        }
+
+        return null;
+    }
+
+    private bool RangedComboEligible(EnemyAttackCombo combo, float dist)
+    {
+        if (!IsComboValid(combo)) return false;
+        EnemyAttack opener = FindAttackByName(combo.attackNames[0]);
+        if (opener == null) return false;
+        if (opener.pullsPlayer) return false;
+        if (opener.maxSelectRange <= 0f) return false;
+        return IsAttackValid(opener) && IsAttackInRange(opener, dist);
     }
     
     private bool IsComboValid(EnemyAttackCombo combo)

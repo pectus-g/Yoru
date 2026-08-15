@@ -20,6 +20,12 @@ public class EnemyHealth : MonoBehaviour
     [Tooltip("Damage at or above this in a single hit triggers a STAGGER (big interrupt); anything below triggers a quick HIT-REACT flinch. Heavy attacks also always stagger. Set this between your light and heavy player-attack damage values.")]
     [SerializeField] private int staggerDamageThreshold = 15;
 
+    [Header("Stagger Punish Window (boss tuning, optional)")]
+    [Tooltip("Damage multiplier applied to hits landing WHILE this enemy is already in the Stagger state. 1 = off (default, no change). Oni boss: 1.5 — stagger becomes a reward window: open it with a heavy hit, then punish for bonus damage.")]
+    [SerializeField] private float staggerDamageMultiplier = 1f;
+    [Tooltip("If OFF, hits that would normally stagger do NOT re-trigger stagger while the enemy is already staggered (no timer reset, no chain-lock). They still deal (multiplied) damage. Default ON = original behavior.")]
+    [SerializeField] private bool allowRestagger = true;
+
     [Header("Non-Lethal (boss yield)")]
     [Tooltip("If true, this enemy is NEVER killed: when worn down to 'Yield Health Threshold' it fires OnYield instead of dying, and ignores all further damage. Used by the Komainu (its KomainuBoss plays the bow + turn-to-stone). Leave OFF for normal enemies.")]
     [SerializeField] private bool nonLethal = false;
@@ -78,9 +84,21 @@ public class EnemyHealth : MonoBehaviour
             return;
         }
 
+        // Stagger punish window — hits landing while ALREADY staggered deal bonus damage.
+        // Checked before the damage is applied (and before any new stagger is triggered), so the
+        // hit that OPENS the window never gets the bonus, only the follow-up punish hits do.
+        bool wasStaggered = enemyCombat != null
+            && enemyCombat.GetCurrentState() == EnemyCombat.EnemyState.Stagger;
+        if (wasStaggered && staggerDamageMultiplier > 1f)
+        {
+            int baseDamage = damage;
+            damage = Mathf.RoundToInt(damage * staggerDamageMultiplier);
+            Debug.Log($"{gameObject.name} punish window! {baseDamage} → {damage} (x{staggerDamageMultiplier:F1})");
+        }
+
         currentHealth -= damage;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
-        
+
         Debug.Log($"{gameObject.name} took {damage} damage{(isHeavy ? " (HEAVY)" : "")}. HP: {currentHealth}/{maxHealth}");
         
         FlashRed();
@@ -110,13 +128,21 @@ public class EnemyHealth : MonoBehaviour
         {
             if (isHeavy || damage >= staggerDamageThreshold)
             {
-                enemyCombat.TriggerStagger();
+                // Re-stagger gate: while already staggered, a second big hit must not reset the
+                // stagger timer (chain-lock). With allowRestagger OFF it only deals its damage;
+                // the window runs out on its own schedule.
+                if (!wasStaggered || allowRestagger)
+                    enemyCombat.TriggerStagger();
             }
             else
             {
                 enemyCombat.TriggerHitReact();
             }
         }
+
+        // Boss layer hook — fires AFTER the generic reaction so a listener (OniBoss) can refine
+        // what just happened (e.g. swap the flinch clip by damage size). See OnDamaged docs.
+        OnDamaged?.Invoke(damage, isHeavy);
     }
     
     /// <summary>
@@ -171,6 +197,15 @@ public class EnemyHealth : MonoBehaviour
     /// KomainuBoss listens to this to play the bow + turn-to-stone ending.
     /// </summary>
     public event System.Action<EnemyHealth> OnYield;
+
+    /// <summary>
+    /// Fired after a hit is fully applied (final damage, heavy flag), AFTER the generic
+    /// stagger/hit-react has been triggered. Boss layers (OniBoss) listen to this to add their own
+    /// flavor on top — e.g. tiered reaction clips — without any boss logic living in this script.
+    /// NOT fired on the killing blow (that's OnDied) or on blocked/ignored hits.
+    /// Same layering pattern as OnYield.
+    /// </summary>
+    public event System.Action<int, bool> OnDamaged;
 
     private void Die()
     {
