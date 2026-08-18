@@ -65,6 +65,14 @@ public class CombatFeedbackManager : MonoBehaviour
     [Tooltip("Pulse duration in seconds")]
     [SerializeField] private float pulseDuration = 0.15f;
 
+    [Header("Multi-Hit Guard")]
+    [Tooltip("Hits landing within this many REAL seconds of the previous hit skip hitstop, post-process pulse and FOV punch, and use a reduced shake. Stops rapid multi-hit attacks (aerial spin ~8 ticks/s, beyblade) from freezing the enemy's flinch into slices and rattling the camera continuously. 0 = old behavior (full feedback on every tick).")]
+    [SerializeField] private float multiHitWindow = 0.2f;
+    [Tooltip("Shake intensity multiplier for hits inside the multi-hit window.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float multiHitShakeScale = 0.35f;
+    private float lastHitFeedbackRealTime = -10f;
+
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = false;
     #endregion
@@ -104,15 +112,24 @@ public class CombatFeedbackManager : MonoBehaviour
         float stopDuration = isHeavy ? heavyHitStopDuration : lightHitStopDuration;
         float shakeAmount = isHeavy ? heavyShakeIntensity : lightShakeIntensity;
 
-        HitStop(stopDuration, playerAnimator, enemyAnimator);
-        CameraShake(shakeAmount, shakeDuration);
+        // Multi-hit guard. The aerial spin ticks damage ~8 times a second and the beyblade a few
+        // times a second; each tick used to freeze BOTH animators, restart the camera shake and
+        // punch the FOV. Eight hitstops and eight shake restarts per second is not "impact", it is
+        // a continuous rattle — the enemy's flinch is chopped into 40ms slices and the whole screen
+        // vibrates for the length of the spin. Inside the window only the spark (and a fraction of
+        // the shake) plays; the first hit of a burst still gets the full treatment.
+        bool rapid = multiHitWindow > 0f && Time.unscaledTime - lastHitFeedbackRealTime < multiHitWindow;
+        lastHitFeedbackRealTime = Time.unscaledTime;
+
+        if (!rapid) HitStop(stopDuration, playerAnimator, enemyAnimator);
+        CameraShake(rapid ? shakeAmount * multiHitShakeScale : shakeAmount, shakeDuration);
         SpawnHitVFX(contactPoint, isHeavy);
 
-        if (isHeavy && enablePostProcessPulse)
+        if (isHeavy && enablePostProcessPulse && !rapid)
             PostProcessPulse(pulseIntensity, pulseDuration);
 
         // Game Feel v3: FOV punch on every hit (light = subtle, heavy = dramatic)
-        if (CameraGameFeel.Instance != null)
+        if (CameraGameFeel.Instance != null && !rapid)
             CameraGameFeel.Instance.PunchHit(isHeavy);
 
         // Keep combat music alive during active fighting

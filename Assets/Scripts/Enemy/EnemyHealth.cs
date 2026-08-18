@@ -281,11 +281,62 @@ public class EnemyHealth : MonoBehaviour
         }
     }
     
+    // Flash stacking guard. Without it, two hits inside the 0.1s flash window make the SECOND
+    // coroutine cache "red" as the original colour, so the enemy either strobes or stays red
+    // forever. Same class of bug CombatFeedbackManager already fixes for hitstop. Matters a lot
+    // here because the beyblade and the aerial spin tick damage several times a second.
+    private Coroutine activeFlash;
+    private Renderer[] cachedRenderers;
+    private Material[] cachedMaterials;
+    private Color[] cachedOriginalColors;
+
+    private void CacheRenderers()
+    {
+        if (cachedRenderers != null) return;
+
+        cachedRenderers = GetComponentsInChildren<Renderer>();
+        cachedMaterials = new Material[cachedRenderers.Length];
+        cachedOriginalColors = new Color[cachedRenderers.Length];
+
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            cachedMaterials[i] = cachedRenderers[i].material;
+            cachedOriginalColors[i] = cachedMaterials[i].color;
+        }
+    }
+
+    private void RestoreColors()
+    {
+        if (cachedMaterials == null) return;
+        for (int i = 0; i < cachedMaterials.Length; i++)
+            if (cachedMaterials[i] != null)
+                cachedMaterials[i].color = cachedOriginalColors[i];
+    }
+
     private void FlashRed()
     {
-        Renderer[] renderers = GetComponentsInChildren<Renderer>();
-        if (renderers.Length > 0)
-            StartCoroutine(FlashRedCoroutine(renderers));
+        CacheRenderers();
+        if (cachedRenderers == null || cachedRenderers.Length == 0) return;
+
+        if (activeFlash != null) { StopCoroutine(activeFlash); RestoreColors(); }
+        activeFlash = StartCoroutine(FlashColorCoroutine(Color.red, 0.1f));
+    }
+
+    /// <summary>
+    /// One flash implementation for both colours. Always restores to the colours captured the
+    /// very first time, never to whatever happened to be on the material when this hit landed.
+    /// </summary>
+    private System.Collections.IEnumerator FlashColorCoroutine(Color flash, float duration)
+    {
+        for (int i = 0; i < cachedMaterials.Length; i++)
+            if (cachedMaterials[i] != null)
+                cachedMaterials[i].color = flash;
+
+        // Real time — a 0.1s flash must not stretch to a full second because Yoru is aiming.
+        yield return new WaitForSecondsRealtime(duration);
+
+        RestoreColors();
+        activeFlash = null;
     }
     
     /// <summary>
@@ -294,51 +345,11 @@ public class EnemyHealth : MonoBehaviour
     /// </summary>
     public void FlashWhite()
     {
-        Renderer[] renderers = GetComponentsInChildren<Renderer>();
-        if (renderers.Length > 0)
-            StartCoroutine(FlashWhiteCoroutine(renderers));
-    }
-    
-    private System.Collections.IEnumerator FlashRedCoroutine(Renderer[] renderers)
-    {
-        Color[] originals = new Color[renderers.Length];
-        Material[] materials = new Material[renderers.Length];
-        
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            materials[i] = renderers[i].material;
-            originals[i] = materials[i].color;
-            materials[i].color = Color.red;
-        }
-        
-        yield return new WaitForSeconds(0.1f);
-        
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            if (materials[i] != null)
-                materials[i].color = originals[i];
-        }
-    }
-    
-    private System.Collections.IEnumerator FlashWhiteCoroutine(Renderer[] renderers)
-    {
-        Color[] originals = new Color[renderers.Length];
-        Material[] materials = new Material[renderers.Length];
-        
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            materials[i] = renderers[i].material;
-            originals[i] = materials[i].color;
-            materials[i].color = Color.white;
-        }
-        
-        yield return new WaitForSeconds(0.05f);
-        
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            if (materials[i] != null)
-                materials[i].color = originals[i];
-        }
+        CacheRenderers();
+        if (cachedRenderers == null || cachedRenderers.Length == 0) return;
+
+        if (activeFlash != null) { StopCoroutine(activeFlash); RestoreColors(); }
+        activeFlash = StartCoroutine(FlashColorCoroutine(Color.white, 0.05f));
     }
     
     private void DropItems()

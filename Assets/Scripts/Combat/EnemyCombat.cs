@@ -72,6 +72,9 @@ public class EnemyCombat : MonoBehaviour
         public int damage = 3;
         [Tooltip("Attack range — how close player must be to get hit")]
         public float range = 3.5f;
+        [Tooltip("WHEN during the attack clip the strike lands (damage, camera shake, player reaction), as a fraction of the clip. 1 = at the very end — the original behavior and the default for every enemy. Below 1 the hurt fires at that point of the clip so it matches the VISUAL impact frame (Oni: swings ~0.5, slam ~0.6, charge ~0.7) instead of arriving late.")]
+        [Range(0.1f, 1f)]
+        public float strikeMoment = 1f;
         [Tooltip("Is this AoE? (damage all in range vs single target)")]
         public bool isAoE = false;
         [Tooltip("If true, damage scales DOWN with distance: full Damage up close, falling to Min Damage At Range at the edge of Range. Use for a roar/shockwave that hurts more the closer you are. Leave off for flat damage.")]
@@ -198,8 +201,43 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private bool circleStrafe = false;
     [Tooltip("Radius (metres) of that orbit, measured from the player. Keep it at or just inside Attack Range so the enemy stays close enough to strike. Only used when Circle Strafe is on.")]
     [SerializeField] private float circleRadius = 3f;
-    
+
+    [Header("Melee Hold Ground (opt-in — replaces circling)")]
+    [Tooltip("OFF = old behavior (the enemy strafes in a circle around the player while on attack cooldown). ON = the enemy refuses to orbit: after an attack it steps BACKWARD to its standoff distance, holds a watch stance without tracking the player, then squares up and attacks again. This is the Zelda-style 'enemies commit, enemies never slide' rule. Enabled at runtime by OniBoss — leave off for every other enemy.")]
+    [SerializeField] private bool meleeHoldGround = false;
+    [Tooltip("How far (metres) the enemy walks straight BACK after one of its own attacks ends — a fixed 'couple of steps' regardless of where the player is. It stops early only if it would leave its own melee band. 1.5 reads as two heavy steps.")]
+    [SerializeField] private float holdGroundBackstepDistance = 1.5f;
+    [Tooltip("Speed of the backward steps. Slow reads as heavy and deliberate; fast reads as a dodge.")]
+    [SerializeField] private float holdGroundBackstepSpeed = 1.6f;
+    [Tooltip("Walk speed used when the cooldown has expired but the player is past attack range and the enemy walks in to strike. Slower than chase — this is inside the melee band, a deliberate step-in, not a run.")]
+    [SerializeField] private float holdGroundApproachSpeed = 2.2f;
+    [Tooltip("The walk-in ends this many metres INSIDE attack range, so the attack decision never chatters on the range line itself.")]
+    [SerializeField] private float holdGroundApproachStopMargin = 0.4f;
+    [Tooltip("Animator STATE played while stepping backward. Leave empty to reuse the walk clip — combined with a negative Backstep Anim Speed that plays the walk in reverse, which is exactly 'reverted walk animation'.")]
+    [SerializeField] private string backstepAnim = "";
+    [Tooltip("Speed multiplier fed to the AnimSpeed parameter while backing off. NEGATIVE plays the clip in reverse. -1 = walk backwards at normal pace. Needs the state's Speed → Multiplier/Parameter bound to AnimSpeed (already done on this controller).")]
+    [SerializeField] private float backstepAnimSpeed = -1f;
+    [Tooltip("Animator STATE held once the enemy has finished backing off and is waiting out its cooldown. Leave empty to reuse the idle clip. The Oni uses 'Watch'.")]
+    [SerializeField] private string holdAnim = "";
+    [Tooltip("Seconds before the cooldown expires that the enemy stops ignoring the player and smoothly squares up for the next attack. This is the ONLY turn it makes between attacks, which is what stops the sliding-orbit look. 0 = never re-aim (it will swing wherever it happens to face).")]
+    [SerializeField] private float holdGroundReaimLead = 0.4f;
+    [Tooltip("Once inside the melee band with Hold Ground on, the enemy stays in it until the player is this multiple of Attack Range away. Stops the run/Walk animation thrash at the band edge. 1.35 = leaves at ~4.7m for a 3.5m attack range.")]
+    [SerializeField] private float holdGroundBandHysteresis = 1.35f;
+
+    [Header("Attack Commitment (opt-in)")]
+    [Tooltip("OFF = old behavior (the enemy keeps rotating to face the player for the whole attack, so it can track a dodging target mid-swing). ON = once the strike begins the enemy CANNOT turn — it swings where the player WAS. This is what makes dodging feel like a skill instead of a coin flip. Enabled at runtime by OniBoss.")]
+    [SerializeField] private bool lockFacingDuringAttack = false;
+    [Tooltip("Below this horizontal distance (metres) LookAtPlayer does not turn at all. 0 = old behavior (turn toward any direction, however tiny). A player standing on top of / directly above the enemy produces a near-zero flat direction that flips every frame — turning toward it makes the body shudder. Boss layers set ~1.0.")]
+    [SerializeField] private float lookAtMinFlatDistance = 0f;
+    [Tooltip("ON = old behavior: the enemy keeps turning to face the player during its hit-react flinch. OFF = the flinch plays where the body is; no tracking. Boss layers turn this off.")]
+    [SerializeField] private bool hitReactTracksPlayer = true;
+
     [Header("Animation Smoothing")]
+    [Tooltip("Blend time (seconds) for every ordinary state change — idle, walk, run, watch, recovery. Was hardcoded at 0.1, which is a near-hard-cut on a heavy quadruped and reads as the animation 'snapping'. 0.2-0.3 is smooth for a big slow boss; small fast enemies want to stay near 0.1.")]
+    [SerializeField] private float animationBlendTime = 0.1f;
+    [Tooltip("Blend time (seconds) for FORCED restarts — the hit reaction, mainly. 0 = old behavior (instant hard cut from whatever pose the body was in). A small value keeps the restart but stops the pose from teleporting in a single frame.")]
+    [SerializeField] private float forcedAnimBlendTime = 0f;
+
     [Tooltip("Crossfade time (seconds) into telegraph and attack clips. 0 keeps the old instant hard cut (crisp but spiky); other enemies stay at 0 and are unaffected. 0.12 to 0.25 blends the wind-up and strike in smoothly. Too high feels floaty.")]
     [SerializeField] private float attackBlendTime = 0f;
     [Tooltip("If true, the enemy snaps instantly to face the player the instant it commits to a telegraph or attack (keeps a grab/pull aiming true). Uncheck for a heavy quadruped so it turns smoothly via Rotation Speed instead of snapping. A smooth turn can aim slightly behind a fast target; raise Rotation Speed to compensate.")]
@@ -363,6 +401,7 @@ public class EnemyCombat : MonoBehaviour
     private float attackStateEntryTime;
     private float cachedClipLength;
     private bool clipLengthRead;
+    private bool strikeFired; // Strike Moment already resolved for the current attack clip
     
     // Close-attack grab sequence (cinematic swoop + lean + yank-in + freeze, run as a coroutine
     // like the teleport). isGrabbing bypasses the normal Attack handler while it plays.
@@ -709,18 +748,48 @@ public class EnemyCombat : MonoBehaviour
         // ── MELEE BAND (≤ attackRange) ────────────────────────────────────────
         // Attack when ready; otherwise circle the player. This is the ONLY place the walk
         // animation is used (slow circling reads fine up close; walking to close a gap looks wrong).
-        if (dist <= attackRange)
+        // Hold Ground widens the melee band once the enemy is already inside it, so a backstep can
+        // never flip it between "hold" and "run in" on alternate frames — that flip is the
+        // run/Walk/run/Walk thrash that reads as the boss sliding around the player. Committing to
+        // an attack still requires the TRUE attack range, so widening the band cannot cause swings
+        // from out of reach.
+        float meleeBandExit = meleeHoldGround ? attackRange * Mathf.Max(1f, holdGroundBandHysteresis) : attackRange;
+        bool inMeleeBand = inHoldGroundBand ? dist <= meleeBandExit : dist <= attackRange;
+        inHoldGroundBand = meleeHoldGround && inMeleeBand;
+        if (!inMeleeBand) holdPhase = HoldPhase.None;   // left the band: the beat restarts on re-entry
+
+        if (inMeleeBand)
         {
-            if (cooldownTimer <= 0)
+            // Hold Ground: an explicit little state machine — Backstep → Watch → (Approach) → Ready.
+            // Ready is the ONLY phase in which the attack decision below is allowed to run, so the
+            // enemy can never flip between "walk in" and "watch" on alternate frames (the thrash that
+            // read as sliding), and never swings from out of reach.
+            if (meleeHoldGround)
+            {
+                HoldGroundStep(dist);
+                if (holdPhase != HoldPhase.Ready) return;
+            }
+
+            if (cooldownTimer <= 0 && dist <= attackRange)
             {
                 EnemyAttack chosen = ChooseAttackOrCombo();
                 if (chosen != null)
                 {
                     currentAttack = chosen;
+                    holdPhase = HoldPhase.None;
                     // skipTelegraph (or no telegraph clip) routes straight to Attack so the self-contained clip plays full-length.
                     SetState(ShouldSkipTelegraph(currentAttack) ? EnemyState.Attack : EnemyState.Telegraph);
                     return;
                 }
+            }
+
+            if (meleeHoldGround)
+            {
+                // Ready but nothing was chosen (or she stepped out of reach this frame): back to
+                // watching; Ready is re-evaluated next frame.
+                holdPhase = HoldPhase.Watch;
+                EnterHoldWatch();
+                return;
             }
 
             // On cooldown, circle the player.
@@ -872,6 +941,260 @@ public class EnemyCombat : MonoBehaviour
         }
         PlayAnimation(runAnim);
     }
+
+    // ───────────────────────────────────────────────────────── melee hold ground (opt-in) ──
+
+    private enum HoldPhase { None, Backstep, Watch, Approach, Ready }
+
+    private bool inHoldGroundBand;        // sticky melee-band flag, gives the band its hysteresis
+    private HoldPhase holdPhase;          // where in the backstep → watch → approach → ready beat we are
+    private bool holdBackstepPending;     // set on Chase entry when the enemy's OWN attack just ended
+    private float backstepTravelled;
+
+    /// <summary>
+    /// The melee beat for a committing heavy, as an explicit state machine so it can never flip
+    /// between two decisions on alternate frames:
+    ///
+    ///   BACKSTEP — only after the enemy's OWN attack ended (Recovery → Chase). Walk straight back
+    ///              a FIXED distance (reversed walk clip), facing untouched. Being hit does not
+    ///              trigger it, otherwise every flinch would turn into a slow retreat.
+    ///   WATCH    — nav stopped, hold stance, NO rotation. Waits out the attack cooldown. Turns once,
+    ///              smoothly, in the last moments before the cooldown expires (the square-up).
+    ///   APPROACH — cooldown expired but the player is past attack range: walk in until comfortably
+    ///              inside reach. Never flips back to Watch — it ends only in Ready or in leaving the
+    ///              band entirely (handled by the caller's run-in).
+    ///   READY    — the caller may roll and launch an attack this frame.
+    /// </summary>
+    private void HoldGroundStep(float dist)
+    {
+        if (holdPhase == HoldPhase.None)
+        {
+            if (holdBackstepPending)
+            {
+                holdBackstepPending = false;
+                backstepTravelled = 0f;
+                holdPhase = HoldPhase.Backstep;
+                DebugLog($"hold-ground: BACKSTEP {holdGroundBackstepDistance:F1}m (player {dist:F1}m)");
+            }
+            else
+            {
+                holdPhase = HoldPhase.Watch;
+                EnterHoldWatch();
+            }
+        }
+
+        switch (holdPhase)
+        {
+            case HoldPhase.Backstep:
+            {
+                // Never back off out of the (widened) melee band, or the run-in would fire next frame.
+                float maxBackoff = attackRange * Mathf.Max(1f, holdGroundBandHysteresis) - 0.4f;
+                bool done = backstepTravelled >= holdGroundBackstepDistance || dist >= maxBackoff
+                            || navAgent == null || !navAgent.isOnNavMesh || player == null;
+                if (done)
+                {
+                    DebugLog($"hold-ground: backstep done ({backstepTravelled:F2}m), WATCH (player {dist:F1}m, cooldown {Mathf.Max(0f, cooldownTimer):F1}s)");
+                    holdPhase = HoldPhase.Watch;
+                    EnterHoldWatch();
+                    return;
+                }
+
+                Vector3 away = transform.position - player.position;
+                away.y = 0f;
+                if (away.sqrMagnitude < 0.0001f) away = -transform.forward;
+                away.Normalize();
+
+                // Move() rather than SetDestination(): a destination only a metre away sits inside the
+                // agent's stopping distance, so the agent decides it has arrived and stands still while
+                // the walk clip plays. Move() drives the agent directly and still respects the NavMesh.
+                float step = holdGroundBackstepSpeed * Time.deltaTime;
+                navAgent.isStopped = true;
+                navAgent.Move(away * step);
+                backstepTravelled += step;
+
+                PlayReversed(string.IsNullOrEmpty(backstepAnim) ? walkAnim : backstepAnim);
+                return;
+            }
+
+            case HoldPhase.Watch:
+            {
+                StopNav();
+
+                // The one permitted turn between attacks.
+                if (holdGroundReaimLead > 0f && cooldownTimer <= holdGroundReaimLead)
+                    LookAtPlayer();
+
+                if (cooldownTimer > 0f) return;
+
+                if (dist <= attackRange) { holdPhase = HoldPhase.Ready; return; }
+
+                DebugLog($"hold-ground: cooldown over, player {dist:F1}m > {attackRange}m — APPROACH");
+                holdPhase = HoldPhase.Approach;
+                goto case HoldPhase.Approach;
+            }
+
+            case HoldPhase.Approach:
+            {
+                // Comfortably inside reach, not just on the line — the margin is what stops the
+                // approach/attack decision from chattering at exactly attackRange.
+                if (dist <= attackRange - holdGroundApproachStopMargin) { holdPhase = HoldPhase.Ready; return; }
+
+                LookAtPlayer();
+                if (navAgent != null && navAgent.isOnNavMesh && player != null)
+                {
+                    navAgent.isStopped = false;
+                    navAgent.speed = holdGroundApproachSpeed;
+                    navAgent.SetDestination(player.position);
+                }
+                PlayAnimation(walkAnim);
+                SetAnimSpeed(1f);
+                return;
+            }
+
+            case HoldPhase.Ready:
+                return;
+        }
+    }
+
+    private void EnterHoldWatch()
+    {
+        StopNav();
+        SetAnimSpeed(1f);
+        // PlayReversed tags currentPlayingAnim with a "#reversed" suffix, so coming out of a backstep
+        // this is a real crossfade back into the stance; coming from Recovery (already in the stance)
+        // it early-outs and the pose simply continues — no restart hitch either way.
+        PlayAnimation(string.IsNullOrEmpty(holdAnim) ? idleAnim : holdAnim);
+    }
+
+    private int backstepStateHash;
+    private float backstepNormTime;
+    private float backstepBlendUntil;
+    private string backstepStatePlaying;
+
+    /// <summary>
+    /// Plays an animator state in reverse by driving its normalized time down by hand each frame.
+    /// Deliberately does NOT rely on a negative AnimSpeed multiplier: that only works if the state's
+    /// Speed has Multiplier/Parameter ticked, and a silently-forward walk clip on a body that is
+    /// moving backwards is a moonwalk. This version cannot fail that way.
+    ///
+    /// Entry blends in (short forced-blend time) instead of hard-cutting; the scrub only starts once
+    /// the blend has landed and continues from wherever the clip ACTUALLY is at that moment.
+    /// </summary>
+    private void PlayReversed(string state)
+    {
+        if (animator == null || string.IsNullOrEmpty(state)) return;
+
+        if (backstepStatePlaying != state)
+        {
+            backstepStatePlaying = state;
+            backstepStateHash = Animator.StringToHash(state);
+            currentPlayingAnim = state + "#reversed";   // so the next PlayAnimation(stance) really crossfades
+            float blend = forcedAnimBlendTime > 0f ? forcedAnimBlendTime : 0.08f;
+            backstepBlendUntil = Time.time + blend;
+            backstepNormTime = -1f;                       // unknown until the blend has landed
+            SetAnimSpeed(1f);
+            animator.CrossFadeInFixedTime(backstepStateHash, blend, combatLayerIndex, 0.6f);
+            return;
+        }
+
+        if (Time.time < backstepBlendUntil) return;   // let the blend finish before scrubbing
+
+        AnimatorStateInfo st = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+        if (backstepNormTime < 0f)
+            backstepNormTime = st.shortNameHash == backstepStateHash ? Mathf.Repeat(st.normalizedTime, 1f) : 0.6f;
+
+        float len = st.length > 0.01f ? st.length : 1f;
+        backstepNormTime -= (Time.deltaTime * Mathf.Abs(backstepAnimSpeed)) / len;
+        while (backstepNormTime < 0f) backstepNormTime += 1f;
+
+        animator.Play(backstepStateHash, combatLayerIndex, backstepNormTime);
+    }
+
+    /// <summary>
+    /// Runtime opt-in for smoother state changes, used by boss layers so no inspector work is
+    /// needed and no other enemy's timing changes.
+    /// </summary>
+    public void ConfigureAnimationBlending(float normalBlend, float forcedBlend)
+    {
+        if (normalBlend >= 0f) animationBlendTime = normalBlend;
+        if (forcedBlend >= 0f) forcedAnimBlendTime = forcedBlend;
+    }
+
+    /// <summary>
+    /// Runtime opt-in for how the enemy turns. minFlatDistance: below this horizontal distance the
+    /// enemy stops turning toward the player (kills the overhead shudder). snapOnAttack: the instant
+    /// face-snap at attack start (a visible pop on a heavy body). trackInHitReact: keep turning
+    /// toward the player during the flinch.
+    /// </summary>
+    public void ConfigureFacing(float minFlatDistance, bool? snapOnAttack = null, bool? trackInHitReact = null)
+    {
+        if (minFlatDistance >= 0f) lookAtMinFlatDistance = minFlatDistance;
+        if (snapOnAttack.HasValue) snapToFaceOnAttack = snapOnAttack.Value;
+        if (trackInHitReact.HasValue) hitReactTracksPlayer = trackInHitReact.Value;
+    }
+
+    /// <summary>Writes the AnimSpeed multiplier directly (0 = freeze a bound attack clip in place).</summary>
+    public void SetAttackAnimSpeed(float speed) => SetAnimSpeed(speed);
+
+    /// <summary>Speed the current attack's clip is meant to play at (1 when there is no attack).</summary>
+    public float CurrentAttackSpeed() => currentAttack != null ? Mathf.Max(0.05f, currentAttack.attackSpeed) : 1f;
+
+    private bool externalLungeControl;
+    private bool comboStepsUseDamageThreshold;
+
+    /// <summary>
+    /// When ON, a combo STEP whose damage is at or above Heavy Hit Threshold makes the player play
+    /// the heavy reaction, instead of only the combo's final step counting as heavy. Default OFF.
+    /// </summary>
+    public void SetComboStepsUseDamageThreshold(bool value) => comboStepsUseDamageThreshold = value;
+
+    /// <summary>
+    /// Hands ownership of lunging attacks to a boss layer. Default OFF, so every other enemy keeps
+    /// the engine's built-in lunge exactly as it was.
+    /// </summary>
+    public void SetExternalLungeControl(bool value) => externalLungeControl = value;
+
+    /// <summary>
+    /// Keeps the Attack state's safety timeout from firing while an external drive is still moving
+    /// the enemy. The safety exists so a clip that never reports completion cannot hang the state
+    /// machine; a charge that legitimately takes two seconds to cross the arena would trip it
+    /// otherwise, ending the attack before the enemy has arrived.
+    /// </summary>
+    public void HoldAttackSafety()
+    {
+        if (currentState == EnemyState.Attack || currentState == EnemyState.Telegraph)
+            attackStateEntryTime = Time.time;
+    }
+
+    /// <summary>
+    /// Runtime opt-in used by boss layers (OniBoss) so the behavior can be switched on WITHOUT any
+    /// inspector work and WITHOUT changing the default for any other enemy. Every parameter keeps
+    /// its serialized value when passed a negative number / null, so a boss can enable the behavior
+    /// and tune only what it cares about.
+    /// </summary>
+    public void ConfigureMeleeHoldGround(bool enabled, float backstepDistance = -1f, float backstepSpeed = -1f,
+                                         string backstepState = null, float backstepSpeed_Anim = 0f,
+                                         string holdState = null, float reaimLead = -1f, bool? lockAttackFacing = null,
+                                         float approachSpeed = -1f)
+    {
+        meleeHoldGround = enabled;
+        if (backstepDistance > 0f) holdGroundBackstepDistance = backstepDistance;
+        if (backstepSpeed > 0f) holdGroundBackstepSpeed = backstepSpeed;
+        if (!string.IsNullOrEmpty(backstepState)) backstepAnim = backstepState;
+        if (!Mathf.Approximately(backstepSpeed_Anim, 0f)) backstepAnimSpeed = backstepSpeed_Anim;
+        if (!string.IsNullOrEmpty(holdState)) holdAnim = holdState;
+        if (reaimLead >= 0f) holdGroundReaimLead = reaimLead;
+        if (lockAttackFacing.HasValue) lockFacingDuringAttack = lockAttackFacing.Value;
+        if (approachSpeed > 0f) holdGroundApproachSpeed = approachSpeed;
+
+        if (!enabled)
+        {
+            inHoldGroundBand = false;
+            holdPhase = HoldPhase.None;
+            holdBackstepPending = false;
+        }
+    }
+
     private void HandleTelegraph()
     {
         StopNav();
@@ -891,7 +1214,11 @@ public class EnemyCombat : MonoBehaviour
         // Lunge: a charge/leap attack drives the enemy toward the player while its clip plays,
         // closing the gap to catch a fleeing target. Stops at lungeStopDistance so it arrives at
         // striking range without bowling past. Every other attack holds position.
-        bool lunging = currentAttack != null && currentAttack.lungeToPlayer && player != null
+        // External Lunge Control lets a boss layer (OniBoss's charge drive) own the rush completely —
+        // its own tracking, its own speed curve, its own stop. Without this the engine lunge and the
+        // boss drive would both push the agent in the same frame and fight each other.
+        bool lunging = !externalLungeControl
+                       && currentAttack != null && currentAttack.lungeToPlayer && player != null
                        && navAgent != null && navAgent.isOnNavMesh;
         if (lunging)
         {
@@ -915,7 +1242,12 @@ public class EnemyCombat : MonoBehaviour
 
         // Face player during attack, especially important for skipTelegraph attacks that
         // didn't go through Telegraph state where LookAtPlayer is normally called.
-        LookAtPlayer();
+        //
+        // Lock Facing During Attack (opt-in) suppresses this: once the strike has begun the enemy
+        // is committed and swings where the player WAS. Lunging attacks (the charge) are exempt —
+        // a rush that cannot steer would drive into a wall next to the player instead of at her.
+        if (!lockFacingDuringAttack || lunging)
+            LookAtPlayer();
 
         // HairLash pull — while a pulling attack plays, drag Yoru toward the enemy via
         // PlayerMovement (single-Move owner). Stops at pullStopDistance so it snaps to melee
@@ -929,12 +1261,44 @@ public class EnemyCombat : MonoBehaviour
                 playerMovement.ApplyExternalPull(toEnemy.normalized * currentAttack.pullSpeed, Time.deltaTime * 2f);
         }
 
-        // Run until the attack clip has actually finished, then resolve damage on the strike.
+        // Early strike: when this attack defines a Strike Moment below 1, the damage (and the
+        // player's reaction, camera shake, etc.) fires the moment the clip crosses that fraction —
+        // synced to the visual impact frame instead of the clip end. Fires at most once per attack.
+        if (currentAttack != null && currentAttack.strikeMoment < 1f && !strikeFired
+            && AttackClipProgress() >= currentAttack.strikeMoment)
+        {
+            strikeFired = true;
+            DealDamageToPlayer();
+        }
+
+        // Run until the attack clip has actually finished, then resolve damage on the strike
+        // (unless the early Strike Moment already resolved it above — original path unchanged
+        // for every attack left at the default strikeMoment = 1).
         if (AttackAnimationComplete())
         {
-            DealDamageToPlayer();
+            if (!strikeFired)
+                DealDamageToPlayer();
             SetState(EnemyState.Recovery);
         }
+    }
+
+    /// <summary>
+    /// Normalized progress (0-1+) of the currently playing telegraph/attack clip, transition-aware
+    /// exactly like AttackAnimationComplete: while blending in, the incoming clip is read. Returns
+    /// 0 during the settle window so a Strike Moment can never fire off the PREVIOUS clip.
+    /// </summary>
+    private float AttackClipProgress()
+    {
+        if (animator == null) return 1f;
+
+        float elapsed = Time.time - attackStateEntryTime;
+        if (elapsed <= AnimSettleTime) return 0f;
+
+        bool inTransition = animator.IsInTransition(combatLayerIndex);
+        AnimatorStateInfo clip = inTransition
+            ? animator.GetNextAnimatorStateInfo(combatLayerIndex)
+            : animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+        return clip.normalizedTime;
     }
     
     private void HandleRecovery()
@@ -976,8 +1340,11 @@ public class EnemyCombat : MonoBehaviour
     private void HandleHitReact()
     {
         StopNav();
-        LookAtPlayer();
-        
+        // A flinch is a flinch. Tracking the attacker mid-flinch (default, kept for other enemies)
+        // is what a boss layer can switch off so a heavy body reacts and holds instead of swivelling
+        // toward wherever the player is right now.
+        if (hitReactTracksPlayer) LookAtPlayer();
+
         if (stateTimer <= 0)
         {
             SetState(EnemyState.Chase);
@@ -1139,6 +1506,12 @@ public class EnemyCombat : MonoBehaviour
                 // (During an uninterrupted run-in the enemy stays in Chase, so this never fires mid-run.)
                 pullDecisionMade = false;
                 leashTimer = 0f;
+                // Hold Ground: a fresh Chase entry restarts the beat. The backstep is owed only when
+                // the enemy's OWN attack just ended (it arrives here from Recovery); a flinch or a
+                // stagger ending does not earn a retreat.
+                holdPhase = HoldPhase.None;
+                holdBackstepPending = meleeHoldGround && oldState == EnemyState.Recovery;
+                backstepStatePlaying = null;
                 SetAnimSpeed(1f);
                 break;
                 
@@ -1474,6 +1847,14 @@ public class EnemyCombat : MonoBehaviour
         // forces a heavy reaction. A single attack stays damage-based.
         bool inCombo = !string.IsNullOrEmpty(activeComboName);
         bool isHeavy = inCombo ? (comboQueue.Count == 0) : (currentAttack.damage >= heavyHitThreshold);
+
+        // Opt-in: a genuinely big hit reads heavy even when it is only the OPENER of a combo.
+        // Without this the Oni's charge — which is almost always the first step of Charge→Slam —
+        // lands as a light tap on Yoru no matter how much damage it does, because the old rule
+        // says "only the last step of a combo is heavy". Default OFF, so every other enemy keeps
+        // the original combo-steps-are-light behavior exactly.
+        if (comboStepsUseDamageThreshold && inCombo && currentAttack.damage >= heavyHitThreshold)
+            isHeavy = true;
 
         // Hallucination attacks (Mushroom) skip the knockback pull so it does not interrupt
         // and cut the hit reaction. Physical attacks still knock back toward the enemy.
@@ -1923,15 +2304,20 @@ private void TriggerHitFlash()
     private void LookAtPlayer()
     {
         if (player == null) return;
-        
-        Vector3 dir = (player.position - transform.position).normalized;
+
+        Vector3 dir = player.position - transform.position;
         dir.y = 0;
-        
-        if (dir != Vector3.zero)
-        {
-            Quaternion target = Quaternion.LookRotation(dir);
-            transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * rotationSpeed);
-        }
+
+        // Overhead guard (opt-in via lookAtMinFlatDistance, default 0 = old behavior). When the
+        // player is directly above or on top of the enemy — Yoru's aerial spin lands her there —
+        // the flat direction is a few centimetres long and flips sign frame to frame. Slerping
+        // toward it every frame makes a big body shudder in place: that is the "Oni vibrates when
+        // Yoru jumps and swirls" bug. Below the minimum flat distance there is nothing to face.
+        if (dir.sqrMagnitude < 0.0001f) return;
+        if (lookAtMinFlatDistance > 0f && dir.sqrMagnitude < lookAtMinFlatDistance * lookAtMinFlatDistance) return;
+
+        Quaternion target = Quaternion.LookRotation(dir.normalized);
+        transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * rotationSpeed);
     }
     
     /// <summary>
@@ -2028,7 +2414,7 @@ private void TriggerHitFlash()
         }
 
         currentPlayingAnim = stateName;
-        animator.CrossFadeInFixedTime(stateName, 0.1f, combatLayerIndex);
+        animator.CrossFadeInFixedTime(stateName, animationBlendTime, combatLayerIndex);
 
         if (showDebugLogs)
             DebugLog($"Playing animation: {stateName}");
@@ -2043,7 +2429,14 @@ private void TriggerHitFlash()
     {
         if (animator == null || string.IsNullOrEmpty(stateName)) return;
         currentPlayingAnim = stateName;
-        animator.Play(stateName, combatLayerIndex, 0f);
+
+        // Restart from frame 0 but BLEND into it rather than hard-cutting. A hard cut is what makes
+        // a reaction read as a glitch instead of a hit — the body teleports to a new pose in one
+        // frame. CrossFadeInFixedTime with normalizedTimeOffset 0 gives the restart AND the blend.
+        if (forcedAnimBlendTime > 0f)
+            animator.CrossFadeInFixedTime(stateName, forcedAnimBlendTime, combatLayerIndex, 0f);
+        else
+            animator.Play(stateName, combatLayerIndex, 0f);
     }
     
     private void SetAnimSpeed(float speed)
@@ -2060,10 +2453,11 @@ private void TriggerHitFlash()
     private void BeginAttackClip(string stateName, float speed)
     {
         SetAnimSpeed(speed);
-        
+
         attackStateEntryTime = Time.time;
         clipLengthRead = false;
         cachedClipLength = 0f;
+        strikeFired = false; // re-arm the Strike Moment for the new clip
         
         if (animator == null || string.IsNullOrEmpty(stateName)) return;
         
@@ -2121,7 +2515,18 @@ private void TriggerHitFlash()
         float speed = currentState == EnemyState.Telegraph
             ? Mathf.Max(0.1f, currentAttack != null ? currentAttack.telegraphSpeed : 1f)
             : Mathf.Max(0.1f, currentAttack != null ? currentAttack.attackSpeed : 1f);
-        float safetyTime = clipLengthRead ? (cachedClipLength / speed) + AnimSafetyBuffer : AnimSafetyFallback;
+
+        // AnimatorStateInfo.length is ALREADY divided by the state's speed multiplier when the
+        // state's Speed is bound to a parameter (AnimSpeed). Dividing by the attack speed a second
+        // time on top of that made the safety fire early on every attack faster than 1x — the
+        // Oni's Club_Slam (speed 2, 2.5s clip → length 1.25s) was being cut at 1.13s, EVERY time,
+        // which is the "safety transition fired … Club_Slam" warning that never went away and one
+        // of the visible hard cuts. When the multiplier is bound (speedMultiplier != 1) the length
+        // is the real playback duration and must be used as-is; unbound states keep the old maths.
+        bool multiplierBound = !Mathf.Approximately(clip.speedMultiplier, 1f);
+        float safetyTime = clipLengthRead
+            ? (multiplierBound ? cachedClipLength : cachedClipLength / speed) + AnimSafetyBuffer
+            : AnimSafetyFallback;
 
         if (elapsed > safetyTime)
         {

@@ -323,6 +323,28 @@ public class PlayerCombat : MonoBehaviour
     [Header("Safety")]
     [SerializeField] private float maxAttackDuration = 2f;
 
+    [Header("Combo Chaining")]
+    [Tooltip("ON = when the next combo step is already bought (a click was queued), it starts in the SAME frame the previous clip's OnAttackEnd event fires. OFF = old behavior, which crossfades to Combat_Idle first and lets Update pick the queued click up a frame later — that inserted blend toward idle is the visible 'the second punch plays halfway and snaps back to idle' pop.")]
+    [SerializeField] private bool chainCombosWithoutIdle = true;
+    [Tooltip("Prints one line per combo event (click, queue, drop, clip start, clip end + how far through the clip the end event fired). Turn on for one test if a combo link still looks cut: the clipProgress number on the OnAttackEnd line says whether the animation event is placed too early in that clip, which is an animation-authoring fix, not a code one.")]
+    [SerializeField] private bool logComboTrace = true;
+    [Tooltip("How much of the current combo clip must have played before a queued click is allowed to start the next step. The clips carry an OnCanQueueNextAttack animation event; if that event sits early in the timeline the next attack replaces the current one mid-swing, which is why the second punch looks cut in half. 0 = exact old behavior (chain the instant the event fires). 0.6 lets most of the swing read before the next one takes over. Raise toward 0.85 for heavier, more committed combos; lower for snappier cancels.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float comboCancelMinProgress = 0.6f;
+
+    [Header("Damage Flash (Zelda-style)")]
+    [Tooltip("Tint Yoru red for a moment when she takes damage, the way Link flashes on being hit. Pure feedback — no ability, timing or hitbox is touched.")]
+    [SerializeField] private bool damageFlashEnabled = true;
+    [Tooltip("Colour Yoru is tinted on being hit.")]
+    [SerializeField] private Color damageFlashColor = new Color(1f, 0.25f, 0.25f);
+    [Tooltip("How long the tint lasts, in REAL seconds so it does not stretch during aim slow-motion.")]
+    [SerializeField] private float damageFlashDuration = 0.14f;
+    [Tooltip("How many times the tint blinks on and off across that duration. 1 = a single solid flash, 2-3 = the classic blinking damage tell.")]
+    [SerializeField] private int damageFlashBlinks = 2;
+
+    [Tooltip("Spawn a code-built impact burst at the exact contact point on every landed hit. Needs no prefab, so 'I can't see anything for the VFX' is fixed immediately; assign Light/Heavy Hit Spark Prefab on YoruVFXManager later and turn this off.")]
+    [SerializeField] private bool proceduralHitSpark = true;
+
     [Header("Combat Engagement (Form Transform Lock)")]
     [Tooltip("Seconds the player is considered 'engaged in combat' after the last hit exchanged either way (Yoru hits enemy, or enemy hits Yoru). Form transform is blocked during this window per GDD Doc 04 §4a. Same flag is the foundation for the deferred 'enemies remember combat' anti-exploit rule (5-10s per GDD).")]
     [SerializeField] private float engagedInCombatDuration = 5f;
@@ -363,6 +385,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float beybladeHitInterval = 0.12f;
     [Tooltip("Single enemy only: after the one strike, Yoru spins this many seconds before stopping, so the spin reads instead of snapping straight back to idle. A crowd ignores this and keeps spinning until Beyblade Max Time.")]
     [SerializeField] private float beybladeSingleWindDown = 0.3f;
+    [Tooltip("ON = after the single-target strike, keep spinning until the Combo3 clip has actually finished (capped by Beyblade Max Time) instead of cutting to idle after the wind-down. OFF = old behavior: the swirl ended ~0.36s in, at 40% of its clip, and snapped to idle.")]
+    [SerializeField] private bool beybladeSingleLetClipFinish = true;
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
@@ -579,6 +603,22 @@ public class PlayerCombat : MonoBehaviour
         // the spin animation owns rotation.
         if (isAttacking && !isBeyblading && !isInHitReaction && !(playerHealth != null && playerHealth.IsStunned()))
             TrackTarget();
+
+        // Deferred combo chain: the clip's OnCanQueueNextAttack event fired too early, so the next
+        // step was held back until the current swing had actually read. Fire it the moment it has.
+        if (pendingChain)
+        {
+            if (!isAttacking || isInHitReaction || isDodging || isDashing || isGuarding || queuedClicks <= 0)
+            {
+                pendingChain = false;
+            }
+            else if (CombatClipProgress() >= comboCancelMinProgress)
+            {
+                pendingChain = false;
+                queuedClicks--;
+                PerformGroundCombo();
+            }
+        }
 
         if (!isAttacking && !isInHitReaction && !isDodging && !isDashing && !isGuarding
             && queuedClicks > 0 && currentComboStep > 0 && currentComboStep < 3)
@@ -1897,10 +1937,16 @@ public class PlayerCombat : MonoBehaviour
             if (vfxManager != null) vfxManager.PlayHitReactVFX(isHeavy);
             if (CombatFeedbackManager.Instance != null) CombatFeedbackManager.Instance.PlayPlayerHitFeedback(isHeavy);
             if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayPlayerHit(isHeavy);
+            FlashDamage();
             return;
         }
 
         bool is4Leg = playerMovement != null && playerMovement.IsRunning();
+
+        // Fires first, before anything that could be interrupted or blended away. The tint is the
+        // one piece of damage feedback that is guaranteed to be visible no matter which reaction
+        // clip is chosen or whether the combat layer is being fought over.
+        FlashDamage();
 
         EndActiveCombatActions();
 
@@ -2122,6 +2168,82 @@ public class PlayerCombat : MonoBehaviour
             yield return null;
         }
         pullCoroutine = null;
+    }
+
+    // ─────────────────────────────────────────────────────── Zelda-style damage flash ──
+
+    private Coroutine damageFlashRoutine;
+    private Renderer[] flashRenderers;
+    private Material[] flashMaterials;
+    private Color[] flashOriginalColors;
+    private bool flashCached;
+
+    /// <summary>
+    /// Tints Yoru toward damageFlashColor for a moment, blinking a couple of times, then restores
+    /// the exact colours captured on the very first hit.
+    ///
+    /// Renderers and materials are cached once: calling .material every hit instantiates a fresh
+    /// material copy each time, which on a fur-shaded ten-tailed cat is not free. Restoring from a
+    /// snapshot taken on the FIRST hit (rather than on every hit) is what stops two fast hits from
+    /// leaving her permanently red — the same stacking bug the hitstop system already guards against.
+    /// </summary>
+    private void FlashDamage()
+    {
+        if (!damageFlashEnabled) return;
+
+        if (!flashCached)
+        {
+            flashCached = true;
+            flashRenderers = GetComponentsInChildren<Renderer>(true);
+            flashMaterials = new Material[flashRenderers.Length];
+            flashOriginalColors = new Color[flashRenderers.Length];
+            for (int i = 0; i < flashRenderers.Length; i++)
+            {
+                flashMaterials[i] = flashRenderers[i].material;
+                flashOriginalColors[i] = flashMaterials[i].color;
+            }
+        }
+
+        if (flashMaterials == null || flashMaterials.Length == 0) return;
+
+        if (damageFlashRoutine != null)
+        {
+            StopCoroutine(damageFlashRoutine);
+            RestoreFlashColors();
+        }
+        damageFlashRoutine = StartCoroutine(DamageFlashRoutine());
+    }
+
+    private void RestoreFlashColors()
+    {
+        if (flashMaterials == null) return;
+        for (int i = 0; i < flashMaterials.Length; i++)
+            if (flashMaterials[i] != null)
+                flashMaterials[i].color = flashOriginalColors[i];
+    }
+
+    private IEnumerator DamageFlashRoutine()
+    {
+        int blinks = Mathf.Max(1, damageFlashBlinks);
+        float half = Mathf.Max(0.02f, damageFlashDuration) / (blinks * 2f);
+
+        for (int b = 0; b < blinks; b++)
+        {
+            for (int i = 0; i < flashMaterials.Length; i++)
+                if (flashMaterials[i] != null)
+                    flashMaterials[i].color = damageFlashColor;
+
+            // Real time throughout — the flash must read at normal speed even while Yoru's own
+            // tail-aim slow-motion has the world clock at a tenth speed.
+            yield return new WaitForSecondsRealtime(half);
+
+            RestoreFlashColors();
+
+            if (b < blinks - 1)
+                yield return new WaitForSecondsRealtime(half);
+        }
+
+        damageFlashRoutine = null;
     }
 
     private void UpdateHitReaction()
@@ -2458,9 +2580,26 @@ public class PlayerCombat : MonoBehaviour
             PlayStrikeFeedback(contact, false, true, enemyAnim);
 
             // Single enemy: one strike and done. Spin a brief beat so it reads, then stop.
+            //
+            // The beat used to be a flat beybladeSingleWindDown (0.3s) — which, against a lone boss,
+            // ended the swirl at ~40% of its 0.79s clip and crossfaded to idle. That is the "swirl
+            // plays halfway then snaps back to idle" complaint, and it only ever happened when the
+            // finisher HIT (a whiff already let the clip finish). Now: wait at least the wind-down,
+            // then let the spin clip actually complete, capped by beybladeMaxTime.
             if (targets.Count == 1)
             {
-                yield return new WaitForSeconds(Mathf.Max(0f, beybladeSingleWindDown));
+                float held = 0f;
+                while (true)
+                {
+                    if (!isAttacking || isInHitReaction || isDodging || isDashing || isGuarding) break;
+                    held += Time.deltaTime;
+                    bool minDone = held >= Mathf.Max(0f, beybladeSingleWindDown);
+                    if (minDone && !beybladeSingleLetClipFinish) break;
+                    AnimatorStateInfo spin = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+                    bool clipDone = spin.shortNameHash == combo3StateHash && spin.normalizedTime >= 0.95f;
+                    if (minDone && (clipDone || Time.time - startTime >= beybladeMaxTime)) break;
+                    yield return null;
+                }
                 break;
             }
 
@@ -2494,7 +2633,15 @@ public class PlayerCombat : MonoBehaviour
     #region Ground Combo
     private void TryGroundCombo()
     {
-        if (Time.time - lastAttackTime < attackCooldown) return;
+        if (Time.time - lastAttackTime < attackCooldown)
+        {
+            // Silently swallowed input. If three fast clicks only ever produce two attacks, this
+            // is where the third one died.
+            if (logComboTrace)
+                Debug.Log($"[ComboTrace] CLICK DROPPED by attackCooldown ({attackCooldown:F2}s, "
+                        + $"{Time.time - lastAttackTime:F2}s since last attack) step={currentComboStep}");
+            return;
+        }
 
         if (isAttacking)
         {
@@ -2502,14 +2649,22 @@ public class PlayerCombat : MonoBehaviour
             {
                 queuedClicks++;
                 DebugLog($"Queued click #{queuedClicks} (combo {currentComboStep})");
+                if (logComboTrace) Debug.Log($"[ComboTrace] QUEUED #{queuedClicks} during step {currentComboStep}");
+            }
+            else if (logComboTrace)
+            {
+                Debug.Log($"[ComboTrace] CLICK IGNORED (step={currentComboStep} queued={queuedClicks})");
             }
             return;
         }
         PerformGroundCombo();
     }
 
+    private bool pendingChain;
+
     private void PerformGroundCombo()
     {
+        pendingChain = false;
         combatIdleSettledTimer = 0f;
         movementStuckTimer = 0f;
         attackStartTime = Time.time;
@@ -2528,6 +2683,8 @@ public class PlayerCombat : MonoBehaviour
         if (currentComboStep > 3) currentComboStep = 1;
 
         DebugLog($"Combo {currentComboStep}: {GetComboDamage(currentComboStep)} dmg");
+        if (logComboTrace)
+            Debug.Log($"[ComboTrace] START step={currentComboStep} state='{GetComboStateName(currentComboStep)}' queued={queuedClicks}");
 
         // Lunge toward the target, re-found every hit. With no target, hits 1-2 stay planted and
         // only the finisher (combo step 3) nudges forward — see StartLunge. No position freeze.
@@ -2943,6 +3100,12 @@ public class PlayerCombat : MonoBehaviour
             CombatFeedbackManager.Instance.PlayHitFeedback(contactPoint, isHeavy, animator, enemyAnimator);
         if (CombatSFXManager.Instance != null)
             CombatSFXManager.Instance.PlayImpact(isHeavy, isCombo3);
+
+        // "Show me the hit landed." CombatFeedbackManager's spark path silently does nothing while
+        // YoruVFXManager's Light/Heavy Hit Spark Prefab fields are empty, which is why no impact VFX
+        // was visible. This burst is generated in code so it works with nothing assigned.
+        if (proceduralHitSpark)
+            ProceduralImpactFX.Spark(contactPoint, isHeavy);
     }
     #endregion
 
@@ -2975,11 +3138,35 @@ public class PlayerCombat : MonoBehaviour
     {
         if (isBeyblading) return; // no combo chaining during the finisher spin
         canQueueNextAttack = true;
-        if (queuedClicks > 0)
+        if (queuedClicks <= 0) return;
+
+        // THIS is where a combo link gets cut short. OnCanQueueNextAttack is an animation EVENT
+        // inside each combo clip, and it used to start the next step the instant it fired — so the
+        // current clip is chopped off at whatever frame that event happens to sit on. If the event
+        // is early in Combo2, Combo2 visibly plays about half way and is replaced. That is the
+        // "second animation gets interrupted and snaps" complaint, and no amount of blending hides it.
+        //
+        // Rather than making you re-place events on every clip, the chain now waits until the
+        // current clip has actually played Combo Cancel Min Progress of itself. Set to 0 to get the
+        // exact old behavior back.
+        if (comboCancelMinProgress > 0f && CombatClipProgress() < comboCancelMinProgress)
         {
-            queuedClicks--;
-            PerformGroundCombo();
+            pendingChain = true;
+            if (logComboTrace)
+                Debug.Log($"[ComboTrace] CHAIN DEFERRED (clip at {CombatClipProgress():F2}, need {comboCancelMinProgress:F2})");
+            return;
         }
+
+        queuedClicks--;
+        PerformGroundCombo();
+    }
+
+    /// <summary>Normalized progress (0-1) of the clip currently playing on the combat layer.</summary>
+    private float CombatClipProgress()
+    {
+        if (animator == null) return 1f;
+        if (animator.IsInTransition(combatLayerIndex)) return 0f;
+        return animator.GetCurrentAnimatorStateInfo(combatLayerIndex).normalizedTime;
     }
 
     public void OnAttackEnd()
@@ -2995,6 +3182,28 @@ public class PlayerCombat : MonoBehaviour
             queuedClicks = 0;
         if (isAerialAttack) isAerialAttack = false;
         UnlockPosition();
+
+        if (logComboTrace && animator != null)
+        {
+            var st = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            // clipProgress well under 1.00 means this clip's OnAttackEnd animation EVENT is placed
+            // early in the timeline, so the clip is being cut by its own event, not by code.
+            Debug.Log($"[ComboTrace] END step={currentComboStep} clipProgress={st.normalizedTime:F2} "
+                    + $"clipLen={st.length:F2}s queued={queuedClicks} elapsed={Time.time - attackStartTime:F2}s");
+        }
+
+        // Seamless chain: if the next step is already bought, start it in THIS frame rather than
+        // crossfading to Combat_Idle and letting Update catch the queued click a frame later. That
+        // one-frame detour through idle is what reads as "the punch snaps back to idle mid-swing".
+        if (chainCombosWithoutIdle && queuedClicks > 0 && currentComboStep > 0 && currentComboStep < 3
+            && !isInHitReaction && !isDodging && !isDashing && !isGuarding)
+        {
+            queuedClicks--;
+            animator.SetBool(HashIsAttacking, true);
+            PerformGroundCombo();
+            return;
+        }
+
         ReturnToIdle();
         animator.SetBool(HashIsAttacking, false);
     }
@@ -3003,6 +3212,7 @@ public class PlayerCombat : MonoBehaviour
     #region Reset
     public void ForceResetCombat()
     {
+        pendingChain = false;
         isAttacking = false;
         isChargingHeavy = false;
         chargeHoldStarted = false;
