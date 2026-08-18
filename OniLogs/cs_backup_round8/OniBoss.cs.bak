@@ -318,31 +318,6 @@ public class OniBoss : MonoBehaviour
     private readonly System.Collections.Generic.HashSet<string> missingStatesWarned =
         new System.Collections.Generic.HashSet<string>();
 
-    [Header("Yoru — launch model (round 8, THIS SCENE ONLY)")]
-    [Tooltip("Switches on PlayerCombat's round-8 launch model while this boss is in the scene. That script is SHARED by every fight, so it is flipped from here rather than defaulted on. Untick to compare against the old behaviour.")]
-    [SerializeField] private bool configureYoruLaunch = true;
-
-    // The numbers are deliberately CONSTANTS, not [SerializeField]s. A serialized field keeps the
-    // value Unity saved the first time the script compiled, so changing a default in code silently
-    // does nothing — that is exactly how the targeting cone stayed at 120 after it was "reverted".
-    // Tune live on PlayerCombat during Play instead; these are only the values pushed at Start.
-    private const float YORU_NUDGE_DISTANCE  = 0.9f;   // step forward with nothing to launch at
-    private const float YORU_ENGAGE_DISTANCE = 6.0f;   // launch at anything within 6m of its SURFACE
-    private const float YORU_LAUNCH_MIN      = 0f;     // NO minimum: the launch is the real gap
-    private const float YORU_LAUNCH_STOP_GAP = 0f;     // all the way in; her capsule stops on his body
-    private const float YORU_LAUNCH_SPEED    = 10f;    // 20 m/s covered 3m in 0.15s — too fast to see
-    private const float YORU_CONE            = -1f;    // -1 = DO NOT TOUCH her targeting cone
-
-    // ROUND 9.
-    // AIR: Hazel's call — airborne attacks launch and step forward exactly like grounded ones.
-    // EDGE LAYERS: the edge probe gets its own mask. Her prefab's Environment Mask is Ground only
-    // (layer 8) and this cave's terrain is on Default (layer 0), so the probe found no floor
-    // anywhere, called it a cliff, and killed 11 of 11 launches at 0.00m travelled. Environment
-    // Mask is ALSO the line-of-sight mask, so it is left alone — widening it would let the cave
-    // floor start blocking targeting. -1 = every layer, which is what a floor probe wants.
-    private const bool YORU_LAUNCH_IN_AIR      = true;
-    private const int  YORU_EDGE_GROUND_LAYERS = -1;   // ~0, every layer; 0 would mean "leave alone"
-
     private void Awake()
     {
         // First thing, before any other script logs: the on-disk mirror of the console.
@@ -380,26 +355,6 @@ public class OniBoss : MonoBehaviour
         // no tracking during the flinch.
         combat.ConfigureFacing(lookAtMinFlatDistance, snapToFaceOnAttack, trackPlayerDuringHitReact);
         DebugLog($"facing: minFlat {lookAtMinFlatDistance}m, snapOnAttack {(snapToFaceOnAttack ? "ON" : "off")}, trackInHitReact {(trackPlayerDuringHitReact ? "ON" : "off")}");
-
-        // Round 8: the agreed launch model. It lives on PlayerCombat, which every fight shares, so
-        // it is switched on HERE - this scene only - until it has been judged. Start-only lookup.
-        if (configureYoruLaunch && playerT != null)
-        {
-            var yoru = playerT.GetComponent<PlayerCombat>();
-            if (yoru == null) yoru = playerT.GetComponentInChildren<PlayerCombat>();
-            if (yoru != null)
-            {
-                yoru.ConfigureLaunch(true, YORU_NUDGE_DISTANCE, YORU_ENGAGE_DISTANCE, YORU_CONE,
-                                     YORU_LAUNCH_MIN, YORU_LAUNCH_STOP_GAP, YORU_LAUNCH_SPEED,
-                                     YORU_LAUNCH_IN_AIR ? 1 : 0, YORU_EDGE_GROUND_LAYERS);
-                DebugLog($"Yoru launch model ON: launches ALL THE WAY to an enemy within {YORU_ENGAGE_DISTANCE:F1}m of its surface at {YORU_LAUNCH_SPEED:F0}m/s (stop gap {YORU_LAUNCH_STOP_GAP:F2}m, NO minimum distance), else steps {YORU_NUDGE_DISTANCE:F2}m forward. Targeting cone left exactly as her prefab has it.");
-                DebugLog($"Yoru launch ROUND 9: airborne attacks launch too ({(YORU_LAUNCH_IN_AIR ? "ON" : "off")}), edge probe now runs on its OWN layer mask (Everything) instead of the line-of-sight mask - the Ground-only mask found no floor in this cave and was cancelling 100% of launches at 0.00m travelled.");
-            }
-            else
-            {
-                Debug.LogWarning("[OniBoss] no PlayerCombat found on the player - Yoru's launch model stays OFF. Nothing else is affected.");
-            }
-        }
 
         // The mesh must never be culled while its bones are on screen (see Charge Travel Cancel).
         int smrCount = 0;

@@ -386,18 +386,6 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Shortest a launch may take, seconds. The old 0.06s slide was over before the eye could see it — this is what made the snap invisible even when it was working. 0.12-0.16 reads as a pounce without delaying the punch.")]
     [SerializeField] private float launchMinDuration = 0.13f;
 
-    [Header("Launch model — round 8")]
-    [Tooltip("ON = the agreed three-case model. (A) No enemy at all: EVERY attack and every combo step still steps forward by Launch No Target Distance. (B) Enemy inside Launch Engage Distance: launch to its collider surface, as now. (C) Enemy beyond Launch Engage Distance: step forward only, never a part-way slide toward it. OFF = the old behaviour, where hits 1 and 2 stay planted with no enemy and a far enemy produces a clamped 6m slide that lands short. Default OFF because this script is shared by every fight; the Oni switches it on for his scene.")]
-    [SerializeField] private bool launchWithNoTarget = false;
-    [Tooltip("The step forward when there is nothing to launch at, metres — cases A and C. 0.9 is derived from Breath of the Wild's CutAddSpeedMax 0.15 / CutAddSpeedDec 0.012, which works out to about 0.94m of slide per swing. Applies to every attack and every combo step, so a 3-hit air combo carries her about 2.7m.")]
-    [SerializeField] private float launchNoTargetDistance = 0.9f;
-    [Tooltip("How close the enemy's COLLIDER SURFACE must be before an attack launches at it, metres. Inside this she launches; outside she steps forward instead. 4.5 is THE FINALS' shipped melee lunge distance (Season 11 raised it from ~3m). Measured to the surface, not the centre, so a 1.4m-radius boss is engaged from 5.9m of centre distance.")]
-    [SerializeField] private float launchEngageDistance = 4.5f;
-    [Tooltip("How far short of the enemy's COLLIDER SURFACE the launch aims to stop, metres. 0 = launch all the way to him and let her own capsule collide with his body, which is what 'launch to the enemy' means. The old Lunge Stop Gap of 1.0 m is why she stopped a metre short of a boss she was already next to. Raise this only if she ends up visibly inside something.")]
-    [SerializeField] private float launchStopGap = 0f;
-    [Tooltip("ROUND 9, opt-in. ON = airborne attacks launch and step forward too, exactly like grounded ones. The launch is horizontal only - PlayerMovement keeps full ownership of the fall, so this cannot produce the height drop the old airborne path had. OFF = the old behaviour, where StartLunge returns early in the air and an air attack never moves her.")]
-    [SerializeField] private bool launchInAir = false;
-
     [Header("Lunge Safety")]
     [Tooltip("Stop the slide at ledges so Yoru never lunges off a cliff.")]
     [SerializeField] private bool useEdgeSafety = true;
@@ -405,8 +393,6 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float edgeProbeDepth = 1.2f;
     [Tooltip("Layers treated as ground for the edge check AND as blockers for line of sight (so Yoru will not target or lunge at an enemy behind a wall). Default is Everything; set this to your ground/terrain/wall layers for best results.")]
     [SerializeField] private LayerMask environmentMask = ~0;
-    [Tooltip("ROUND 9. Layers the EDGE PROBE accepts as solid floor. Deliberately SEPARATE from Environment Mask, because Environment Mask is also the line-of-sight mask: widening that one so the probe can see the floor would make the floor block targeting. Everything (the default) is correct for almost every scene - the probe skips Yoru's own body by root, so it can never see itself. Leave at Everything unless you have floors you specifically want her to refuse to step on.")]
-    [SerializeField] private LayerMask edgeGroundMask = ~0;
 
     [Header("Combo 3 Beyblade Finisher")]
     [Tooltip("Hard time cap in seconds for the spin against a crowd, so a big group can never trap the player in an endless beyblade. A single enemy ends much sooner (one strike plus Beyblade Single Wind Down).")]
@@ -2487,29 +2473,6 @@ public class PlayerCombat : MonoBehaviour
     /// stopping lungeStopGap short so the enemy ends inside attack range. Sets lungeEndedShort when the
     /// cap stops Yoru before he fully closes, which drives the weaker "reach" hit.
     /// </summary>
-    /// <summary>
-    /// Opt-in (round 8). Switches on the agreed three-case launch model and sets its numbers:
-    ///   A. no enemy              -> step forward `nudgeDistance` on EVERY attack and combo step
-    ///   B. enemy within `engageDistance` of its collider surface -> launch to it (unchanged)
-    ///   C. enemy beyond that     -> step forward only, never a clamped part-way slide
-    /// Pass a negative value for any number to leave that Inspector value untouched.
-    /// OFF by default so every other fight keeps the old planted behaviour.
-    /// </summary>
-    public void ConfigureLaunch(bool noTargetLaunch, float nudgeDistance = -1f, float engageDistance = -1f,
-                               float coneAngleDegrees = -1f, float minDistance = -1f, float stopGap = -1f,
-                               float speed = -1f, int airLaunch = -1, int edgeGroundLayers = 0)
-    {
-        launchWithNoTarget = noTargetLaunch;
-        if (airLaunch        >= 0) launchInAir            = airLaunch != 0;   // -1 = leave alone
-        if (edgeGroundLayers != 0) edgeGroundMask         = edgeGroundLayers; //  0 = leave alone
-        if (nudgeDistance    >= 0f) launchNoTargetDistance = nudgeDistance;
-        if (engageDistance   >= 0f) launchEngageDistance   = engageDistance;
-        if (coneAngleDegrees >  0f) targetingAngle         = Mathf.Clamp(coneAngleDegrees, 1f, 180f);
-        if (minDistance      >= 0f) launchMinDistance      = minDistance;   // 0 = no minimum
-        if (stopGap          >= 0f) launchStopGap          = stopGap;       // 0 = all the way in
-        if (speed            >  0f) launchSpeed            = speed;
-    }
-
     private void StartLunge(Transform target, bool allowNoTargetNudge)
     {
         // Airborne attacks never slide. The magnet is a grounded tool: running the slide in the
@@ -2518,18 +2481,13 @@ public class PlayerCombat : MonoBehaviour
         // reach here airborne (charge on the ground, jump, release in the air). The strike still
         // plays, only the slide is skipped. With Launch on, "grounded a moment ago" counts too:
         // isGrounded flickers on uneven floors and was silently killing the slide.
-        // ROUND 9: with Launch In Air on (Hazel's call), that early-out is lifted. The height drop
-        // it was protecting against came from LungeRoutine adding its own gravity on top of
-        // PlayerMovement's; that line is gone, so the airborne slide is now purely horizontal.
         if (characterController == null) return;
         bool grounded = characterController.isGrounded
                         || (launchEnabled && Time.time - lastGroundedTime <= launchGroundedGrace);
-        if (!grounded && !(launchEnabled && launchInAir)) return;
+        if (!grounded) return;
 
         Vector3 dir;
-        float distance = 0f;
-        bool nudgeOnly = false;                              // round 8: cases A and C both step forward
-        float targetGap = -1f;                               // surface distance, for the trace line
+        float distance;
         lungeEndedShort = false;
         float maxDist = launchEnabled ? launchMaxDistance : lungeMaxDistance;
 
@@ -2543,54 +2501,23 @@ public class PlayerCombat : MonoBehaviour
             Vector3 toTarget = aim - cachedTransform.position;
             toTarget.y = 0f;
             float gap = toTarget.magnitude;
-            targetGap = gap;
             dir = gap > 0.01f ? toTarget.normalized : cachedTransform.forward;
-
-            // ROUND 8, CASE C — the enemy is real but too far to be worth sliding at, so step
-            // forward instead of committing. Every shipped implementation we compared against does
-            // exactly this rather than clamping: HL2's npc_assassin returns TOO_FAR past 1.5x the
-            // animation's own travel, NOLF2's lunge goal does not fire outside 300-500 units, and
-            // the UE5 melee prototypes clear the warp target and play a non-warping attack. The old
-            // Mathf.Clamp is what produced "she slides the full 6 m and still lands a metre short".
-            if (launchEnabled && launchWithNoTarget && gap > launchEngageDistance)
-            {
-                nudgeOnly = true;
-            }
-            else
-            {
-                // ROUND 8, CASE B — launch AT him. gap is to his collider SURFACE, so with Launch
-                // Stop Gap at 0 she travels the whole way and her own capsule stops on his body.
-                // That is what "launch to the enemy" means. No floor, no minimum: if the real gap
-                // is 0.3 m she moves 0.3 m, if it is 2 m she moves 2 m.
-                float want = gap - (launchEnabled ? launchStopGap : lungeStopGap);
-                distance = Mathf.Clamp(want, 0f, maxDist);
-                if (want > maxDist) lungeEndedShort = true;  // capped short, reach hit is weaker
-            }
+            float want = gap - lungeStopGap;                 // close to just inside attack range
+            distance = Mathf.Clamp(want, 0f, maxDist);
+            if (want > maxDist) lungeEndedShort = true;      // capped short, reach hit is weaker
         }
         else
         {
-            // ROUND 8, CASE A — nothing to aim at. With the launch model on, EVERY attack and every
-            // combo step still steps forward. With it off, the old behaviour: hits 1 and 2 planted,
-            // only the finisher nudged.
+            // No enemy in range. Hits 1 and 2 stay planted so Yoru never slides into empty space;
+            // only the combo finisher gets a small committal nudge for weight. The edge probe in
+            // LungeRoutine still runs on this nudge, so it stops at a ledge like any other slide.
             dir = cachedTransform.forward;
-            if (launchEnabled && launchWithNoTarget) nudgeOnly = true;
-            else distance = allowNoTargetNudge ? noTargetFinisherNudge : 0f;
+            distance = allowNoTargetNudge ? noTargetFinisherNudge : 0f;
         }
 
-        if (nudgeOnly)
-        {
-            // A step is always straight forward — she is not sliding at anything. The edge probe in
-            // LungeRoutine still runs, so this can never carry her off a ledge.
-            dir = cachedTransform.forward;
-            distance = Mathf.Max(0f, launchNoTargetDistance);
-            lungeEndedShort = false;
-        }
-
-        // ROUND 8: there is NO minimum launch distance. The old 0.8 m floor overrode the real
-        // gap on 21 of 30 attacks and was then absorbed by the boss's collider, which is exactly
-        // why the launch was invisible. Launch Min Distance is 0 unless someone deliberately
-        // raises it; at 0 this block does nothing.
-        if (launchEnabled && launchMinDistance > 0f && target != null && !nudgeOnly && distance < launchMinDistance)
+        // Always a visible step into the swing: even point-blank she moves forward a little. Her
+        // capsule stops on the enemy's body, so "too much" is simply absorbed by the collision.
+        if (launchEnabled && target != null && distance < launchMinDistance)
             distance = launchMinDistance;
 
         // Launch timing: speed-based, floored so the slide is long enough to SEE, capped so it is
@@ -2608,19 +2535,7 @@ public class PlayerCombat : MonoBehaviour
         }
 
         if (logComboTrace)
-        {
-            string what;
-            if (nudgeOnly && target != null)
-                what = $"STEP (too far: {target.name} at {targetGap:F1}m > engage {launchEngageDistance:F1}m)";
-            else if (nudgeOnly)
-                what = "STEP (no enemy)";
-            else if (target != null)
-                what = $"{target.name} at {targetGap:F1}m";
-            else
-                what = "no target, planted";
-            string air = (characterController != null && !characterController.isGrounded) ? " [AIRBORNE]" : "";
-            Debug.Log($"[ComboTrace] LAUNCH {what} dist={distance:F2}m in {duration:F2}s{(lungeEndedShort ? " (capped short)" : "")}{air}");
-        }
+            Debug.Log($"[ComboTrace] LAUNCH {(target != null ? target.name : "no target")} dist={distance:F2}m in {duration:F2}s{(lungeEndedShort ? " (capped short)" : "")}");
 
         if (lungeCoroutine != null) StopCoroutine(lungeCoroutine);
         if (distance > 0.01f)
@@ -2633,38 +2548,10 @@ public class PlayerCombat : MonoBehaviour
         float elapsed = 0f;
         float prevEased = 0f;
 
-        // ROUND 8 diagnostics: the trace above prints what we INTENDED to travel. This prints what
-        // actually happened, so "the log says 2.98m but she did not move" can never be a mystery
-        // again. Three things can silently eat a launch: another action taking over, the ledge
-        // probe refusing the next step, or a collider blocking the Move.
-        Vector3 lungeStartPos = cachedTransform.position;
-        string lungeEndReason = "completed";
-
-        // ROUND 9 - THE BUG THAT ATE EVERY LAUNCH. The ledge check is only meaningful if it can see
-        // the floor Yoru is STANDING on. In CaveScene_Oni_Boss1 the terrain sits on layer Default
-        // while the probe mask was Ground only, so the probe found nothing anywhere in the scene,
-        // read that as "cliff", and cancelled the launch on its first frame: 11 of 11 attacks in
-        // the 15:36 log reported "actually moved=0.00m - STOPPED BY LEDGE PROBE after 0.004s".
-        // A probe that cannot see the ground under her feet is misconfigured, not a cliff, so it
-        // now stands down (once, loudly) instead of silently eating the launch. Where the mask IS
-        // right - DemoScene_Day's terrain is on Ground, which is why the Noppera fight always
-        // launched correctly - nothing changes and cliff protection still works.
-        bool airborneNow = characterController != null && !characterController.isGrounded;
-        bool edgeSafetyActive = false;
-        if (useEdgeSafety && !airborneNow)
-        {
-            edgeSafetyActive = GroundAhead(cachedTransform.position);
-            if (!edgeSafetyActive) WarnEdgeProbeBlind();
-        }
-
         while (elapsed < duration)
         {
             // Bail the instant another action takes over.
-            if (isDodging || isDashing || isInHitReaction || isGuarding)
-            {
-                lungeEndReason = $"INTERRUPTED (dodge={isDodging} dash={isDashing} hitReact={isInHitReaction} guard={isGuarding})";
-                break;
-            }
+            if (isDodging || isDashing || isInHitReaction || isGuarding) break;
 
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
@@ -2677,79 +2564,30 @@ public class PlayerCombat : MonoBehaviour
                 Vector3 step = dir * (distance * frameDelta);
 
                 // Edge safety: do not slide off a ledge. Probe the spot we are about to enter.
-                // Skipped when the probe is blind (see above) or when she is already airborne,
-                // where "is there floor at the next step" has no meaning.
-                if (edgeSafetyActive && !GroundAhead(cachedTransform.position + step))
-                {
-                    lungeEndReason = $"STOPPED BY LEDGE PROBE after {elapsed:F3}s";
+                if (useEdgeSafety && !GroundAhead(cachedTransform.position + step))
                     break;
-                }
-
-                // ROUND 9: the launch is HORIZONTAL ONLY. The old keep-down line added a second
-                // gravity on top of the one PlayerMovement already applies every FixedUpdate, and
-                // it applied it as a raw position jump of g*dt (about 0.16 m in a single frame),
-                // which is the sudden height drop that made airborne launches unusable. Gravity is
-                // PlayerMovement's job; the launch only ever moves her across the ground plane.
-                step.y = 0f;
 
                 // Wall safety: CharacterController.Move resolves wall collisions, so Yoru cannot pass through one.
+                if (!characterController.isGrounded)
+                    step.y = Physics.gravity.y * Time.deltaTime;
                 characterController.Move(step);
             }
             yield return null;
         }
-
-        if (logComboTrace)
-        {
-            Vector3 moved = cachedTransform.position - lungeStartPos;
-            moved.y = 0f;
-            Debug.Log($"[ComboTrace] LAUNCH RESULT wanted={distance:F2}m actually moved={moved.magnitude:F2}m — {lungeEndReason}");
-        }
         lungeCoroutine = null;
     }
 
-    // Preallocated so the probe never allocates per frame (standing performance rule).
-    private readonly RaycastHit[] edgeProbeHits = new RaycastHit[8];
-    private bool edgeProbeBlindWarned;
-
-    /// <summary>Edge probe: is there solid ground (in edgeGroundMask) just below the given world position?</summary>
+    /// <summary>Edge probe: is there solid ground (in environmentMask) just below the given world position?</summary>
     private bool GroundAhead(Vector3 worldPos)
     {
         Vector3 origin = worldPos + Vector3.up * 0.3f;
         float probe = 0.3f + edgeProbeDepth;
-        // ROUND 9: its own mask (not the line-of-sight one), and ALL hits are examined rather than
-        // just the nearest. The old single-hit form returned "no ground" whenever the first thing
-        // the ray met happened to belong to Yoru, which is a second way the launch could die.
-        int mask = edgeGroundMask.value != 0 ? edgeGroundMask.value : environmentMask.value;
-        int n = Physics.RaycastNonAlloc(origin, Vector3.down, edgeProbeHits, probe, mask, QueryTriggerInteraction.Ignore);
-        for (int i = 0; i < n; i++)
+        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, probe, environmentMask, QueryTriggerInteraction.Ignore))
         {
-            Collider c = edgeProbeHits[i].collider;
-            if (c != null && c.transform.root != cachedTransform.root) return true;
+            if (hit.collider.transform.root != cachedTransform.root)
+                return true;
         }
         return false;
-    }
-
-    /// <summary>
-    /// One-time, loud: the edge probe cannot see the floor Yoru is standing on, so it has been
-    /// stood down for this scene. Names the floor and the layer it is actually on, so the fix is
-    /// one click instead of another week of "the launch does nothing".
-    /// </summary>
-    private void WarnEdgeProbeBlind()
-    {
-        if (edgeProbeBlindWarned) return;
-        edgeProbeBlindWarned = true;
-
-        string floor = "nothing at all within " + (0.3f + edgeProbeDepth).ToString("F2") + "m";
-        Vector3 origin = cachedTransform.position + Vector3.up * 0.3f;
-        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 0.3f + edgeProbeDepth, ~0, QueryTriggerInteraction.Ignore))
-        {
-            int l = hit.collider.gameObject.layer;
-            floor = $"'{hit.collider.name}' on layer {l} '{LayerMask.LayerToName(l)}'";
-        }
-        Debug.LogWarning($"[PlayerCombat] EDGE PROBE BLIND: nothing in Edge Ground Mask under Yoru's own feet, "
-            + $"so the ledge check would cancel every launch in this scene. It has been stood down here. "
-            + $"The floor under her is {floor}. Add that layer to Edge Ground Mask (or move the floor onto a "
-            + $"layer that is in it) to get ledge protection back.");
     }
     #endregion
 
@@ -3054,14 +2892,6 @@ public class PlayerCombat : MonoBehaviour
         attackStartTime = Time.time;
         currentLungeTarget = AcquireTarget();
         FaceTargetFast(currentLungeTarget, true);
-
-        // ROUND 9, Hazel's call: the AIRBORNE attack launches too. This is the path a click in the
-        // air actually takes (HandleInput sends it to TryAerialSpin, not to the ground combo), so
-        // lifting StartLunge's grounded early-out alone would have changed nothing here - the spin
-        // never asked for a launch at all. Guarded by Launch In Air, so every other fight keeps the
-        // old planted spin. The slide is horizontal only; PlayerMovement still owns the fall.
-        if (launchEnabled && launchInAir) StartLunge(currentLungeTarget, true);
-
         hasUsedAerialAttack = true;
         isAerialAttack = true;
         currentComboStep = 3;

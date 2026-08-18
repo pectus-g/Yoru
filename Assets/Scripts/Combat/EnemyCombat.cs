@@ -2604,6 +2604,18 @@ private void TriggerHitFlash()
     
     #region Getters
     public EnemyState GetCurrentState() => currentState;
+
+    /// <summary>Read-only: this enemy's melee attack range (boss layers size their step-in from it).</summary>
+    public float AttackRange() => attackRange;
+
+    /// <summary>Read-only: the attack currently being performed, or "" when none.</summary>
+    public string CurrentAttackName() => currentAttack != null ? currentAttack.attackName : "";
+
+    /// <summary>Read-only: the animator state name of the attack currently being performed, or "".</summary>
+    public string CurrentAttackAnim() => currentAttack != null ? currentAttack.attackAnim : "";
+
+    /// <summary>Read-only: how many combo steps are still queued after the current one.</summary>
+    public int ComboStepsRemaining() => comboQueue != null ? comboQueue.Count : 0;
     public bool IsPhase2() => isPhase2;
     public bool IsInCombat() => currentState >= EnemyState.Idle && currentState <= EnemyState.Teleport;
 

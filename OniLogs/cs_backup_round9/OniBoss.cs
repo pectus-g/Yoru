@@ -333,16 +333,6 @@ public class OniBoss : MonoBehaviour
     private const float YORU_LAUNCH_SPEED    = 10f;    // 20 m/s covered 3m in 0.15s — too fast to see
     private const float YORU_CONE            = -1f;    // -1 = DO NOT TOUCH her targeting cone
 
-    // ROUND 9.
-    // AIR: Hazel's call — airborne attacks launch and step forward exactly like grounded ones.
-    // EDGE LAYERS: the edge probe gets its own mask. Her prefab's Environment Mask is Ground only
-    // (layer 8) and this cave's terrain is on Default (layer 0), so the probe found no floor
-    // anywhere, called it a cliff, and killed 11 of 11 launches at 0.00m travelled. Environment
-    // Mask is ALSO the line-of-sight mask, so it is left alone — widening it would let the cave
-    // floor start blocking targeting. -1 = every layer, which is what a floor probe wants.
-    private const bool YORU_LAUNCH_IN_AIR      = true;
-    private const int  YORU_EDGE_GROUND_LAYERS = -1;   // ~0, every layer; 0 would mean "leave alone"
-
     private void Awake()
     {
         // First thing, before any other script logs: the on-disk mirror of the console.
@@ -390,10 +380,8 @@ public class OniBoss : MonoBehaviour
             if (yoru != null)
             {
                 yoru.ConfigureLaunch(true, YORU_NUDGE_DISTANCE, YORU_ENGAGE_DISTANCE, YORU_CONE,
-                                     YORU_LAUNCH_MIN, YORU_LAUNCH_STOP_GAP, YORU_LAUNCH_SPEED,
-                                     YORU_LAUNCH_IN_AIR ? 1 : 0, YORU_EDGE_GROUND_LAYERS);
+                                     YORU_LAUNCH_MIN, YORU_LAUNCH_STOP_GAP, YORU_LAUNCH_SPEED);
                 DebugLog($"Yoru launch model ON: launches ALL THE WAY to an enemy within {YORU_ENGAGE_DISTANCE:F1}m of its surface at {YORU_LAUNCH_SPEED:F0}m/s (stop gap {YORU_LAUNCH_STOP_GAP:F2}m, NO minimum distance), else steps {YORU_NUDGE_DISTANCE:F2}m forward. Targeting cone left exactly as her prefab has it.");
-                DebugLog($"Yoru launch ROUND 9: airborne attacks launch too ({(YORU_LAUNCH_IN_AIR ? "ON" : "off")}), edge probe now runs on its OWN layer mask (Everything) instead of the line-of-sight mask - the Ground-only mask found no floor in this cave and was cancelling 100% of launches at 0.00m travelled.");
             }
             else
             {

@@ -1,0 +1,180 @@
+# Oni combat log — 2026-08-18 13:48:52
+# Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
+# columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
+#
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-08-18_13-48-52.log
+[     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
+[     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
+  aim VFX right: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/Glow_4Leg_R
+[     1    0.000 x1.00] LOG  [TailAirShot] Ready. drawState=RightTail_Fast castParam=TailCastSpeed (found)
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/vfx_Muzzle_Fireball01Blue
+[     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
+[     1    0.000 x1.00] LOG  [RingMesh] VFX Status:
+[     1    0.000 x1.00] LOG    Left: Prefab=✓, Spawn=Tail6_L_end_end_end
+[     1    0.000 x1.00] LOG    Right: Prefab=✓, Spawn=Tail6_R_end_end_end
+[     1    0.000 x1.00] LOG  === VFX MANAGER INITIALIZED ===
+[     1    0.000 x1.00] LOG  Auto-detect animations: False
+[     1    0.000 x1.00] LOG  Parent effects to tail: True
+[     1    0.000 x1.00] LOG  Prefabs: Jump=True, Land=True, LTail=True, RTail=True
+[     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailVFX
+[     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
+[     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
+[     1    0.000 x1.00] LOG  [StormWeather] Ready. Rain on, floor drying... wait, soaking.
+[     1    0.000 x1.00] LOG  OniBoss initialized with 500 HP
+[     1    0.000 x1.00] LOG  [OniBoss] ANIMATOR SETUP: cullingMode=CullUpdateTransforms updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [OniBoss] Initialized
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] facing: minFlat 1m, snapOnAttack off, trackInHitReact off
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch-with-no-enemy ON for this scene: 1.00m forward on EVERY attack, along her facing
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] skinned meshes: 46 renderer(s), updateWhenOffscreen ON, body renderer 'Body' rootBone 'Hips'
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge travel bone: 'Hips' at depth 1 under 'OniBoss', rest local (0.00, 3.24, -0.24)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge drive ON (windup to 0.35 at x1.3, rush 14m/s stops at 2.6m, steers 0.35s then commits, strike section from 0.58, strike moment 0.76, trail VFX off)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] attack armor ON (his swings are not interrupted by light/medium hits; heavy hits and rapid-hit bursts still stop him)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] strike moments overridden: Club_Swing=0.55 ClubSwing2=0.32 ClubSlam=0.52 KanaboSweep=0.48
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] hold-ground ON (backstep 1.5m @ 1.4m/s after own attacks, watch 'Watch', attack facing LOCKED)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] OniBoss layer ready (reactions, wake-on-hit, watch stance, boss bar). player=found
+[     1    0.000 x1.00] WARN [OniBoss] animator state 'KanaboSweep' uses the SAME clip as 'Idle' — the sweep attack plays the idle pose. Drag the 'Oni Kanabo sweep' clip onto KanaboSweep's Motion field.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge clip 'Oni Charge.fbx' imports with Root Motion Node = None (in place) — good.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] clips importing with Root Transform Position (Y) NOT baked into pose (12): Oni_Alert(Oni Alert), Club_Slam(Oni Club Slam), Club_Swing(Oni Club Swing), Club_swing2(Oni Club Swing 2), Death(Oni Death Kneel), Hit_react_light(Oni Hit react lighter light), KanaboSweep(Oni Idle), Phase_Transition(Oni Phase transition), run(Oni Run), Walk(Oni Walk), Watch(Oni Watch), Idle(Oni Idle) — their hips' up/down motion is stripped (see round notes; optional).
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Found VolumetricFog component on mainCamera (1)
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Reflection init: density=True, height=True, baselineHeight=True, alpha=True, noiseStrength=True, lightScatteringExposure=True
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Initialized with Neutral preset (height=60, baselineHeight=0)
+[     1    0.000 x1.00] WARN [VolumetricFogController] WorldStateManager not found!
+[     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
+[     1    2.089 x1.00] LOG  [OniBoss] Playing animation: Idle
+[    49    2.774 x1.00] LOG  💨 Landing VFX spawned!
+[    92    2.994 x1.00] LOG  ✅ LANDED! (was jump #0)
+[   850    6.689 x1.00] LOG  🐾 4-LEG JUMP #0
+[   850    6.689 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   854    6.710 x1.00] LOG  [AirPosePin] engaged, holding body at 0.697m above the transform
+[   856    6.725 x1.00] LOG  [AirPosePin] released, peak correction was 0.025m
+[   857    6.729 x1.00] LOG  [AirPosePin] engaged, holding body at 0.624m above the transform
+[   858    6.736 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   859    6.745 x1.00] LOG  [AirPosePin] engaged, holding body at 0.617m above the transform
+[   860    6.749 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   861    6.755 x1.00] LOG  [AirPosePin] engaged, holding body at 0.634m above the transform
+[   862    6.758 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   863    6.765 x1.00] LOG  [AirPosePin] engaged, holding body at 0.661m above the transform
+[   864    6.769 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   865    6.775 x1.00] LOG  [AirPosePin] engaged, holding body at 0.697m above the transform
+[   866    6.779 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   867    6.785 x1.00] LOG  [AirPosePin] engaged, holding body at 0.742m above the transform
+[   868    6.788 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   869    6.795 x1.00] LOG  [AirPosePin] engaged, holding body at 0.802m above the transform
+[   870    6.799 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   871    6.805 x1.00] LOG  [AirPosePin] engaged, holding body at 0.872m above the transform
+[   872    6.808 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   873    6.815 x1.00] LOG  [AirPosePin] engaged, holding body at 0.955m above the transform
+[   874    6.819 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   875    6.825 x1.00] LOG  [AirPosePin] engaged, holding body at 1.052m above the transform
+[   876    6.829 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   877    6.835 x1.00] LOG  [AirPosePin] engaged, holding body at 1.110m above the transform
+[   878    6.839 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   879    6.845 x1.00] LOG  [AirPosePin] engaged, holding body at 1.168m above the transform
+[   880    6.848 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   881    6.855 x1.00] LOG  [AirPosePin] engaged, holding body at 1.226m above the transform
+[   882    6.859 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   883    6.865 x1.00] LOG  [AirPosePin] engaged, holding body at 1.287m above the transform
+[   884    6.869 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   885    6.875 x1.00] LOG  [AirPosePin] engaged, holding body at 1.346m above the transform
+[   886    6.879 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   887    6.886 x1.00] LOG  [AirPosePin] engaged, holding body at 1.406m above the transform
+[   888    6.895 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   889    6.900 x1.00] LOG  [AirPosePin] engaged, holding body at 1.481m above the transform
+[   890    6.905 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   891    6.909 x1.00] LOG  [AirPosePin] engaged, holding body at 1.527m above the transform
+[   892    6.915 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   893    6.919 x1.00] LOG  [AirPosePin] engaged, holding body at 1.574m above the transform
+[   894    6.925 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   895    6.929 x1.00] LOG  [AirPosePin] engaged, holding body at 1.612m above the transform
+[   896    6.935 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   897    6.939 x1.00] LOG  [AirPosePin] engaged, holding body at 1.645m above the transform
+[   898    6.946 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   899    6.955 x1.00] LOG  [AirPosePin] engaged, holding body at 1.685m above the transform
+[   900    6.959 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   901    6.965 x1.00] LOG  [AirPosePin] engaged, holding body at 1.699m above the transform
+[   902    6.970 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   903    6.975 x1.00] LOG  [AirPosePin] engaged, holding body at 1.706m above the transform
+[   904    6.986 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   905    6.990 x1.00] LOG  [AirPosePin] engaged, holding body at 1.704m above the transform
+[   906    6.995 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   907    6.999 x1.00] LOG  [AirPosePin] engaged, holding body at 1.693m above the transform
+[   908    7.006 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   909    7.009 x1.00] LOG  [AirPosePin] engaged, holding body at 1.663m above the transform
+[   910    7.016 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   911    7.020 x1.00] LOG  [AirPosePin] engaged, holding body at 1.598m above the transform
+[   912    7.025 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   913    7.029 x1.00] LOG  [AirPosePin] engaged, holding body at 1.524m above the transform
+[   914    7.035 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   915    7.039 x1.00] LOG  [AirPosePin] engaged, holding body at 1.437m above the transform
+[   916    7.045 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   917    7.050 x1.00] LOG  [AirPosePin] engaged, holding body at 1.372m above the transform
+[   918    7.055 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   919    7.058 x1.00] LOG  [AirPosePin] engaged, holding body at 1.328m above the transform
+[   920    7.065 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   921    7.069 x1.00] LOG  [AirPosePin] engaged, holding body at 1.281m above the transform
+[   922    7.075 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   923    7.079 x1.00] LOG  [AirPosePin] engaged, holding body at 1.232m above the transform
+[   924    7.086 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   925    7.089 x1.00] LOG  [AirPosePin] engaged, holding body at 1.180m above the transform
+[   926    7.096 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   927    7.099 x1.00] LOG  [AirPosePin] engaged, holding body at 1.132m above the transform
+[   928    7.105 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   929    7.110 x1.00] LOG  [AirPosePin] engaged, holding body at 1.075m above the transform
+[   930    7.115 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   931    7.119 x1.00] LOG  [AirPosePin] engaged, holding body at 1.022m above the transform
+[   932    7.126 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   934    7.139 x1.00] LOG  [AirPosePin] engaged, holding body at 0.910m above the transform
+[   935    7.145 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   936    7.149 x1.00] LOG  [AirPosePin] engaged, holding body at 0.860m above the transform
+[   937    7.155 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   938    7.159 x1.00] LOG  [AirPosePin] engaged, holding body at 0.812m above the transform
+[   939    7.165 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   940    7.169 x1.00] LOG  [AirPosePin] engaged, holding body at 0.777m above the transform
+[   941    7.175 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   942    7.179 x1.00] LOG  [AirPosePin] engaged, holding body at 0.761m above the transform
+[   943    7.185 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   944    7.189 x1.00] LOG  [AirPosePin] engaged, holding body at 0.772m above the transform
+[   945    7.196 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   946    7.206 x1.00] LOG  [AirPosePin] engaged, holding body at 0.804m above the transform
+[   947    7.210 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   948    7.216 x1.00] LOG  [AirPosePin] engaged, holding body at 0.805m above the transform
+[   949    7.220 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   950    7.225 x1.00] LOG  [AirPosePin] engaged, holding body at 0.794m above the transform
+[   951    7.230 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   953    7.239 x1.00] LOG  [AirPosePin] engaged, holding body at 0.772m above the transform
+[   954    7.245 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   955    7.249 x1.00] LOG  [AirPosePin] engaged, holding body at 0.758m above the transform
+[   956    7.255 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   957    7.259 x1.00] LOG  [AirPosePin] engaged, holding body at 0.745m above the transform
+[   958    7.265 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   959    7.269 x1.00] LOG  [AirPosePin] engaged, holding body at 0.733m above the transform
+[   960    7.275 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   961    7.279 x1.00] LOG  [AirPosePin] engaged, holding body at 0.720m above the transform
+[   962    7.285 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   963    7.289 x1.00] LOG  [AirPosePin] engaged, holding body at 0.709m above the transform
+[   964    7.296 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   965    7.299 x1.00] LOG  [AirPosePin] engaged, holding body at 0.697m above the transform
+[   966    7.306 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   967    7.309 x1.00] LOG  [AirPosePin] engaged, holding body at 0.687m above the transform
+[   968    7.316 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   969    7.320 x1.00] LOG  [AirPosePin] engaged, holding body at 0.678m above the transform
+[   970    7.326 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   971    7.330 x1.00] LOG  [AirPosePin] engaged, holding body at 0.670m above the transform
+[   972    7.336 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   973    7.342 x1.00] LOG  [AirPosePin] engaged, holding body at 0.662m above the transform
+[   974    7.346 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   975    7.351 x1.00] LOG  [AirPosePin] engaged, holding body at 0.658m above the transform
+[   976    7.355 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   977    7.359 x1.00] LOG  [AirPosePin] engaged, holding body at 0.655m above the transform
+[   978    7.364 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   979    7.368 x1.00] LOG  [AirPosePin] engaged, holding body at 0.653m above the transform
+[   980    7.372 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   981    7.376 x1.00] LOG  [AirPosePin] engaged, holding body at 0.652m above the transform
+[   982    7.380 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   983    7.383 x0.10] LOG  [TailAirShot4Leg] ENTER 4 leg, slow on for up to 3s real, waiting for the fire button, drawState=shoot_4Leg | y=-0.02 ts=0.10 fdt=0.0020
+[   984    7.388 x1.00] LOG  [TailAirShot4Leg] EXIT (landed, nothing drawn) | y=-0.02 ts=1.00 fdt=0.0200
+[  3030   17.436 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 170 lines

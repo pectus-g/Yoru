@@ -395,8 +395,6 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float launchEngageDistance = 4.5f;
     [Tooltip("How far short of the enemy's COLLIDER SURFACE the launch aims to stop, metres. 0 = launch all the way to him and let her own capsule collide with his body, which is what 'launch to the enemy' means. The old Lunge Stop Gap of 1.0 m is why she stopped a metre short of a boss she was already next to. Raise this only if she ends up visibly inside something.")]
     [SerializeField] private float launchStopGap = 0f;
-    [Tooltip("ROUND 9, opt-in. ON = airborne attacks launch and step forward too, exactly like grounded ones. The launch is horizontal only - PlayerMovement keeps full ownership of the fall, so this cannot produce the height drop the old airborne path had. OFF = the old behaviour, where StartLunge returns early in the air and an air attack never moves her.")]
-    [SerializeField] private bool launchInAir = false;
 
     [Header("Lunge Safety")]
     [Tooltip("Stop the slide at ledges so Yoru never lunges off a cliff.")]
@@ -405,8 +403,6 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float edgeProbeDepth = 1.2f;
     [Tooltip("Layers treated as ground for the edge check AND as blockers for line of sight (so Yoru will not target or lunge at an enemy behind a wall). Default is Everything; set this to your ground/terrain/wall layers for best results.")]
     [SerializeField] private LayerMask environmentMask = ~0;
-    [Tooltip("ROUND 9. Layers the EDGE PROBE accepts as solid floor. Deliberately SEPARATE from Environment Mask, because Environment Mask is also the line-of-sight mask: widening that one so the probe can see the floor would make the floor block targeting. Everything (the default) is correct for almost every scene - the probe skips Yoru's own body by root, so it can never see itself. Leave at Everything unless you have floors you specifically want her to refuse to step on.")]
-    [SerializeField] private LayerMask edgeGroundMask = ~0;
 
     [Header("Combo 3 Beyblade Finisher")]
     [Tooltip("Hard time cap in seconds for the spin against a crowd, so a big group can never trap the player in an endless beyblade. A single enemy ends much sooner (one strike plus Beyblade Single Wind Down).")]
@@ -2497,11 +2493,9 @@ public class PlayerCombat : MonoBehaviour
     /// </summary>
     public void ConfigureLaunch(bool noTargetLaunch, float nudgeDistance = -1f, float engageDistance = -1f,
                                float coneAngleDegrees = -1f, float minDistance = -1f, float stopGap = -1f,
-                               float speed = -1f, int airLaunch = -1, int edgeGroundLayers = 0)
+                               float speed = -1f)
     {
         launchWithNoTarget = noTargetLaunch;
-        if (airLaunch        >= 0) launchInAir            = airLaunch != 0;   // -1 = leave alone
-        if (edgeGroundLayers != 0) edgeGroundMask         = edgeGroundLayers; //  0 = leave alone
         if (nudgeDistance    >= 0f) launchNoTargetDistance = nudgeDistance;
         if (engageDistance   >= 0f) launchEngageDistance   = engageDistance;
         if (coneAngleDegrees >  0f) targetingAngle         = Mathf.Clamp(coneAngleDegrees, 1f, 180f);
@@ -2518,13 +2512,10 @@ public class PlayerCombat : MonoBehaviour
         // reach here airborne (charge on the ground, jump, release in the air). The strike still
         // plays, only the slide is skipped. With Launch on, "grounded a moment ago" counts too:
         // isGrounded flickers on uneven floors and was silently killing the slide.
-        // ROUND 9: with Launch In Air on (Hazel's call), that early-out is lifted. The height drop
-        // it was protecting against came from LungeRoutine adding its own gravity on top of
-        // PlayerMovement's; that line is gone, so the airborne slide is now purely horizontal.
         if (characterController == null) return;
         bool grounded = characterController.isGrounded
                         || (launchEnabled && Time.time - lastGroundedTime <= launchGroundedGrace);
-        if (!grounded && !(launchEnabled && launchInAir)) return;
+        if (!grounded) return;
 
         Vector3 dir;
         float distance = 0f;
@@ -2618,8 +2609,7 @@ public class PlayerCombat : MonoBehaviour
                 what = $"{target.name} at {targetGap:F1}m";
             else
                 what = "no target, planted";
-            string air = (characterController != null && !characterController.isGrounded) ? " [AIRBORNE]" : "";
-            Debug.Log($"[ComboTrace] LAUNCH {what} dist={distance:F2}m in {duration:F2}s{(lungeEndedShort ? " (capped short)" : "")}{air}");
+            Debug.Log($"[ComboTrace] LAUNCH {what} dist={distance:F2}m in {duration:F2}s{(lungeEndedShort ? " (capped short)" : "")}");
         }
 
         if (lungeCoroutine != null) StopCoroutine(lungeCoroutine);
@@ -2639,23 +2629,6 @@ public class PlayerCombat : MonoBehaviour
         // probe refusing the next step, or a collider blocking the Move.
         Vector3 lungeStartPos = cachedTransform.position;
         string lungeEndReason = "completed";
-
-        // ROUND 9 - THE BUG THAT ATE EVERY LAUNCH. The ledge check is only meaningful if it can see
-        // the floor Yoru is STANDING on. In CaveScene_Oni_Boss1 the terrain sits on layer Default
-        // while the probe mask was Ground only, so the probe found nothing anywhere in the scene,
-        // read that as "cliff", and cancelled the launch on its first frame: 11 of 11 attacks in
-        // the 15:36 log reported "actually moved=0.00m - STOPPED BY LEDGE PROBE after 0.004s".
-        // A probe that cannot see the ground under her feet is misconfigured, not a cliff, so it
-        // now stands down (once, loudly) instead of silently eating the launch. Where the mask IS
-        // right - DemoScene_Day's terrain is on Ground, which is why the Noppera fight always
-        // launched correctly - nothing changes and cliff protection still works.
-        bool airborneNow = characterController != null && !characterController.isGrounded;
-        bool edgeSafetyActive = false;
-        if (useEdgeSafety && !airborneNow)
-        {
-            edgeSafetyActive = GroundAhead(cachedTransform.position);
-            if (!edgeSafetyActive) WarnEdgeProbeBlind();
-        }
 
         while (elapsed < duration)
         {
@@ -2677,22 +2650,15 @@ public class PlayerCombat : MonoBehaviour
                 Vector3 step = dir * (distance * frameDelta);
 
                 // Edge safety: do not slide off a ledge. Probe the spot we are about to enter.
-                // Skipped when the probe is blind (see above) or when she is already airborne,
-                // where "is there floor at the next step" has no meaning.
-                if (edgeSafetyActive && !GroundAhead(cachedTransform.position + step))
+                if (useEdgeSafety && !GroundAhead(cachedTransform.position + step))
                 {
                     lungeEndReason = $"STOPPED BY LEDGE PROBE after {elapsed:F3}s";
                     break;
                 }
 
-                // ROUND 9: the launch is HORIZONTAL ONLY. The old keep-down line added a second
-                // gravity on top of the one PlayerMovement already applies every FixedUpdate, and
-                // it applied it as a raw position jump of g*dt (about 0.16 m in a single frame),
-                // which is the sudden height drop that made airborne launches unusable. Gravity is
-                // PlayerMovement's job; the launch only ever moves her across the ground plane.
-                step.y = 0f;
-
                 // Wall safety: CharacterController.Move resolves wall collisions, so Yoru cannot pass through one.
+                if (!characterController.isGrounded)
+                    step.y = Physics.gravity.y * Time.deltaTime;
                 characterController.Move(step);
             }
             yield return null;
@@ -2707,49 +2673,17 @@ public class PlayerCombat : MonoBehaviour
         lungeCoroutine = null;
     }
 
-    // Preallocated so the probe never allocates per frame (standing performance rule).
-    private readonly RaycastHit[] edgeProbeHits = new RaycastHit[8];
-    private bool edgeProbeBlindWarned;
-
-    /// <summary>Edge probe: is there solid ground (in edgeGroundMask) just below the given world position?</summary>
+    /// <summary>Edge probe: is there solid ground (in environmentMask) just below the given world position?</summary>
     private bool GroundAhead(Vector3 worldPos)
     {
         Vector3 origin = worldPos + Vector3.up * 0.3f;
         float probe = 0.3f + edgeProbeDepth;
-        // ROUND 9: its own mask (not the line-of-sight one), and ALL hits are examined rather than
-        // just the nearest. The old single-hit form returned "no ground" whenever the first thing
-        // the ray met happened to belong to Yoru, which is a second way the launch could die.
-        int mask = edgeGroundMask.value != 0 ? edgeGroundMask.value : environmentMask.value;
-        int n = Physics.RaycastNonAlloc(origin, Vector3.down, edgeProbeHits, probe, mask, QueryTriggerInteraction.Ignore);
-        for (int i = 0; i < n; i++)
+        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, probe, environmentMask, QueryTriggerInteraction.Ignore))
         {
-            Collider c = edgeProbeHits[i].collider;
-            if (c != null && c.transform.root != cachedTransform.root) return true;
+            if (hit.collider.transform.root != cachedTransform.root)
+                return true;
         }
         return false;
-    }
-
-    /// <summary>
-    /// One-time, loud: the edge probe cannot see the floor Yoru is standing on, so it has been
-    /// stood down for this scene. Names the floor and the layer it is actually on, so the fix is
-    /// one click instead of another week of "the launch does nothing".
-    /// </summary>
-    private void WarnEdgeProbeBlind()
-    {
-        if (edgeProbeBlindWarned) return;
-        edgeProbeBlindWarned = true;
-
-        string floor = "nothing at all within " + (0.3f + edgeProbeDepth).ToString("F2") + "m";
-        Vector3 origin = cachedTransform.position + Vector3.up * 0.3f;
-        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 0.3f + edgeProbeDepth, ~0, QueryTriggerInteraction.Ignore))
-        {
-            int l = hit.collider.gameObject.layer;
-            floor = $"'{hit.collider.name}' on layer {l} '{LayerMask.LayerToName(l)}'";
-        }
-        Debug.LogWarning($"[PlayerCombat] EDGE PROBE BLIND: nothing in Edge Ground Mask under Yoru's own feet, "
-            + $"so the ledge check would cancel every launch in this scene. It has been stood down here. "
-            + $"The floor under her is {floor}. Add that layer to Edge Ground Mask (or move the floor onto a "
-            + $"layer that is in it) to get ledge protection back.");
     }
     #endregion
 
@@ -3054,14 +2988,6 @@ public class PlayerCombat : MonoBehaviour
         attackStartTime = Time.time;
         currentLungeTarget = AcquireTarget();
         FaceTargetFast(currentLungeTarget, true);
-
-        // ROUND 9, Hazel's call: the AIRBORNE attack launches too. This is the path a click in the
-        // air actually takes (HandleInput sends it to TryAerialSpin, not to the ground combo), so
-        // lifting StartLunge's grounded early-out alone would have changed nothing here - the spin
-        // never asked for a launch at all. Guarded by Launch In Air, so every other fight keeps the
-        // old planted spin. The slide is horizontal only; PlayerMovement still owns the fall.
-        if (launchEnabled && launchInAir) StartLunge(currentLungeTarget, true);
-
         hasUsedAerialAttack = true;
         isAerialAttack = true;
         currentComboStep = 3;
