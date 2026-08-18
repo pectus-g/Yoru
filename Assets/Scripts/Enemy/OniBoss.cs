@@ -32,11 +32,15 @@ public class OniBoss : MonoBehaviour
     [Tooltip("Damage at or BELOW this plays the quick flinch. Above it (but below the stagger threshold) plays the full react. Oni tuning: paws 10 = quick, tail shots / double paw 20 = full.")]
     [SerializeField] private int lightHitMaxDamage = 14;
 
-    [Tooltip("Animator STATE for the quick flinch. Oni: 'HitReact_medium' holds the short 0.79s clip (the 'lighter light' file).")]
-    [SerializeField] private string lightReactState = "HitReact_medium";
+    // Round 5: renamed on purpose (no FormerlySerializedAs). The old fields shipped with defaults that
+    // assumed the two clips would be swapped in the controller; that step was dropped, so the scene
+    // instance carried the mapping the wrong way round (light hits played the big react, medium hits
+    // the tiny flinch). New names = fresh defaults from code, no inspector work.
+    [Tooltip("Animator STATE for the quick flinch (light hits, 10 dmg paws). In ONICONTROLLER the state 'Hit_react_light' holds the 'Oni Hit react lighter light' clip: 0.79s, hips barely move — the small one.")]
+    [SerializeField] private string quickFlinchState = "Hit_react_light";
 
-    [Tooltip("Animator STATE for the full react. Oni: 'Hit_react_light' is the 1.46s clip — also the engine's default, so medium hits simply keep it.")]
-    [SerializeField] private string mediumReactState = "Hit_react_light";
+    [Tooltip("Animator STATE for the full react (medium hits, 20 dmg strong paw / ground arrow). In ONICONTROLLER the state 'HitReact_medium' holds the 'Oni Hit react light' clip: 1.46s, hips 0.6m back and a 0.2m dip — the readable stumble. Heavy hits (35+) never come here: EnemyHealth's Stagger Damage Threshold (25) sends them to Stagger.")]
+    [SerializeField] private string fullReactState = "HitReact_medium";
 
     [Tooltip("Crossfade time into the react clip, seconds.")]
     [SerializeField] private float reactCrossfade = 0.08f;
@@ -53,14 +57,16 @@ public class OniBoss : MonoBehaviour
     [Tooltip("Extra meters the player must retreat past Watch Range before the Oni relaxes back to Idle, so the stance does not flicker at the boundary.")]
     [SerializeField] private float watchHysteresis = 1.5f;
 
-    [Header("Charge Travel Cancel")]
-    [Tooltip("The charge clip is a Mixamo-style animation with the forward travel baked into the HIPS bone (the FBX's motion node is the unmoving RootNode, so Unity extracts no root motion). Left alone the hips carry the mesh metres ahead of the NavMesh transform: the body overshoots Yoru and, because a SkinnedMeshRenderer's bounds stay with the transform, the renderer gets culled — the mesh VANISHES, then reappears when the transform catches up. This cancels the horizontal drift every frame of the charge state, so the mesh always sits on the transform. Vertical bob and all rotations are untouched.")]
+    [Header("Charge Travel Cancel (safety net)")]
+    [Tooltip("The Oni Charge clip carries its 18m forward dash INSIDE the Hips bone (its import setting 'Root Motion Node' is set to the unmoving RootNode — the only clip in the project set that way — so Unity extracts no root motion and the hips travel is left in the pose). Left alone the hips carry the whole mesh 18m ahead of the NavMesh transform: that is the 'charges, vanishes, comes back' you saw. This pins the travel bone to the transform every frame the clip is on the animator (horizontal only; vertical bob and every rotation are untouched). The REAL fix is the import setting itself (see the round notes); with that applied this reads ~0 drift and does nothing.")]
     [SerializeField] private bool chargePinEnabled = true;
     [Tooltip("Animator STATE name of the charge attack clip.")]
     [SerializeField] private string chargeStateName = "Oni_Charge";
-    [Tooltip("Horizontal drift (metres, world space) a skeleton node may show before it is pulled back. Tiny on purpose: skeleton bones do not translate locally except the travel bone, so anything above sensor noise IS the baked travel.")]
+    [Tooltip("Name (or part of it) of the bone that carries the clip's travel. Only THIS bone is pinned — its children ride along, and bones with legitimate translation animation of their own (the club, Kanabo1, is a child of the hips and slides in the hand by animation) are left alone. Empty = find it automatically ('hips' / 'pelvis', then the body renderer's root bone).")]
+    [SerializeField] private string chargeTravelBoneName = "Hips";
+    [Tooltip("Horizontal drift (metres, world space) the travel bone may show before it is pulled back. Tiny on purpose: anything above sensor noise IS the baked travel.")]
     [SerializeField] private float chargeTravelCancelEpsilon = 0.01f;
-    [Tooltip("Force every SkinnedMeshRenderer on the Oni to recompute its bounds from the bones each frame. Belt-and-braces against the vanish: even if some travel slipped through, the mesh can no longer be culled while its bones are on screen. Trivial cost for one boss.")]
+    [Tooltip("Force every SkinnedMeshRenderer on the Oni to recompute its bounds from the bones each frame, so the mesh can never be culled while its bones are on screen. Trivial cost for one boss.")]
     [SerializeField] private bool keepMeshVisibleWhenBonesTravel = true;
     [Tooltip("NavMeshAgent acceleration while the charge plays. The default agent accel (8) takes over a second to reach charge speed — this makes the rush hit top speed almost instantly and stop hard at the player. Restored to the original value when the charge ends.")]
     [SerializeField] private float chargeAcceleration = 45f;
@@ -125,14 +131,74 @@ public class OniBoss : MonoBehaviour
     [Tooltip("Minimum REAL seconds between two knockbacks. The beyblade and aerial spin tick damage several times a second — without a floor here the Oni gets shoved on every tick and slides away across the arena.")]
     [SerializeField] private float knockbackMinInterval = 0.3f;
 
+    [Header("Attack Armor (trades)")]
+    [Tooltip("While he is swinging (Attack / Telegraph), light and medium hits deal their damage and flash him white but do NOT interrupt the swing — whoever connects first wins the trade, and a paw cannot stop a club. Heavy hits (EnemyHealth's Stagger Damage Threshold and above, and rapid-hit bursts) still stop him. Applied from code at Start; the shared engine keeps its old interruptible swings for every other enemy.")]
+    [SerializeField] private bool armorDuringAttacks = true;
+
+    [Header("Rapid-Hit Burst (jump swirl)")]
+    [Tooltip("The aerial swirl lands many 10-dmg ticks in about a second. The engine flinches once and then only flashes for Hit React Cooldown, and the quick flinch clip is a head twitch — so the swirl reads as no reaction. This counts the ticks: past Burst Stumble Damage the flinch is upgraded to the full react clip; past Burst Stagger Damage he staggers and is pushed back — once per burst.")]
+    [SerializeField] private bool burstEscalationEnabled = true;
+    [Tooltip("REAL seconds of quiet that end a burst.")]
+    [SerializeField] private float burstWindow = 0.8f;
+    [Tooltip("Total burst damage (2+ hits) at which the quick flinch is upgraded to the full react clip.")]
+    [SerializeField] private int burstStumbleDamage = 20;
+    [Tooltip("Total burst damage (2+ hits) at which he staggers, with the heavy knockback. 0 = never stagger from a burst.")]
+    [SerializeField] private int burstStaggerDamage = 30;
+
+    [Header("Phase 2 Transition")]
+    [Tooltip("At the phase flip (EnemyCombat: Has Phases / Phase Threshold) he drops whatever he is doing and plays the transition clip full length, untouchable, then comes back angrier. The engine only flips a flag; this is the visible part.")]
+    [SerializeField] private bool phaseTransitionEnabled = true;
+    [Tooltip("Animator STATE of the transition clip (Oni Phase transition: crouch, club raised, roar with the head thrown back, settle — 2.4s).")]
+    [SerializeField] private string phaseTransitionState = "Phase_Transition";
+    [Tooltip("Blend into the transition clip, seconds.")]
+    [SerializeField] private float phaseTransitionBlend = 0.15f;
+    [Tooltip("No damage lands during the transition.")]
+    [SerializeField] private bool phaseTransitionInvulnerable = true;
+    [Tooltip("Normalized point of the clip where the roar peaks — camera shake and the ground ring fire here (measured from the FBX: club fully raised, head thrown back, 0.55-0.75).")]
+    [Range(0f, 1f)]
+    [SerializeField] private float phaseRoarNormalizedTime = 0.6f;
+    [Tooltip("Camera shake at the roar (same scale as CombatFeedbackManager's hits; a heavy hit is ~0.5).")]
+    [SerializeField] private float phaseRoarShakeIntensity = 0.6f;
+    [SerializeField] private float phaseRoarShakeDuration = 0.5f;
+    [Tooltip("Code-built ground ring at the roar (placeholder until real VFX exists), radius in metres. 0 = off.")]
+    [SerializeField] private float phaseRoarRingRadius = 7f;
+
+    [Header("Strike Moments (measured from the FBX files)")]
+    [Tooltip("Overrides for the melee attacks' Strike Moment, applied at Start over the values on the attack list. Measured from the club's real travel in each clip: Club_Swing 0.55, ClubSwing2 0.32 (the scene's 0.5 resolved the hit ~0.3s AFTER the club had passed — that is the 'late reaction'), ClubSlam 0.52, KanaboSweep 0.48. Delete an entry to keep the attack list's own value.")]
+    [SerializeField] private StrikeMomentOverride[] strikeMomentOverrides =
+    {
+        new StrikeMomentOverride("Club_Swing", 0.55f),
+        new StrikeMomentOverride("ClubSwing2", 0.32f),
+        new StrikeMomentOverride("ClubSlam", 0.52f),
+        new StrikeMomentOverride("KanaboSweep", 0.48f),
+    };
+
+    [System.Serializable]
+    public class StrikeMomentOverride
+    {
+        [Tooltip("Attack name (or attack animation) as on the EnemyCombat attack list.")]
+        public string attack;
+        [Range(0f, 1f)] public float strikeMoment = 0.5f;
+        public StrikeMomentOverride() { }
+        public StrikeMomentOverride(string attack, float strikeMoment) { this.attack = attack; this.strikeMoment = strikeMoment; }
+    }
+
     [Header("Charge Drive (lance rush)")]
-    [Tooltip("The Oni owns the charge himself instead of the shared engine's generic lunge. He holds the club straight forward, crosses the whole gap, brakes next to Yoru, and only THEN does the clip finish into the club strike. Turning this off returns the charge to the old engine lunge.")]
+    [Tooltip("The Oni owns the charge himself instead of the shared engine's generic lunge. WINDUP: the clip plays in place while he turns to her (club comes forward). RUSH: the clip is frozen on the lance frame and he drives himself across the gap, steers briefly, commits, brakes next to Yoru. STRIKE: the clip JUMPS to its strike section (landing + club slam), so the baked dash is never played on the spot. If he is already next to her at the end of the wind-up the rush is skipped. Turning this off returns the charge to the old engine lunge.")]
     [SerializeField] private bool chargeDriveEnabled = true;
-    [Tooltip("Normalized point in the charge clip held for the whole rush — this should be the frame where the club is out straight in front of him. Lower = earlier in the wind-up. Must be BEFORE the strike, or the hit resolves before he arrives.")]
+    [Tooltip("Normalized point in the Oni Charge clip frozen for the whole rush. Measured from the FBX: 0.20-0.22 = grounded, club forward-up; 0.26-0.28 = club dead level, small hop; 0.38-0.42 = airborne lunge, body leaning in, club level (default). Must be below Charge Strike Normalized Time.")]
     [Range(0f, 0.95f)]
-    [SerializeField] private float chargeHoldNormalizedTime = 0.35f;
+    [SerializeField] private float chargeHoldNormalizedTime = 0.40f;
     [Tooltip("Clip speed during the in-place wind-up (club coming forward). 1 = the attack's own speed; a little above 1 makes the telegraph snappier without changing the strike.")]
     [SerializeField] private float chargeWindupSpeed = 1.3f;
+    [Tooltip("Normalized point the clip JUMPS to when he arrives (or when no rush was needed). Measured from the FBX: 0.58 = feet land, club at his side; 0.66-0.78 the club sweeps down; ~0.76 impact (club straight down); 0.80-1.00 he stands back up. Everything between the hold frame and this point (the baked dash) is skipped.")]
+    [Range(0f, 0.98f)]
+    [SerializeField] private float chargeStrikeNormalizedTime = 0.58f;
+    [Tooltip("Blend seconds from the frozen lance pose into the strike section.")]
+    [SerializeField] private float chargeStrikeBlend = 0.10f;
+    [Tooltip("Strike Moment used for the charge INSTEAD of the value on the Oni_Charge attack entry, so the hit resolves on the club impact of the strike section (~0.76 in the FBX). -1 = leave the attack entry's own value (0.7 in the scene).")]
+    [Range(-1f, 1f)]
+    [SerializeField] private float chargeStrikeMoment = 0.76f;
     [Tooltip("Rush speed in metres per second. This is the whole gap-closer, so it should feel alarming — 12-18 for a 20m arena.")]
     [SerializeField] private float chargeSpeed = 14f;
     [Tooltip("How close he gets before braking. Should be inside Attack Range (3.5) so the club strike actually lands.")]
@@ -160,6 +226,10 @@ public class OniBoss : MonoBehaviour
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
+    [Tooltip("Mirror the WHOLE console (every script's logs, warnings, errors, exceptions) plus charge telemetry into <project>/OniLogs/oni_<date>.log while playing. The folder sits next to Assets, so Unity ignores it. Keeps the newest 8 files. With this on there is nothing to copy or paste after a test — the file is read from disk.")]
+    [SerializeField] private bool writeLogFile = true;
+    [Tooltip("Telemetry lines per REAL second while a charge is active (file only, never the console).")]
+    [SerializeField] private float chargeTelemetryHz = 12f;
 
     private EnemyCombat combat;
     private EnemyHealth health;
@@ -167,10 +237,21 @@ public class OniBoss : MonoBehaviour
     private Transform playerT;
     private UnityEngine.AI.NavMeshAgent navAgent;
     private float preChargeAcceleration = -1f;
+    private SkinnedMeshRenderer bodyRenderer;   // biggest skinned mesh — visibility/bounds telemetry
+    private static readonly int AnimSpeedHash = Animator.StringToHash("AnimSpeed");
 
     private bool inWatchStance;   // current pre-combat stance (false = Idle)
     private bool barShown;
     private bool phase2Sent;
+
+    // Rapid-hit burst state (unscaled clock)
+    private float burstLastHitRealTime = -10f;
+    private int burstDamage, burstTicks;
+    private bool burstStaggerFired, burstUpgraded;
+
+    // Phase-2 transition state
+    private bool phaseTransitionDone, phaseTransitionActive, phaseRoarReached;
+    private Coroutine phaseTransitionRoutine;
 
     // Reaction freeze guard + slow-motion watchdog state. All measured in UNSCALED time on
     // purpose: the whole point is to survive a world clock that is running at a tenth speed.
@@ -179,21 +260,23 @@ public class OniBoss : MonoBehaviour
     private float slowSinceRealTime = -1f;
     private bool slowWarned;
 
-    // Charge drift pin state
-    private bool chargePinActive;
+    // Charge: pin (travel cancel) state
+    private bool chargePinActive;          // the charge clip is on the animator (current or incoming state)
     private float chargeWaveTimer;
     private int chargeStateHash;
+    private Transform travelBone;          // the bone that carries the clip's baked travel (Hips)
+    private Vector3 travelBoneRestLocal;   // its local position in the rest pose (snapshotted at Start)
+    private int travelBoneDepth = -1;
+    private int pinFrames, pinCancelFrames;
+    private float pinMaxRawDrift, pinMaxCancelled;
+    private float telemetryNextRealTime;
 
-    // Charge drive state
+    // Charge: drive state
     private ChargePhase chargePhase;
     private bool chargeFrozeClip;
     private float chargeStartRealTime;
     private float chargeRushStartRealTime;
     private Vector3 chargeTarget;
-    private readonly System.Collections.Generic.List<Transform> pinNodes =
-        new System.Collections.Generic.List<Transform>();
-    private readonly System.Collections.Generic.List<Vector3> pinStartLocal =
-        new System.Collections.Generic.List<Vector3>();
 
     // Warn about a missing animator state only once, same protection the engine uses.
     private readonly System.Collections.Generic.HashSet<string> missingStatesWarned =
@@ -201,6 +284,9 @@ public class OniBoss : MonoBehaviour
 
     private void Awake()
     {
+        // First thing, before any other script logs: the on-disk mirror of the console.
+        if (writeLogFile) OniDebugLogFile.Begin();
+
         combat = GetComponent<EnemyCombat>();
         health = GetComponent<EnemyHealth>();
         navAgent = GetComponent<UnityEngine.AI.NavMeshAgent>();
@@ -235,16 +321,32 @@ public class OniBoss : MonoBehaviour
         DebugLog($"facing: minFlat {lookAtMinFlatDistance}m, snapOnAttack {(snapToFaceOnAttack ? "ON" : "off")}, trackInHitReact {(trackPlayerDuringHitReact ? "ON" : "off")}");
 
         // The mesh must never be culled while its bones are on screen (see Charge Travel Cancel).
-        if (keepMeshVisibleWhenBonesTravel)
+        int smrCount = 0;
+        foreach (var smr in GetComponentsInChildren<SkinnedMeshRenderer>(true))
         {
-            int n = 0;
-            foreach (var smr in GetComponentsInChildren<SkinnedMeshRenderer>(true))
-            {
-                if (smr == null) continue;
-                smr.updateWhenOffscreen = true;
-                n++;
-            }
-            DebugLog($"skinned mesh bounds: updateWhenOffscreen ON for {n} renderer(s)");
+            if (smr == null) continue;
+            if (keepMeshVisibleWhenBonesTravel) smr.updateWhenOffscreen = true;
+            if (bodyRenderer == null || (smr.bones != null && bodyRenderer.bones != null && smr.bones.Length > bodyRenderer.bones.Length))
+                bodyRenderer = smr;
+            smrCount++;
+        }
+        DebugLog($"skinned meshes: {smrCount} renderer(s), updateWhenOffscreen {(keepMeshVisibleWhenBonesTravel ? "ON" : "left alone")}, "
+               + $"body renderer '{(bodyRenderer != null ? bodyRenderer.name : "none")}' rootBone '{(bodyRenderer != null && bodyRenderer.rootBone != null ? bodyRenderer.rootBone.name : "none")}'");
+
+        // The travel bone (Hips) and its rest offset, read BEFORE the Animator has written a single
+        // pose — this is the FBX bind pose, the cleanest possible reference for the pin.
+        travelBone = FindTravelBone();
+        if (travelBone != null)
+        {
+            Transform rigRoot = animator != null ? animator.transform : transform;
+            travelBoneRestLocal = travelBone.localPosition;
+            travelBoneDepth = 0;
+            for (Transform t = travelBone; t != null && t != rigRoot; t = t.parent) travelBoneDepth++;
+            DebugLog($"charge travel bone: '{travelBone.name}' at depth {travelBoneDepth} under '{rigRoot.name}', rest local {travelBoneRestLocal}");
+        }
+        else
+        {
+            Debug.LogWarning("[OniBoss] charge travel bone NOT found — the travel cancel is off. Set Charge Travel Bone Name to the hips bone's name.");
         }
 
         // Take the charge away from the engine's generic lunge so two systems are not pushing the
@@ -257,8 +359,33 @@ public class OniBoss : MonoBehaviour
         if (chargeDriveEnabled)
         {
             combat.SetExternalLungeControl(true);
-            DebugLog($"charge drive ON (windup to frame {chargeHoldNormalizedTime:F2} in place, rush {chargeSpeed}m/s, "
-                   + $"stops at {chargeStopDistance}m, steers for {chargeTrackSeconds}s then commits, trail VFX {(chargeTrailVFX ? "on" : "off")})");
+            if (chargeStrikeMoment >= 0f)
+            {
+                bool ok = combat.SetAttackStrikeMoment(chargeStateName, chargeStrikeMoment);
+                if (!ok) Debug.LogWarning($"[OniBoss] no attack named / animated '{chargeStateName}' found on EnemyCombat — charge strike moment override not applied.");
+            }
+            DebugLog($"charge drive ON (windup to {chargeHoldNormalizedTime:F2} at x{chargeWindupSpeed}, rush {chargeSpeed}m/s stops at {chargeStopDistance}m, "
+                   + $"steers {chargeTrackSeconds}s then commits, strike section from {chargeStrikeNormalizedTime:F2}, strike moment {(chargeStrikeMoment >= 0f ? chargeStrikeMoment.ToString("F2") : "engine")}, trail VFX {(chargeTrailVFX ? "on" : "off")})");
+        }
+
+        // Trades: light/medium hits during his swing flash and hurt but do not stop the club.
+        if (armorDuringAttacks)
+        {
+            combat.SetAttackArmor(true);
+            DebugLog("attack armor ON (his swings are not interrupted by light/medium hits; heavy hits and rapid-hit bursts still stop him)");
+        }
+
+        // Strike moments measured from the clips (see the tooltip) — the club connects when it looks like it does.
+        if (strikeMomentOverrides != null && strikeMomentOverrides.Length > 0)
+        {
+            var applied = new System.Text.StringBuilder();
+            foreach (var o in strikeMomentOverrides)
+            {
+                if (o == null || string.IsNullOrEmpty(o.attack)) continue;
+                if (combat.SetAttackStrikeMoment(o.attack, o.strikeMoment)) applied.Append($" {o.attack}={o.strikeMoment:F2}");
+                else Debug.LogWarning($"[OniBoss] strike moment override: no attack named/animated '{o.attack}' on EnemyCombat.");
+            }
+            if (applied.Length > 0) DebugLog($"strike moments overridden:{applied}");
         }
 
         // Turn the Oni into a committing heavy instead of a circling one. Done from code on purpose:
@@ -281,7 +408,76 @@ public class OniBoss : MonoBehaviour
         }
 
         DebugLog($"OniBoss layer ready (reactions, wake-on-hit, watch stance, boss bar). player={(playerT != null ? "found" : "NOT FOUND")}");
+
+#if UNITY_EDITOR
+        EditorSanityChecks();
+#endif
     }
+
+#if UNITY_EDITOR
+    /// <summary>
+    /// Editor-only, read-only checks of the animator wiring and the clip import settings, so the
+    /// log states plain facts instead of guesses. Never changes an asset; each finding is one line.
+    /// </summary>
+    private void EditorSanityChecks()
+    {
+        try
+        {
+            var ac = animator != null ? animator.runtimeAnimatorController as UnityEditor.Animations.AnimatorController : null;
+            if (ac == null || ac.layers.Length == 0) return;
+
+            var clipByState = new System.Collections.Generic.Dictionary<string, AnimationClip>();
+            foreach (var st in ac.layers[0].stateMachine.states)
+                clipByState[st.state.name] = st.state.motion as AnimationClip;
+
+            // 1) light/medium react states: the light one must be the shorter clip.
+            if (clipByState.TryGetValue(quickFlinchState, out var lightClip) && clipByState.TryGetValue(fullReactState, out var medClip)
+                && lightClip != null && medClip != null && lightClip.length > medClip.length + 0.05f)
+            {
+                Debug.LogWarning($"[OniBoss] react states look SWAPPED: Quick Flinch State '{quickFlinchState}' plays a {lightClip.length:F2}s clip "
+                               + $"but Full React State '{fullReactState}' plays a {medClip.length:F2}s clip. Swap the two values on OniBoss so light hits get the short flinch.");
+            }
+
+            // 2) a state that plays another state's clip by mistake (KanaboSweep = Idle in the current controller).
+            if (clipByState.TryGetValue("KanaboSweep", out var sweep) && clipByState.TryGetValue("Idle", out var idle) && sweep != null && sweep == idle)
+                Debug.LogWarning("[OniBoss] animator state 'KanaboSweep' uses the SAME clip as 'Idle' — the sweep attack plays the idle pose. Drag the 'Oni Kanabo sweep' clip onto KanaboSweep's Motion field.");
+
+            // 3) the charge clip's import: a Root Motion Node leaves the 18m dash inside the hips.
+            if (clipByState.TryGetValue(chargeStateName, out var chargeClip) && chargeClip != null)
+            {
+                string path = UnityEditor.AssetDatabase.GetAssetPath(chargeClip);
+                var mi = UnityEditor.AssetImporter.GetAtPath(path) as UnityEditor.ModelImporter;
+                if (mi != null)
+                {
+                    if (!string.IsNullOrEmpty(mi.motionNodeName))
+                        Debug.LogWarning($"[OniBoss] '{System.IO.Path.GetFileName(path)}': Root Motion Node = '{mi.motionNodeName}'. That setting keeps the clip's 18m dash inside the hips (the vanish). "
+                                       + "Fix: select the file → Animation tab → Motion → Root Motion Node → None → Apply. The travel-cancel pin covers it until then.");
+                    else
+                        DebugLog($"charge clip '{System.IO.Path.GetFileName(path)}' imports with Root Motion Node = None (in place) — good.");
+                }
+            }
+
+            // 4) vertical motion: with Bake Into Pose (Y) off, a clip's crouch/leap is removed and the feet float. Report only.
+            var flat = new System.Collections.Generic.List<string>();
+            foreach (var kv in clipByState)
+            {
+                if (kv.Value == null) continue;
+                string path = UnityEditor.AssetDatabase.GetAssetPath(kv.Value);
+                var mi = UnityEditor.AssetImporter.GetAtPath(path) as UnityEditor.ModelImporter;
+                if (mi == null) continue;
+                var cas = mi.clipAnimations != null && mi.clipAnimations.Length > 0 ? mi.clipAnimations : mi.defaultClipAnimations;
+                if (cas == null || cas.Length == 0) continue;
+                if (!cas[0].lockRootHeightY) flat.Add($"{kv.Key}({System.IO.Path.GetFileNameWithoutExtension(path)})");
+            }
+            if (flat.Count > 0)
+                DebugLog($"clips importing with Root Transform Position (Y) NOT baked into pose ({flat.Count}): {string.Join(", ", flat)} — their hips' up/down motion is stripped (see round notes; optional).");
+        }
+        catch (System.Exception e)
+        {
+            DebugLog($"editor sanity checks skipped: {e.Message}");
+        }
+    }
+#endif
 
     // ────────────────────────────────────────────────── freeze guard + slow-mo watchdog ──
 
@@ -306,6 +502,7 @@ public class OniBoss : MonoBehaviour
         }
 
         if (!reactionFreezeGuard) return;
+        if (phaseTransitionActive) return;   // the roar owns the Stagger window and times itself
 
         float limit;
         if (s == EnemyCombat.EnemyState.HitReact)      limit = maxHitReactRealSeconds;
@@ -363,6 +560,7 @@ public class OniBoss : MonoBehaviour
 
     private void Update()
     {
+        UpdatePhaseTransition();
         UpdateReactionFreezeGuard();
         UpdateSlowMotionWatchdog();
         UpdatePreCombatWatch();
@@ -379,13 +577,16 @@ public class OniBoss : MonoBehaviour
         UpdateChargePin();
     }
 
-    // ─────────────────────────────────────────────────────────────── charge drift pin ──
+    // ───────────────────────────────────────────────────────── charge: pin + drive ──
 
-    private bool ChargeClipPlaying()
+    /// <summary>
+    /// True while the charge clip is on layer 0 as the CURRENT or the INCOMING state. Read from the
+    /// Animator only — not from the engine state — so the pin also covers the frames where the clip
+    /// is blending out into Recovery or a flinch (the engine has already moved on, the clip has not).
+    /// </summary>
+    private bool ChargeClipOnAnimator()
     {
-        if (animator == null || combat == null) return false;
-        if (combat.GetCurrentState() != EnemyCombat.EnemyState.Attack) return false;
-
+        if (animator == null) return false;
         if (chargeStateHash == 0) chargeStateHash = Animator.StringToHash(chargeStateName);
 
         if (animator.GetCurrentAnimatorStateInfo(0).shortNameHash == chargeStateHash) return true;
@@ -393,7 +594,7 @@ public class OniBoss : MonoBehaviour
             && animator.GetNextAnimatorStateInfo(0).shortNameHash == chargeStateHash;
     }
 
-    /// <summary>Normalized time of the charge clip, transition-aware (reads the incoming clip while blending in).</summary>
+    /// <summary>Normalized time of the charge clip, transition-aware (reads the incoming instance while blending in).</summary>
     private float ChargeNormalizedTime()
     {
         if (animator == null) return 0f;
@@ -410,100 +611,133 @@ public class OniBoss : MonoBehaviour
 
     /// <summary>
     /// Runs in LateUpdate — AFTER the Animator has written this frame's pose — for the whole time
-    /// the charge clip is on the animator, transition-in included.
+    /// the charge clip is on the animator.
     ///
     /// Two jobs:
     ///
-    /// 1. TRAVEL CANCEL. The charge is a Mixamo-style clip: the forward travel is baked into the
-    ///    HIPS bone's translation, not root motion (the FBX's motion node is the unmoving RootNode,
-    ///    so Unity extracts nothing). Left alone, the hips carry the whole mesh metres ahead of the
-    ///    NavMesh transform: the body overshoots Yoru, and — because a SkinnedMeshRenderer's bounds
-    ///    stay with the transform — the renderer gets frustum-culled while its bones are elsewhere.
-    ///    That is the "charges to Yoru, then vanishes, then comes back and hits" you saw. Every
-    ///    frame this cancels the HORIZONTAL drift of the top skeleton levels against their pose at
-    ///    charge start, in world space, so the mesh always sits on the transform while vertical bob
-    ///    and every rotation are left untouched. Only the hips ever drift, so only the hips are moved.
+    /// 1. TRAVEL CANCEL (safety net). The Oni Charge clip carries an 18m dash inside its Hips bone
+    ///    (see the tooltip on Charge Pin Enabled). Every frame the travel bone's horizontal drift
+    ///    from its rest offset is measured in world space and pulled back, so the mesh sits on the
+    ///    NavMesh transform whatever the clip does. Only the travel bone is touched: its children
+    ///    ride along, and the club (a child of the hips with translation animation of its own) is
+    ///    left alone. If the clip's import setting is fixed this measures ~0 and does nothing.
     ///
-    /// 2. THE LANCE RUSH, in three phases:
-    ///    WINDUP — clip plays normally, in place, turning toward Yoru: the club comes forward.
-    ///    RUSH   — at the hold frame the clip is FROZEN (AnimSpeed = 0, the multiplier the attack
-    ///             states are bound to — no per-frame scrubbing, so no hard cuts) and the boss
-    ///             drives itself across the gap. Steers for a moment, then commits.
-    ///    STRIKE — arrived: AnimSpeed back to the attack's speed, the rest of the clip is the club
-    ///             strike, and the engine's Strike Moment resolves the damage on it.
+    /// 2. THE LANCE RUSH, three phases, only while the engine is in its Attack state:
+    ///    WINDUP — clip plays in place, turning toward Yoru: the club comes forward.
+    ///    RUSH   — at the hold frame the clip is FROZEN (AnimSpeed 0 — the multiplier the attack
+    ///             states are bound to) and the boss drives himself across the gap: steers briefly,
+    ///             commits, brakes at Charge Stop Distance. Skipped if he is already that close.
+    ///    STRIKE — the clip JUMPS to its strike section (landing + club slam), so the baked dash is
+    ///             never played on the spot, and the engine's Strike Moment resolves the damage.
+    ///
+    /// Everything it sees goes to the log file (telemetry lines) so a test needs no guessing.
     /// </summary>
     private void UpdateChargePin()
     {
         if (animator == null) return;
 
-        bool playing = ChargeClipPlaying();
+        bool clipOn = ChargeClipOnAnimator();
+        bool engineAttacking = combat != null && combat.GetCurrentState() == EnemyCombat.EnemyState.Attack;
 
-        // ── charge began ─────────────────────────────────────────────────────────────────
-        if (playing && !chargePinActive)
+        if (clipOn && !chargePinActive)       BeginCharge(engineAttacking);
+        else if (!clipOn && chargePinActive)  EndCharge("clip left the animator");
+
+        if (!chargePinActive) return;
+
+        // ── the drive ────────────────────────────────────────────────────────────────────
+        if (chargePhase != ChargePhase.None)
         {
-            pinNodes.Clear();
-            pinStartLocal.Clear();
-            CollectPinNodes(animator.transform, 0, 3); // top 3 levels — covers flat and nested rigs
-            chargePinActive = true;
+            if (!engineAttacking) AbortDrive($"engine left Attack (now {(combat != null ? combat.GetCurrentState().ToString() : "no engine")}) during {chargePhase}");
+            else DriveCharge();
+        }
 
-            chargePhase = chargeDriveEnabled ? ChargePhase.Windup : ChargePhase.None;
-            chargeStartRealTime = Time.unscaledTime;
-            chargeRushStartRealTime = -1f;
-            chargeFrozeClip = false;
-            if (chargeDriveEnabled && combat != null && chargeWindupSpeed > 0f)
+        // ── travel cancel ────────────────────────────────────────────────────────────────
+        float rawDrift = 0f, cancelled = 0f;
+        if (travelBone != null && travelBone.parent != null)
+        {
+            Vector3 worldRest = travelBone.parent.TransformPoint(travelBoneRestLocal);
+            Vector3 drift = travelBone.position - worldRest;
+            drift.y = 0f;                                   // keep the vertical bob / crouch / leap
+            rawDrift = drift.magnitude;
+            if (rawDrift > pinMaxRawDrift) pinMaxRawDrift = rawDrift;
+
+            if (chargePinEnabled && rawDrift > chargeTravelCancelEpsilon)
             {
-                combat.SetAttackAnimSpeed(chargeWindupSpeed);   // snappier telegraph; restored on release / exit
+                travelBone.position -= drift;               // children follow
+                cancelled = rawDrift;
+                if (cancelled > pinMaxCancelled) pinMaxCancelled = cancelled;
+                pinCancelFrames++;
+            }
+        }
+        pinFrames++;
+
+        ChargeTelemetry(rawDrift, cancelled);
+    }
+
+    private void BeginCharge(bool engineAttacking)
+    {
+        chargePinActive = true;
+        chargeStartRealTime = Time.unscaledTime;
+        chargeRushStartRealTime = -1f;
+        chargeFrozeClip = false;
+        chargeWaveTimer = 0f;
+        pinFrames = 0; pinCancelFrames = 0; pinMaxRawDrift = 0f; pinMaxCancelled = 0f;
+        telemetryNextRealTime = 0f;
+
+        chargePhase = (chargeDriveEnabled && engineAttacking) ? ChargePhase.Windup : ChargePhase.None;
+        if (chargePhase == ChargePhase.Windup)
+        {
+            if (combat != null && chargeWindupSpeed > 0f)
+            {
+                combat.SetAttackAnimSpeed(chargeWindupSpeed);   // snappier telegraph; restored on strike / exit
                 chargeFrozeClip = true;                        // "we touched AnimSpeed" — cleanup restores it
             }
             chargeTarget = playerT != null ? playerT.position : transform.position + transform.forward * 5f;
-            chargeWaveTimer = 0f;
-
             if (navAgent != null)
             {
                 preChargeAcceleration = navAgent.acceleration;
                 navAgent.acceleration = chargeAcceleration;
             }
-
-            DebugLog($"charge begin: cancelling baked travel on {pinNodes.Count} nodes, drive={(chargeDriveEnabled ? "windup→rush→strike" : "engine lunge")}");
-        }
-        // ── charge ended (state left, or interrupted by a flinch/stagger) ─────────────────
-        else if (!playing && chargePinActive)
-        {
-            chargePinActive = false;
-            chargePhase = ChargePhase.None;
-            pinNodes.Clear();
-            pinStartLocal.Clear();
-
-            if (chargeFrozeClip && combat != null) combat.SetAttackAnimSpeed(1f);   // never leave the clip frozen
-            chargeFrozeClip = false;
-
-            if (navAgent != null && preChargeAcceleration > 0f)
-            {
-                navAgent.acceleration = preChargeAcceleration;
-                preChargeAcceleration = -1f;
-            }
         }
 
-        if (!chargePinActive) return;
+        OniDebugLogFile.Marker("CHARGE");
+        string boneInfo = travelBone != null
+            ? $"'{travelBone.name}' depth {travelBoneDepth}, local now {travelBone.localPosition} vs rest {travelBoneRestLocal}"
+            : "NONE";
+        DebugLog($"charge begin: travel bone {boneInfo}; pin {(chargePinEnabled ? "ON" : "off")}; "
+               + $"drive {(chargePhase == ChargePhase.Windup ? "windup→rush→strike" : chargeDriveEnabled ? "off (engine not in Attack)" : "off")}; "
+               + $"engine {(combat != null ? combat.GetCurrentState().ToString() : "?")}, AnimSpeed {animator.GetFloat(AnimSpeedHash):F2}, "
+               + $"clip at {ChargeNormalizedTime():F2}, dist {(playerT != null ? FlatDistance(transform.position, playerT.position) : -1f):F1}m");
+    }
 
-        // ── the drive ────────────────────────────────────────────────────────────────────
-        if (chargePhase != ChargePhase.None) DriveCharge();
+    private void EndCharge(string reason)
+    {
+        if (chargePhase != ChargePhase.None) AbortDrive(reason);
+        chargePinActive = false;
 
-        // ── travel cancel, every frame of the state ──────────────────────────────────────
-        if (chargePinEnabled)
+        // The whole verdict on the travel cancel in one line — this is what to look for after a test.
+        DebugLog($"charge end ({reason}) after {Time.unscaledTime - chargeStartRealTime:F2}s real: pin measured {pinFrames} frames, "
+               + $"cancelled on {pinCancelFrames}, max raw drift {pinMaxRawDrift:F2}m, max cancelled {pinMaxCancelled:F2}m"
+               + (pinMaxRawDrift < 0.05f ? " — clip is IN PLACE (import fix active or no travel), pin idle" : pinCancelFrames > 0 ? " — travel WAS baked in, pin held it" : " — travel present but NOT cancelled (pin off?)"));
+    }
+
+    /// <summary>Stops the drive early (interrupt, clip gone) and undoes everything it touched.</summary>
+    private void AbortDrive(string reason)
+    {
+        if (chargePhase == ChargePhase.None) return;
+        // Leaving Attack during the strike section is the normal end (the engine went to Recovery);
+        // anything earlier is an interrupt worth a clearer line.
+        DebugLog(chargePhase == ChargePhase.Strike ? $"charge complete: {reason}" : $"charge INTERRUPTED: {reason}");
+        chargePhase = ChargePhase.None;
+        strikeJumpVerifyAtRealTime = -1f;
+
+        if (chargeFrozeClip && combat != null) combat.SetAttackAnimSpeed(1f);   // never leave the clip frozen
+        chargeFrozeClip = false;
+
+        if (navAgent != null && preChargeAcceleration > 0f)
         {
-            float epsSq = chargeTravelCancelEpsilon * chargeTravelCancelEpsilon;
-            for (int i = 0; i < pinNodes.Count; i++)
-            {
-                Transform t = pinNodes[i];
-                if (t == null || t.parent == null) continue;
-
-                Vector3 worldStart = t.parent.TransformPoint(pinStartLocal[i]);
-                Vector3 drift = t.position - worldStart;
-                drift.y = 0f;                                   // keep the vertical bob
-                if (drift.sqrMagnitude > epsSq)
-                    t.position -= drift;                        // children follow; they see no drift of their own
-            }
+            navAgent.acceleration = preChargeAcceleration;
+            preChargeAcceleration = -1f;
         }
     }
 
@@ -516,21 +750,27 @@ public class OniBoss : MonoBehaviour
             case ChargePhase.Windup:
             {
                 // In place: the club comes forward. Face her while it does.
-                if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
-                {
-                    navAgent.isStopped = true;
-                    navAgent.velocity = Vector3.zero;
-                }
+                StopAgent();
                 TurnToward(playerT != null ? playerT.position : chargeTarget, chargeTurnSpeed);
 
                 if (ChargeNormalizedTime() >= chargeHoldNormalizedTime)
                 {
-                    combat.SetAttackAnimSpeed(0f);          // freeze on the club-forward frame
-                    chargeFrozeClip = true;
-                    chargePhase = ChargePhase.Rush;
-                    chargeRushStartRealTime = now;
                     chargeTarget = playerT != null ? playerT.position : chargeTarget;
-                    DebugLog($"charge RUSH: clip frozen at {ChargeNormalizedTime():F2}, {Vector3.Distance(transform.position, chargeTarget):F1}m to go");
+                    float d0 = FlatDistance(transform.position, chargeTarget);
+
+                    if (d0 <= chargeStopDistance)
+                    {
+                        // Already on top of her (a close-range opener): no rush, straight to the strike.
+                        BeginStrike($"already {d0:F1}m from Yoru at the hold frame, rush skipped");
+                    }
+                    else
+                    {
+                        combat.SetAttackAnimSpeed(0f);          // freeze on the lance frame
+                        chargeFrozeClip = true;
+                        chargePhase = ChargePhase.Rush;
+                        chargeRushStartRealTime = now;
+                        DebugLog($"charge RUSH: clip frozen at {ChargeNormalizedTime():F2}, {d0:F1}m to go at {chargeSpeed}m/s");
+                    }
                 }
                 return;
             }
@@ -550,17 +790,18 @@ public class OniBoss : MonoBehaviour
 
                 TurnToward(chargeTarget, tracking ? chargeTurnSpeed : chargeTurnSpeed * 0.25f);
 
-                bool arrived = d <= chargeStopDistance;
+                bool arrived = d <= chargeStopDistance + 0.05f;
                 bool timedOut = t >= chargeMaxTravelSeconds;
 
                 if (!arrived && !timedOut)
                 {
                     if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh && d > 0.001f)
                     {
-                        navAgent.isStopped = true;                          // we drive it ourselves
-                        navAgent.Move(to.normalized * chargeSpeed * Time.deltaTime);
+                        navAgent.isStopped = true;                                          // we drive it ourselves
+                        float step = Mathf.Min(chargeSpeed * Time.deltaTime, d - chargeStopDistance);   // never overshoot the brake point
+                        if (step > 0f) navAgent.Move(to.normalized * step);
                     }
-                    combat.HoldAttackSafety();                              // a long rush is not a hung state
+                    combat.HoldAttackSafety();                                              // a long rush is not a hung state
 
                     if (chargeTrailVFX)
                     {
@@ -574,28 +815,130 @@ public class OniBoss : MonoBehaviour
                     return;
                 }
 
-                // Arrived (or gave up): stop dead, release the clip — the strike plays out from here.
-                if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
-                    navAgent.velocity = Vector3.zero;
-                combat.SetAttackAnimSpeed(combat.CurrentAttackSpeed());
-                chargeFrozeClip = false;
-                chargePhase = ChargePhase.Strike;
-
-                DebugLog(arrived
-                    ? $"charge arrived, {d:F1}m from the lock point after {t:F2}s real — releasing the club strike"
-                    : $"charge timed out after {t:F2}s at {d:F1}m — releasing the club strike anyway");
+                StopAgent();
+                BeginStrike(arrived
+                    ? $"arrived {d:F1}m from the lock point after {t:F2}s real"
+                    : $"timed out after {t:F2}s at {d:F1}m");
                 return;
             }
 
             case ChargePhase.Strike:
                 // Committed. No turning, no moving; the travel cancel keeps the mesh planted.
-                if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
-                {
-                    navAgent.isStopped = true;
-                    navAgent.velocity = Vector3.zero;
-                }
+                StopAgent();
+                VerifyStrikeJump();
                 return;
         }
+    }
+
+    /// <summary>
+    /// Arrived (or never needed to travel): release the clip at the attack's own speed and JUMP it
+    /// to the strike section. The dash frames between the hold frame and the strike are skipped —
+    /// they were only ever a running-on-the-spot with the mesh pinned.
+    /// </summary>
+    private void BeginStrike(string reason)
+    {
+        combat.SetAttackAnimSpeed(combat.CurrentAttackSpeed());
+        chargeFrozeClip = false;
+        chargePhase = ChargePhase.Strike;
+        strikeJumpVerifyAtRealTime = -1f;
+
+        float target = Mathf.Clamp01(chargeStrikeNormalizedTime);
+        float here = ChargeNormalizedTime();
+        if (here < target - 0.02f)
+        {
+            // Same state, later point. CrossFade takes a NORMALIZED offset. (CrossFadeInFixedTime's
+            // offset is in SECONDS — the first round-5 test used it with 0.58 and landed at 0.28, so
+            // the whole dash played on the spot before the slam.) The blend length is given relative
+            // to the clip length; a check a moment later hard-sets the time if the jump did not take.
+            float clipLen = ChargeClipLengthSeconds();
+            float blendNorm = clipLen > 0.05f ? Mathf.Max(0.02f, chargeStrikeBlend) / clipLen : 0.05f;
+            animator.CrossFade(chargeStateHash, blendNorm, 0, target);
+            strikeJumpTarget = target;
+            strikeJumpVerifyAtRealTime = Time.unscaledTime + 0.25f;
+        }
+
+        combat.HoldAttackSafety();   // fresh window for the strike section (its length is a fraction of the clip)
+
+        DebugLog($"charge STRIKE: {reason} — clip {here:F2} → {target:F2} (blend {chargeStrikeBlend:F2}s), "
+               + $"strike moment {(chargeStrikeMoment >= 0f ? chargeStrikeMoment.ToString("F2") : "engine value")}, "
+               + $"Yoru {(playerT != null ? FlatDistance(transform.position, playerT.position) : -1f):F1}m away");
+    }
+
+    private float strikeJumpVerifyAtRealTime = -1f;
+    private float strikeJumpTarget;
+
+    /// <summary>Raw length in seconds of the clip on the charge state (independent of AnimSpeed).</summary>
+    private float ChargeClipLengthSeconds()
+    {
+        if (animator == null) return 2.083f;
+        var infos = animator.IsInTransition(0) && animator.GetNextAnimatorStateInfo(0).shortNameHash == chargeStateHash
+            ? animator.GetNextAnimatorClipInfo(0)
+            : animator.GetCurrentAnimatorClipInfo(0);
+        for (int i = 0; i < infos.Length; i++)
+            if (infos[i].clip != null && infos[i].clip.length > 0.05f) return infos[i].clip.length;
+        return 2.083f;   // the Oni Charge clip's real length — only reached if the clip info is unreadable
+    }
+
+    /// <summary>A moment after the jump: if the clip is still before the strike section, hard-set it.</summary>
+    private void VerifyStrikeJump()
+    {
+        if (strikeJumpVerifyAtRealTime < 0f || Time.unscaledTime < strikeJumpVerifyAtRealTime) return;
+        strikeJumpVerifyAtRealTime = -1f;
+
+        float n = ChargeNormalizedTime();
+        if (n < strikeJumpTarget - 0.03f)
+        {
+            animator.Play(chargeStateHash, 0, strikeJumpTarget);
+            DebugLog($"charge STRIKE: jump did not take (clip at {n:F2}, wanted {strikeJumpTarget:F2}) — hard-set");
+        }
+    }
+
+    /// <summary>File-only telemetry at Charge Telemetry Hz while the clip is active.</summary>
+    private void ChargeTelemetry(float rawDrift, float cancelled)
+    {
+        if (!OniDebugLogFile.IsOpen || chargeTelemetryHz <= 0f) return;
+        if (Time.unscaledTime < telemetryNextRealTime) return;
+        telemetryNextRealTime = Time.unscaledTime + 1f / chargeTelemetryHz;
+
+        var cur = animator.GetCurrentAnimatorStateInfo(0);
+        bool inTr = animator.IsInTransition(0);
+        var nxt = inTr ? animator.GetNextAnimatorStateInfo(0) : cur;
+        string curName = cur.shortNameHash == chargeStateHash ? "Charge" : $"h{cur.shortNameHash}";
+        string nxtName = !inTr ? "-" : (nxt.shortNameHash == chargeStateHash ? "Charge" : $"h{nxt.shortNameHash}");
+
+        Vector3 meshOffset = Vector3.zero;
+        if (travelBone != null) { meshOffset = travelBone.position - transform.position; meshOffset.y = 0f; }
+
+        string vis = "-";
+        if (bodyRenderer != null)
+        {
+            Vector3 bc = bodyRenderer.bounds.center - transform.position; bc.y = 0f;
+            vis = $"{(bodyRenderer.isVisible ? "vis" : "CULLED")} bounds+{bc.magnitude:F1}m";
+        }
+
+        float dist = playerT != null ? FlatDistance(transform.position, playerT.position) : -1f;
+        float vel = navAgent != null ? navAgent.velocity.magnitude : 0f;
+
+        OniDebugLogFile.Line(
+            $"charge {chargePhase,-6} n={ChargeNormalizedTime():F2} spd={animator.GetFloat(AnimSpeedHash):F2} mult={cur.speedMultiplier:F2} "
+          + $"st={(combat != null ? combat.GetCurrentState().ToString() : "?")} anim={curName}/{nxtName} "
+          + $"drift={rawDrift:F2} cut={cancelled:F2} meshOff={meshOffset.magnitude:F2}m {vis} "
+          + $"pos=({transform.position.x:F1},{transform.position.z:F1}) dist={dist:F1} vel={vel:F1}");
+    }
+
+    private void StopAgent()
+    {
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        {
+            navAgent.isStopped = true;
+            navAgent.velocity = Vector3.zero;
+        }
+    }
+
+    private static float FlatDistance(Vector3 a, Vector3 b)
+    {
+        a.y = 0f; b.y = 0f;
+        return Vector3.Distance(a, b);
     }
 
     private void TurnToward(Vector3 worldPoint, float turnSpeed)
@@ -608,19 +951,51 @@ public class OniBoss : MonoBehaviour
     }
 
     /// <summary>
-    /// Snapshot the local positions of the skeleton's top levels (pre-order: parents before their
-    /// children) so the travel cancel can measure each node's own drift after its parent is fixed.
+    /// The bone that carries the clip's baked travel. Exact name match first (inspector value, then
+    /// 'hips' / 'pelvis'), then a contains-match, shallowest wins; then the biggest skinned mesh's
+    /// root bone; then the top-level child with the most descendants (the skeleton).
     /// </summary>
-    private void CollectPinNodes(Transform parent, int depth, int maxDepth)
+    private Transform FindTravelBone()
     {
-        if (depth >= maxDepth) return;
-        for (int i = 0; i < parent.childCount; i++)
+        Transform root = animator != null ? animator.transform : transform;
+
+        var wanted = new System.Collections.Generic.List<string>();
+        if (!string.IsNullOrEmpty(chargeTravelBoneName)) wanted.Add(chargeTravelBoneName.Trim().ToLowerInvariant());
+        wanted.Add("hips");
+        wanted.Add("pelvis");
+
+        var all = root.GetComponentsInChildren<Transform>(true);
+        foreach (bool exact in new[] { true, false })
         {
-            Transform c = parent.GetChild(i);
-            pinNodes.Add(c);
-            pinStartLocal.Add(c.localPosition);
-            CollectPinNodes(c, depth + 1, maxDepth);
+            foreach (string w in wanted)
+            {
+                Transform best = null; int bestDepth = int.MaxValue;
+                foreach (Transform t in all)
+                {
+                    if (t == root) continue;
+                    string n = t.name.ToLowerInvariant();
+                    bool hit = exact ? n == w : n.Contains(w);
+                    if (!hit) continue;
+                    int d = 0;
+                    for (Transform p = t; p != null && p != root; p = p.parent) d++;
+                    if (d < bestDepth) { best = t; bestDepth = d; }
+                }
+                if (best != null) return best;
+            }
         }
+
+        SkinnedMeshRenderer big = null;
+        foreach (var smr in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            if (smr.bones != null && (big == null || smr.bones.Length > big.bones.Length)) big = smr;
+        if (big != null && big.rootBone != null && big.rootBone != root) return big.rootBone;
+
+        Transform deep = null; int most = -1;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            int n = root.GetChild(i).GetComponentsInChildren<Transform>(true).Length;
+            if (n > most) { most = n; deep = root.GetChild(i); }
+        }
+        return deep;
     }
 
     // ─────────────────────────────────────────────────────────────── reactions + wake ──
@@ -641,6 +1016,9 @@ public class OniBoss : MonoBehaviour
             DebugLog($"woken by damage ({damage}) — back attacks count.");
             return; // this hit spent itself waking him; reactions apply from the next hit
         }
+
+        // RAPID-HIT BURST — the jump swirl. May end in a stagger, in which case nothing below applies.
+        if (burstEscalationEnabled && UpdateBurst(damage)) return;
 
         // KNOCKBACK — fires for every tier, including the staggering ones, and before the tiered
         // clip swap below. The tier is read from what the engine ACTUALLY did with the hit rather
@@ -677,12 +1055,140 @@ public class OniBoss : MonoBehaviour
         if (lastSeenState == EnemyCombat.EnemyState.HitReact)
             return;
 
-        string state = damage <= lightHitMaxDamage ? lightReactState : mediumReactState;
+        string state = damage <= lightHitMaxDamage ? quickFlinchState : fullReactState;
         if (string.IsNullOrEmpty(state)) return;
         if (!HasState(state)) return;
 
         animator.CrossFadeInFixedTime(state, reactCrossfade, 0);
         DebugLog($"react tier: {(damage <= lightHitMaxDamage ? "LIGHT" : "MEDIUM")} ({damage} dmg) → '{state}'");
+    }
+
+    // ──────────────────────────────────────────────────────────── rapid-hit burst ──
+
+    /// <summary>
+    /// Counts hits inside a short real-time window (the aerial swirl ticks 10 dmg many times a
+    /// second). Two-plus hits past Burst Stumble Damage upgrade the quick flinch to the full react;
+    /// past Burst Stagger Damage he staggers with the heavy knockback — once per burst.
+    /// Returns true when it staggered him (the caller skips its own tier handling).
+    /// </summary>
+    private bool UpdateBurst(int damage)
+    {
+        float now = Time.unscaledTime;
+        if (now - burstLastHitRealTime > burstWindow)
+        {
+            burstDamage = 0; burstTicks = 0;
+            burstStaggerFired = false; burstUpgraded = false;
+        }
+        burstLastHitRealTime = now;
+        burstDamage += damage;
+        burstTicks++;
+        if (burstTicks < 2) return false;                        // a single big hit is the engine's business
+
+        var s = combat.GetCurrentState();
+        if (s == EnemyCombat.EnemyState.Dead || phaseTransitionActive) return false;
+
+        if (burstStaggerDamage > 0 && burstDamage >= burstStaggerDamage && !burstStaggerFired
+            && s != EnemyCombat.EnemyState.Stagger)
+        {
+            burstStaggerFired = true;
+            combat.TriggerStagger();
+            nextKnockbackAllowedTime = 0f;                        // the knockdown push always goes through
+            ApplyKnockback(knockbackHeavy);
+            nextKnockbackAllowedTime = now + Mathf.Max(0f, knockbackMinInterval);
+            DebugLog($"burst: {burstTicks} hits / {burstDamage} dmg inside {burstWindow:F1}s → STAGGER + {knockbackHeavy:F2}m push");
+            return true;
+        }
+
+        if (burstDamage >= burstStumbleDamage && !burstUpgraded && s == EnemyCombat.EnemyState.HitReact
+            && animator != null && !string.IsNullOrEmpty(fullReactState) && HasState(fullReactState))
+        {
+            burstUpgraded = true;
+            animator.CrossFadeInFixedTime(fullReactState, reactCrossfade, 0);
+            DebugLog($"burst: {burstTicks} hits / {burstDamage} dmg → flinch upgraded to '{fullReactState}'");
+        }
+        return false;
+    }
+
+    // ─────────────────────────────────────────────────────────── phase-2 transition ──
+
+    /// <summary>
+    /// The engine only flips isPhase2 at the threshold. This turns the flip into a beat: drop the
+    /// current action (the engine's Stagger window is borrowed for it), play the transition clip
+    /// full length inside that window, no damage lands, roar feedback at the peak, then the engine
+    /// resumes on its own when the window ends. Fires once per fight.
+    /// </summary>
+    private void UpdatePhaseTransition()
+    {
+        if (!phaseTransitionEnabled || phaseTransitionDone || combat == null || animator == null) return;
+        if (!combat.IsPhase2()) return;
+
+        phaseTransitionDone = true;
+        var s = combat.GetCurrentState();
+        if (s == EnemyCombat.EnemyState.Dead) return;
+        if (!HasState(phaseTransitionState)) { phaseRoarReached = true; return; }
+
+        if (phaseTransitionRoutine != null) StopCoroutine(phaseTransitionRoutine);
+        phaseTransitionRoutine = StartCoroutine(PhaseTransitionRoutine());
+    }
+
+    private System.Collections.IEnumerator PhaseTransitionRoutine()
+    {
+        phaseTransitionActive = true;
+        phaseRoarReached = false;
+        bool wasInvulnerable = health != null && health.IsInvulnerable;
+        if (phaseTransitionInvulnerable && health != null) health.SetInvulnerable(true);
+
+        // Borrow the engine's Stagger window: it stops the agent, cancels the attack/combo/grab and
+        // holds until its timer runs out. The window is re-timed to the clip once the length is known.
+        combat.TriggerStagger(4f);
+        int hash = Animator.StringToHash(phaseTransitionState);
+        animator.CrossFadeInFixedTime(hash, Mathf.Max(0.02f, phaseTransitionBlend), 0, 0f);
+        DebugLog($"PHASE 2: transition '{phaseTransitionState}' — {(phaseTransitionInvulnerable ? "untouchable" : "vulnerable")}, roar at {phaseRoarNormalizedTime:F2}");
+
+        float startReal = Time.unscaledTime;
+        float clipLen = -1f;
+        bool roared = false;
+
+        while (true)
+        {
+            yield return null;
+            if (combat == null || animator == null) break;
+
+            bool inTr = animator.IsInTransition(0);
+            var cur = animator.GetCurrentAnimatorStateInfo(0);
+            var nxt = inTr ? animator.GetNextAnimatorStateInfo(0) : cur;
+            bool onClip = cur.shortNameHash == hash || (inTr && nxt.shortNameHash == hash);
+            var info = cur.shortNameHash == hash ? cur : nxt;
+
+            if (clipLen < 0f && onClip && info.length > 0.05f && !float.IsInfinity(info.length))
+            {
+                clipLen = info.length;
+                float elapsed = Time.unscaledTime - startReal;
+                combat.SetStaggerTimer(clipLen - elapsed * Mathf.Max(0.1f, Time.timeScale) + 0.15f);
+            }
+
+            if (!roared && onClip && info.normalizedTime >= phaseRoarNormalizedTime)
+            {
+                roared = true;
+                phaseRoarReached = true;
+                if (CombatFeedbackManager.Instance != null && phaseRoarShakeIntensity > 0f)
+                    CombatFeedbackManager.Instance.CameraShake(phaseRoarShakeIntensity, phaseRoarShakeDuration);
+                if (phaseRoarRingRadius > 0f)
+                    ProceduralImpactFX.Shockwave(transform.position, phaseRoarRingRadius, 0.6f, new Color(1f, 0.25f, 0.2f));
+                DebugLog("PHASE 2: roar");
+            }
+
+            // Done when the engine leaves its Stagger window (timer) or the clip has clearly played out.
+            if (combat.GetCurrentState() != EnemyCombat.EnemyState.Stagger) break;
+            if (clipLen > 0f && Time.unscaledTime - startReal > clipLen / Mathf.Max(0.1f, Time.timeScale) + 1.0f) break;
+            if (Time.unscaledTime - startReal > 8f) break;   // hard cap, whatever happened
+        }
+
+        if (phaseTransitionInvulnerable && health != null) health.SetInvulnerable(wasInvulnerable);
+        phaseRoarReached = true;
+        phaseTransitionActive = false;
+        phaseTransitionRoutine = null;
+        DebugLog($"PHASE 2: transition over after {Time.unscaledTime - startReal:F2}s real — he is back, and angrier");
     }
 
     // ─────────────────────────────────────────────────────────────────────── knockback ──
@@ -806,7 +1312,8 @@ public class OniBoss : MonoBehaviour
             DebugLog("boss bar shown");
         }
 
-        if (barShown && !phase2Sent && combat.IsPhase2())
+        bool phaseBeatDone = !phaseTransitionEnabled || phaseRoarReached || phaseTransitionDone && !phaseTransitionActive;
+        if (barShown && !phase2Sent && combat.IsPhase2() && phaseBeatDone)
         {
             BossHealthBarUI.Instance.SetPhase2();
             phase2Sent = true;

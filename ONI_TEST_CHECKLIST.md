@@ -6,20 +6,24 @@ Keep this open while you play. Console signatures are in `code font`.
 
 ## Before pressing Play
 
-**Nothing.** No inspector work. Every new setting is applied from code at Start.
+**Nothing.** No inspector work. Every new setting is applied from code at Start, and the five clip
+import edits (ONI_ROUND5_NOTES.md) are already in your project — Unity reimports them by itself.
 
-Just wait for Unity to finish compiling. If the console shows compile errors, stop and send them —
+Just wait for Unity to finish compiling and reimporting. If the console shows compile errors, stop and send them —
 do not test.
 
-**Sanity line.** The moment you press Play you should see three lines from the Oni:
+**Sanity line.** The moment you press Play you should see these lines from the Oni:
 
 ```
-[OniBoss:Layer] hold-ground ON (standoff 3m, watch 'Watch', backstep 'Walk' reversed, attack facing LOCKED)
-[OniBoss:Layer] charge drive ON (hold frame 0.35, speed 14, stops at 2.6m, tracks for 0.35s then commits)
+[OniLog] console + telemetry → .../Yoru/OniLogs/oni_2026-08-18_....log
+[OniBoss:Layer] charge travel bone: 'Hips' at depth 1 under '...'
+[OniBoss:Layer] charge drive ON (windup to 0.40 at x1.3, rush 14m/s stops at 2.6m, ... strike section from 0.58, strike moment 0.76 ...)
+[OniBoss:Layer] hold-ground ON (backstep 1.5m @ 1.6m/s after own attacks, watch 'Watch', attack facing LOCKED)
 [OniBoss:Layer] OniBoss layer ready ...
 ```
 
 If any of those are missing, the script did not recompile — nothing else in this list will be true.
+Round 5 also prints a few one-line facts here (charge clip import setting, KanaboSweep clip, react tiers) — see ONI_ROUND5_NOTES.md.
 
 ---
 
@@ -77,40 +81,39 @@ Lower = snappier cancels. Higher = heavier, more committed. 0 = exactly the old 
 
 ---
 
-## 4. The charge (walk far away, 12m+, and let him come)
+## 4. The charge (walk far away, 12m+, and let him come; also once from close)
 
-This is the one most likely to still need tuning.
-
-Expected: club held straight out in front, fast dash across the whole gap, brake next to you,
-**then** the club strike lands as a heavy hit.
+Expected: short wind-up in place while he turns to you (club comes forward) → he freezes on the
+lance pose and rushes across the gap → brakes next to you → lands and slams the club down as a heavy
+hit. His body stays on his feet the whole time — no flying ahead, no vanishing. From close range:
+wind-up, then straight into the slam.
 
 Log check:
 
 ```
-[OniBoss:Layer] charge arrived, 2.4m from the lock point after 1.10s real — releasing the club strike
-[OniBoss] Hit player for 18 (Oni_Charge)
+[OniBoss:Layer] charge RUSH: clip frozen at 0.40, 11.3m to go at 14m/s
+[OniBoss:Layer] charge STRIKE: arrived 2.6m from the lock point after 0.79s real — clip 0.40 → 0.58 ...
+[Oni] Hit player for 18 (Oni_Charge)
+[OniBoss:Layer] charge end (...) max raw drift ... — clip is IN PLACE  /  travel WAS baked in, pin held it
 ```
 
 Bad signs and what they mean:
 
 | What you see | What it means |
 |---|---|
-| `charge timed out after 2.50s` | He could not reach you — blocked, or speed too low |
+| `charge STRIKE: timed out after 2.50s` | He could not reach you — blocked, or speed too low |
 | `Attack missed, player out of range` right after a charge | He is braking too far away → lower **Charge Stop Distance** |
-| Pose during the rush looks wrong (mid-windup, or already swinging) | Adjust **Charge Hold Normalized Time** (now 0.35) |
-| He still overshoots and pops back | Tell me — the freeze approach did not hold the clip |
-
-**This is the only number that may need your eye: `Charge Hold Normalized Time` on OniBoss.**
-It is the frame of the clip held for the whole rush. It should be the pose where the club is out
-straight. Scrub the Oni Charge clip in the Animation window, find that frame, divide its time by the
-clip length, type that in. Or just nudge 0.35 up/down until it looks right.
+| Rush pose looks wrong | **Charge Hold Normalized Time**: 0.27 = grounded lance, 0.40 = airborne lunge (now) |
+| The slam starts too early / too late after he stops | **Charge Strike Normalized Time** (0.58) / **Charge Strike Moment** (0.76) |
+| Body still flies ahead of his feet | Tell me — the log will say whether the reimport took and what the pin measured |
 
 ---
 
 ## What to send back
 
-1. The full console log.
-2. If the charge still looks wrong: a short screen recording of just the charge (Cmd+Shift+5).
+Nothing to paste. The Oni writes `OniLogs/oni_<date>.log` in your project folder while you play — I
+read it from there. A short screen recording in `Assets/Captures` still helps for anything that
+*looks* wrong.
 
 ---
 
@@ -130,8 +133,8 @@ clip length, type that in. Or just nudge 0.35 up/down until it looks right.
 
 | # | Task | When |
 |---|---|---|
-| Y1 | Test and send the log | Now |
-| Y2 | Tune `Charge Hold Normalized Time` if the rush pose looks wrong | Only if needed |
+| Y1 | ONICONTROLLER: KanaboSweep state → Motion = `Oni Kanabo sweep` clip | Optional |
+| Y2 | Test (charge from far + from close, paws / strong paw / swirl on him). No log to paste. | Now |
 | Y3 | Combat sounds | Later, your call — the SFX manager is in the scene and waiting |
 | Y4 | Real VFX prefabs to replace my code-built sparks/waves | Later — assign on YoruVFXManager, then turn off `Procedural Hit Spark` and `Charge Wave VFX` |
 

@@ -1141,6 +1141,25 @@ public class EnemyCombat : MonoBehaviour
 
     private bool externalLungeControl;
     private bool comboStepsUseDamageThreshold;
+    private bool attackArmor;
+
+    /// <summary>
+    /// Runtime opt-in (boss layers): while ON, light/medium hits taken DURING Attack or Telegraph
+    /// only flash (damage still applies) instead of interrupting the swing — the boss trades. Heavy
+    /// hits go through TriggerStagger and still stop him. Default OFF: every other enemy keeps
+    /// the interruptible swing it has today.
+    /// </summary>
+    public void SetAttackArmor(bool value) => attackArmor = value;
+
+    /// <summary>
+    /// Runtime opt-in (boss layers): re-times the CURRENT Stagger (no-op in any other state). Used
+    /// when a boss layer plays its own clip inside the engine's Stagger window (the Oni's phase-2
+    /// roar) and only learns the clip's real length once it is on the animator.
+    /// </summary>
+    public void SetStaggerTimer(float seconds)
+    {
+        if (currentState == EnemyState.Stagger) stateTimer = Mathf.Max(0.05f, seconds);
+    }
 
     /// <summary>
     /// When ON, a combo STEP whose damage is at or above Heavy Hit Threshold makes the player play
@@ -1164,6 +1183,28 @@ public class EnemyCombat : MonoBehaviour
     {
         if (currentState == EnemyState.Attack || currentState == EnemyState.Telegraph)
             attackStateEntryTime = Time.time;
+    }
+
+    /// <summary>
+    /// Runtime opt-in (boss layers): overrides ONE attack's Strike Moment, matched by attack name or
+    /// attack animation. Used by a drive that re-times a clip (the Oni's charge jumps to its strike
+    /// section on arrival, so the moment the hit should resolve moves with it). Returns false when
+    /// no attack matches. Enemies that never call this are byte-for-byte unchanged.
+    /// </summary>
+    public bool SetAttackStrikeMoment(string attackNameOrAnim, float strikeMoment)
+    {
+        if (attacks == null || string.IsNullOrEmpty(attackNameOrAnim)) return false;
+        bool any = false;
+        foreach (var a in attacks)
+        {
+            if (a == null) continue;
+            if (a.attackName == attackNameOrAnim || a.attackAnim == attackNameOrAnim)
+            {
+                a.strikeMoment = Mathf.Clamp01(strikeMoment);
+                any = true;
+            }
+        }
+        return any;
     }
 
     /// <summary>
@@ -2173,6 +2214,10 @@ public void TriggerHitReact()
         || currentState == EnemyState.Recovery
         || currentState == EnemyState.Telegraph
         || currentState == EnemyState.Attack;
+
+    // Attack armor (opt-in, boss layers): the swing keeps coming through light/medium hits.
+    if (attackArmor && (currentState == EnemyState.Attack || currentState == EnemyState.Telegraph))
+        interruptible = false;
 
     if (!interruptible)
     {
