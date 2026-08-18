@@ -2348,18 +2348,26 @@ public class PlayerCombat : MonoBehaviour
     /// targetingAngle cone (set targetingAngle to 180 for full all-around), with a clear line of
     /// sight. Returns null when there is no valid enemy (the attack then lunges straight forward).
     /// </summary>
+    // Diagnostic only (written when Log Combo Trace is on): why the last acquisition did or did not find a target.
+    private string lastTargetTrace = "";
+
     private Transform AcquireTarget()
     {
         Collider[] nearby = Physics.OverlapSphere(cachedTransform.position, targetingRange, enemyLayer);
-        if (nearby.Length == 0) return null;
+        if (nearby.Length == 0)
+        {
+            if (logComboTrace) lastTargetTrace = $"none: no collider on enemyLayer within {targetingRange}m";
+            return null;
+        }
 
         Transform best = null;
         float bestScore = float.MaxValue;
+        int rejDead = 0, rejAngle = 0, rejLos = 0;
 
         foreach (Collider col in nearby)
         {
             EnemyHealth eh = col.GetComponent<EnemyHealth>();
-            if (eh != null && eh.IsDead()) continue;
+            if (eh != null && eh.IsDead()) { rejDead++; continue; }
 
             Vector3 toEnemy = col.transform.position - cachedTransform.position;
             toEnemy.y = 0f;
@@ -2367,9 +2375,9 @@ public class PlayerCombat : MonoBehaviour
             if (dist < 0.05f) continue;
 
             float angle = Vector3.Angle(cachedTransform.forward, toEnemy);
-            if (angle > targetingAngle) continue;
+            if (angle > targetingAngle) { rejAngle++; continue; }
 
-            if (!HasLineOfSight(col.transform)) continue;
+            if (!HasLineOfSight(col.transform)) { rejLos++; continue; }
 
             float score = dist + angle * 0.02f;
             if (score < bestScore)
@@ -2377,6 +2385,13 @@ public class PlayerCombat : MonoBehaviour
                 bestScore = score;
                 best = col.transform;
             }
+        }
+
+        if (logComboTrace)
+        {
+            lastTargetTrace = best != null
+                ? $"'{best.name}' at {bestScore:F1}m"
+                : $"none: {nearby.Length} collider(s) in range, rejected dead={rejDead} angle={rejAngle} lineOfSight={rejLos} (LOS is a Linecast to the enemy ROOT + 0.6m against environmentMask — uneven ground between Yoru and a big enemy's feet blocks it)";
         }
         return best;
     }
@@ -2684,7 +2699,7 @@ public class PlayerCombat : MonoBehaviour
 
         DebugLog($"Combo {currentComboStep}: {GetComboDamage(currentComboStep)} dmg");
         if (logComboTrace)
-            Debug.Log($"[ComboTrace] START step={currentComboStep} state='{GetComboStateName(currentComboStep)}' queued={queuedClicks}");
+            Debug.Log($"[ComboTrace] START step={currentComboStep} state='{GetComboStateName(currentComboStep)}' queued={queuedClicks} target={lastTargetTrace}");
 
         // Lunge toward the target, re-found every hit. With no target, hits 1-2 stay planted and
         // only the finisher (combo step 3) nudges forward — see StartLunge. No position freeze.
