@@ -1,200 +1,219 @@
-# ONI HANDOFF — COMBAT 4 (Yoru's attack launch, 2026-08-18 evening)
+# ONI HANDOFF — COMBAT 4 (2026-08-20)
 
-Read this first if you are a new session. It **replaces ONI_HANDOFF_COMBAT_3 for everything about
-Yoru's attack launch**; COMBAT_3 is still correct for the Oni's own behaviour (charge, hold-ground,
-reactions, phase 2). Project `/Users/asenahazal/Documents/Yoru`, Unity 6000.2.7f2, branch `Gamefeel`,
+Replaces COMBAT_2 and COMBAT_3. Read this whole file before touching anything.
+Project `/Users/asenahazal/Documents/Yoru`, Unity 6000.2.7f2, branch `Gamefeel`,
 scene `Assets/Scenes 1/CaveScene_Oni_Boss1.unity`.
 
-## 0. STATUS AT HANDOFF — read this before you do anything
+---
 
-- `PlayerCombat.cs` and `OniBoss.cs` were last written **19:04:05 UTC**.
-- `Library/ScriptAssemblies/Assembly-CSharp.dll` is from **18:59:19 UTC**.
-- **=> Unity has NOT compiled the latest edit.** The running build does not contain: launch speed 10,
-  engage distance 6 m, "do not touch the targeting cone", or the `LAUNCH RESULT` diagnostic.
-- Both files pass a Mono syntax check with **0 errors** (references missing, so that is syntax only —
-  Unity's compile has not been confirmed).
-- **First action: get Unity to recompile, then check `Library/Bee/tundra.log.json` for `error CS`
-  BEFORE Hazel plays.** She was burned once by testing an unverified build; do not repeat it.
-- Backups of both files from before this round: `OniLogs/cs_backup_round8/`. One `cp` reverts.
-- Nothing is committed. `git log -1` = `b8317075 aug18`. Both scripts are dirty (this round plus
-  rounds 5b–7 which were already uncommitted).
+## 0. THE ONE UNSOLVED PROBLEM — read this first
 
-## 1. How we work (Hazel's rules — keep them)
+Hazel has asked **four times** for the same thing and it is still not right:
 
-- **Manager mode.** State the plan BEFORE doing. Label every step **[YOU]** (Hazel) / **[ME]**.
-  Minimise [YOU]. Simple English, concise. She tunes numbers herself — give her knob names.
-- **Never assume. Ask her.** She has said this twice, emphatically. When her words are explicit,
-  execute them; when a number or behaviour is genuinely undecided, ask before writing code.
-- **Scope.** Shared scripts (`EnemyCombat`, `EnemyHealth`, `PlayerCombat`) only get **opt-in** APIs
-  that default to the old behaviour. Everything Oni-specific lives in `OniBoss.cs`. Never change
-  Yoru's combat abilities without her explicit OK (feedback and diagnostics are fine).
-- **She does scene / animator / FBX edits. You do `.cs`.**
-- **No pasting logs.** OniBoss writes `<project>/OniLogs/oni_<date>.log`. **Read it from her disk
-  with device_bash after every test — she has told you to do this. Do not ask her how it felt;
-  read the numbers.**
-- **Facts, not theories.** Every claim must be traceable to a log line, a source file, or a
-  measurement. Every fix must be verifiable in the next log.
-- **Performance rule (standing):** no per-frame allocations, no Find/GetComponent in Update,
-  editor checks Start-only.
-- **Feel target:** Zelda. Yoru's air kit opens; the ground trade is where damage happens.
+> "in each attack yoru must launch forward" — a visible forward launch at the enemy on every attack,
+> like Zelda / Spider-Man. Also the Oni's attacks must snap to her, not swing at air.
 
-## 2. FOUR RULES LEARNED THE HARD WAY THIS ROUND — do not rediscover these
+**Do not treat this as a movement bug. The movement is happening and it is measured.**
+From her 2026-08-20 log:
 
-1. **A `[SerializeField]` default in code does NOT change a value Unity has already saved.**
-   Changing `yoruTargetingCone = 120f` to `180f` in source did nothing — the scene kept 120, the
-   log kept printing `Cone 120 deg`, and Hazel was told it was fixed when it was not. **Every
-   number pushed at Start is now a `private const` in `OniBoss.cs`, not a SerializeField**, so this
-   cannot happen again. If you add a tunable, either make her set it, or make it a const.
-2. **Measure her actual play distances BEFORE proposing numbers.** An hour went into choosing a
-   4.5 m engage threshold that applied to **3 of 51 attacks (6%)** and 0% of the session she then
-   played. The distance distribution was already sitting in logs that had been read.
-3. **A trace line that prints INTENT is not evidence of BEHAVIOUR.** `LAUNCH ... dist=2.98m` says
-   what was requested, not what moved. The `LAUNCH RESULT` line added this round closes that gap.
-4. **Verify the compile yourself before she plays.** `/Applications` is outside the shared folder
-   so Unity's compiler is unreachable; use `mcs` in the agent container for a syntax check, then
-   read `tundra.log.json` once Unity has rebuilt.
-
-## 3. What Hazel asked for (verbatim intent, confirmed)
-
-> Every attack and every combo step launches Yoru forward, like Zelda.
-> - **No enemy** -> nudge forward, in the direction Yoru faces.
-> - **Enemy close enough** -> the attack **must launch to the enemy**.
-> - **Enemy too far** -> nudge forward only. There is a distance limit.
-> - **There is NO minimum distance.** (She explicitly rejected the 0.8 m floor.)
-
-This was checked against reference implementations (section 7). **Her ask is the industry-standard
-pattern.** It is not wrong and should not be relitigated.
-
-## 4. Code state after round 8
-
-### `Assets/Scripts/Combat/PlayerCombat.cs`
-
-New opt-in API (default OFF, so every other fight is byte-for-byte unchanged):
-
-```csharp
-public void ConfigureLaunch(bool noTargetLaunch, float nudgeDistance = -1f, float engageDistance = -1f,
-                            float coneAngleDegrees = -1f, float minDistance = -1f, float stopGap = -1f,
-                            float speed = -1f)
 ```
-Negative = leave that Inspector value alone.
+[ComboTrace] LAUNCH OniBoss at 1.6m dist=1.60m in 0.16s
+[ComboTrace] LAUNCH RESULT wanted=1.60m actually moved=0.90m — completed
+[ComboTrace] LAUNCH OniBoss at 2.1m dist=2.08m in 0.21s [AIRBORNE]
+[ComboTrace] LAUNCH RESULT wanted=2.08m actually moved=1.50m — completed
+```
 
-New fields: `launchWithNoTarget` (false), `launchNoTargetDistance` (0.9), `launchEngageDistance`
-(4.5 in code, **overridden to 6 at Start by OniBoss**), `launchStopGap` (0).
+She really does slide forward 0.9–1.5 m on every attack. It is invisible because **there is nothing
+to cross**:
 
-`StartLunge()` now implements three cases:
-
-| Case | Condition | Behaviour |
+| number | value | consequence |
 |---|---|---|
-| **A** | no target found | step `launchNoTargetDistance` along `transform.forward` |
-| **B** | target, surface gap <= `launchEngageDistance` | launch `gap - launchStopGap`, i.e. **all the way in** |
-| **C** | target, surface gap > `launchEngageDistance` | step `launchNoTargetDistance` forward — **never a clamped part-way slide** |
+| Oni capsule radius | **1.4 m** | she can never be nearer than 1.4 m to his centre |
+| Yoru `attackRange` (hit sphere at `attackPoint`) | **1.5 m** | she must stand almost against him to connect |
+| `lungeStopGap` | **1.0 m** | the launch aims to stop 1 m short of his *surface* |
+| launch from 4 m away | 4 − 1.4 − 1.0 = **1.6 m** of travel | and his body blocks the last part → 0.9 m actually moves |
 
-The old `launchMinDistance` floor is gated behind `launchMinDistance > 0f` and is **pushed to 0** by
-OniBoss. There is no minimum, as she required.
+So in a normal fight she is glued to him, every launch has ~1 m of room, it is over in 0.16 s, and
+there is **no animation on it** — nothing about it reads as a launch. Three honest ways out; the next
+session should put these to her as a choice and not guess:
 
-`LungeRoutine()` now records the start position and why the loop ended, and prints:
-```
-[ComboTrace] LAUNCH RESULT wanted=2.98m actually moved=2.98m — completed
-                                                              — STOPPED BY LEDGE PROBE after 0.031s
-                                                              — INTERRUPTED (dodge=True ...)
-```
+- **A — give the attacks reach.** Lower `lungeStopGap` to ~0.3 and raise her `attackRange` a little
+  so she can start a swing from 3–4 m and cross real ground on the way in. Cheapest, no new art.
+- **B — sell it with the animation.** Play the dodge-dash clip (`DodgeDash_2Leg` / `DodgeDash_4Leg`)
+  during the crossing, only when the launch is longer than ~1.5 m, blending into the punch. She named
+  this animation herself but is worried a wind-up before every punch will feel bad — so gate it on
+  distance. Add trail VFX + a small FOV punch so even a 1 m step reads.
+- **C — stop her being glued to him.** After each combo she is pushed / walks back a little (the
+  mirror of the Oni's hold-ground backstep), so the NEXT attack always has ground to cross. This is
+  what actually makes Zelda and Spider-Man read: you are never standing inside the boss.
 
-### `Assets/Scripts/Enemy/OniBoss.cs`
+My honest read: **C + B** is what she is describing. A alone will not look like a launch.
+Her fallback wish, in her words: "if this looks bad I want to try big leap spiderman method".
 
-One `[SerializeField] bool configureYoruLaunch = true` (untick to A/B against the old behaviour),
-plus **constants** pushed to PlayerCombat at Start:
+Also part of the same request: **the Oni's swings must snap to her.** That half is implemented
+(`Attack Step-In`, below) and the log shows it working (`step-in: 'ClubSlam' closed 0.21m`), but it
+only had small gaps to close in that session — it has not been tested from a real distance yet.
 
-```csharp
-YORU_NUDGE_DISTANCE  = 0.9f    // BotW-derived, see section 7
-YORU_ENGAGE_DISTANCE = 6.0f    // was 4.5 — her log showed 4.6m being rejected as "too far"
-YORU_LAUNCH_MIN      = 0f      // NO minimum. She rejected the 0.8m floor.
-YORU_LAUNCH_STOP_GAP = 0f      // all the way in; her capsule stops on his body
-YORU_LAUNCH_SPEED    = 10f     // was 20 — 3m in 0.15s read as a teleport, not a launch
-YORU_CONE            = -1f     // DO NOT TOUCH her targeting cone. 120 rejected him twice in 8 attacks.
-```
+---
 
-## 5. Measured from the logs (facts, not impressions)
+## 1. How to work with Hazel (rules — keep them)
 
-- **Attack distance to the Oni's collider SURFACE**, session 14:50 (27 targeted attacks):
-  min 0.8 m, **median 1.3 m**, max 2.2 m. Centre distance: min 2.0, median 2.7, max 3.5.
-- **21 of 30 launches moved exactly 0.80 m** — the old `launchMinDistance` floor — and at 0.8–1.3 m
-  from a 1.4 m-radius boss that 0.80 m is absorbed by his collider. That is why the launch was
-  invisible for weeks.
-- Across two sessions, **3 of 51 attacks were beyond 4.5 m (6%)**.
-- Session 15:00, after removing the floor and the stop gap: `LAUNCH OniBoss at 3.0m dist=2.98m`
-  and `at 2.8m dist=2.78m` — gap and distance match, the launch is correct. Still at speed 20.
-- Session 15:00 also shows `rejected dead=0 angle=1` **twice in 8 attacks** — the 120 deg cone
-  throwing out an Oni who was standing next to her.
-- Session 15:00: `STEP (too far: OniBoss at 4.6m > engage 4.5m)` — 10 cm over the line.
-- **Input:** 31% (13:00 session) and 40% (10:52 session) of her clicks are discarded
-  (`CLICK IGNORED (step=N queued=2)`), worst streak 6 consecutive. Parked at her call.
+- **Manager mode.** Say the plan BEFORE doing it. Label every step **[YOU]** (Hazel) / **[ME]**.
+  Minimise her part. Simple English. Short. She tunes numbers herself — give her the knob NAME.
+- **No assumptions.** She has said this twice. Determine things from her log / the FBX / the scene
+  YAML and show the numbers. If you cannot determine it, ask a short question with concrete options.
+- **Scope.** `EnemyCombat` / `EnemyHealth` are shared by every enemy: they may only gain **opt-in**
+  fields and APIs that default to the old behaviour. Everything Oni-specific goes in `OniBoss.cs`.
+  Yoru's combat *abilities* are hers — feedback, diagnostics and opt-in flags are fine, silent changes
+  to her damage / i-frames / targeting are not.
+- **Whose file is whose.** Scene, animator and FBX edits are HERS. `.cs` files are yours. Exception
+  she granted once: with her explicit OK you may rewrite `.fbx.meta` import settings as text, keeping
+  backups in `OniLogs/meta_backup_*`.
+- **Never ask her to paste a log.** OniBoss writes the whole console to
+  `<project>/OniLogs/oni_<date>.log`. Read it from her disk with `device_bash`. Compile check:
+  `Library/ScriptAssemblies/Assembly-CSharp.dll` mtime + `grep 'error CS' Library/Bee/tundra.log.json`.
+  Screen recordings land in `Assets/Captures/*.mov` (extract frames with ffmpeg).
+- **Performance is a standing rule** (hers): big game, many systems coming. No per-frame allocations,
+  no `Find` / `GetComponent` in Update, telemetry file-only and only while something is happening,
+  editor checks at Start only. The procedural VFX (`ProceduralImpactFX`) is placeholder — pool it or
+  delete it once real prefabs exist.
+- **Feel target:** Zelda. Yoru's air kit opens; the ground trade is where damage happens; the Oni is
+  a slow tank that commits — no orbiting, no sliding, armor on his swings, a readable flinch ladder.
+- **Sessions get long.** Keep this handoff updated instead of relying on chat history.
 
-## 6. Open items
+---
+
+## 2. Verified working (from her logs, with the numbers)
+
+| Thing | Evidence |
+|---|---|
+| Charge | wind-up in place → clip frozen on the lance frame → NavMesh rush 14 m/s → brake at 2.6 m → clip jumps to the strike section (0.58) → hit at 0.76. `charge STRIKE: arrived 2.6m … clip 0.35 → 0.58` |
+| Charge mesh pin | the clip's 18 m of hips travel is cancelled every frame: `max raw drift 18.07m, max cancelled 18.07m — pin held it`, mesh offset 0.24 m, never culled |
+| Hold-ground | after each of his attacks: backstep 1.5 m (reversed Walk) → Watch (no tracking) → one turn → step-in → swing. No orbiting. |
+| Reaction ladder | 10 dmg → `Hit_react_light` (0.79 s), 20 → `HitReact_medium` (1.46 s), ≥25 or heavy → knock-back, swirl burst (3×10 in 0.8 s) → knock-back + 0.9 m push |
+| Heavy knock-back | `heavy knock-back react (40 dmg) → 'HitReact_Heavy', down for 1.80s` — that clip had never been used by anything before |
+| Attack armor | light/medium hits during his swing flash only, the club keeps coming: `Hit during Attack — flash only` |
+| Phase-2 beat | `PHASE 2: clip is 2.42s → 4.63s on screen`, `roar at 2.43s`, `transition over after 4.63s real`. The old 7.47 s freeze is gone. |
+| Yoru launch | it moves her; see section 0 for why it does not read |
+
+---
+
+## 3. Open items
 
 | # | Item | Owner | Notes |
 |---|---|---|---|
-| A1 | **Compile + verify, then test the launch** | ME then YOU | See section 0. Expect a visible ~3 m slide over ~0.3 s from 3–4 m out. |
-| A2 | **Do airborne attacks launch?** | HAZEL — undecided | `StartLunge` returns early when not grounded. She said "each attack"; it has never been confirmed whether she means air attacks too. **Ask.** |
-| A3 | Max launch travel is **3.2 m** (`speed 10 × launchMaxDuration 0.32`) | ME if she wants more | Between 3.2 m and 6 m she closes 3.2 m and stops short. Raising `Launch Max Duration` fixes it but the slide starts competing with the strike frame (~0.6 s into a 1.23 s combo clip). |
-| O2 | **KanaboSweep animator state plays the Idle clip** | YOU | Drag `Oni Kanabo sweep` onto its Motion. Warned at Start in every log. He has **never used that attack in any session**. |
-| C1 | **The charge has never landed. 0 hits, every session.** | HAZEL to approve | Diagnosed, untouched. He stops steering 0.35 s into a 1.2 s rush, so he commits ~15 m out and slams empty floor. Two windows total 1.18 s = 7.8 m of free movement; you need 2.3 m to escape. Proposed fix: commit by DISTANCE (~6 m) not time, and give the charge slam a larger hit radius than a standing swing. **Not approved. Do not implement without her.** |
-| O6 | Turn off ComboTrace + verbose logs when closed | ME | `logComboTrace` on PlayerCombat, `showDebugLogs` on OniBoss/EnemyCombat. |
-| I1 | 31–40% of clicks discarded | HAZEL parked | Queue depth 2; a press 0.02 s after the last is deleted rather than held. |
-| F1 | **Unexplained freeze, 17:48 session** | open | Yoru stopped responding at t=7.39 s, immediately after `[TailAirShot4Leg] EXIT (landed, nothing drawn)` — she landed mid-aim on a 4-leg air shot. 10 s of silence at ~204 fps, so Unity was fine. No exception. `ComboTrace` count was **0**, so no attack ran and it was not the launch code. `FreezeDebugDumper.cs` and `showFreezeDebug` exist on PlayerMovement (currently **0** in the scene) — arm it if it recurs. |
+| **O1** | **The launch (section 0)** | ME, after she picks A / B / C | The single most important thing. Four attempts so far. |
+| O2 | Phase-2 transition "too short" | YOU, one number | It runs exactly 4.63 s now. `OniBoss → Phase Transition Anim Speed` 0.6 → **0.35** gives ~7 s; `Phase Transition Hold` 0.6 → 1.0 adds a beat at the end. No code needed. |
+| O3 | Oni step-in from a real distance | ME to verify | Implemented; only ever had 0.2–1 m gaps to close in her tests. Needs a test where he starts 5–7 m away. |
+| O4 | Swirl "shakes / vibrates weirdly" | ME | She parked it: "not the big issue". Old suspects were the overhead LookAt jitter and stacked hit feedback; both were addressed, so it needs a recording. |
+| O5 | KanaboSweep plays the Idle clip | YOU, one drag | ONICONTROLLER → state `KanaboSweep` → Motion → `Oni Kanabo sweep`. Warned in the log at every start. |
+| O6 | Ground Pound attack + shockwave | ME | Clip is 3.12 s, 10 m jump, lands at 0.70. `Ground_Pound` state exists, no attack entry yet. |
+| O7 | Alert reaction when he first notices her | ME | `Oni_Alert` plays on aggro but does not read. |
+| O8 | Phase 1 random singles / phase 2 combo-heavy | ME | Engine already has comboChance 0.4 / 0.6, chase 4.5 / 6, cooldown 3 / 2. |
+| O9 | Turn the verbose logging off | ME, at the end | `logComboTrace` (PlayerCombat), `showDebugLogs` (OniBoss, EnemyCombat), `writeLogFile` (OniBoss). |
+| O10 | Real VFX + SFX | YOU, later | Then switch off `Procedural Hit Spark`, `Charge Trail VFX`, `Phase Roar Ring Radius`. |
+| O11 | **Nopperabō regression check** | YOU | Nothing of his was touched, but the launch/magnet is SHARED by every fight. Since round 6 she can start a launch from 6 m (was 2.5 m) and it takes 0.13–0.32 s (was 0.06 s). If his fight felt right before, check it. `Launch Enabled` off = byte-for-byte the old behaviour. |
+| O12 | Scene is very dark in phase 2 | YOU | Not the Oni — `StormWeather` in the scene: `Storm Fog Density` 0.7 → 0.5, `Wet Darkening` 0.65 → 0.8, `Storm Rain Multiplier` 2 → 1.5. |
 
-## 7. Research reference (do not re-do this — it took ~10 minutes of agent time)
+---
 
-Primary sources, all verified in decompiled source or first-party dev posts.
+## 4. Measured asset facts (do not re-derive these)
 
-- **Ocarina of Time** (`zeldaret/oot`, `z_player.c`): the step on a normal slash is **animation root
-  motion, no constant exists**. The scripted lunge is `speedXZ = 15.0` decaying at `5.0`/frame,
-  and it fires on **only two attacks** (forward stab while Z-targeting, spin-attack release).
-  Targeting cone **60 deg** unlocked, 90 deg locked. Attention range 350 units acquire / 525 leash.
-- **Twilight Princess** (`zeldaret/tp`, `d_a_alink_HIO_data.inc`): explicit per-swing forward speed —
-  vertical cut **5.0**, side cuts **3.0**, stabs **10.0 / 8.0** units/frame, deceleration **2.2**.
-  Rotational homing during slashes bails past **0x3000 = 67.5 deg**. Jump-attack homing lands
-  **70 units short** of the target and clamps travel at **500 units**.
-- **Breath of the Wild** (`zeldaret/botw` + zeldamods AIDef): `CutAddSpeedMax 0.15`,
-  `CutAddSpeedDec 0.012` -> **~0.94 m of slide per swing** (derived; units not documented).
-  `SwordSearchAngle 90 deg`, `SwordSearchFrame 6`. Dash attack `SearchAngle 60`.
-- **THE FINALS S11 dev deep dive** — the only shipped melee lunge distance published by a developer:
-  "lunge you up to around **3 m**" raised to "averages around **4.5 m**".
-- **Every implementation skips the lunge when the target is too far. None clamp it.** HL2
-  `npc_assassin` returns `COND_TOO_FAR_TO_ATTACK` past 1.5x the animation's travel; NOLF2's lunge
-  goal does not fire outside 300–500 units; the UE5 melee prototypes clear the warp target and play
-  a non-warping attack. **This is exactly what Hazel asked for.**
-- **Compute the destination as a stand-off point on the line to the target**, not a travel distance —
-  UE5 "Slash" `WarpTargetDistance 75 cm`, its fork 110 cm. Yoru already does better: she measures to
-  the **collider surface** (`SurfacePoint`), which those projects do not, and which is what makes a
-  6 m boss work.
-- Facing gates in the wild: HL2 **41 deg**, OoT 60, TP 67.5, BotW 90, UE5 prototype 100.
-  **Yoru's prefab ships 180**, which never rejects anything. Left alone at her request.
-- Pitfalls already handled correctly in this codebase: `characterController.Move()` rather than a
-  transform write (collision-safe), and a ledge probe before every step.
+**Rig.** `ONI_Base_01` root → `Hips` (depth 1) → Spine…; `Kanabo1` (the club) is a CHILD OF HIPS with
+its own position animation — never pin it. 46 skinned renderers, body renderer `Body`, rootBone
+`Hips`. Animator: cullingMode CullUpdateTransforms, updateMode Normal, applyRootMotion off.
 
-## 8. Log signatures to look for
+**Clips** (all named "Take 001", 24 fps). Charge 2.08 s (hips carry 18 m of travel; dash 0.30–0.60,
+land 0.58, club down 0.66–0.78, impact ~0.76). Club Swing 1.58 s (impact 0.55). Club Swing 2 2.21 s
+(impact **0.32** — the scene said 0.5, which is why hits felt late). Club Slam 2.50 s (impact 0.52).
+Kanabo sweep 1.25 s (impact 0.48). Hit react light 1.46 s (hips 0.6 m back). Hit react *lighter*
+light 0.79 s. Hit react Heavy 1.5 s (1.1 m back, 1.2 m dip). Stagger 3.75 s. Ground Pound 3.12 s
+(10 m jump). Phase transition 2.42 s (club raised 0.34–0.55, roar 0.55–0.75).
 
-```
-[OniBoss:Layer] Yoru launch model ON: launches ALL THE WAY to an enemy within 6.0m of its surface
-                at 10m/s (stop gap 0.00m, NO minimum distance), else steps 0.90m forward.
-                Targeting cone left exactly as her prefab has it.
-[ComboTrace] START step=1 state='Combo1' queued=0 target='OniBoss' at 4.3m
-[ComboTrace] LAUNCH OniBoss at 3.0m dist=2.98m in 0.30s      <- gap and dist MATCHING = correct
-[ComboTrace] LAUNCH RESULT wanted=2.98m actually moved=2.98m — completed     <- the proof
-[ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s
-[ComboTrace] LAUNCH STEP (too far: OniBoss at 7.1m > engage 6.0m) dist=0.90m in 0.13s
-[ComboTrace] START ... target=none: 1 collider(s) in range, rejected ... angle=1   <- cone rejecting
-```
+**Import settings.** `Oni Charge` Root Motion Node was RootNode → set to None (round 5); it did NOT
+change the pose, so the OniBoss pin is what holds the mesh. Bake Into Pose Rotation + Y was also
+written into Charge, Hit react light, Hit react Heavy, Stagger, Ground Pound. Backups in
+`OniLogs/meta_backup_round5/`.
 
-Red flags: `actually moved` much smaller than `wanted`; `STOPPED BY LEDGE PROBE`; `rejected angle=`
-with the Oni nearby; any `LAUNCH` where `dist` is a suspiciously round repeated number (that is a
-floor or a cap, not real geometry).
+**Scene numbers.** EnemyCombat: attackRange 3.5, detectionRange 9, hitReactCooldown 1, staggerDuration
+2.5, attackCooldown 3 / P2 2, hasPhases 1 @ 0.5, comboChance 0.4 / 0.6, chase 4.5 / 6; attacks
+Club_Swing 16 (spd 1.4), ClubSwing2 16 (1.4), ClubSlam 20 (2), Oni_Charge 18 (its lunge fields are
+ignored — OniBoss drives it), KanaboSweep 15 (1.2). EnemyHealth: 500 HP, staggerDamageThreshold 25,
+staggerDamageMultiplier 1.5, allowRestagger 0. Oni collider capsule r 1.4 h 6.2; NavMeshAgent r 1.4
+h 6. Player prefab: enemyLayer = Enemy(10), environmentMask = Ground(8), targetingRange 8, angle 180,
+attackRange 1.5, lungeStopGap 1.
 
-## 9. Relationship note for whoever picks this up
+**Analysis tooling** (session-local, recreate if needed): `assimp export file.fbx out.assxml`, then a
+small Python pose evaluator — parse `<Node>` matrices + `<NodeAnim>` channels, quaternions are
+**x y z w**, and the `_$AssimpFbx$_` pivot chains must be collapsed into their animated leaf. That is
+how every clip timing above was measured.
 
-Hazel has spent hours on this single feature and is at the end of her patience, for good reasons:
-a shared-script edit was shipped without verifying the compile and she tested it and lost a session;
-a cone change was reported as reverted when it was not; and an hour went into tuning numbers for a
-situation that occurs in 6% of her attacks. **Read her logs before speaking. Show numbers, not
-adjectives. Own mistakes in one line and move on. Do not ask her how it felt — the answer is in
-`OniLogs/`.**
+---
+
+## 5. Code map
+
+- `Assets/Scripts/Enemy/OniBoss.cs` — the whole boss layer: tiered reactions (`quickFlinchState` =
+  `Hit_react_light`, `fullReactState` = `HitReact_medium`), heavy knock-back react, rapid-hit burst,
+  wake-on-hit, watch stance, boss bar, real-time freeze guard, slow-motion watchdog, knockback,
+  hold-ground config, blending/facing config, the charge (pin + windup/rush/strike drive), attack
+  step-in, phase-2 beat, strike-moment overrides, editor sanity checks, log file.
+- `Assets/Scripts/Enemy/OniDebugLogFile.cs` — mirrors the console + telemetry into `OniLogs/`.
+- `Assets/Scripts/Combat/EnemyCombat.cs` — shared engine. Opt-in API added by this work:
+  `ConfigureAnimationBlending`, `ConfigureFacing`, `ConfigureMeleeHoldGround`,
+  `SetExternalLungeControl`, `HoldAttackSafety`, `SetAttackAnimSpeed` / `CurrentAttackSpeed`,
+  `SetComboStepsUseDamageThreshold`, `SetAttackStrikeMoment`, `SetAttackArmor`, `SetStaggerTimer`,
+  `AttackRange`, `CurrentAttackName`, `CurrentAttackAnim`, `ComboStepsRemaining`.
+- `Assets/Scripts/Enemy/EnemyHealth.cs` — `SetInvulnerable` / `IsInvulnerable`, `OnDamaged` event.
+- `Assets/Scripts/Combat/PlayerCombat.cs` — Yoru. Launch/magnet lives here (`launchEnabled`,
+  `launchMaxDistance` 6, `launchSpeed` 20, `launchMaxDuration` 0.32, `launchMinDistance`,
+  `launchMinDuration`, plus the older `lunge*` fields), target acquisition (line of sight aims at the
+  collider centre, distance measured to the collider surface), ComboTrace logging.
+- `Assets/Scripts/Combat/CombatFeedbackManager.cs` — hitstop, shake, multi-hit guard. **Careful: its
+  hitstop sets `animator.speed = 0` and then restores the value it saw.** Anything that writes
+  `animator.speed` will be silently overwritten by it — that caused the phase-2 freeze. Drive clip
+  time with `animator.Play(hash, layer, normalizedTime)` instead.
+- `Assets/Scripts/Combat/ProceduralImpactFX.cs` — placeholder Spark / Shockwave / Wave.
+- Docs at the project root: `ONI_ACTION_PLAN.md`, `ONI_TEST_CHECKLIST.md`, `ONI_ROUND5_NOTES.md`
+  (rounds 5, 5b, 6, 7 — includes the full freeze post-mortem), this file.
+
+---
+
+## 6. Traps already paid for — do not repeat them
+
+1. `AnimatorStateInfo.length` is **already divided** by the state speed AND `animator.speed`. Sizing a
+   timer from it and dividing again gave a 7.3 s window around a 2.4 s animation (the phase-2 freeze).
+   Use `AnimatorClipInfo.clip.length` for the raw length.
+2. `animator.speed` is not yours — the hitstop restores it. Drive time with `Play(..., normalizedTime)`.
+3. `CrossFadeInFixedTime`'s offset argument is in **seconds**; `CrossFade`'s is **normalized**. Mixing
+   them made the charge play its whole dash on the spot before the slam.
+4. `CharacterController.isGrounded` flickers on uneven ground — a grounded-only gate silently killed
+   the launch. There is a 0.15 s grace now.
+5. A line-of-sight check aimed at a 6 m boss's ROOT (his feet) is blocked by every bump in the cave
+   floor. Aim at the collider's bounds centre.
+6. Rate-limit anything that reacts to damage: the swirl ticks many times a second and used to restart
+   the flinch clip every tick (looked like a freeze) and fire 8 camera shakes.
+7. Only act on a FRESH state entry (compare against `lastSeenState`), never on every damage event.
+8. The engine parks the NavMeshAgent during Attack (`isStopped = true`); `navAgent.Move()` still works
+   and is how the charge, the backstep and the step-in all move him.
+
+---
+
+## 7. Log signatures
+
+`[OniLog] console + telemetry → …` · `charge travel bone: 'Hips' at depth 1` ·
+`charge begin / RUSH / STRIKE / end … pin held it` · `step-in: 'X' closed Nm, Yoru now Nm away` ·
+`hold-ground: BACKSTEP / backstep done / WATCH / APPROACH` · `react tier: LIGHT / MEDIUM` ·
+`heavy knock-back react (…) → 'HitReact_Heavy'` · `burst: N hits / N dmg` ·
+`PHASE 2: clip is … on screen` / `roar at …` / `transition over after …` ·
+`Hit during Attack — flash only` (armor working) · `[ComboTrace] START … target='OniBoss' at Nm` ·
+`[ComboTrace] LAUNCH … dist=Nm in Ns` + `LAUNCH RESULT wanted=Nm actually moved=Nm` ·
+warnings: `KanaboSweep uses the SAME clip as Idle`, `react states look SWAPPED`, `Root Motion Node`.
+
+---
+
+## 8. First move for the next session
+
+1. Read the newest `OniLogs/oni_*.log` before saying anything.
+2. Put section 0's **A / B / C** to her as a short choice (one question, concrete options) — do not
+   start coding the launch again from a guess.
+3. Tell her O2 is one number she can change herself right now (`Phase Transition Anim Speed` → 0.35).

@@ -345,14 +345,9 @@ public class PlayerMovement : MonoBehaviour
             bool inCombatAction = IsInCombatActionForLanding();
             
             if (!inCombatAction)
-            {
                 OnLanded();
-            }
             else
-            {
-                pendingLanding = true;  // defer the landing ANIMATION until the action ends...
-                ClearAirborneState();   // ...but never defer her control. ROUND 10b.
-            }
+                pendingLanding = true; // Defer until combat action ends
             
             airborneTimer = 0f;
         }
@@ -544,28 +539,16 @@ public class PlayerMovement : MonoBehaviour
             Debug.Log($"🚶 2-LEG JUMP");
     }
     
-    /// <summary>
-    /// ROUND 10b. The half of landing that must happen the INSTANT her feet touch the floor,
-    /// no matter what animation is still finishing. PlayerState.Jumping blocks BOTH branches of
-    /// ApplyMovement, so leaving it set costs her walking AND turning — and jumpCount left at its
-    /// old value blocks the next jump. Control is not an animation concern, so it is no longer
-    /// deferred with one. This is also what makes the freeze structurally impossible: the flag
-    /// that kills movement is now cleared on touchdown by every path, not only the clean one.
-    /// </summary>
-    private void ClearAirborneState()
-    {
-        jumpCount = 0;
-        jumpWindowTimer = 0;
-        wasRunningForJump = false;
-        jumpMomentum *= 0.5f; // Gradual stop
-        SetState(PlayerState.Jumping, false);
-    }
-
     private void OnLanded()
     {
         Debug.Log($"✅ LANDED! (was jump #{jumpCount})");
         
-        ClearAirborneState();
+        jumpCount = 0;
+        jumpWindowTimer = 0;
+        wasRunningForJump = false;
+        jumpMomentum *= 0.5f; // Gradual stop
+        
+        SetState(PlayerState.Jumping, false);
         SetState(PlayerState.Landing, true);
         
         // Force locomotion state
@@ -646,18 +629,11 @@ public class PlayerMovement : MonoBehaviour
     /// </summary>
     private bool IsInCombatActionForLanding()
     {
-        // ROUND 10b: the 0.5s post-dodge grace was REMOVED from this check. Measured in the
-        // 14:31 log, every jump+flip landed 0.503-0.505s after 'Dodge ended', four out of four
-        // — that window, to the millisecond. Until it expired the landing could not fire, so the
-        // base layer stayed in the jump pose (she held the flip's tipped-forward shape) and
-        // PlayerState.Jumping stayed set (no walking, no turning). It was guarding EndDodge's
-        // crossfade back to combat idle, which is only 0.25s and runs on a DIFFERENT animator
-        // layer than the landing's 0.2s blend, so the two never actually collided.
-        // The grace is untouched everywhere else — this is the landing check only.
         return playerCombat != null && 
             (playerCombat.IsDodging() || playerCombat.IsDashing() || 
              playerCombat.IsAttacking() || playerCombat.IsInHitReaction() ||
-             playerCombat.IsGuarding());
+             playerCombat.IsGuarding() ||
+             Time.time - playerCombat.GetDodgeEndTime() < 0.5f);
     }
     
     /// <summary>Returns true if the player is currently in a running state.</summary>

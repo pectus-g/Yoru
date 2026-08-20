@@ -400,12 +400,6 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("ROUND 9, opt-in. ON = airborne attacks launch and step forward too, exactly like grounded ones. The launch is horizontal only - PlayerMovement keeps full ownership of the fall, so this cannot produce the height drop the old airborne path had. OFF = the old behaviour, where StartLunge returns early in the air and an air attack never moves her.")]
     [SerializeField] private bool launchInAir = false;
 
-    [Header("Air Dodge / Air Dash — round 11")]
-    [Tooltip("ROUND 11. Multiplies the natural fall used by an AIRBORNE front flip. 1 = she falls exactly as fast as she normally would, seeded from the speed she was already falling at, so the flip never jolts her. Below 1 gives the flip some float (0.5 = half-speed descent); 0 would hold her height like the air dash. Ground flips are unaffected. Replaces the old code, which applied gravity's SPEED as a per-frame DISTANCE and drove her about 6.7m into the floor over one flip.")]
-    [SerializeField] private float airDodgeFallMultiplier = 1f;
-    [Tooltip("ROUND 11. ON = an AIRBORNE dash holds her altitude for its whole length, so it reads as a real air ability instead of a ground move used up high. She resumes falling from a standstill when it ends. OFF = the old behaviour. Ground dashes are unaffected.")]
-    [SerializeField] private bool airDashHoldsHeight = true;
-
     [Header("Lunge Safety")]
     [Tooltip("Stop the slide at ledges so Yoru never lunges off a cliff.")]
     [SerializeField] private bool useEdgeSafety = true;
@@ -1549,13 +1543,6 @@ public class PlayerCombat : MonoBehaviour
         float previousArc = 0f;
         bool clipResolved = false;
 
-        // ROUND 11: an airborne flip now falls like a real fall. Seeded from the speed she is
-        // ALREADY descending at, so entering the flip never jolts her, and clamped to <= 0 so a
-        // flip can never add height. Accumulates properly instead of the old flat rate.
-        float airFallVelocity = characterController != null
-            ? Mathf.Min(0f, characterController.velocity.y)
-            : 0f;
-
         while (true)
         {
             elapsed += Time.deltaTime;
@@ -1621,18 +1608,7 @@ public class PlayerCombat : MonoBehaviour
                 }
                 else if (!characterController.isGrounded)
                 {
-                    // ROUND 11 — the "flip slams her into the floor" bug. This line used to be
-                    //     move.y = Physics.gravity.y * Time.deltaTime;
-                    // which takes gravity's SPEED (-9.81 m/s) and spends it as a DISTANCE every
-                    // frame: a flat 9.81 m/s plunge from frame one with no acceleration ramp,
-                    // about 6.7m of drop across one 0.68s flip. Now it integrates a real velocity,
-                    // using the live-measured fall acceleration so it always matches whatever
-                    // gravity PlayerMovement is applying.
-                    float g = Mathf.Abs(measuredFallAccel) > 0.5f
-                        ? -Mathf.Abs(measuredFallAccel)
-                        : Physics.gravity.y;
-                    airFallVelocity += g * Mathf.Max(0f, airDodgeFallMultiplier) * Time.deltaTime;
-                    move.y = airFallVelocity * Time.deltaTime;
+                    move.y = Physics.gravity.y * Time.deltaTime;
                 }
 
                 characterController.Move(move);
@@ -1811,14 +1787,7 @@ public class PlayerCombat : MonoBehaviour
             {
                 Vector3 move = direction * (distance * frameDelta);
                 if (!characterController.isGrounded)
-                {
-                    // ROUND 11: an airborne dash HOLDS her altitude — Hazel's call. move.y stays
-                    // 0, so she shoots sideways through the air and resumes falling from a
-                    // standstill when the dash ends (PlayerMovement zeroes velocity.y on exit).
-                    // The old line spent gravity's speed as a per-frame distance and drove her
-                    // into the ground instead. Untick Air Dash Holds Height to get it back.
-                    move.y = airDashHoldsHeight ? 0f : Physics.gravity.y * Time.deltaTime;
-                }
+                    move.y = Physics.gravity.y * Time.deltaTime;
 
                 characterController.Move(move);
             }
