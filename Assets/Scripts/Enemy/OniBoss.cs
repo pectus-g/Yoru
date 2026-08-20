@@ -327,7 +327,13 @@ public class OniBoss : MonoBehaviour
     // does nothing — that is exactly how the targeting cone stayed at 120 after it was "reverted".
     // Tune live on PlayerCombat during Play instead; these are only the values pushed at Start.
     private const float YORU_NUDGE_DISTANCE  = 0.9f;   // step forward with nothing to launch at
-    private const float YORU_ENGAGE_DISTANCE = 6.0f;   // launch at anything within 6m of its SURFACE
+    // ROUND 9b. Engage only as far as she can actually ARRIVE. Max travel is
+    // YORU_LAUNCH_SPEED * PlayerCombat's Launch Max Duration = 10 * 0.32 = 3.20m, and her strike
+    // reaches attackRange 1.5m, so a launch still connects out to 3.20 + 1.5 = 4.70m of SURFACE
+    // gap. Beyond that she cannot reach him even after a full launch: the 16:23 log has her
+    // travelling the whole 3.20m from 5.3m and whiffing. Past 4.7m she steps forward instead.
+    // Raise Launch Max Duration or Launch Speed and this number should move with them.
+    private const float YORU_ENGAGE_DISTANCE = 4.7f;   // launch at anything within 4.7m of its SURFACE
     private const float YORU_LAUNCH_MIN      = 0f;     // NO minimum: the launch is the real gap
     private const float YORU_LAUNCH_STOP_GAP = 0f;     // all the way in; her capsule stops on his body
     private const float YORU_LAUNCH_SPEED    = 10f;    // 20 m/s covered 3m in 0.15s — too fast to see

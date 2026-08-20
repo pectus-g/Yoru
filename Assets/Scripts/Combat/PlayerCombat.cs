@@ -395,6 +395,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float launchEngageDistance = 4.5f;
     [Tooltip("How far short of the enemy's COLLIDER SURFACE the launch aims to stop, metres. 0 = launch all the way to him and let her own capsule collide with his body, which is what 'launch to the enemy' means. The old Lunge Stop Gap of 1.0 m is why she stopped a metre short of a boss she was already next to. Raise this only if she ends up visibly inside something.")]
     [SerializeField] private float launchStopGap = 0f;
+    [Tooltip("ROUND 9. Downward speed (m/s) held during a launch that STARTED on the ground, so the CharacterController keeps touching the floor while she slides. Move() with a purely horizontal vector clears isGrounded, which made her skim off the ground for the whole slide: AirPosePin engaged within 5ms of every single launch, her body bobbed 3-13cm, and PlayerMovement began applying fall gravity mid-attack. 2 is enough to hold contact without reading as a drop. 0 disables it.")]
+    [SerializeField] private float launchGroundStick = 2f;
     [Tooltip("ROUND 9, opt-in. ON = airborne attacks launch and step forward too, exactly like grounded ones. The launch is horizontal only - PlayerMovement keeps full ownership of the fall, so this cannot produce the height drop the old airborne path had. OFF = the old behaviour, where StartLunge returns early in the air and an air attack never moves her.")]
     [SerializeField] private bool launchInAir = false;
 
@@ -2600,7 +2602,9 @@ public class PlayerCombat : MonoBehaviour
         {
             float speed = Mathf.Max(1f, launchSpeed);
             duration = Mathf.Clamp(distance / speed, Mathf.Max(0.01f, launchMinDuration), Mathf.Max(0.06f, launchMaxDuration));
-            if (distance / speed > launchMaxDuration)
+            // Epsilon: at exactly the ceiling (3.20m at 10m/s in 0.32s) float noise flagged a
+            // launch that reaches perfectly as "capped short", which also drives the weaker reach hit.
+            if (distance / speed > launchMaxDuration + 0.0005f)
             {
                 distance = speed * launchMaxDuration;         // she cannot cover more in the time she has
                 lungeEndedShort = true;
@@ -2650,6 +2654,7 @@ public class PlayerCombat : MonoBehaviour
         // right - DemoScene_Day's terrain is on Ground, which is why the Noppera fight always
         // launched correctly - nothing changes and cliff protection still works.
         bool airborneNow = characterController != null && !characterController.isGrounded;
+        bool startedGrounded = characterController != null && characterController.isGrounded;
         bool edgeSafetyActive = false;
         if (useEdgeSafety && !airborneNow)
         {
@@ -2685,12 +2690,18 @@ public class PlayerCombat : MonoBehaviour
                     break;
                 }
 
-                // ROUND 9: the launch is HORIZONTAL ONLY. The old keep-down line added a second
-                // gravity on top of the one PlayerMovement already applies every FixedUpdate, and
-                // it applied it as a raw position jump of g*dt (about 0.16 m in a single frame),
-                // which is the sudden height drop that made airborne launches unusable. Gravity is
-                // PlayerMovement's job; the launch only ever moves her across the ground plane.
-                step.y = 0f;
+                // ROUND 9: no second gravity. The old keep-down line added one on top of the one
+                // PlayerMovement already applies every FixedUpdate, as a raw position jump of g*dt
+                // (about 0.16 m in a single frame) - the height drop that made airborne launches
+                // unusable. Gravity is PlayerMovement's job.
+                //
+                // ROUND 9b: a launch that STARTED grounded keeps a small downward stick instead of
+                // a flat zero. CharacterController.Move() with a purely horizontal vector clears
+                // isGrounded, so the 16:23 log shows AirPosePin engaging within 5ms of every single
+                // ground launch - she was skimming off the floor for the whole slide, bobbing 3-13cm
+                // and picking up fall gravity mid-attack. Airborne launches still get a flat zero:
+                // nothing may touch her fall arc.
+                step.y = startedGrounded ? -Mathf.Max(0f, launchGroundStick) * Time.deltaTime : 0f;
 
                 // Wall safety: CharacterController.Move resolves wall collisions, so Yoru cannot pass through one.
                 characterController.Move(step);
