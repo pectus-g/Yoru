@@ -259,8 +259,6 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Dash — Timing")]
     [SerializeField] private float dashFallbackDuration = 0.5f;
-    [Tooltip("ROUND 13. Seconds the dash TRAVEL takes, set directly. Above 0 this wins outright and the animator is not consulted for timing. Measured across two sessions the dash always took exactly 1.000s no matter what Dash Fallback Duration said, because the code sampled the animator one frame after the crossfade began — while the state being reported was still the one she was LEAVING, not the dash. Reading a clip length that was never the dash clip is why setting the dash state's Speed changed nothing. 0.4 is snappy; lower is snappier. Set to 0 to go back to deriving it from the clip.")]
-    [SerializeField] private float dashMoveDuration = 0.4f;
     [Tooltip("I-frame start for dash (normalized 0-1)")]
     [SerializeField] private float dashIFrameStart = 0.05f;
     [Tooltip("I-frame end for dash (normalized 0-1)")]
@@ -403,11 +401,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private bool launchInAir = false;
 
     [Header("Air Dodge / Air Dash — round 11")]
-    [Tooltip("ROUND 12. Fraction of normal gravity applied during an AIRBORNE front flip. Yoru's gravity is heavy (-15 x 1.5 fall multiplier = -22.5 m/s2), so a full-strength fall across a 0.69s flip is metres of drop and reads as a slam, not a flip. 0.25 gives roughly 1.3m of descent over a full 4-leg flip: clearly falling, never plummeting. 1 = her normal fall speed. 0 = holds height like the air dash. Ground flips are unaffected.")]
-    [SerializeField] private float airDodgeFallMultiplier = 0.25f;
-    [Tooltip("ROUND 12. How much of the downward speed she ALREADY had is carried into an airborne front flip. 0 = the flip cancels her fall and starts from a clean hover, which is what every action game's air dodge does and what stops a flip taken late in a fall from turning into a dive. 1 = she keeps every bit of it. This is what made 4-leg flips worst: those are the multi-jump cases, so she was already dropping fast when the flip started.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float airDodgeKeepEntryFall = 0f;
+    [Tooltip("ROUND 11. Multiplies the natural fall used by an AIRBORNE front flip. 1 = she falls exactly as fast as she normally would, seeded from the speed she was already falling at, so the flip never jolts her. Below 1 gives the flip some float (0.5 = half-speed descent); 0 would hold her height like the air dash. Ground flips are unaffected. Replaces the old code, which applied gravity's SPEED as a per-frame DISTANCE and drove her about 6.7m into the floor over one flip.")]
+    [SerializeField] private float airDodgeFallMultiplier = 1f;
     [Tooltip("ROUND 11. ON = an AIRBORNE dash holds her altitude for its whole length, so it reads as a real air ability instead of a ground move used up high. She resumes falling from a standstill when it ends. OFF = the old behaviour. Ground dashes are unaffected.")]
     [SerializeField] private bool airDashHoldsHeight = true;
 
@@ -1554,14 +1549,11 @@ public class PlayerCombat : MonoBehaviour
         float previousArc = 0f;
         bool clipResolved = false;
 
-        // ROUND 12: an airborne flip starts from a CLEAN HOVER by default. Round 11 inherited her
-        // full existing fall speed and then piled her real -22.5 m/s2 on top, so flipping while
-        // already dropping at 10 m/s cost about 12m of altitude — worse than the bug it replaced.
-        // Cancelling the inherited fall is what makes an air dodge read as a dodge instead of a
-        // dive; Air Dodge Keep Entry Fall brings it back if any of it is wanted. Clamped to <= 0,
-        // so a flip can never gain height.
+        // ROUND 11: an airborne flip now falls like a real fall. Seeded from the speed she is
+        // ALREADY descending at, so entering the flip never jolts her, and clamped to <= 0 so a
+        // flip can never add height. Accumulates properly instead of the old flat rate.
         float airFallVelocity = characterController != null
-            ? Mathf.Min(0f, characterController.velocity.y) * Mathf.Clamp01(airDodgeKeepEntryFall)
+            ? Mathf.Min(0f, characterController.velocity.y)
             : 0f;
 
         while (true)
@@ -1724,22 +1716,7 @@ public class PlayerCombat : MonoBehaviour
 
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
-
-        // ROUND 13: with NO direction held, dash the way YORU is facing — not the way the camera
-        // is. GetInputDirectionCameraRelative returns camForward for zero input, so a no-input
-        // dash used to fly wherever the camera happened to point while her body faced somewhere
-        // else. The frontflip has had this fallback all along; the dash never got it.
-        Vector3 dashDir;
-        if (Mathf.Abs(h) < 0.1f && Mathf.Abs(v) < 0.1f)
-        {
-            Vector3 facing = cachedTransform.forward;
-            facing.y = 0f;
-            dashDir = facing.sqrMagnitude > 0.0001f ? facing.normalized : cachedTransform.forward;
-        }
-        else
-        {
-            dashDir = GetInputDirectionCameraRelative(h, v);
-        }
+        Vector3 dashDir = GetInputDirectionCameraRelative(h, v);
 
         bool is4Leg = Input.GetKey(KeyCode.LeftShift) ||
                       (playerMovement != null && playerMovement.IsRunning());
@@ -1791,50 +1768,20 @@ public class PlayerCombat : MonoBehaviour
         dashCoroutine = StartCoroutine(DashMovement(moveDir, distance));
     }
 
-    /// <summary>
-    /// ROUND 12. Real seconds a state takes to play, accounting for the Speed field set on it in
-    /// the Animator (and any Speed Multiplier parameter). AnimatorStateInfo.length reports the
-    /// clip's length at speed 1, so reading it raw is why the dash always took 1.000s — measured
-    /// eleven times in the 14:46 log — while Dash Fallback Duration said 0.5. Setting a dash state
-    /// to Speed 2 now halves the travel time to match, and any later retune follows automatically
-    /// instead of leaving her sliding after the animation has finished.
-    /// </summary>
-    private static float ClipSecondsAtStateSpeed(AnimatorStateInfo info)
-    {
-        float rate = Mathf.Abs(info.speed * info.speedMultiplier);
-        if (rate < 0.01f) rate = 1f;          // a paused or unset state must not divide by ~0
-        return info.length / rate;
-    }
-
     private IEnumerator DashMovement(Vector3 direction, float distance)
     {
-        // ROUND 13: an explicit travel time wins. The animator path below is kept for anyone who
-        // sets Dash Move Duration to 0, but it is no longer the default — it was reading the
-        // outgoing state's clip, which pinned every dash to exactly 1.000s.
-        float duration;
-        bool needsClipUpdate = false;
-        if (dashMoveDuration > 0.01f)
+        float duration = dashFallbackDuration;
+        bool needsClipUpdate = true;
+        if (animator != null)
         {
-            duration = dashMoveDuration;
-        }
-        else
-        {
-            duration = dashFallbackDuration;
-            needsClipUpdate = true;
-            if (animator != null)
+            AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            if (stateInfo.length > 0.1f)
             {
-                AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-                if (stateInfo.length > 0.1f)
-                {
-                    duration = ClipSecondsAtStateSpeed(stateInfo);
-                    needsClipUpdate = false;
-                }
+                duration = stateInfo.length;
+                needsClipUpdate = false;
             }
         }
         currentDashDuration = duration;
-        DebugLog($"Dash movement: {distance:F1}m over {duration:F2}s "
-               + $"({(dashMoveDuration > 0.01f ? "Dash Move Duration" : "clip length")}) "
-               + $"= {distance / Mathf.Max(0.01f, duration):F1} m/s");
 
         float elapsed = 0f;
         float previousEased = 0f;
@@ -1849,7 +1796,7 @@ public class PlayerCombat : MonoBehaviour
                 AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
                 if (si.length > 0.1f)
                 {
-                    duration = ClipSecondsAtStateSpeed(si);
+                    duration = si.length;
                     currentDashDuration = duration;
                 }
                 needsClipUpdate = false;
@@ -2018,9 +1965,6 @@ public class PlayerCombat : MonoBehaviour
                 StopCoroutine(dashCoroutine);
                 dashCoroutine = null;
             }
-            // ROUND 13: this exit never logged, so 4 of 5 dashes in the 15:51 log simply vanished
-            // from the trace and dash timing could not be measured. Say so.
-            DebugLog("Dash ended (cancelled by combat reset)");
         }
 
         if (isBeyblading)

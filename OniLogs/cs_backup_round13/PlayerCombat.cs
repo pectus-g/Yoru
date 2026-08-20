@@ -259,8 +259,6 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Dash — Timing")]
     [SerializeField] private float dashFallbackDuration = 0.5f;
-    [Tooltip("ROUND 13. Seconds the dash TRAVEL takes, set directly. Above 0 this wins outright and the animator is not consulted for timing. Measured across two sessions the dash always took exactly 1.000s no matter what Dash Fallback Duration said, because the code sampled the animator one frame after the crossfade began — while the state being reported was still the one she was LEAVING, not the dash. Reading a clip length that was never the dash clip is why setting the dash state's Speed changed nothing. 0.4 is snappy; lower is snappier. Set to 0 to go back to deriving it from the clip.")]
-    [SerializeField] private float dashMoveDuration = 0.4f;
     [Tooltip("I-frame start for dash (normalized 0-1)")]
     [SerializeField] private float dashIFrameStart = 0.05f;
     [Tooltip("I-frame end for dash (normalized 0-1)")]
@@ -1724,22 +1722,7 @@ public class PlayerCombat : MonoBehaviour
 
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
-
-        // ROUND 13: with NO direction held, dash the way YORU is facing — not the way the camera
-        // is. GetInputDirectionCameraRelative returns camForward for zero input, so a no-input
-        // dash used to fly wherever the camera happened to point while her body faced somewhere
-        // else. The frontflip has had this fallback all along; the dash never got it.
-        Vector3 dashDir;
-        if (Mathf.Abs(h) < 0.1f && Mathf.Abs(v) < 0.1f)
-        {
-            Vector3 facing = cachedTransform.forward;
-            facing.y = 0f;
-            dashDir = facing.sqrMagnitude > 0.0001f ? facing.normalized : cachedTransform.forward;
-        }
-        else
-        {
-            dashDir = GetInputDirectionCameraRelative(h, v);
-        }
+        Vector3 dashDir = GetInputDirectionCameraRelative(h, v);
 
         bool is4Leg = Input.GetKey(KeyCode.LeftShift) ||
                       (playerMovement != null && playerMovement.IsRunning());
@@ -1808,33 +1791,18 @@ public class PlayerCombat : MonoBehaviour
 
     private IEnumerator DashMovement(Vector3 direction, float distance)
     {
-        // ROUND 13: an explicit travel time wins. The animator path below is kept for anyone who
-        // sets Dash Move Duration to 0, but it is no longer the default — it was reading the
-        // outgoing state's clip, which pinned every dash to exactly 1.000s.
-        float duration;
-        bool needsClipUpdate = false;
-        if (dashMoveDuration > 0.01f)
+        float duration = dashFallbackDuration;
+        bool needsClipUpdate = true;
+        if (animator != null)
         {
-            duration = dashMoveDuration;
-        }
-        else
-        {
-            duration = dashFallbackDuration;
-            needsClipUpdate = true;
-            if (animator != null)
+            AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+            if (stateInfo.length > 0.1f)
             {
-                AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-                if (stateInfo.length > 0.1f)
-                {
-                    duration = ClipSecondsAtStateSpeed(stateInfo);
-                    needsClipUpdate = false;
-                }
+                duration = ClipSecondsAtStateSpeed(stateInfo);
+                needsClipUpdate = false;
             }
         }
         currentDashDuration = duration;
-        DebugLog($"Dash movement: {distance:F1}m over {duration:F2}s "
-               + $"({(dashMoveDuration > 0.01f ? "Dash Move Duration" : "clip length")}) "
-               + $"= {distance / Mathf.Max(0.01f, duration):F1} m/s");
 
         float elapsed = 0f;
         float previousEased = 0f;
@@ -2018,9 +1986,6 @@ public class PlayerCombat : MonoBehaviour
                 StopCoroutine(dashCoroutine);
                 dashCoroutine = null;
             }
-            // ROUND 13: this exit never logged, so 4 of 5 dashes in the 15:51 log simply vanished
-            // from the trace and dash timing could not be measured. Say so.
-            DebugLog("Dash ended (cancelled by combat reset)");
         }
 
         if (isBeyblading)
