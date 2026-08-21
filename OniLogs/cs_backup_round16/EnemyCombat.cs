@@ -1191,18 +1191,6 @@ public class EnemyCombat : MonoBehaviour
     /// section on arrival, so the moment the hit should resolve moves with it). Returns false when
     /// no attack matches. Enemies that never call this are byte-for-byte unchanged.
     /// </summary>
-    /// <summary>
-    /// Opt-in (round 16). Overrides the chase speeds for THIS enemy only. Pass a negative value to
-    /// leave one alone. Exists because chaseSpeed is a [SerializeField]: a value Unity has already
-    /// saved cannot be changed by editing the default in code, so a boss that wants to move
-    /// differently has to push it at Start rather than rely on the source default.
-    /// </summary>
-    public void ConfigureChaseSpeed(float phase1Speed, float phase2Speed = -1f)
-    {
-        if (phase1Speed > 0f) chaseSpeed   = phase1Speed;
-        if (phase2Speed > 0f) chaseSpeedP2 = phase2Speed;
-    }
-
     public bool SetAttackStrikeMoment(string attackNameOrAnim, float strikeMoment)
     {
         if (attacks == null || string.IsNullOrEmpty(attackNameOrAnim)) return false;

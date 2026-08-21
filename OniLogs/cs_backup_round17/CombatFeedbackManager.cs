@@ -87,13 +87,6 @@ public class CombatFeedbackManager : MonoBehaviour
     private Coroutine activeHitStopCoroutine;
     private Animator frozenPlayerAnim;
     private Animator frozenEnemyAnim;
-    // ROUND 17: the speeds those animators were running at BEFORE the freeze. Restoring a
-    // hardcoded 1 silently destroys any deliberate speed — a boss set to 1.35 dropped to 1 on the
-    // first hit it took and never recovered, and nothing logged it. Captured per freeze; a value
-    // at or near 0 is ignored on the way back out, which is what the old hardcoded 1 was guarding
-    // against (restoring a 0 would leave the animator frozen forever).
-    private float frozenPlayerAnimSpeed = 1f;
-    private float frozenEnemyAnimSpeed = 1f;
     #endregion
 
     #region Unity Lifecycle
@@ -237,10 +230,6 @@ public class CombatFeedbackManager : MonoBehaviour
         frozenPlayerAnim = playerAnim;
         frozenEnemyAnim = enemyAnim;
 
-        // ROUND 17: remember what they were actually running at, so the restore can put it back.
-        frozenPlayerAnimSpeed = playerAnim != null ? playerAnim.speed : 1f;
-        frozenEnemyAnimSpeed  = enemyAnim  != null ? enemyAnim.speed  : 1f;
-
         // Freeze
         if (playerAnim != null)
             playerAnim.speed = 0f;
@@ -250,7 +239,7 @@ public class CombatFeedbackManager : MonoBehaviour
         // Wait real time — not affected by timeScale
         yield return new WaitForSecondsRealtime(duration);
 
-        // Restore to whatever they were running at, falling back to 1 if that was a frozen 0.
+        // Restore — always to 1f, never to a captured value that could be 0
         RestoreFrozenAnimators();
         activeHitStopCoroutine = null;
     }
@@ -262,16 +251,14 @@ public class CombatFeedbackManager : MonoBehaviour
     {
         if (frozenPlayerAnim != null)
         {
-            frozenPlayerAnim.speed = frozenPlayerAnimSpeed > 0.05f ? frozenPlayerAnimSpeed : 1f;
+            frozenPlayerAnim.speed = 1f;
             frozenPlayerAnim = null;
         }
         if (frozenEnemyAnim != null)
         {
-            frozenEnemyAnim.speed = frozenEnemyAnimSpeed > 0.05f ? frozenEnemyAnimSpeed : 1f;
+            frozenEnemyAnim.speed = 1f;
             frozenEnemyAnim = null;
         }
-        frozenPlayerAnimSpeed = 1f;
-        frozenEnemyAnimSpeed = 1f;
     }
     #endregion
 

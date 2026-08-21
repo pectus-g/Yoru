@@ -213,36 +213,6 @@ public class OniBoss : MonoBehaviour
         public StrikeMomentOverride(string attack, float strikeMoment) { this.attack = attack; this.strikeMoment = strikeMoment; }
     }
 
-    [Header("Pace & Swing Wave — round 16")]
-    [Tooltip("ROUND 16. Multiplies the Oni's animator speed, so every clip he plays runs faster. Safe for his damage timing: the engine fires each strike at a NORMALIZED point of the clip, so the hit stays at the same moment of the swing however fast it plays. 1 = untouched. 1.35 turns his 1.13s swing into 0.84s and his 1.58s swing into 1.17s.")]
-    [SerializeField] private float oniAnimationSpeed = 1.35f;
-    [Tooltip("ROUND 16. His chase speed, phase 1. Pushed at Start because the engine's value is a saved SerializeField. Yoru runs at 7, so he still cannot outrun her — he just stops falling so far behind. -1 leaves the engine value alone.")]
-    [SerializeField] private float oniChaseSpeed = 4.5f;
-    [Tooltip("ROUND 16. His chase speed in phase 2. -1 leaves the engine value alone.")]
-    [SerializeField] private float oniChaseSpeedP2 = 5.5f;
-
-    [Header("Swing Wave — round 16")]
-    [Tooltip("ROUND 16. A shockwave released at the moment each swing strikes, so a swing that is just short of Yoru still reaches her. Measured over 28 of his swings, the club came within a metre of her on only 10 — the other 18 were guaranteed whiffs before they started, which is most of the dead air in the fight. This extends his threat in-world instead of making him magnetically follow her.")]
-    [SerializeField] private bool swingWaveEnabled = true;
-    [Tooltip("Prefab spawned at the swing's strike moment. Drop the effect you want here — it is spawned, parented to nothing, and destroyed after Swing Wave VFX Lifetime. Leave empty for damage with no visuals.")]
-    [SerializeField] private GameObject swingWaveVFX;
-    [Tooltip("Seconds before the spawned effect is destroyed.")]
-    [SerializeField] private float swingWaveVFXLifetime = 2f;
-    [Tooltip("Metres in front of him the effect is spawned, along his facing.")]
-    [SerializeField] private float swingWaveVFXForward = 1.5f;
-    [Tooltip("Height above his feet the effect is spawned.")]
-    [SerializeField] private float swingWaveVFXHeight = 1.2f;
-    [Tooltip("How far the wave reaches, metres, measured from him to Yoru. His club's own reach is 3.5m, so anything above that is the extra range the wave buys him. Only fires when the normal hit MISSED, so it can never double-dip.")]
-    [SerializeField] private float swingWaveRadius = 5.5f;
-    [Tooltip("Half-angle in front of him that the wave covers, degrees. 60 means a 120-degree arc; the wave never hits behind him.")]
-    [SerializeField] private float swingWaveHalfAngle = 60f;
-    [Tooltip("Damage the wave deals. Deliberately less than a clean club hit — being clipped by the wind of a swing should hurt less than being hit by the club.")]
-    [SerializeField] private int swingWaveDamage = 8;
-
-    private PlayerHealth playerHealthRef;
-    private bool  waveFiredThisAttack;
-    private string waveAttackName = "";
-
     [Header("Strike contact measurement — round 15 (diagnostic, temporary)")]
     [Tooltip("ROUND 15. Measures, at RUNTIME, the moment his club is physically closest to Yoru during each swing, and compares it to the Strike Moment the damage actually fires on. The existing moments were measured from the FBX clips, which shows where the club is in the animation but not where SHE was standing — so it cannot tell you whether the club reaches her at real play distance. Pure measurement: reads the skeleton, changes no behaviour. Untick when the numbers are in.")]
     [SerializeField] private bool measureStrikeContact = true;
@@ -450,27 +420,6 @@ public class OniBoss : MonoBehaviour
             {
                 Debug.LogWarning("[OniBoss] no PlayerCombat found on the player - Yoru's launch model stays OFF. Nothing else is affected.");
             }
-        }
-
-        // ROUND 16: pace. Animator speed is safe to scale because every strike fires on a
-        // NORMALIZED clip position, so the hit keeps its place in the swing whatever the speed.
-        if (oniAnimationSpeed > 0f && animator != null && !Mathf.Approximately(oniAnimationSpeed, 1f))
-        {
-            animator.speed = oniAnimationSpeed;
-            DebugLog($"animator speed x{oniAnimationSpeed:F2} — his 1.13s swing now plays in {1.13f / oniAnimationSpeed:F2}s.");
-        }
-        if (combat != null && (oniChaseSpeed > 0f || oniChaseSpeedP2 > 0f))
-        {
-            combat.ConfigureChaseSpeed(oniChaseSpeed, oniChaseSpeedP2);
-            DebugLog($"chase speed pushed: phase1 {oniChaseSpeed:F1}, phase2 {oniChaseSpeedP2:F1} (Yoru runs at 7).");
-        }
-        if (swingWaveEnabled && playerT != null)
-        {
-            playerHealthRef = playerT.GetComponent<PlayerHealth>();
-            if (playerHealthRef == null) playerHealthRef = playerT.GetComponentInChildren<PlayerHealth>();
-            DebugLog($"swing wave ON: {swingWaveDamage} dmg out to {swingWaveRadius:F1}m in a {swingWaveHalfAngle * 2f:F0}deg arc, "
-                   + $"only when the club itself missed. VFX {(swingWaveVFX != null ? swingWaveVFX.name : "NOT SET — damage only")}. "
-                   + $"PlayerHealth {(playerHealthRef != null ? "found" : "NOT FOUND — wave damage disabled")}.");
         }
 
         // ROUND 15: locate the club's TIP — the deepest bone whose name matches — so the distance
@@ -735,9 +684,7 @@ public class OniBoss : MonoBehaviour
 
     private void Update()
     {
-        KeepAnimationSpeed();       // ROUND 16
         UpdateAttackStepIn();
-        UpdateSwingWave();          // ROUND 16
         UpdatePhaseTransition();
         UpdateReactionFreezeGuard();
         UpdateSlowMotionWatchdog();
@@ -822,89 +769,6 @@ public class OniBoss : MonoBehaviour
                 + $"clip position {strikeMeasureMinNorm:F2} | damage fires at "
                 + $"{(configured >= 0f ? configured.ToString("F2") : "engine default")} | clip {strikeMeasureClipLen:F2}s "
                 + $"=> {verdict}");
-    }
-
-    /// <summary>
-    /// ROUND 16. Re-asserts his animator speed, because hitstop wipes it. CombatFeedbackManager
-    /// freezes the enemy animator and then restores it with a hardcoded `speed = 1f` rather than
-    /// the value it froze — so without this the pace increase would silently vanish the first time
-    /// Yoru landed a hit, and never come back. Deliberately stands aside for the two cases that
-    /// legitimately own the speed: an active hitstop (speed at or near 0) and the phase transition,
-    /// which runs its roar at its own slower rate.
-    /// </summary>
-    private void KeepAnimationSpeed()
-    {
-        if (animator == null || oniAnimationSpeed <= 0f) return;
-        if (phaseTransitionActive) return;                 // the roar owns the speed
-        if (animator.speed < 0.05f) return;                // hitstop is running, leave it frozen
-        if (!Mathf.Approximately(animator.speed, oniAnimationSpeed))
-            animator.speed = oniAnimationSpeed;
-    }
-
-    /// <summary>
-    /// ROUND 16 — swing wave. At the strike moment of a normal melee swing, release a shockwave.
-    /// It only deals damage when the club itself did NOT reach her (she is beyond the engine's
-    /// attack range), so it never stacks on top of a clean hit — it converts a guaranteed whiff
-    /// into a glancing consequence. The charge is excluded; it owns its own impact.
-    /// </summary>
-    private void UpdateSwingWave()
-    {
-        if (!swingWaveEnabled || combat == null || playerT == null || animator == null) return;
-
-        bool inAttack = combat.GetCurrentState() == EnemyCombat.EnemyState.Attack;
-        string atk = inAttack ? combat.CurrentAttackName() : "";
-        bool isCharge = inAttack && (atk == chargeStateName || combat.CurrentAttackAnim() == chargeStateName);
-
-        if (!inAttack || isCharge) { waveFiredThisAttack = false; waveAttackName = ""; return; }
-
-        if (atk != waveAttackName) { waveAttackName = atk; waveFiredThisAttack = false; }
-        if (waveFiredThisAttack) return;
-        if (animator.IsInTransition(0)) return;
-
-        // Same moment the engine resolves the hit on.
-        float strikeAt = 0.5f;
-        if (strikeMomentOverrides != null)
-        {
-            foreach (var o in strikeMomentOverrides)
-                if (o != null && o.attack == atk) { strikeAt = o.strikeMoment; break; }
-        }
-        if (Mathf.Clamp01(animator.GetCurrentAnimatorStateInfo(0).normalizedTime) < strikeAt) return;
-
-        waveFiredThisAttack = true;
-
-        if (swingWaveVFX != null)
-        {
-            Vector3 at = transform.position
-                       + transform.forward * swingWaveVFXForward
-                       + Vector3.up * swingWaveVFXHeight;
-            GameObject fx = Instantiate(swingWaveVFX, at, Quaternion.LookRotation(transform.forward));
-            if (swingWaveVFXLifetime > 0f) Destroy(fx, swingWaveVFXLifetime);
-        }
-
-        if (playerHealthRef == null) return;
-
-        Vector3 to = playerT.position - transform.position;
-        to.y = 0f;
-        float dist = to.magnitude;
-
-        // The club got her — the engine already dealt its damage, so the wave stays visual only.
-        if (dist <= combat.AttackRange()) { DebugLog($"swing wave: club reached her at {dist:F1}m, wave is visual only."); return; }
-
-        if (dist > swingWaveRadius)
-        {
-            DebugLog($"swing wave: {dist:F1}m is beyond the wave's {swingWaveRadius:F1}m — nothing lands.");
-            return;
-        }
-
-        float angle = Vector3.Angle(transform.forward, to);
-        if (angle > swingWaveHalfAngle)
-        {
-            DebugLog($"swing wave: she is {angle:F0}deg off his facing, outside the {swingWaveHalfAngle:F0}deg arc.");
-            return;
-        }
-
-        playerHealthRef.TakeDamage(swingWaveDamage, false, transform.position, false);
-        DebugLog($"swing wave HIT for {swingWaveDamage} at {dist:F1}m ({angle:F0}deg) — the club fell short at {combat.AttackRange():F1}m.");
     }
 
     private void LateUpdate()

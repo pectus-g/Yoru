@@ -261,8 +261,6 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float dashFallbackDuration = 0.5f;
     [Tooltip("ROUND 13. Seconds the dash TRAVEL takes, set directly. Above 0 this wins outright and the animator is not consulted for timing. Measured across two sessions the dash always took exactly 1.000s no matter what Dash Fallback Duration said, because the code sampled the animator one frame after the crossfade began — while the state being reported was still the one she was LEAVING, not the dash. Reading a clip length that was never the dash clip is why setting the dash state's Speed changed nothing. 0.4 is snappy; lower is snappier. Set to 0 to go back to deriving it from the clip.")]
     [SerializeField] private float dashMoveDuration = 0.4f;
-    [Tooltip("ROUND 17. ON = the flip and the dash begin at full speed and settle at the end (ease-out). OFF = the old smoothstep curve, which is mathematically ZERO speed at both ends — the move started from a standstill and coasted to a standstill, which is the little pause you feel before an airborne flip and again after it. The animation is not the cause; the movement curve is. The launch has always used the ease-out curve, which is why it feels snappy by comparison.")]
-    [SerializeField] private bool snappyDodgeDashStart = true;
     [Tooltip("I-frame start for dash (normalized 0-1)")]
     [SerializeField] private float dashIFrameStart = 0.05f;
     [Tooltip("I-frame end for dash (normalized 0-1)")]
@@ -1611,11 +1609,7 @@ public class PlayerCombat : MonoBehaviour
                 t = Mathf.Clamp01(elapsed / duration);
             }
 
-            // ROUND 17: ease-out (fast off the mark, settles) instead of smoothstep, whose
-            // derivative is 0 at BOTH ends — that standstill start is the pause before the flip.
-            float eased = snappyDodgeDashStart
-                ? 1f - (1f - t) * (1f - t)
-                : t * t * (3f - 2f * t);
+            float eased = t * t * (3f - 2f * t);
             float frameDelta = eased - previousEased;
             previousEased = eased;
 
@@ -1862,11 +1856,7 @@ public class PlayerCombat : MonoBehaviour
             }
 
             float t = Mathf.Clamp01(elapsed / duration);
-            // ROUND 17: ease-out (fast off the mark, settles) instead of smoothstep, whose
-            // derivative is 0 at BOTH ends — that standstill start is the pause before the flip.
-            float eased = snappyDodgeDashStart
-                ? 1f - (1f - t) * (1f - t)
-                : t * t * (3f - 2f * t);
+            float eased = t * t * (3f - 2f * t);
             float frameDelta = eased - previousEased;
             previousEased = eased;
 

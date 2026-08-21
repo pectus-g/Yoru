@@ -261,8 +261,6 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float dashFallbackDuration = 0.5f;
     [Tooltip("ROUND 13. Seconds the dash TRAVEL takes, set directly. Above 0 this wins outright and the animator is not consulted for timing. Measured across two sessions the dash always took exactly 1.000s no matter what Dash Fallback Duration said, because the code sampled the animator one frame after the crossfade began — while the state being reported was still the one she was LEAVING, not the dash. Reading a clip length that was never the dash clip is why setting the dash state's Speed changed nothing. 0.4 is snappy; lower is snappier. Set to 0 to go back to deriving it from the clip.")]
     [SerializeField] private float dashMoveDuration = 0.4f;
-    [Tooltip("ROUND 17. ON = the flip and the dash begin at full speed and settle at the end (ease-out). OFF = the old smoothstep curve, which is mathematically ZERO speed at both ends — the move started from a standstill and coasted to a standstill, which is the little pause you feel before an airborne flip and again after it. The animation is not the cause; the movement curve is. The launch has always used the ease-out curve, which is why it feels snappy by comparison.")]
-    [SerializeField] private bool snappyDodgeDashStart = true;
     [Tooltip("I-frame start for dash (normalized 0-1)")]
     [SerializeField] private float dashIFrameStart = 0.05f;
     [Tooltip("I-frame end for dash (normalized 0-1)")]
@@ -406,7 +404,7 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Air Dodge / Air Dash — round 11")]
     [Tooltip("ROUND 12. Fraction of normal gravity applied during an AIRBORNE front flip. Yoru's gravity is heavy (-15 x 1.5 fall multiplier = -22.5 m/s2), so a full-strength fall across a 0.69s flip is metres of drop and reads as a slam, not a flip. 0.25 gives roughly 1.3m of descent over a full 4-leg flip: clearly falling, never plummeting. 1 = her normal fall speed. 0 = holds height like the air dash. Ground flips are unaffected.")]
-    [SerializeField] private float airDodgeFallMultiplier = 0.45f;
+    [SerializeField] private float airDodgeFallMultiplier = 0.25f;
     [Tooltip("ROUND 12. How much of the downward speed she ALREADY had is carried into an airborne front flip. 0 = the flip cancels her fall and starts from a clean hover, which is what every action game's air dodge does and what stops a flip taken late in a fall from turning into a dive. 1 = she keeps every bit of it. This is what made 4-leg flips worst: those are the multi-jump cases, so she was already dropping fast when the flip started.")]
     [Range(0f, 1f)]
     [SerializeField] private float airDodgeKeepEntryFall = 0f;
@@ -1611,11 +1609,7 @@ public class PlayerCombat : MonoBehaviour
                 t = Mathf.Clamp01(elapsed / duration);
             }
 
-            // ROUND 17: ease-out (fast off the mark, settles) instead of smoothstep, whose
-            // derivative is 0 at BOTH ends — that standstill start is the pause before the flip.
-            float eased = snappyDodgeDashStart
-                ? 1f - (1f - t) * (1f - t)
-                : t * t * (3f - 2f * t);
+            float eased = t * t * (3f - 2f * t);
             float frameDelta = eased - previousEased;
             previousEased = eased;
 
@@ -1862,11 +1856,7 @@ public class PlayerCombat : MonoBehaviour
             }
 
             float t = Mathf.Clamp01(elapsed / duration);
-            // ROUND 17: ease-out (fast off the mark, settles) instead of smoothstep, whose
-            // derivative is 0 at BOTH ends — that standstill start is the pause before the flip.
-            float eased = snappyDodgeDashStart
-                ? 1f - (1f - t) * (1f - t)
-                : t * t * (3f - 2f * t);
+            float eased = t * t * (3f - 2f * t);
             float frameDelta = eased - previousEased;
             previousEased = eased;
 
