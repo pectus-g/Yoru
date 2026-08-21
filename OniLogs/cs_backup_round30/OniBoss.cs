@@ -244,11 +244,11 @@ public class OniBoss : MonoBehaviour
         public GameObject trailVFX;
         [Tooltip("Effect spawned ON YORU where the club actually meets her, and only when the hit lands. Empty = use the Hit Land VFX fallback below.")]
         public GameObject hitVFX;
-        [Tooltip("ROUND 30. Extra metres in front of him for THIS attack's wave, on top of Swing Wave Spawn Distance. 0 = use the shared distance.")]
+        [Tooltip("ROUND 27. Nudge along the CLUB's own forward, metres. 0 sits exactly on the club tip. Renamed from 'forward' on purpose: the old field held a value measured from his feet, which is meaningless now that the anchor is the club, and renaming drops that stale saved value.")]
         public float nudgeForward;
-        [Tooltip("ROUND 30. Extra height for THIS attack's wave, on top of Swing Wave Spawn Height. Negative pushes it toward the ground — useful for the slam. 0 = use the shared height.")]
+        [Tooltip("Nudge along the CLUB's own up, metres. 0 sits exactly on the club tip.")]
         public float nudgeUp;
-        [Tooltip("ROUND 30. Sideways offset for THIS attack's wave, along his right. 0 = dead centre, which is usually what you want since the wave travels straight at her.")]
+        [Tooltip("Nudge along the CLUB's own right, metres. 0 sits exactly on the club tip.")]
         public float nudgeRight;
         [Tooltip("Seconds before it is destroyed.")]
         public float lifetime = 2f;
@@ -256,6 +256,14 @@ public class OniBoss : MonoBehaviour
         public SwingVFXBinding(string attack) { this.attack = attack; }
     }
 
+    [Tooltip("Used for any attack with no row of its own above, or whose row has no prefab. Empty = that attack simply has no visual; the wave's damage is unaffected either way.")]
+    [SerializeField] private GameObject swingWaveVFX;
+    [Tooltip("Fallback: seconds before the spawned effect is destroyed.")]
+    [SerializeField] private float swingWaveVFXLifetime = 2f;
+    [Tooltip("Only used if the club bone cannot be found: metres in front of him, measured from his feet.")]
+    [SerializeField] private float swingWaveVFXForward = 1.5f;
+    [Tooltip("Only used if the club bone cannot be found: height above his feet.")]
+    [SerializeField] private float swingWaveVFXHeight = 1.2f;
 
     [Tooltip("ROUND 28. Trail used for any attack whose row has no Trail Vfx of its own. Empty = that attack has no trail.")]
     [SerializeField] private GameObject swingTrailVFX;
@@ -282,12 +290,8 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float swingWaveSpeed = 12f;
     [Tooltip("ROUND 29. How wide the wave is, metres. She has to come within this of its centre line to be caught, so it also decides how easily she can slip around the edge of one.")]
     [SerializeField] private float swingWaveHitRadius = 1.2f;
-    [Tooltip("ROUND 32. Metres in FRONT OF HIM the wave is born. Must be smaller than his club's reach (3.5m) or the wave starts BEHIND Yoru and flies away from her — that is why every wave was logged as 'visual only' and none ever connected. Must also clear his 1.4m body or it is born inside him. 2.0 sits in the gap between those two limits. Renamed so the old 3.5 saved in your scene is dropped.")]
-    [SerializeField] private float swingWaveStartDistance = 2f;
-    [Tooltip("ROUND 30. Height above his feet the wave is born. Around Yoru's chest reads best, since that is who it is travelling at. A ground-hugging attack like the slam can be pushed down with that row's Nudge Up.")]
-    [SerializeField] private float swingWaveSpawnHeight = 1.2f;
-    [Tooltip("ROUND 31. How far the wave travels before it stops, metres. Its own number now: it used to be derived by subtracting the spawn distance from Swing Wave Radius, so pushing the spawn further out SHORTENED the wave's life instead of moving it — at spawn 3.5 the wave lived 0.29s and the effect was cut off before anyone could see it. Total threat = Spawn Distance + this.")]
-    [SerializeField] private float swingWaveTravel = 4f;
+    [Tooltip("ROUND 29. Metres ahead of the club the wave is born, along his facing — enough clearance that it reads as leaving the weapon rather than starting inside it.")]
+    [SerializeField] private float swingWaveSpawnAhead = 0.5f;
 
     private PlayerHealth playerHealthRef;
     private bool  waveFiredThisAttack;
@@ -519,7 +523,7 @@ public class OniBoss : MonoBehaviour
             playerHealthRef = playerT.GetComponent<PlayerHealth>();
             if (playerHealthRef == null) playerHealthRef = playerT.GetComponentInChildren<PlayerHealth>();
             DebugLog($"swing wave ON: {swingWaveDamage} dmg out to {swingWaveRadius:F1}m in a {swingWaveHalfAngle * 2f:F0}deg arc, "
-                   + $"Per-attack effects come from the Swing Wave VFX By Attack rows. "
+                   + $"only when the club itself missed. VFX {(swingWaveVFX != null ? swingWaveVFX.name : "NOT SET — damage only")}. "
                    + $"PlayerHealth {(playerHealthRef != null ? "found" : "NOT FOUND — wave damage disabled")}.");
         }
 
@@ -957,14 +961,14 @@ public class OniBoss : MonoBehaviour
             Debug.Log($"[OniBoss:ClubPos] {atk} at strike: club tip {up:F2}m up, {forward:F2}m in front, "
                     + $"{right:F2}m to his right ({flat.magnitude:F2}m out from his centre). "
                     + $"Club faces {clubYaw:F0}deg from his forward, pitch {clubBone.forward.y:F2}. "
-                    + $"(the wave is not anchored here any more — it is born "
-                    + $"{swingWaveStartDistance:F1}m in front of him at {swingWaveSpawnHeight:F1}m.)");
+                    + $"Effect currently spawns at {swingWaveVFXHeight:F2}m up / {swingWaveVFXForward:F2}m front "
+                    + $"=> off by {up - swingWaveVFXHeight:F2}m up, {forward - swingWaveVFXForward:F2}m front.");
         }
 
         // ROUND 24: this attack's own effect if it has one, otherwise the fallback.
-        GameObject prefab = null;          // ROUND 32: each attack brings its own, or has none
+        GameObject prefab = swingWaveVFX;
         GameObject hitPrefab = hitLandVFX;
-        float life = 2f;
+        float life = swingWaveVFXLifetime;
         Vector3 nudge = Vector3.zero;
         if (swingWaveVFXByAttack != null)
         {
@@ -1003,30 +1007,21 @@ public class OniBoss : MonoBehaviour
             // dormant entirely once his club started reaching her on nearly every swing. Sending
             // the visual outward and hurting her when it arrives is what makes his reach real,
             // and it is the same object doing both, so what you see IS what can hit you.
-            // ROUND 30: born in front of HIM, not at the club. These are impact waves, not
-            // weapon trails, so the club's position is irrelevant to them — and the club is a
-            // terrible anchor anyway: it is 3.5m ahead on the slam but 0.2m BEHIND him on
-            // Club_Swing, which put the wave inside his own body.
-            Vector3 origin = transform.position
-                           + transform.forward * (swingWaveStartDistance + nudge.z)
-                           + Vector3.up        * (swingWaveSpawnHeight   + nudge.y)
-                           + transform.right   * nudge.x;
-
-            // ROUND 31: travel is independent of where it starts. Deriving it meant every metre
-            // you pushed the spawn outward was a metre stolen from the wave's life.
-            float travel = Mathf.Max(0.5f, swingWaveTravel);
+            Vector3 origin = clubBone != null
+                ? clubBone.position
+                : transform.position + Vector3.up * swingWaveVFXHeight;
+            origin += transform.forward * swingWaveSpawnAhead;
+            if (nudge != Vector3.zero && clubBone != null)
+                origin += clubBone.right * nudge.x + clubBone.up * nudge.y + clubBone.forward * nudge.z;
 
             SwingWaveProjectile.Launch(
                 prefab, origin, transform.forward,
                 transform, playerT, playerHealthRef,
-                swingWaveSpeed, travel, swingWaveHitRadius, strikeContactBodyHeight,
+                swingWaveSpeed, swingWaveRadius, swingWaveHitRadius, strikeContactBodyHeight,
                 clubConnected ? 0 : swingWaveDamage,
-                hitPrefab, hitLandVFXLifetime, hitLandVFXOffset,
-                life);
+                hitPrefab, hitLandVFXLifetime, hitLandVFXOffset);
 
-            DebugLog($"swing wave born {swingWaveStartDistance + nudge.z:F1}m in front of him, "
-                   + $"{swingWaveSpeed:F0}m/s x {travel:F1}m = {travel / Mathf.Max(0.01f, swingWaveSpeed):F2}s of flight, "
-                   + $"visual lives {life:F1}s, threatens out to {swingWaveStartDistance + nudge.z + travel:F1}m — "
+            DebugLog($"swing wave launched at {swingWaveSpeed:F0}m/s for up to {swingWaveRadius:F1}m — "
                    + (clubConnected
                         ? $"visual only, the club already reached her at {dist:F1}m."
                         : $"carrying {swingWaveDamage} damage."));
@@ -1101,7 +1096,7 @@ public class OniBoss : MonoBehaviour
 
         Vector3 from = clubBone != null
             ? clubBone.position
-            : transform.position + transform.forward * 1.2f + Vector3.up * swingWaveSpawnHeight;
+            : transform.position + transform.forward * 1.2f + Vector3.up * swingWaveVFXHeight;
 
         Vector3 contact;
         Collider body = playerT.GetComponent<Collider>();
