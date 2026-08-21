@@ -224,33 +224,12 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
         
-        // Just exited dodge — hand her velocity back rather than deleting it.
-        //
-        // ROUND 20 — THE MID-AIR HANG. This block used to zero jumpMomentum and set velocity.y to
-        // 0 on every dodge exit. On the ground that is harmless. In the AIR it is a dead stop: she
-        // leaves the flip with no horizontal speed and no fall speed, hangs motionless, and then
-        // gravity has to accelerate her from zero all over again. That is the "waits in the air for
-        // a second at the end of the flip", and it is why three rounds of tuning the flip's own
-        // curve changed nothing — the flip was already over. The trace proved it: every flip ends
-        // at 85% of its clip via the designed early-exit (2leg 0.58s of 0.67s, 4leg 0.52s of
-        // 0.80s), so the hang lives entirely after the move.
-        //
-        // controller.velocity is the real velocity the dodge's own Move calls produced last frame,
-        // so carrying it across needs no plumbing between the two scripts and cannot drift.
+        // Just exited dodge — reset velocity so there's no gravity jolt
         if (wasDodgingLastFrame)
         {
             wasDodgingLastFrame = false;
-            if (controller.isGrounded)
-            {
-                velocity.y = -2f;
-                jumpMomentum = Vector3.zero;
-            }
-            else
-            {
-                Vector3 exit = controller.velocity;
-                jumpMomentum = new Vector3(exit.x, 0f, exit.z);   // keep flying
-                velocity.y = Mathf.Min(0f, exit.y);               // keep falling, never gain height
-            }
+            velocity.y = controller.isGrounded ? -2f : 0f;
+            jumpMomentum = Vector3.zero;
         }
         
         // Physics should be in FixedUpdate for consistency

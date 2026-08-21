@@ -263,14 +263,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float dashMoveDuration = 0.4f;
     [Tooltip("ROUND 17. ON = the flip and the dash begin at full speed and settle at the end (ease-out). OFF = the old smoothstep curve, which is mathematically ZERO speed at both ends — the move started from a standstill and coasted to a standstill, which is the little pause you feel before an airborne flip and again after it. The animation is not the cause; the movement curve is. The launch has always used the ease-out curve, which is why it feels snappy by comparison.")]
     [SerializeField] private bool snappyDodgeDashStart = true;
-    [Tooltip("ROUND 19. Shape of the 2-LEG flip's travel. 1 = constant speed the whole way. 2 = the old ease-out, which covers 75% of the distance in the first half and then barely moves — that flat tail is exactly the 'waits in the air at the end' on the 2-leg. 1.15 keeps a little snap off the mark while still travelling at the finish.")]
-    [Range(1f, 3f)]
-    [SerializeField] private float dodge2LegCurvePower = 1.15f;
-    [Tooltip("ROUND 19. The same, for the 4-LEG flip. Its ending already reads well, so it keeps the snappier 2.")]
-    [Range(1f, 3f)]
-    [SerializeField] private float dodge4LegCurvePower = 2f;
-    [Tooltip("ROUND 19. Logs one line per flip: clip length, wind-up skipped, when the travel finished, and how much dead time was left at each end. Turn off once the flip feels right.")]
-    [SerializeField] private bool logDodgeTiming = true;
+    [Tooltip("ROUND 18. Seconds of the flip clip's opening to skip, and the same amount of travel held back. The clip starts with a crouch/wind-up where she does not rotate yet; the travel used to be spread across it, so the body slid forward BEFORE the flip began — a little dash, then the flip. This starts the animation past the wind-up AND holds the travel to the same point, so the two are in phase and the move is nothing but the flip. 0.08 is roughly 2-3 frames at 30fps. 0 = the whole clip, as before. Flip only; the dash is untouched.")]
+    [SerializeField] private float dodgeSkipWindup = 0.08f;
     [Tooltip("I-frame start for dash (normalized 0-1)")]
     [SerializeField] private float dashIFrameStart = 0.05f;
     [Tooltip("I-frame end for dash (normalized 0-1)")]
@@ -1531,11 +1525,10 @@ public class PlayerCombat : MonoBehaviour
         string animState = is4Leg ? dodge4LegState : dodge2LegState;
         float distance = is4Leg ? dodge4LegDistance : dodge2LegDistance;
 
-        // ROUND 23: no clip offset. Starting the clip part-way in makes the animator blend from
-        // her standing pose into a pose that is already mid-flip, and that pose jump is a visible
-        // stutter — worse than the wind-up it was meant to skip. A slow flip start has to be fixed
-        // in the clip or the state's Speed, not by jumping into the middle of it from code.
-        animator.CrossFadeInFixedTime(animState, 0.12f, combatLayerIndex);
+        // ROUND 18: begin the clip past its wind-up so the move reads as the flip itself. The
+        // fourth argument of CrossFadeInFixedTime is an offset in SECONDS, which is why this knob
+        // is in seconds rather than a fraction of the clip.
+        animator.CrossFadeInFixedTime(animState, 0.12f, combatLayerIndex, Mathf.Max(0f, dodgeSkipWindup));
         lastCombatCrossFadeTime = Time.time;
 
         DebugLog($"Dodge: {animState} ({distance}m, {(is4Leg ? "4leg" : "2leg")})");
@@ -1544,10 +1537,10 @@ public class PlayerCombat : MonoBehaviour
         if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayDodge();
 
         if (dodgeCoroutine != null) StopCoroutine(dodgeCoroutine);
-        dodgeCoroutine = StartCoroutine(DodgeMovement(moveDir, animState, distance, is4Leg));
+        dodgeCoroutine = StartCoroutine(DodgeMovement(moveDir, animState, distance));
     }
 
-    private IEnumerator DodgeMovement(Vector3 direction, string dodgeStateName, float distance, bool is4Leg)
+    private IEnumerator DodgeMovement(Vector3 direction, string dodgeStateName, float distance)
     {
         // Movement is slaved to the dodge clip's own playback so it can never
         // outrun the animation. Previously the duration was read from
@@ -1574,8 +1567,6 @@ public class PlayerCombat : MonoBehaviour
         // Cancelling the inherited fall is what makes an air dodge read as a dodge instead of a
         // dive; Air Dodge Keep Entry Fall brings it back if any of it is wanted. Clamped to <= 0,
         // so a flip can never gain height.
-        float travelDoneAt = -1f;   // ROUND 19: when the distance was fully covered
-
         float airFallVelocity = characterController != null
             ? Mathf.Min(0f, characterController.velocity.y) * Mathf.Clamp01(airDodgeKeepEntryFall)
             : 0f;
@@ -1632,21 +1623,17 @@ public class PlayerCombat : MonoBehaviour
             // spent 27% of the distance during the wind-up frames — the body dashing forward
             // before the flip. Remapping here means nothing moves until the flip proper begins and
             // the whole distance is covered across the part of the clip that actually flips.
-            float power = Mathf.Max(1f, is4Leg ? dodge4LegCurvePower : dodge2LegCurvePower);
             float moveT = t;
+            if (dodgeSkipWindup > 0.001f && duration > 0.01f)
+            {
+                float skipNorm = Mathf.Clamp(dodgeSkipWindup / duration, 0f, 0.9f);
+                moveT = Mathf.Clamp01((t - skipNorm) / (1f - skipNorm));
+            }
 
-            // ROUND 19: the ease-out POWER is per variant now. At power 2 three quarters of the
-            // distance is spent in the first half of the move and the tail barely travels, which
-            // is the 2-leg hanging in the air at the end. Power 1 is constant speed.
             float eased = snappyDodgeDashStart
-                ? 1f - Mathf.Pow(1f - moveT, power)
+                ? 1f - (1f - moveT) * (1f - moveT)
                 : moveT * moveT * (3f - 2f * moveT);
-            // ROUND 21: never negative. Early in a dodge the progress source switches from the
-            // fallback timer to the animator's own normalized time, and those two do not agree —
-            // the fallback uses Dodge Fallback Duration (0.67s) while the 4-leg clip is really
-            // 0.80s. On the switching frame the remapped progress can go DOWN, which moved her
-            // backwards for a frame. Clamping here removes that jitter at the source.
-            float frameDelta = Mathf.Max(0f, eased - previousEased);
+            float frameDelta = eased - previousEased;
             previousEased = eased;
 
             if (characterController != null && characterController.enabled)
@@ -1682,8 +1669,6 @@ public class PlayerCombat : MonoBehaviour
                 characterController.Move(move);
             }
 
-            if (logDodgeTiming && travelDoneAt < 0f && eased >= 0.995f) travelDoneAt = elapsed;
-
             if (t >= dodgeEarlyExitThreshold)
             {
                 float h = Input.GetAxisRaw("Horizontal");
@@ -1709,15 +1694,6 @@ public class PlayerCombat : MonoBehaviour
             }
 
             yield return null;
-        }
-
-        if (logDodgeTiming)
-        {
-            string tail = travelDoneAt >= 0f
-                ? $"travel finished at {travelDoneAt:F2}s, leaving {Mathf.Max(0f, elapsed - travelDoneAt):F2}s of clip with nothing moving"
-                : "travel never completed (cut short)";
-            Debug.Log($"[DodgeTrace] {(is4Leg ? "4leg" : "2leg")} flip: clip {duration:F2}s, ran {elapsed:F2}s, "
-                    + $"{distance:F1}m — {tail}.");
         }
 
         EndDodge();

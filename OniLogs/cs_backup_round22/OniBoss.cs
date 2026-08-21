@@ -224,49 +224,14 @@ public class OniBoss : MonoBehaviour
     [Header("Swing Wave — round 16")]
     [Tooltip("ROUND 16. A shockwave released at the moment each swing strikes, so a swing that is just short of Yoru still reaches her. Measured over 28 of his swings, the club came within a metre of her on only 10 — the other 18 were guaranteed whiffs before they started, which is most of the dead air in the fight. This extends his threat in-world instead of making him magnetically follow her.")]
     [SerializeField] private bool swingWaveEnabled = true;
-    [Tooltip("ROUND 24. One row per attack, so each swing can have its own effect. Give Club_Swing and ClubSwing2 the same prefab and they read as one move; give ClubSlam its own and it reads as a different one. Placement is per row too, because a slam wants its effect low and in front while a swing wants it at chest height. A row with no prefab falls back to Swing Wave VFX (Fallback) below. Match is by attack NAME or attack ANIMATION, whichever the row's text matches.")]
-    [SerializeField] private SwingVFXBinding[] swingWaveVFXByAttack =
-    {
-        new SwingVFXBinding("Club_Swing"),
-        new SwingVFXBinding("ClubSwing2"),
-        new SwingVFXBinding("ClubSlam"),
-        new SwingVFXBinding("KanaboSweep"),
-    };
-
-    [System.Serializable]
-    public class SwingVFXBinding
-    {
-        [Tooltip("Attack name or attack animation, exactly as on the EnemyCombat attack list.")]
-        public string attack;
-        [Tooltip("Effect spawned at this attack's strike moment, in front of him — the swing itself. Empty = use the fallback below.")]
-        public GameObject vfx;
-        [Tooltip("Effect spawned ON YORU where the club actually meets her, and only when the hit lands. Empty = use the Hit Land VFX fallback below.")]
-        public GameObject hitVFX;
-        [Tooltip("Metres in front of him, along his facing.")]
-        public float forward = 1.5f;
-        [Tooltip("Height above his feet.")]
-        public float height = 1.2f;
-        [Tooltip("Seconds before it is destroyed.")]
-        public float lifetime = 2f;
-        public SwingVFXBinding() { }
-        public SwingVFXBinding(string attack) { this.attack = attack; }
-    }
-
-    [Tooltip("Used for any attack with no row of its own above, or whose row has no prefab. Empty = that attack simply has no visual; the wave's damage is unaffected either way.")]
+    [Tooltip("Prefab spawned at the swing's strike moment. Drop the effect you want here — it is spawned, parented to nothing, and destroyed after Swing Wave VFX Lifetime. Leave empty for damage with no visuals.")]
     [SerializeField] private GameObject swingWaveVFX;
-    [Tooltip("Fallback: seconds before the spawned effect is destroyed.")]
+    [Tooltip("Seconds before the spawned effect is destroyed.")]
     [SerializeField] private float swingWaveVFXLifetime = 2f;
-    [Tooltip("Fallback: metres in front of him the effect is spawned, along his facing.")]
+    [Tooltip("Metres in front of him the effect is spawned, along his facing.")]
     [SerializeField] private float swingWaveVFXForward = 1.5f;
-    [Tooltip("Fallback: height above his feet the effect is spawned.")]
+    [Tooltip("Height above his feet the effect is spawned.")]
     [SerializeField] private float swingWaveVFXHeight = 1.2f;
-
-    [Tooltip("ROUND 25. Used for any attack whose row has no Hit VFX of its own. Spawned at the point where the club actually meets Yoru's body, only on swings that connect.")]
-    [SerializeField] private GameObject hitLandVFX;
-    [Tooltip("Seconds before a hit effect is destroyed.")]
-    [SerializeField] private float hitLandVFXLifetime = 2f;
-    [Tooltip("Nudge the hit effect this far back along the line from Yoru toward the club, metres. A small positive value keeps a flat effect from being buried inside her body.")]
-    [SerializeField] private float hitLandVFXOffset = 0.1f;
     [Tooltip("How far the wave reaches, metres, measured from him to Yoru. His club's own reach is 3.5m, so anything above that is the extra range the wave buys him. Only fires when the normal hit MISSED, so it can never double-dip.")]
     [SerializeField] private float swingWaveRadius = 5.5f;
     [Tooltip("Half-angle in front of him that the wave covers, degrees. 60 means a 120-degree arc; the wave never hits behind him.")]
@@ -510,10 +475,7 @@ public class OniBoss : MonoBehaviour
 
         // ROUND 15: locate the club's TIP — the deepest bone whose name matches — so the distance
         // being measured is the business end, not the handle in his fist.
-        // ROUND 25: found whenever EITHER the measurement or the swing wave needs it — the hit
-        // effect is anchored to the club's tip, so it must not disappear when the diagnostic is
-        // switched off at the end of the hunt.
-        if ((measureStrikeContact || swingWaveEnabled) && !string.IsNullOrEmpty(clubBoneNameContains))
+        if (measureStrikeContact && !string.IsNullOrEmpty(clubBoneNameContains))
         {
             string needle = clubBoneNameContains.ToLowerInvariant();
             int bestDepth = -1;
@@ -910,28 +872,13 @@ public class OniBoss : MonoBehaviour
 
         waveFiredThisAttack = true;
 
-        // ROUND 24: this attack's own effect if it has one, otherwise the fallback.
-        GameObject prefab = swingWaveVFX;
-        GameObject hitPrefab = hitLandVFX;
-        float fwd = swingWaveVFXForward, hgt = swingWaveVFXHeight, life = swingWaveVFXLifetime;
-        if (swingWaveVFXByAttack != null)
+        if (swingWaveVFX != null)
         {
-            string anim = combat.CurrentAttackAnim();
-            foreach (var b in swingWaveVFXByAttack)
-            {
-                if (b == null || string.IsNullOrEmpty(b.attack)) continue;
-                if (b.attack != atk && b.attack != anim) continue;
-                if (b.vfx != null) { prefab = b.vfx; fwd = b.forward; hgt = b.height; life = b.lifetime; }
-                if (b.hitVFX != null) hitPrefab = b.hitVFX;
-                break;
-            }
-        }
-
-        if (prefab != null)
-        {
-            Vector3 at = transform.position + transform.forward * fwd + Vector3.up * hgt;
-            GameObject fx = Instantiate(prefab, at, Quaternion.LookRotation(transform.forward));
-            if (life > 0f) Destroy(fx, life);
+            Vector3 at = transform.position
+                       + transform.forward * swingWaveVFXForward
+                       + Vector3.up * swingWaveVFXHeight;
+            GameObject fx = Instantiate(swingWaveVFX, at, Quaternion.LookRotation(transform.forward));
+            if (swingWaveVFXLifetime > 0f) Destroy(fx, swingWaveVFXLifetime);
         }
 
         if (playerHealthRef == null) return;
@@ -941,12 +888,7 @@ public class OniBoss : MonoBehaviour
         float dist = to.magnitude;
 
         // The club got her — the engine already dealt its damage, so the wave stays visual only.
-        if (dist <= combat.AttackRange())
-        {
-            SpawnHitLandVFX(hitPrefab);
-            DebugLog($"swing wave: club reached her at {dist:F1}m, wave is visual only.");
-            return;
-        }
+        if (dist <= combat.AttackRange()) { DebugLog($"swing wave: club reached her at {dist:F1}m, wave is visual only."); return; }
 
         if (dist > swingWaveRadius)
         {
@@ -963,46 +905,6 @@ public class OniBoss : MonoBehaviour
 
         playerHealthRef.TakeDamage(swingWaveDamage, false, transform.position, false);
         DebugLog($"swing wave HIT for {swingWaveDamage} at {dist:F1}m ({angle:F0}deg) — the club fell short at {combat.AttackRange():F1}m.");
-    }
-
-    /// <summary>
-    /// ROUND 25. Puts the hit effect where the club actually meets her, rather than at her centre
-    /// or at some fixed offset. The club's tip bone is already tracked for the strike measurement,
-    /// so at the strike moment its world position is known; asking her capsule for the closest
-    /// point to it gives the exact spot on her body the club arrives at — which moves with where
-    /// she is standing and which side the swing came in from. The effect is rotated to face back
-    /// along the club's approach, so a directional prefab sprays outwards rather than into her.
-    /// Falls back to a point between the two of them at chest height if the club bone is missing.
-    /// </summary>
-    private void SpawnHitLandVFX(GameObject prefab)
-    {
-        if (prefab == null || playerT == null) return;
-
-        Vector3 from = clubBone != null
-            ? clubBone.position
-            : transform.position + transform.forward * 1.2f + Vector3.up * swingWaveVFXHeight;
-
-        Vector3 contact;
-        Collider body = playerT.GetComponent<Collider>();
-        if (body != null && body.enabled)
-        {
-            contact = body.ClosestPoint(from);
-            // ClosestPoint returns the query point itself when it is already inside the collider.
-            if ((contact - from).sqrMagnitude < 0.0001f)
-                contact = playerT.position + Vector3.up * strikeContactBodyHeight;
-        }
-        else
-        {
-            contact = playerT.position + Vector3.up * strikeContactBodyHeight;
-        }
-
-        Vector3 approach = from - contact;
-        Quaternion rot = approach.sqrMagnitude > 0.0001f
-            ? Quaternion.LookRotation(approach.normalized)
-            : Quaternion.LookRotation(-transform.forward);
-
-        GameObject fx = Instantiate(prefab, contact + approach.normalized * hitLandVFXOffset, rot);
-        if (hitLandVFXLifetime > 0f) Destroy(fx, hitLandVFXLifetime);
     }
 
     private void LateUpdate()
