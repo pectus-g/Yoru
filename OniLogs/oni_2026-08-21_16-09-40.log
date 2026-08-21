@@ -1,0 +1,466 @@
+# Oni combat log — 2026-08-21 16:09:40
+# Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
+# columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
+#
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-08-21_16-09-40.log
+[     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
+  aim VFX right: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/Glow_4Leg_R
+[     1    0.000 x1.00] LOG  [TailAirShot] Ready. drawState=RightTail_Fast castParam=TailCastSpeed (found)
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/vfx_Muzzle_Fireball01Blue
+[     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
+[     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized — Phase 3C v27
+[     1    0.000 x1.00] LOG  [RingMesh] VFX Status:
+[     1    0.000 x1.00] LOG    Left: Prefab=✓, Spawn=Tail6_L_end_end_end
+[     1    0.000 x1.00] LOG    Right: Prefab=✓, Spawn=Tail6_R_end_end_end
+[     1    0.000 x1.00] LOG  === VFX MANAGER INITIALIZED ===
+[     1    0.000 x1.00] LOG  Auto-detect animations: False
+[     1    0.000 x1.00] LOG  Parent effects to tail: True
+[     1    0.000 x1.00] LOG  Prefabs: Jump=True, Land=True, LTail=True, RTail=True
+[     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailVFX
+[     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
+[     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
+[     1    0.000 x1.00] LOG  [StormWeather] Ready. Rain on, floor drying... wait, soaking.
+[     1    0.000 x1.00] LOG  [FreezeDebug v3] Armed. Manual=L. Auto=True. Buffer=60 snaps @ 0.1s = 6.0s history.
+[     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
+[     1    0.000 x1.00] LOG  OniBoss initialized with 500 HP
+[     1    0.000 x1.00] LOG  [OniBoss] ANIMATOR SETUP: cullingMode=CullUpdateTransforms updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [OniBoss] Initialized
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] facing: minFlat 1m, snapOnAttack off, trackInHitReact off
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch model ON: launches ALL THE WAY to an enemy within 4.7m of its surface at 10m/s (stop gap 0.00m, NO minimum distance), else steps 0.90m forward. Targeting cone left exactly as her prefab has it.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch ROUND 9: airborne attacks launch too (ON), edge probe now runs on its OWN layer mask (Everything) instead of the line-of-sight mask - the Ground-only mask found no floor in this cave and was cancelling 100% of launches at 0.00m travelled.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] animator speed x1.35 — his 1.13s swing now plays in 0.84s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] chase speed pushed: phase1 4.5, phase2 5.5 (Yoru runs at 7).
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] swing wave ON: 8 dmg out to 5.5m in a 120deg arc, Per-attack effects come from the Swing Wave VFX By Attack rows. PlayerHealth found.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] strike contact measurement ON — tracking 'Kanabo3' at depth 4.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] skinned meshes: 46 renderer(s), updateWhenOffscreen ON, body renderer 'Body' rootBone 'Hips'
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge travel bone: 'Hips' at depth 1 under 'OniBoss', rest local (0.00, 3.24, -0.24)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge drive ON (windup to 0.40 at x1.3, rush 14m/s stops at 2.6m, steers 0.35s then commits, strike section from 0.58, strike moment 0.76, trail VFX off)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] attack armor ON (his swings are not interrupted by light/medium hits; heavy hits and rapid-hit bursts still stop him)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] strike moments overridden: Club_Swing=0.85 ClubSwing2=0.32 ClubSlam=0.52 KanaboSweep=0.48
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] hold-ground ON (backstep 1.5m @ 1.6m/s after own attacks, watch 'Watch', attack facing LOCKED)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] OniBoss layer ready (reactions, wake-on-hit, watch stance, boss bar). player=found
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge clip 'Oni Charge.fbx' imports with Root Motion Node = None (in place) — good.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] clips importing with Root Transform Position (Y) NOT baked into pose (12): Oni_Alert(Oni Alert), Club_Slam(Oni Club Slam), Club_Swing(Oni Club Swing), Club_swing2(Oni Club Swing 2), Death(Oni Death Kneel), Hit_react_light(Oni Hit react lighter light), KanaboSweep(Oni Kanabo sweep), Phase_Transition(Oni Phase transition), run(Oni Run), Walk(Oni Walk), Watch(Oni Watch), Idle(Oni Idle) — their hips' up/down motion is stripped (see round notes; optional).
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Found VolumetricFog component on mainCamera (1)
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Reflection init: density=True, height=True, baselineHeight=True, alpha=True, noiseStrength=True, lightScatteringExposure=True
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Initialized with Neutral preset (height=60, baselineHeight=0)
+[     1    0.000 x1.00] WARN [VolumetricFogController] WorldStateManager not found!
+[     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
+[     1    2.521 x1.00] LOG  [OniBoss] Playing animation: Idle
+[    15    3.322 x1.00] LOG  💨 Landing VFX spawned!
+[    15    3.322 x1.00] LOG  ✅ LANDED! (was jump #0)
+[   141    5.432 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
+  Time   : 2.408s   Frame: 141   Snaps: 23
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=2.388 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(474.50, 0.79, 428.25)  vel=(0.00, -1.51, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (23 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 2.41s  --------    0  n   Y  1.00  0.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.31s  --------    0  n   Y  1.00  0.08 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.19s  --------    0  n   Y  1.00  0.20 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.09s  --------    0  Y   Y  1.00  0.30 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.98s  --------    0  Y   Y  1.00  0.41 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.88s  --------    0  Y   Y  1.00  0.52 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.77s  --------    0  Y   Y  1.00  0.62 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.67s  --------    0  Y   Y  1.00  0.73 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.56s  --------    0  Y   Y  1.00  0.83 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.45s  --------    0  Y   Y  1.00  0.95 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.34s  --------    0  Y   Y  1.00  1.06 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.22s  --------    0  Y   Y  1.00  1.17 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.11s  --------    0  Y   Y  1.00  1.28 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.00s  --------    0  Y   Y  1.00  1.40 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.89s  --------    0  Y   Y  1.00  1.50 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.78s  --------    0  Y   Y  1.00  1.61 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.68s  --------    0  Y   Y  1.00  1.71 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.57s  --------    0  Y   Y  1.00  1.83 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.47s  --------    0  Y   Y  1.00  1.93 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.36s  --------    0  Y   Y  1.00  2.03 1.00 -  |   474.5    427.2  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 0.25s  --------    0  Y   Y  1.00  2.14 1.00 -  |   474.5    427.4  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 0.14s  --------    0  Y   Y  1.00  2.25 1.00 -  |   474.5    427.7  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 0.02s  --------    0  Y   Y  1.00  2.37 1.00 -  |   474.5    428.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[   174    6.053 x1.00] LOG  🐾 4-LEG JUMP #0
+[   174    6.053 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   193    6.434 x0.10] LOG  [TailAirShot4Leg] ENTER 4 leg, slow on for up to 3s real, waiting for the fire button, drawState=shoot_4Leg | y=1.85 ts=0.10 fdt=0.0020
+[   193    6.434 x0.10] LOG  [TailAirShot] entry refused: this airtime is not a 2 leg jump | y=1.85 ts=0.10 fdt=0.0020
+[   193    6.434 x0.10] LOG  [AirPosePin] engaged, holding body at 1.456m above the transform
+[   203    6.617 x0.10] LOG  [TailAirShot4Leg] DRAW started | y=1.90 ts=0.10 fdt=0.0020
+[   214    6.821 x0.10] LOG  [TailAirShot4Leg] READY, frozen on frame 5 | y=1.93 ts=0.10 fdt=0.0020
+[   244    7.381 x1.00] LOG  [TailAirShot4Leg] CANCEL (R released on ready pose), no arrow | y=1.98 ts=1.00 fdt=0.0200
+[   244    7.381 x1.00] LOG  [AirPosePin] released, peak correction was 0.685m
+[   268    7.843 x1.00] LOG  💨 Landing VFX spawned!
+[   268    7.843 x1.00] LOG  ✅ LANDED! (was jump #1)
+[   291    8.303 x1.00] LOG  🚶 2-LEG JUMP
+[   291    8.303 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   340    9.243 x1.00] LOG  💨 Landing VFX spawned!
+[   340    9.243 x1.00] LOG  ✅ LANDED! (was jump #1)
+[   396   10.324 x1.00] LOG  🐾 4-LEG JUMP #0
+[   396   10.324 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   398   10.364 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
+  Time   : 6.487s   Frame: 398   Snaps: 59
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=2.964 weight=1.00 inTransition=False
+  CC   : grounded=False  enabled=True  pos=(474.25, 0.30, 433.37)  vel=(0.00, 7.15, 0.00)
+  Move : IsRunning=True
+  Input: H=-1.00 V=-1.00  LMB=False MMB=False Q=False Sp=True Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (59 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.49s  --------    0  n   Y  1.00  0.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 6.39s  --------    0  n   Y  1.00  0.08 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 6.27s  --------    0  n   Y  1.00  0.20 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 6.17s  --------    0  Y   Y  1.00  0.30 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 6.06s  --------    0  Y   Y  1.00  0.41 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.96s  --------    0  Y   Y  1.00  0.52 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.85s  --------    0  Y   Y  1.00  0.62 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.75s  --------    0  Y   Y  1.00  0.73 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.64s  --------    0  Y   Y  1.00  0.83 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.53s  --------    0  Y   Y  1.00  0.95 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.42s  --------    0  Y   Y  1.00  1.06 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.30s  --------    0  Y   Y  1.00  1.17 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.19s  --------    0  Y   Y  1.00  1.28 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.08s  --------    0  Y   Y  1.00  1.40 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.97s  --------    0  Y   Y  1.00  1.50 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.86s  --------    0  Y   Y  1.00  1.61 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.76s  --------    0  Y   Y  1.00  1.71 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.65s  --------    0  Y   Y  1.00  1.83 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.55s  --------    0  Y   Y  1.00  1.93 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.44s  --------    0  Y   Y  1.00  2.03 1.00 -  |   474.5    427.2  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 4.33s  --------    0  Y   Y  1.00  2.14 1.00 -  |   474.5    427.4  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 4.22s  --------    0  Y   Y  1.00  2.25 1.00 -  |   474.5    427.7  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 4.10s  --------    0  Y   Y  1.00  2.37 1.00 -  |   474.5    428.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.99s  --------    0  Y   Y  1.00  2.48 1.00 -  |   474.5    428.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.88s  --------    0  Y   Y  1.00  2.59 1.00 -  |   474.5    429.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.76s  --------    0  Y   Y  1.00  2.70 1.00 -  |   474.5    430.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.65s  --------    0  Y   Y  1.00  2.81 1.00 -  |   474.5    431.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.54s  --------    0  Y   Y  1.00  2.93 1.00 -  |   474.5    432.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.42s  --------    0  n   Y  1.00  3.05 1.00 -  |   474.5    432.8  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 3.32s  --------    0  n   Y  1.00  3.15 1.00 -  |   474.5    433.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.20s  --------    0  n   Y  1.00  3.27 1.00 -  |   474.5    433.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.10s  --------    0  n   Y  1.00  3.37 1.00 -  |   474.5    434.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.00s  --------    0  n   Y  1.00  0.21 1.00 -  |   474.5    434.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.89s  --------    0  n   Y  1.00  0.30 1.00 T  |   474.7    435.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.78s  --------    0  n   Y  1.00  0.18 1.00 -  |   474.8    435.6  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 2.66s  --------    0  n   Y  1.00  0.30 1.00 -  |   475.1    436.1  0.00 |  1.0  0.0 0   0   0  0  1  0
+  - 2.54s  --------    0  n   Y  1.00  0.42 1.00 -  |   475.5    436.4  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 2.44s  --------    0  Y   Y  1.00  0.52 1.00 -  |   475.7    436.3  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 2.34s  --------    0  Y   Y  1.00  0.62 1.00 -  |   475.9    436.2  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 2.22s  --------    0  Y   Y  1.00  0.74 1.00 -  |   476.1    436.2  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 2.10s  --------    0  Y   Y  1.00  0.86 1.00 -  |   476.4    436.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.98s  --------    0  n   Y  1.00  0.98 1.00 -  |   476.7    436.0  0.00 |  0.0  0.0 0   0   0  1  0  0
+  - 1.87s  --------    0  n   Y  1.00  1.10 1.00 -  |   476.9    435.9  0.00 |  0.0  0.0 0   0   0  1  0  0
+  - 1.76s  --------    0  n   Y  1.00  1.20 1.00 -  |   477.3    435.8  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 1.66s  --------    0  n   Y  1.00  1.31 1.00 -  |   477.5    435.8  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 1.54s  --------    0  n   Y  1.00  1.42 1.00 -  |   477.6    436.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.42s  --------    0  n   Y  1.00  1.54 1.00 -  |   477.8    436.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.32s  --------    0  n   Y  1.00  1.64 1.00 -  |   477.8    436.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.22s  --------    0  n   Y  1.00  1.74 1.00 -  |   477.9    437.0  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 1.10s  --------    0  Y   Y  1.00  1.86 1.00 -  |   478.1    437.4  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 0.98s  --------    0  Y   Y  1.00  1.98 1.00 -  |   478.2    437.8  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 0.87s  --------    0  Y   Y  1.00  2.09 1.00 -  |   478.2    437.6  0.00 |  0.0 -1.0 0   0   0  0  1  0
+  - 0.77s  --------    0  Y   Y  1.00  2.20 1.00 -  |   477.9    436.9  0.00 |  0.0 -1.0 0   0   0  0  1  0
+  - 0.66s  --------    0  Y   Y  1.00  2.30 1.00 -  |   477.6    436.1  0.00 |  0.0 -1.0 0   0   0  0  1  0
+  - 0.54s  --------    0  Y   Y  1.00  2.42 1.00 -  |   477.3    435.4  0.00 | -1.0 -1.0 0   0   0  0  1  0
+  - 0.42s  --------    0  Y   Y  1.00  2.54 1.00 -  |   476.8    434.7  0.00 | -1.0 -1.0 0   0   0  0  1  0
+  - 0.32s  --------    0  Y   Y  1.00  2.64 1.00 -  |   476.2    434.3  0.00 | -1.0 -1.0 0   0   0  0  1  0
+  - 0.20s  --------    0  Y   Y  1.00  2.76 1.00 -  |   475.5    434.0  0.00 | -1.0 -1.0 0   0   0  0  1  0
+  - 0.08s  --------    0  Y   Y  1.00  2.88 1.00 -  |   474.7    433.6  0.00 | -1.0 -1.0 0   0   0  0  1  0
+=========================================================== END
+
+[   444   11.263 x1.00] LOG  💨 Landing VFX spawned!
+[   444   11.263 x1.00] LOG  ✅ LANDED! (was jump #1)
+[   478   11.925 x1.00] LOG  🐾 4-LEG JUMP #0
+[   478   11.925 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   495   12.264 x0.10] LOG  [TailAirShot4Leg] ENTER 4 leg, slow on for up to 3s real, waiting for the fire button, drawState=shoot_4Leg | y=1.70 ts=0.10 fdt=0.0020
+[   495   12.264 x0.10] LOG  [TailAirShot] entry refused: this airtime is not a 2 leg jump | y=1.70 ts=0.10 fdt=0.0020
+[   495   12.264 x0.10] LOG  [AirPosePin] engaged, holding body at 1.164m above the transform
+[   521   12.756 x0.10] LOG  [TailAirShot4Leg] DRAW started | y=1.81 ts=0.10 fdt=0.0020
+[   531   12.945 x0.10] LOG  [TailAirShot4Leg] READY, frozen on frame 5 | y=1.84 ts=0.10 fdt=0.0020
+[   553   13.356 x0.10] LOG  [TailAirShot4Leg] SHOT released (released from ready pose) | y=1.90 ts=0.10 fdt=0.0020
+[   563   13.536 x0.10] LOG  [TailAirShot4Leg] FIRE, arrow away, dir=(0.44, -0.05, 0.90) damage=40 (20 x 2.00) | y=1.91 ts=0.10 fdt=0.0020
+[   576   13.769 x1.00] LOG  [TailAirShot4Leg] FINISHER (R released mid motion), motion completes and fires | y=1.92 ts=1.00 fdt=0.0200
+[   583   13.904 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 15.0m)
+[   588   14.003 x1.00] LOG  [TailAirShot4Leg] finisher done, fully idle | y=1.47 ts=1.00 fdt=0.0200
+[   588   14.003 x1.00] LOG  [AirPosePin] released, peak correction was 0.557m
+[   596   14.164 x1.00] LOG  OniBoss took 40 damage. HP: 460/500
+[   596   14.164 x1.00] LOG  [OniBoss] LostSoul → Stagger
+[   596   14.164 x1.00] LOG  [OniBoss] Playing animation: Stagger
+[   596   14.164 x1.00] LOG  [OniBoss] STAGGERED for 2.5s
+[   596   14.164 x1.00] LOG  [OniBoss:Layer] heavy knock-back react (40 dmg) → 'HitReact_Heavy', down for 1.80s
+[   597   14.188 x1.00] LOG  [BossBar] Showing bar for: Oni (460/500)
+[   597   14.188 x1.00] LOG  [OniBoss:Layer] boss bar shown
+[   598   14.209 x1.00] LOG  💨 Landing VFX spawned!
+[   598   14.209 x1.00] LOG  ✅ LANDED! (was jump #1)
+[   680   15.796 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.41s
+  Time   : 10.564s   Frame: 680   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=1.773 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(477.33, -0.02, 441.69)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=False
+  Input: H=1.00 V=0.00  LMB=False MMB=False Q=False Sp=False Sh=False C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.74s  --------    0  n   Y  1.00  0.30 1.00 -  |   475.1    436.1  0.00 |  1.0  0.0 0   0   0  0  1  0
+  - 6.62s  --------    0  n   Y  1.00  0.42 1.00 -  |   475.5    436.4  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 6.52s  --------    0  Y   Y  1.00  0.52 1.00 -  |   475.7    436.3  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 6.42s  --------    0  Y   Y  1.00  0.62 1.00 -  |   475.9    436.2  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 6.30s  --------    0  Y   Y  1.00  0.74 1.00 -  |   476.1    436.2  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 6.18s  --------    0  Y   Y  1.00  0.86 1.00 -  |   476.4    436.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 6.06s  --------    0  n   Y  1.00  0.98 1.00 -  |   476.7    436.0  0.00 |  0.0  0.0 0   0   0  1  0  0
+  - 5.95s  --------    0  n   Y  1.00  1.10 1.00 -  |   476.9    435.9  0.00 |  0.0  0.0 0   0   0  1  0  0
+  - 5.84s  --------    0  n   Y  1.00  1.20 1.00 -  |   477.3    435.8  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 5.74s  --------    0  n   Y  1.00  1.31 1.00 -  |   477.5    435.8  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 5.62s  --------    0  n   Y  1.00  1.42 1.00 -  |   477.6    436.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.50s  --------    0  n   Y  1.00  1.54 1.00 -  |   477.8    436.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.40s  --------    0  n   Y  1.00  1.64 1.00 -  |   477.8    436.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.30s  --------    0  n   Y  1.00  1.74 1.00 -  |   477.9    437.0  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 5.18s  --------    0  Y   Y  1.00  1.86 1.00 -  |   478.1    437.4  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 5.06s  --------    0  Y   Y  1.00  1.98 1.00 -  |   478.2    437.8  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 4.95s  --------    0  Y   Y  1.00  2.09 1.00 -  |   478.2    437.6  0.00 |  0.0 -1.0 0   0   0  0  1  0
+  - 4.84s  --------    0  Y   Y  1.00  2.20 1.00 -  |   477.9    436.9  0.00 |  0.0 -1.0 0   0   0  0  1  0
+  - 4.74s  --------    0  Y   Y  1.00  2.30 1.00 -  |   477.6    436.1  0.00 |  0.0 -1.0 0   0   0  0  1  0
+  - 4.62s  --------    0  Y   Y  1.00  2.42 1.00 -  |   477.3    435.4  0.00 | -1.0 -1.0 0   0   0  0  1  0
+  - 4.50s  --------    0  Y   Y  1.00  2.54 1.00 -  |   476.8    434.7  0.00 | -1.0 -1.0 0   0   0  0  1  0
+  - 4.40s  --------    0  Y   Y  1.00  2.64 1.00 -  |   476.2    434.3  0.00 | -1.0 -1.0 0   0   0  0  1  0
+  - 4.28s  --------    0  Y   Y  1.00  2.76 1.00 -  |   475.5    434.0  0.00 | -1.0 -1.0 0   0   0  0  1  0
+  - 4.16s  --------    0  Y   Y  1.00  2.88 1.00 -  |   474.7    433.6  0.00 | -1.0 -1.0 0   0   0  0  1  0
+  - 4.06s  --------    0  n   Y  1.00  2.98 1.00 -  |   474.2    433.3  0.00 | -1.0 -1.0 0   0   0  1  1  0
+  - 3.94s  --------    0  n   Y  1.00  3.10 1.00 -  |   473.8    433.2  0.00 | -1.0  0.0 0   0   0  1  1  0
+  - 3.83s  --------    0  n   Y  1.00  3.21 1.00 -  |   473.2    433.1  0.00 | -1.0  0.0 0   0   0  1  1  0
+  - 3.72s  --------    0  n   Y  1.00  3.32 1.00 -  |   472.7    433.1  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 3.60s  --------    0  n   Y  1.00  3.44 1.00 -  |   472.3    433.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.48s  --------    0  n   Y  1.00  3.56 1.00 -  |   472.1    433.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.36s  --------    0  n   Y  1.00  3.68 1.00 -  |   472.2    434.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.24s  --------    0  n   Y  1.00  3.80 1.00 -  |   472.4    434.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.12s  --------    0  Y   Y  1.00  3.92 1.00 -  |   472.6    435.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.00s  --------    0  Y   Y  1.00  4.04 1.00 -  |   472.9    436.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.89s  --------    0  Y   Y  1.00  4.15 1.00 -  |   473.1    437.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.78s  --------    0  Y   Y  1.00  4.26 1.00 -  |   473.4    437.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.66s  --------    0  Y   Y  1.00  4.38 1.00 -  |   473.7    438.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.54s  --------    0  Y   Y  1.00  4.50 1.00 -  |   474.0    439.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.44s  --------    0  n   Y  1.00  4.61 1.00 -  |   474.2    439.9  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 2.34s  --------    0  n   Y  1.00  4.70 1.00 -  |   474.3    440.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.22s  --------    0  n   Y  1.00  4.82 1.00 -  |   474.5    440.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.12s  --------    0  n   Y  1.00  0.11 1.00 -  |   474.6    441.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.01s  --------    0  n   Y  1.00  0.73 1.00 -  |   474.8    441.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.89s  --------    0  n   Y  1.00  0.87 1.00 -  |   474.9    442.2  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 1.77s  --------    0  n   Y  1.00  1.02 1.00 T  |   475.1    442.7  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 1.67s  --------    0  n   Y  1.00  0.10 1.00 -  |   475.3    443.1  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 1.55s  --------    0  Y   Y  1.00  0.22 1.00 -  |   475.4    443.5  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 1.43s  --------    0  Y   Y  1.00  0.34 1.00 -  |   475.3    443.2  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 1.31s  --------    0  Y   Y  1.00  0.46 1.00 -  |   475.3    443.0  0.00 |  1.0 -1.0 0   0   0  0  0  0
+  - 1.20s  --------    0  Y   Y  1.00  0.57 1.00 -  |   475.3    442.8  0.00 |  1.0 -1.0 0   0   0  0  0  0
+  - 1.09s  --------    0  Y   Y  1.00  0.68 1.00 -  |   475.4    442.6  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 0.97s  --------    0  Y   Y  1.00  0.80 1.00 -  |   475.5    442.4  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 0.85s  --------    0  Y   Y  1.00  0.92 1.00 -  |   475.7    442.3  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 0.73s  --------    0  Y   Y  1.00  1.04 1.00 -  |   475.9    442.2  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 0.63s  --------    0  Y   Y  1.00  1.14 1.00 -  |   476.1    442.1  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 0.51s  --------    0  Y   Y  1.00  1.26 1.00 -  |   476.3    442.0  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 0.41s  --------    0  Y   Y  1.00  1.36 1.00 -  |   476.5    442.0  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 0.29s  --------    0  Y   Y  1.00  1.48 1.00 -  |   476.8    441.9  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 0.19s  --------    0  Y   Y  1.00  1.59 1.00 -  |   477.0    441.8  0.00 |  1.0  0.0 0   0   0  0  0  0
+  - 0.08s  --------    0  Y   Y  1.00  1.70 1.00 -  |   477.2    441.7  0.00 |  1.0  0.0 0   0   0  0  0  0
+=========================================================== END
+
+[   689   15.975 x1.00] LOG  [OniBoss] Stagger → Chase
+[   690   15.996 x1.00] LOG  [OniBoss] Ranged attack: Oni_Charge (dist 15.3m)
+[   690   15.996 x1.00] LOG  [OniBoss] Chase → Attack
+[   690   15.996 x1.00] LOG  [OniBoss] Attack: Oni_Charge (18 dmg)
+
+[   690   15.996 x1.00] TEL ────────── CHARGE ──────────
+[   690   15.996 x1.00] LOG  [OniBoss:Layer] charge begin: travel bone 'Hips' depth 1, local now (0.00, 3.24, -0.24) vs rest (0.00, 3.24, -0.24); pin ON; drive windup→rush→strike; engine Attack, AnimSpeed 1.30, clip at 0.00, dist 15.3m
+[   690   15.996 x1.00] TEL charge Windup n=0.00 spd=1.30 mult=1.00 st=Attack anim=h-1757638897/Charge drift=0.00 cut=0.00 meshOff=0.24m vis bounds+0.1m pos=(482.2,456.2) dist=15.3 vel=0.0
+[   695   16.095 x1.00] TEL charge Windup n=0.08 spd=1.30 mult=1.30 st=Attack anim=Charge/- drift=0.44 cut=0.44 meshOff=0.24m vis bounds+0.2m pos=(482.2,456.2) dist=15.4 vel=0.0
+[   700   16.194 x1.00] TEL charge Windup n=0.17 spd=1.30 mult=1.30 st=Attack anim=Charge/- drift=1.06 cut=1.06 meshOff=0.24m vis bounds+0.3m pos=(482.2,456.2) dist=15.4 vel=0.0
+[   705   16.296 x1.00] TEL charge Windup n=0.25 spd=1.30 mult=1.30 st=Attack anim=Charge/- drift=1.03 cut=1.03 meshOff=0.24m vis bounds+0.4m pos=(482.2,456.2) dist=15.4 vel=0.0
+[   710   16.396 x1.00] TEL charge Windup n=0.34 spd=1.30 mult=1.30 st=Attack anim=Charge/- drift=2.04 cut=2.04 meshOff=0.24m vis bounds+0.3m pos=(482.2,456.2) dist=15.4 vel=0.0
+[   714   16.476 x1.00] LOG  [OniBoss:Layer] charge RUSH: clip frozen at 0.40, 15.4m to go at 14m/s
+[   715   16.495 x1.00] TEL charge Rush   n=0.40 spd=0.00 mult=0.00 st=Attack anim=Charge/- drift=7.67 cut=7.67 meshOff=0.24m vis bounds+0.3m pos=(482.1,456.0) dist=15.2 vel=0.0
+[   720   16.586 x1.00] TEL charge Rush   n=0.40 spd=0.00 mult=0.00 st=Attack anim=Charge/- drift=7.67 cut=7.67 meshOff=0.24m vis bounds+0.3m pos=(481.9,454.7) dist=13.9 vel=0.0
+[   725   16.678 x1.00] TEL charge Rush   n=0.40 spd=0.00 mult=0.00 st=Attack anim=Charge/- drift=7.67 cut=7.67 meshOff=0.24m vis bounds+0.4m pos=(481.5,453.5) dist=12.5 vel=0.0
+[   730   16.777 x1.00] TEL charge Rush   n=0.40 spd=0.00 mult=0.00 st=Attack anim=Charge/- drift=7.67 cut=7.67 meshOff=0.24m vis bounds+0.3m pos=(481.1,452.2) dist=11.1 vel=0.0
+[   735   16.877 x1.00] TEL charge Rush   n=0.40 spd=0.00 mult=0.00 st=Attack anim=Charge/- drift=7.67 cut=7.67 meshOff=0.24m vis bounds+0.3m pos=(480.6,450.9) dist=9.8 vel=0.0
+[   740   16.975 x1.00] TEL charge Rush   n=0.40 spd=0.00 mult=0.00 st=Attack anim=Charge/- drift=7.67 cut=7.67 meshOff=0.24m vis bounds+0.3m pos=(480.1,449.6) dist=8.5 vel=0.0
+[   745   17.075 x1.00] TEL charge Rush   n=0.40 spd=0.00 mult=0.00 st=Attack anim=Charge/- drift=7.67 cut=7.67 meshOff=0.24m vis bounds+0.3m pos=(479.6,448.3) dist=7.3 vel=0.0
+[   750   17.175 x1.00] TEL charge Rush   n=0.40 spd=0.00 mult=0.00 st=Attack anim=Charge/- drift=7.67 cut=7.67 meshOff=0.24m vis bounds+0.3m pos=(479.1,447.0) dist=6.2 vel=0.0
+[   755   17.275 x1.00] TEL charge Rush   n=0.40 spd=0.00 mult=0.00 st=Attack anim=Charge/- drift=7.67 cut=7.67 meshOff=0.24m vis bounds+0.3m pos=(478.5,445.7) dist=5.4 vel=0.0
+[   760   17.377 x1.00] TEL charge Rush   n=0.40 spd=0.00 mult=0.00 st=Attack anim=Charge/- drift=7.67 cut=7.67 meshOff=0.24m vis bounds+0.3m pos=(478.0,444.3) dist=4.9 vel=0.0
+[   762   17.417 x1.00] LOG  [OniBoss:Layer] charge STRIKE: arrived 2.6m from the lock point after 0.94s real — clip 0.40 → 0.58 (blend 0.10s), strike moment 0.76, Yoru 5.0m away
+[   765   17.475 x1.00] TEL charge Strike n=0.61 spd=1.00 mult=1.00 st=Attack anim=Charge/Charge drift=13.53 cut=13.53 meshOff=0.24m vis bounds+0.3m pos=(478.0,444.2) dist=5.4 vel=0.0
+[   770   17.567 x1.00] TEL charge Strike n=0.66 spd=1.00 mult=1.00 st=Attack anim=Charge/- drift=15.78 cut=15.78 meshOff=0.24m vis bounds+0.4m pos=(478.0,444.2) dist=5.7 vel=0.0
+[   775   17.655 x1.00] TEL charge Strike n=0.72 spd=1.00 mult=1.00 st=Attack anim=Charge/- drift=16.49 cut=16.49 meshOff=0.24m vis bounds+0.5m pos=(478.0,444.2) dist=5.9 vel=0.0
+[   779   17.735 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.45 duration=0.350s
+[   779   17.735 x1.00] LOG  [OniBoss] Attack missed, player out of range (6.0m > 3.5m)
+[   780   17.757 x1.00] TEL charge Strike n=0.79 spd=1.00 mult=1.00 st=Attack anim=Charge/- drift=17.09 cut=17.09 meshOff=0.24m vis bounds+0.6m pos=(478.0,444.2) dist=6.1 vel=0.0
+[   785   17.844 x1.00] TEL charge Strike n=0.84 spd=1.00 mult=1.00 st=Attack anim=Charge/- drift=17.54 cut=17.54 meshOff=0.24m vis bounds+0.4m pos=(478.0,444.2) dist=6.1 vel=0.0
+[   790   17.932 x1.00] TEL charge Strike n=0.90 spd=1.00 mult=1.00 st=Attack anim=Charge/- drift=17.85 cut=17.85 meshOff=0.24m vis bounds+0.2m pos=(478.0,444.2) dist=6.1 vel=0.0
+[   796   18.032 x1.00] TEL charge Strike n=0.97 spd=1.00 mult=1.00 st=Attack anim=Charge/- drift=18.05 cut=18.05 meshOff=0.24m vis bounds+0.2m pos=(478.0,444.2) dist=6.1 vel=0.0
+[   800   18.098 x1.00] LOG  [OniBoss] Attack → Recovery
+[   800   18.098 x1.00] LOG  [OniBoss] Playing animation: Watch
+[   800   18.098 x1.00] LOG  [OniBoss:Layer] charge complete: engine left Attack (now Recovery) during Strike
+[   802   18.135 x1.00] TEL charge None   n=1.03 spd=1.00 mult=1.00 st=Recovery anim=Charge/h-1849006814 drift=13.00 cut=13.00 meshOff=0.24m vis bounds+0.0m pos=(478.0,444.2) dist=6.1 vel=0.0
+[   807   18.223 x1.00] TEL charge None   n=1.09 spd=1.00 mult=1.00 st=Recovery anim=Charge/h-1849006814 drift=4.42 cut=4.42 meshOff=0.24m vis bounds+0.1m pos=(478.0,444.2) dist=6.1 vel=0.0
+[   809   18.256 x1.00] LOG  [OniBoss] Recovery → Chase
+[   810   18.276 x1.00] LOG  [OniBoss] Playing animation: run
+[   812   18.318 x1.00] TEL charge None   n=1.12 spd=1.00 mult=1.00 st=Chase anim=Charge/h1349952704 drift=0.77 cut=0.77 meshOff=0.24m vis bounds+0.1m pos=(478.0,444.2) dist=6.1 vel=0.2
+[   817   18.404 x1.00] TEL charge None   n=1.12 spd=1.00 mult=1.00 st=Chase anim=Charge/h1349952704 drift=0.30 cut=0.30 meshOff=0.24m vis bounds+0.3m pos=(477.9,444.2) dist=6.0 vel=0.9
+[   819   18.445 x1.00] LOG  [OniBoss:Layer] charge end (clip left the animator) after 2.45s real: pin measured 129 frames, cancelled on 127, max raw drift 18.08m, max cancelled 18.08m — travel WAS baked in, pin held it
+[   855   19.155 x1.00] LOG  [OniBoss] hold-ground: BACKSTEP 1.5m (player 3.4m)
+[   904   20.095 x1.00] LOG  [OniBoss] hold-ground: backstep done (1.51m), WATCH (player 3.6m, cooldown 1.2s)
+[   904   20.095 x1.00] LOG  [OniBoss] Playing animation: Watch
+[   974   21.264 x1.00] LOG  [OniBoss] hold-ground: cooldown over, player 3.6m > 3.5m — APPROACH
+[   974   21.264 x1.00] LOG  [OniBoss] Playing animation: Walk
+[   996   21.660 x1.00] LOG  [OniBoss] Combo started: ClubSwing1 → ClubSwing2 → ClubSlam (3 steps remaining)
+[   996   21.660 x1.00] LOG  [OniBoss] Chase → Attack
+[   996   21.660 x1.00] LOG  [OniBoss] Attack: Club_Swing (16 dmg)
+[   996   21.660 x1.00] LOG  [OniBoss:Layer] step-in: 'Club_Swing' closed 0.07m, Yoru now 3.0m away (range 3.5)
+[   996   21.660 x1.00] LOG  [OniBoss:Trail] Club_Swing trail START at clip 0.20 (transition done).
+[  1039   22.400 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.20 duration=0.250s
+[  1039   22.400 x1.00] LOG  [Combat] Hit react: HitReact_Light_2Leg (0.5s)
+[  1039   22.400 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.09 duration=0.150s
+[  1039   22.400 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-2.0°)
+[  1039   22.400 x1.00] LOG  [OniBoss] Hit player for 16 (Club_Swing)
+[  1039   22.400 x1.00] LOG  [OniBoss:ClubPos] Club_Swing at strike: club tip 0.95m up, 1.07m in front, -1.12m to his right (1.55m out from his centre). Club faces -75deg from his forward, pitch -0.27. (the wave is not anchored here any more — it is born 2.0m in front of him at 1.2m.)
+[  1039   22.400 x1.00] LOG  [OniBoss:Layer] swing wave born 2.0m in front of him, 7m/s x 4.0m = 0.57s of flight, visual lives 2.0s, threatens out to 6.0m — visual only, the club already reached her at 2.9m.
+[  1039   22.400 x1.00] LOG  [AirPosePin] engaged, holding body at 0.618m above the transform
+[  1045   22.523 x1.00] LOG  [OniBoss] Attack → Recovery
+[  1045   22.523 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  1045   22.523 x1.00] LOG  [OniBoss:Trail] trail END at clip 1.00, fading over 0.40s.
+[  1045   22.523 x1.00] LOG  [OniBoss:Strike] Club_Swing: club tip closest to Yoru at 1.23m, clip position 0.91 | damage fires at 0.85 | clip 0.84s => damage fires 51 ms BEFORE the club is closest
+[  1047   22.564 x1.00] LOG  [AirPosePin] released, peak correction was 0.007m
+[  1054   22.684 x1.00] LOG  [OniBoss] Recovery → Attack
+[  1054   22.684 x1.00] LOG  [OniBoss] Attack: ClubSwing2 (16 dmg)
+[  1054   22.684 x1.00] LOG  [OniBoss:Trail] ClubSwing2 trail START at clip 1.00 (transition still blending).
+[  1076   23.079 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.20 duration=0.250s
+[  1076   23.079 x1.00] LOG  [Combat] Hit react: HitReact_Light_2Leg (0.5s)
+[  1076   23.079 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.09 duration=0.150s
+[  1076   23.079 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-2.0°)
+[  1076   23.079 x1.00] LOG  [OniBoss] Hit player for 16 (ClubSwing2)
+[  1076   23.079 x1.00] LOG  [OniBoss:ClubPos] ClubSwing2 at strike: club tip 0.19m up, 1.60m in front, 2.67m to his right (3.11m out from his centre). Club faces 16deg from his forward, pitch -0.89. (the wave is not anchored here any more — it is born 2.0m in front of him at 1.2m.)
+[  1076   23.079 x1.00] LOG  [OniBoss:Layer] swing wave born 2.0m in front of him, 7m/s x 4.0m = 0.57s of flight, visual lives 2.0s, threatens out to 6.0m — visual only, the club already reached her at 2.4m.
+[  1076   23.079 x1.00] LOG  [AirPosePin] engaged, holding body at 0.621m above the transform
+[  1084   23.237 x1.00] LOG  [AirPosePin] released, peak correction was 0.010m
+[  1122   23.859 x1.00] LOG  [OniBoss] Attack → Recovery
+[  1122   23.859 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  1122   23.859 x1.00] LOG  [OniBoss:Trail] trail END at clip 0.99, fading over 0.40s.
+[  1122   23.859 x1.00] LOG  [OniBoss:Strike] ClubSwing2: club tip closest to Yoru at 1.25m, clip position 0.31 | damage fires at 0.32 | clip 1.17s => MATCHED (within one or two frames)
+[  1131   24.024 x1.00] LOG  [OniBoss] Recovery → Attack
+[  1131   24.024 x1.00] LOG  [OniBoss] Attack: ClubSlam (20 dmg)
+[  1131   24.024 x1.00] LOG  [OniBoss:Trail] ClubSlam trail START at clip 1.00 (transition still blending).
+[  1159   24.524 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.400s
+[  1159   24.524 x1.00] LOG  [Combat] Hit react: HitReact_Heavy_2Leg (0.9s)
+[  1159   24.524 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.28 duration=0.150s
+[  1159   24.524 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-3.0°)
+[  1159   24.524 x1.00] LOG  [OniBoss] Hit player for 20 (ClubSlam)
+[  1159   24.524 x1.00] LOG  [OniBoss:ClubPos] ClubSlam at strike: club tip 0.14m up, 3.53m in front, 0.36m to his right (3.55m out from his centre). Club faces 19deg from his forward, pitch -0.11. (the wave is not anchored here any more — it is born 2.0m in front of him at 1.2m.)
+[  1159   24.524 x1.00] LOG  [OniBoss:Layer] swing wave born 2.0m in front of him, 7m/s x 4.0m = 0.57s of flight, visual lives 2.0s, threatens out to 6.0m — visual only, the club already reached her at 2.0m.
+[  1159   24.524 x1.00] LOG  [AirPosePin] engaged, holding body at 0.621m above the transform
+[  1170   24.704 x1.00] LOG  [AirPosePin] released, peak correction was 0.009m
+[  1185   24.974 x1.00] LOG  [OniBoss] Attack → Recovery
+[  1185   24.974 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  1185   24.974 x1.00] LOG  [OniBoss:Trail] trail END at clip 1.00, fading over 0.40s.
+[  1185   24.974 x1.00] LOG  [OniBoss:Strike] ClubSlam: club tip closest to Yoru at 0.17m, clip position 0.94 | damage fires at 0.52 | clip 0.93s => damage fires 388 ms BEFORE the club is closest
+[  1193   25.152 x1.00] LOG  [OniBoss] Recovery → Chase
+[  1194   25.170 x1.00] LOG  [OniBoss] hold-ground: BACKSTEP 1.5m (player 2.0m)
+[  1242   50.743 x1.00] LOG  [OniBoss] hold-ground: backstep done (1.51m), WATCH (player 3.5m, cooldown 2.0s)
+[  1242   50.743 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  1271   51.220 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[  1271   51.220 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target='OniBoss' at 3.5m
+[  1271   51.220 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 2.2m dist=2.17m in 0.22s
+[  1282   51.420 x1.00] LOG  [Combat] Queued click #1 (combo 1)
+[  1282   51.420 x1.00] LOG  [ComboTrace] QUEUED #1 during step 1
+[  1284   51.455 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=2.17m actually moved=1.51m — completed
+[  1303   51.764 x1.00] LOG  [Combat] Queued click #2 (combo 1)
+[  1303   51.764 x1.00] LOG  [ComboTrace] QUEUED #2 during step 1
+[  1308   51.843 x1.00] LOG  OniBoss took 10 damage. HP: 450/500
+[  1308   51.843 x1.00] LOG  [OniBoss] Chase → HitReact
+[  1308   51.843 x1.00] LOG  [OniBoss:Layer] react tier: LIGHT (10 dmg) → 'Hit_react_light'
+[  1308   51.843 x1.00] LOG  [Combat] Hit OniBoss for 10
+[  1308   51.843 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.15 duration=0.150s
+[  1308   51.843 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  1314   51.950 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=1 queued=2)
+[  1319   52.040 x1.00] LOG  🐾 VFX_AttackPaw triggered!
+[  1325   52.144 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=1 queued=2)
+[  1327   52.179 x1.00] LOG  [Combat] Combo 2: 20 dmg
+[  1327   52.179 x1.00] LOG  [ComboTrace] START step=2 state='Combo2' queued=1 target='OniBoss' at 2.0m
+[  1327   52.179 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 0.8m dist=0.81m in 0.13s
+[  1335   52.313 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.81m actually moved=0.00m — completed
+[  1336   52.329 x1.00] LOG  [Combat] Queued click #2 (combo 2)
+[  1336   52.329 x1.00] LOG  [ComboTrace] QUEUED #2 during step 2
+[  1349   52.539 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[  1356   52.645 x1.00] LOG  [OniBoss] HitReact → Chase
+[  1357   52.661 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  1365   52.799 x1.00] LOG  [OniBoss] Chase → Attack
+[  1365   52.799 x1.00] LOG  [OniBoss] Attack: Club_Swing (16 dmg)
+[  1365   52.799 x1.00] LOG  [OniBoss:Trail] Club_Swing trail START at clip 1.00 (transition still blending).
+[  1377   53.004 x1.00] LOG  🐾🐾 VFX_TowPaw triggered!
+[  1379   53.041 x1.00] LOG  OniBoss took 20 damage. HP: 430/500
+[  1379   53.041 x1.00] LOG  [OniBoss] 🤕 Hit during Attack — flash only
+[  1379   53.041 x1.00] LOG  [Combat] Hit OniBoss for 20
+[  1379   53.041 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.15 duration=0.150s
+[  1379   53.041 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  1407   53.536 x1.00] LOG  🐾🐾 VFX_TowPaw triggered!
+[  1409   53.571 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.20 duration=0.250s
+[  1409   53.571 x1.00] LOG  [Combat] Hit react: HitReact_Light_2Leg (0.5s)
+[  1409   53.571 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.09 duration=0.150s
+[  1409   53.571 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-2.0°)
+[  1409   53.571 x1.00] LOG  [OniBoss] Hit player for 16 (Club_Swing)
+[  1409   53.571 x1.00] LOG  [OniBoss:ClubPos] Club_Swing at strike: club tip 1.01m up, 0.91m in front, -1.29m to his right (1.58m out from his centre). Club faces -85deg from his forward, pitch -0.24. (the wave is not anchored here any more — it is born 0.5m in front of him at 1.2m.)
+[  1409   53.571 x1.00] LOG  [OniBoss:Layer] swing wave born 0.5m in front of him, 7m/s x 4.0m = 0.57s of flight, visual lives 2.0s, threatens out to 4.5m — visual only, the club already reached her at 2.2m.
+[  1409   53.571 x1.00] LOG  [AirPosePin] engaged, holding body at 0.612m above the transform
+[  1416   53.695 x1.00] LOG  [OniBoss] Attack → Recovery
+[  1416   53.695 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  1416   53.695 x1.00] LOG  [OniBoss:Trail] trail END at clip 1.00, fading over 0.40s.
+[  1416   53.695 x1.00] LOG  [OniBoss:Strike] Club_Swing: club tip closest to Yoru at 0.70m, clip position 0.92 | damage fires at 0.85 | clip 0.84s => damage fires 62 ms BEFORE the club is closest
+[  1418   53.731 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  1425   53.850 x1.00] LOG  [OniBoss] Recovery → Chase
+[  1426   53.870 x1.00] LOG  [OniBoss] hold-ground: BACKSTEP 1.5m (player 2.0m)
+[  1475   54.811 x1.00] LOG  [OniBoss] hold-ground: backstep done (1.51m), WATCH (player 3.5m, cooldown 2.0s)
+[  1475   54.811 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  1599   56.862 x1.00] LOG  [OniBoss] Combo started: ClubSwing1 → ClubSwing2 → ClubSlam (3 steps remaining)
+[  1599   56.862 x1.00] LOG  [OniBoss] Chase → Attack
+[  1599   56.862 x1.00] LOG  [OniBoss] Attack: Club_Swing (16 dmg)
+[  1599   56.862 x1.00] LOG  [OniBoss:Trail] Club_Swing trail START at clip 1.00 (transition done).
+[  1599   56.862 x1.00] LOG  [OniBoss:ClubPos] Club_Swing at strike: club tip 5.07m up, -1.77m in front, 1.03m to his right (2.05m out from his centre). Club faces 157deg from his forward, pitch 0.09. (the wave is not anchored here any more — it is born 0.5m in front of him at 1.2m.)
+[  1599   56.862 x1.00] LOG  [OniBoss:Layer] swing wave born 0.5m in front of him, 7m/s x 4.0m = 0.57s of flight, visual lives 2.0s, threatens out to 4.5m — visual only, the club already reached her at 3.5m.
+[  1599   56.862 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 250 lines

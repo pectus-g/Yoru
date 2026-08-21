@@ -46,7 +46,7 @@ public class SwingWaveProjectile : MonoBehaviour
                                              Transform attacker, Transform target, PlayerHealth targetHealth,
                                              float speed, float maxDistance, float hitRadius, float bodyHeight,
                                              int damage, GameObject hitVFX, float hitVFXLifetime, float hitVFXOffset,
-                                             float visualLifetime, Vector3 visualTilt, float visualPlaybackSpeed)
+                                             float visualLifetime)
     {
         dir.y = 0f;
         if (dir.sqrMagnitude < 0.0001f) dir = Vector3.forward;
@@ -61,23 +61,6 @@ public class SwingWaveProjectile : MonoBehaviour
         {
             visualInstance = Instantiate(visual, origin, Quaternion.LookRotation(dir));
             visualInstance.transform.SetParent(go.transform, true);   // keeps its authored size
-
-            // ROUND 33: tilt, applied AFTER parenting so it is an offset from the direction of
-            // travel rather than a world angle. 0,0,0 faces straight down the wave's path;
-            // rolling Z is what lays a slash diagonally across the swing instead of flat.
-            visualInstance.transform.localRotation = Quaternion.Euler(visualTilt);
-
-            // ROUND 33: destroying an effect later cannot make a short one last longer — a burst
-            // that finishes in 0.3s is over at 0.3s whenever it is deleted. Slowing its SIMULATION
-            // is what actually stretches it: 0.5 plays it at half speed, so it takes twice as long.
-            if (visualPlaybackSpeed > 0f && !Mathf.Approximately(visualPlaybackSpeed, 1f))
-            {
-                foreach (var ps in visualInstance.GetComponentsInChildren<ParticleSystem>(true))
-                {
-                    var main = ps.main;
-                    main.simulationSpeed = main.simulationSpeed * visualPlaybackSpeed;
-                }
-            }
             // ROUND 31: the visual gets its OWN lifetime, independent of how long the wave flies.
             // Before this it was a child of the wave, so when the wave finished its travel the
             // whole object was destroyed and the effect was cut off mid-animation — a 2 second

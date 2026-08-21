@@ -250,14 +250,6 @@ public class OniBoss : MonoBehaviour
         public float nudgeUp;
         [Tooltip("ROUND 30. Sideways offset for THIS attack's wave, along his right. 0 = dead centre, which is usually what you want since the wave travels straight at her.")]
         public float nudgeRight;
-        [Tooltip("ROUND 33. Tilt in degrees around the wave's own X axis (pitch it up or down).")]
-        public float tiltX;
-        [Tooltip("ROUND 33. Tilt in degrees around the wave's own Y axis (swing it left or right).")]
-        public float tiltY;
-        [Tooltip("ROUND 33. ROLL in degrees. This is the one that makes a slash sit DIAGONALLY across the swing instead of lying flat. Try 30-45 and watch it in Play.")]
-        public float tiltZ;
-        [Tooltip("ROUND 33. Where this attack bursts on Yoru, as an offset from her chest. 0 = mid body, which is what the swings want. About -0.8 puts it at the floor, which is what the slam wants. This moves BOTH the height the wave aims at and where its hit effect appears, so the burst happens where the blow should have landed.")]
-        public float burstHeightOffset;
         [Tooltip("Seconds before it is destroyed.")]
         public float lifetime = 2f;
         public SwingVFXBinding() { }
@@ -296,8 +288,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float swingWaveSpawnHeight = 1.2f;
     [Tooltip("ROUND 31. How far the wave travels before it stops, metres. Its own number now: it used to be derived by subtracting the spawn distance from Swing Wave Radius, so pushing the spawn further out SHORTENED the wave's life instead of moving it — at spawn 3.5 the wave lived 0.29s and the effect was cut off before anyone could see it. Total threat = Spawn Distance + this.")]
     [SerializeField] private float swingWaveTravel = 4f;
-    [Tooltip("ROUND 33. Playback speed of the wave's effect. 1 = as authored. 0.5 plays it at half speed so it takes TWICE as long to play out — this is the only real way to make a short burst last longer, because deleting it later does nothing for an effect that has already finished. 0.35-0.6 is the useful range if your prefabs are over too quickly.")]
-    [SerializeField] private float swingWaveVisualPlaybackSpeed = 1f;
 
     private PlayerHealth playerHealthRef;
     private bool  waveFiredThisAttack;
@@ -976,8 +966,6 @@ public class OniBoss : MonoBehaviour
         GameObject hitPrefab = hitLandVFX;
         float life = 2f;
         Vector3 nudge = Vector3.zero;
-        Vector3 tilt = Vector3.zero;
-        float burstOffset = 0f;
         if (swingWaveVFXByAttack != null)
         {
             string anim = combat.CurrentAttackAnim();
@@ -990,8 +978,6 @@ public class OniBoss : MonoBehaviour
                     prefab = b.vfx;
                     life = b.lifetime;
                     nudge = new Vector3(b.nudgeRight, b.nudgeUp, b.nudgeForward);
-                    tilt = new Vector3(b.tiltX, b.tiltY, b.tiltZ);
-                    burstOffset = b.burstHeightOffset;
                 }
                 if (b.hitVFX != null) hitPrefab = b.hitVFX;
                 break;
@@ -1033,11 +1019,10 @@ public class OniBoss : MonoBehaviour
             SwingWaveProjectile.Launch(
                 prefab, origin, transform.forward,
                 transform, playerT, playerHealthRef,
-                swingWaveSpeed, travel, swingWaveHitRadius,
-                Mathf.Max(0f, strikeContactBodyHeight + burstOffset),
+                swingWaveSpeed, travel, swingWaveHitRadius, strikeContactBodyHeight,
                 clubConnected ? 0 : swingWaveDamage,
                 hitPrefab, hitLandVFXLifetime, hitLandVFXOffset,
-                life, tilt, swingWaveVisualPlaybackSpeed);
+                life);
 
             DebugLog($"swing wave born {swingWaveStartDistance + nudge.z:F1}m in front of him, "
                    + $"{swingWaveSpeed:F0}m/s x {travel:F1}m = {travel / Mathf.Max(0.01f, swingWaveSpeed):F2}s of flight, "
