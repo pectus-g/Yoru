@@ -238,10 +238,8 @@ public class OniBoss : MonoBehaviour
     {
         [Tooltip("Attack name or attack animation, exactly as on the EnemyCombat attack list.")]
         public string attack;
-        [Tooltip("SLASH. Spawned once at the strike moment, at the club's position and angle, and left hanging in the air while the club carries on past it — the mark the blow leaves. Empty = use the fallback below.")]
+        [Tooltip("Effect spawned at this attack's strike moment, in front of him — the swing itself. Empty = use the fallback below.")]
         public GameObject vfx;
-        [Tooltip("TRAIL. Spawned at the START of the swing and parented to the club, so it draws the whole arc the weapon travels, then fades when the swing ends. A different job from the slash: use one, the other, or both. Empty = use the trail fallback below.")]
-        public GameObject trailVFX;
         [Tooltip("Effect spawned ON YORU where the club actually meets her, and only when the hit lands. Empty = use the Hit Land VFX fallback below.")]
         public GameObject hitVFX;
         [Tooltip("ROUND 27. Nudge along the CLUB's own forward, metres. 0 sits exactly on the club tip. Renamed from 'forward' on purpose: the old field held a value measured from his feet, which is meaningless now that the anchor is the club, and renaming drops that stale saved value.")]
@@ -264,13 +262,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float swingWaveVFXForward = 1.5f;
     [Tooltip("Only used if the club bone cannot be found: height above his feet.")]
     [SerializeField] private float swingWaveVFXHeight = 1.2f;
-
-    [Tooltip("ROUND 28. Trail used for any attack whose row has no Trail Vfx of its own. Empty = that attack has no trail.")]
-    [SerializeField] private GameObject swingTrailVFX;
-    [Tooltip("ROUND 28. Seconds the trail is left to fade after the swing ends. It is unparented first, so it stops following him and dies where it was rather than snapping out of existence mid-arc.")]
-    [SerializeField] private float trailFadeOut = 0.4f;
-
-    private GameObject activeTrail;
 
     [Tooltip("ROUND 25. Used for any attack whose row has no Hit VFX of its own. Spawned at the point where the club actually meets Yoru's body, only on swings that connect.")]
     [SerializeField] private GameObject hitLandVFX;
@@ -906,21 +897,9 @@ public class OniBoss : MonoBehaviour
         string atk = inAttack ? combat.CurrentAttackName() : "";
         bool isCharge = inAttack && (atk == chargeStateName || combat.CurrentAttackAnim() == chargeStateName);
 
-        if (!inAttack || isCharge)
-        {
-            waveFiredThisAttack = false;
-            waveAttackName = "";
-            EndSwingTrail();
-            return;
-        }
+        if (!inAttack || isCharge) { waveFiredThisAttack = false; waveAttackName = ""; return; }
 
-        if (atk != waveAttackName)
-        {
-            waveAttackName = atk;
-            waveFiredThisAttack = false;
-            EndSwingTrail();          // a combo step replaces the previous step's trail
-            StartSwingTrail(atk);     // ROUND 28: the trail belongs to the WHOLE swing...
-        }
+        if (atk != waveAttackName) { waveAttackName = atk; waveFiredThisAttack = false; }
         if (waveFiredThisAttack) return;
         if (animator.IsInTransition(0)) return;
 
@@ -993,11 +972,10 @@ public class OniBoss : MonoBehaviour
             GameObject fx;
             if (clubBone != null)
             {
-                // ROUND 28: ...and the SLASH belongs to the instant. It is deliberately NOT
-                // parented: a slash is the mark a blow leaves, so it hangs where the club was at
-                // impact while the club sweeps on. Parenting it dragged the arc around with the
-                // weapon at the fastest part of the swing, which is why it read as a flicker.
                 fx = Instantiate(prefab, clubBone.position, clubBone.rotation);
+                // worldPositionStays: the effect keeps the size it was authored at, whatever scale
+                // the rig's bones carry.
+                fx.transform.SetParent(clubBone, true);
                 if (nudge != Vector3.zero)
                     fx.transform.position += clubBone.right   * nudge.x
                                            + clubBone.up      * nudge.y
@@ -1042,44 +1020,6 @@ public class OniBoss : MonoBehaviour
 
         playerHealthRef.TakeDamage(swingWaveDamage, false, transform.position, false);
         DebugLog($"swing wave HIT for {swingWaveDamage} at {dist:F1}m ({angle:F0}deg) — the club fell short at {combat.AttackRange():F1}m.");
-    }
-
-    /// <summary>
-    /// ROUND 28. Starts this attack's trail: spawned at the club and parented to it, so it draws
-    /// the arc for the whole swing rather than appearing for one instant at the end.
-    /// </summary>
-    private void StartSwingTrail(string atk)
-    {
-        if (!swingWaveEnabled || clubBone == null) return;
-
-        GameObject prefab = swingTrailVFX;
-        if (swingWaveVFXByAttack != null)
-        {
-            string anim = combat != null ? combat.CurrentAttackAnim() : "";
-            foreach (var b in swingWaveVFXByAttack)
-            {
-                if (b == null || string.IsNullOrEmpty(b.attack)) continue;
-                if (b.attack != atk && b.attack != anim) continue;
-                if (b.trailVFX != null) prefab = b.trailVFX;
-                break;
-            }
-        }
-        if (prefab == null) return;
-
-        activeTrail = Instantiate(prefab, clubBone.position, clubBone.rotation);
-        activeTrail.transform.SetParent(clubBone, true);   // keeps its authored size
-    }
-
-    /// <summary>
-    /// ROUND 28. Ends the trail. Unparented first so it stops being carried around by him and
-    /// fades where the swing left it, instead of vanishing mid-arc.
-    /// </summary>
-    private void EndSwingTrail()
-    {
-        if (activeTrail == null) return;
-        activeTrail.transform.SetParent(null, true);
-        Destroy(activeTrail, Mathf.Max(0f, trailFadeOut));
-        activeTrail = null;
     }
 
     /// <summary>
