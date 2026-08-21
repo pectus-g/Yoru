@@ -213,21 +213,6 @@ public class OniBoss : MonoBehaviour
         public StrikeMomentOverride(string attack, float strikeMoment) { this.attack = attack; this.strikeMoment = strikeMoment; }
     }
 
-    [Header("Strike contact measurement — round 15 (diagnostic, temporary)")]
-    [Tooltip("ROUND 15. Measures, at RUNTIME, the moment his club is physically closest to Yoru during each swing, and compares it to the Strike Moment the damage actually fires on. The existing moments were measured from the FBX clips, which shows where the club is in the animation but not where SHE was standing — so it cannot tell you whether the club reaches her at real play distance. Pure measurement: reads the skeleton, changes no behaviour. Untick when the numbers are in.")]
-    [SerializeField] private bool measureStrikeContact = true;
-    [Tooltip("Part of the club bone's name, case-insensitive. The DEEPEST bone matching this is used, so the measurement tracks the club's tip rather than its handle.")]
-    [SerializeField] private string clubBoneNameContains = "kanabo";
-    [Tooltip("Height above Yoru's feet treated as her body for the measurement, metres. 0.8 is roughly her chest on all fours.")]
-    [SerializeField] private float strikeContactBodyHeight = 0.8f;
-
-    private Transform clubBone;
-    private bool   strikeMeasureActive;
-    private string strikeMeasureAttack = "";
-    private float  strikeMeasureMinDist = float.MaxValue;
-    private float  strikeMeasureMinNorm = -1f;
-    private float  strikeMeasureClipLen;
-
     [Header("Charge Drive (lance rush)")]
     [Tooltip("The Oni owns the charge himself instead of the shared engine's generic lunge. WINDUP: the clip plays in place while he turns to her (club comes forward). RUSH: the clip is frozen on the lance frame and he drives himself across the gap, steers briefly, commits, brakes next to Yoru. STRIKE: the clip JUMPS to its strike section (landing + club slam), so the baked dash is never played on the spot. If he is already next to her at the end of the wind-up the rush is skipped. Turning this off returns the charge to the old engine lunge.")]
     [SerializeField] private bool chargeDriveEnabled = true;
@@ -420,25 +405,6 @@ public class OniBoss : MonoBehaviour
             {
                 Debug.LogWarning("[OniBoss] no PlayerCombat found on the player - Yoru's launch model stays OFF. Nothing else is affected.");
             }
-        }
-
-        // ROUND 15: locate the club's TIP — the deepest bone whose name matches — so the distance
-        // being measured is the business end, not the handle in his fist.
-        if (measureStrikeContact && !string.IsNullOrEmpty(clubBoneNameContains))
-        {
-            string needle = clubBoneNameContains.ToLowerInvariant();
-            int bestDepth = -1;
-            foreach (var t in GetComponentsInChildren<Transform>(true))
-            {
-                if (t == null || !t.name.ToLowerInvariant().Contains(needle)) continue;
-                int depth = 0;
-                for (Transform w = t; w != null && w != transform; w = w.parent) depth++;
-                if (depth > bestDepth) { bestDepth = depth; clubBone = t; }
-            }
-            if (clubBone != null)
-                DebugLog($"strike contact measurement ON — tracking '{clubBone.name}' at depth {bestDepth}.");
-            else
-                Debug.LogWarning($"[OniBoss] strike contact measurement: no bone containing '{clubBoneNameContains}' under him. Measurement is off; nothing else is affected.");
         }
 
         // The mesh must never be culled while its bones are on screen (see Charge Travel Cancel).
@@ -697,84 +663,9 @@ public class OniBoss : MonoBehaviour
     /// exactly what the charge clip did to the skeleton this frame. Same ordering trick the
     /// player's AirPosePin uses.
     /// </summary>
-    /// <summary>
-    /// ROUND 15. Per frame during a swing, how far the club's tip is from Yoru. Keeps the closest
-    /// approach and the clip position it happened at; on the way out of the attack it prints that
-    /// against the Strike Moment the damage fires on. If the club is closest at 0.41 and damage
-    /// fires at 0.55, the hit lands after the club has already gone past — which is what "the
-    /// reaction feels late" looks like from the outside, even though Yoru's own reaction is 0ms.
-    /// Must run in LateUpdate: before the Animator writes the pose, the bone is a frame stale.
-    /// </summary>
-    private void UpdateStrikeContactMeasure()
-    {
-        if (!measureStrikeContact || clubBone == null || combat == null || playerT == null || animator == null) return;
-
-        bool inAttack = combat.GetCurrentState() == EnemyCombat.EnemyState.Attack;
-        string atk = inAttack ? combat.CurrentAttackName() : "";
-        bool isCharge = inAttack && (atk == chargeStateName || combat.CurrentAttackAnim() == chargeStateName);
-
-        if (!inAttack || isCharge) { FlushStrikeContactMeasure(); return; }
-
-        if (!strikeMeasureActive || atk != strikeMeasureAttack)
-        {
-            FlushStrikeContactMeasure();
-            strikeMeasureActive  = true;
-            strikeMeasureAttack  = atk;
-            strikeMeasureMinDist = float.MaxValue;
-            strikeMeasureMinNorm = -1f;
-        }
-
-        if (animator.IsInTransition(0)) return;
-        var cur = animator.GetCurrentAnimatorStateInfo(0);
-        strikeMeasureClipLen = cur.length;
-
-        Vector3 body = playerT.position + Vector3.up * strikeContactBodyHeight;
-        float d = Vector3.Distance(clubBone.position, body);
-        if (d < strikeMeasureMinDist)
-        {
-            strikeMeasureMinDist = d;
-            strikeMeasureMinNorm = Mathf.Clamp01(cur.normalizedTime);
-        }
-    }
-
-    private void FlushStrikeContactMeasure()
-    {
-        if (!strikeMeasureActive) return;
-        strikeMeasureActive = false;
-        if (strikeMeasureMinNorm < 0f || strikeMeasureMinDist >= float.MaxValue * 0.5f) return;
-
-        float configured = -1f;
-        if (strikeMomentOverrides != null)
-        {
-            foreach (var o in strikeMomentOverrides)
-                if (o != null && o.attack == strikeMeasureAttack) { configured = o.strikeMoment; break; }
-        }
-
-        string verdict;
-        if (configured < 0f)
-        {
-            verdict = "no override configured for this attack";
-        }
-        else
-        {
-            float deltaSec = (configured - strikeMeasureMinNorm) * strikeMeasureClipLen;
-            verdict = Mathf.Abs(deltaSec) < 0.03f
-                ? "MATCHED (within one or two frames)"
-                : deltaSec > 0f
-                    ? $"damage fires {deltaSec * 1000f:F0} ms AFTER the club is closest — it lands once the club has passed her"
-                    : $"damage fires {-deltaSec * 1000f:F0} ms BEFORE the club is closest";
-        }
-
-        Debug.Log($"[OniBoss:Strike] {strikeMeasureAttack}: club tip closest to Yoru at {strikeMeasureMinDist:F2}m, "
-                + $"clip position {strikeMeasureMinNorm:F2} | damage fires at "
-                + $"{(configured >= 0f ? configured.ToString("F2") : "engine default")} | clip {strikeMeasureClipLen:F2}s "
-                + $"=> {verdict}");
-    }
-
     private void LateUpdate()
     {
         UpdateChargePin();
-        UpdateStrikeContactMeasure();   // ROUND 15 diagnostic — needs the posed skeleton
     }
 
     // ───────────────────────────────────────────────────────── charge: pin + drive ──

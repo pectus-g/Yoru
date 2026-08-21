@@ -16,14 +16,6 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float doubleJumpHeight = 1.5f;
     [SerializeField] private float tripleJumpHeight = 1.2f;
     [SerializeField] private float jumpForwardSpeed = 4f;
-
-    [Header("Air Control — round 14")]
-    [Tooltip("ROUND 14. ON = live input steers her while airborne and she turns to face where she is going, the same as on the ground. Before this the project had NO air control of any kind: the airborne branch only replayed jumpMomentum, a snapshot frozen at takeoff, and rotation existed only in the grounded branch. That is why pressing the opposite direction mid-air made her hang in place or drift backwards while still facing the way she launched. Untick to compare against the old behaviour.")]
-    [SerializeField] private bool useAirControl = true;
-    [Tooltip("ROUND 14. How hard she can steer in the air, in metres per second squared. This is the rate her existing momentum is bent toward the direction you are holding, so higher = more responsive and more forgiving. 25 reverses a full-speed jump in about a quarter second. Lower it for heavier, more committed jumps.")]
-    [SerializeField] private float airControlAcceleration = 25f;
-    [Tooltip("ROUND 14. Turn speed while airborne (Slerp factor), matching Rotation Speed on the ground. 0 keeps her facing locked in the air, which is the old behaviour.")]
-    [SerializeField] private float airRotationSpeed = 8f;
     
     [Header("Timing")]
     [SerializeField] private float multiJumpWindow = 0.5f;
@@ -106,11 +98,6 @@ public class PlayerMovement : MonoBehaviour
     private const float GROUND_CHECK_DISTANCE = 0.1f;
     private const float ANIMATION_CROSS_FADE = 0.05f;
     private const float MIN_AIRBORNE_FOR_LANDING = 0.15f; // Must be airborne this long before OnLanded fires
-    // ROUND 14: the last time real movement input was held. Unity's Horizontal axis has snap on,
-    // so flipping D to A crosses zero for about two frames; a jump pressed inside that window used
-    // to be read as a standing jump. This lets a jump reuse the direction she was actually running.
-    private const float RECENT_INPUT_WINDOW = 0.2f;
-    private float lastMovingTime = -10f;
     // ROUND 10: grounded + PlayerState.Jumping for longer than this is impossible in normal play
     // once no combat action is deferring the landing, so it is treated as the stuck state and rescued.
     private const float JUMPING_STUCK_LIMIT = 0.4f;
@@ -326,7 +313,6 @@ public class PlayerMovement : MonoBehaviour
             }
             
             SetState(PlayerState.Running, Input.GetKey(KeyCode.LeftShift));
-            lastMovingTime = Time.time;   // ROUND 14
         }
         else
         {
@@ -447,25 +433,14 @@ public class PlayerMovement : MonoBehaviour
     #region Movement & Physics
     private void ApplyMovement()
     {
-        // ROUND 14: airborne is handled FIRST and always runs, with or without input. It used to
-        // sit behind the no-input early-out below, so releasing the stick in mid-air skipped the
-        // Move entirely and she stopped dead in the sky — the "jumps in place" report.
-        if (!HasState(PlayerState.Grounded))
-        {
-            ApplyAirMovement();
-            return;
-        }
-
         if (!HasState(PlayerState.Moving))
         {
             jumpMomentum = Vector3.Lerp(jumpMomentum, Vector3.zero, Time.fixedDeltaTime * 5f);
             return;
         }
         
-        // Grounded. The old condition here also required !Jumping, which meant grounded-with-
-        // Jumping-set matched NEITHER branch and killed movement outright — the freeze. The
-        // airborne case has already returned above, so grounded is all that needs asking.
-        if (HasState(PlayerState.Grounded))
+        // Only calculate when needed
+        if (HasState(PlayerState.Grounded) && !HasState(PlayerState.Jumping))
         {
             float speed = HasState(PlayerState.Running) 
                 ? (grannyRunSpeedOverride > 0f ? grannyRunSpeedOverride : runSpeed) 
@@ -481,34 +456,11 @@ public class PlayerMovement : MonoBehaviour
                     rotationSpeed * Time.fixedDeltaTime);
             }
         }
-    }
-
-    /// <summary>
-    /// ROUND 14 — air control. Live input bends her existing momentum toward where you are
-    /// holding, and she turns to face it, so a jump is steerable instead of a committed arc fired
-    /// at takeoff. With no input she simply keeps her momentum, which is what preserves the weight
-    /// of the jump. Vertical is untouched: gravity stays PlayerMovement's single owner.
-    /// </summary>
-    private void ApplyAirMovement()
-    {
-        if (useAirControl && HasState(PlayerState.Moving) && moveDirection.sqrMagnitude > MIN_MOVE_THRESHOLD)
+        else if (!HasState(PlayerState.Grounded))
         {
-            // Never slower than the takeoff impulse, and never slower than she is already going,
-            // so steering redirects her speed rather than bleeding it away.
-            float airSpeed = Mathf.Max(jumpForwardSpeed, jumpMomentum.magnitude);
-            Vector3 want = moveDirection.normalized * airSpeed;
-            jumpMomentum = Vector3.MoveTowards(jumpMomentum, want,
-                Mathf.Max(0f, airControlAcceleration) * Time.fixedDeltaTime);
-
-            if (airRotationSpeed > 0f)
-            {
-                Quaternion targetRot = Quaternion.LookRotation(moveDirection);
-                cachedTransform.rotation = Quaternion.Slerp(cachedTransform.rotation, targetRot,
-                    airRotationSpeed * Time.fixedDeltaTime);
-            }
+            // Air movement
+            controller.Move(jumpMomentum * Time.fixedDeltaTime);
         }
-
-        controller.Move(jumpMomentum * Time.fixedDeltaTime);
     }
     
     private void ApplyGravity()
@@ -569,18 +521,11 @@ public class PlayerMovement : MonoBehaviour
     {
         velocity.y = Mathf.Sqrt(power * -2f * gravity);
         
-        // Set momentum. ROUND 14: "moving RIGHT NOW" is too strict. Unity's Horizontal axis has
-        // snap enabled, so releasing D and pressing A drops the axis through zero for roughly two
-        // frames; a jump pressed in that gap read as a standing jump and produced forward * 0.5f —
-        // 0.5 m/s in her old facing, which is exactly the "jumps in place" she reported on the
-        // double and triple jump, since those are the ones taken mid-direction-change. Input from
-        // the last fifth of a second still counts as a running jump.
-        bool movingNow = HasState(PlayerState.Moving);
-        bool movedJustNow = Time.time - lastMovingTime <= RECENT_INPUT_WINDOW;
-        if ((movingNow || movedJustNow) && moveDirection.sqrMagnitude > MIN_MOVE_THRESHOLD)
+        // Set momentum
+        if (HasState(PlayerState.Moving))
         {
             float momentumSpeed = isFourLegged ? jumpForwardSpeed * 1.5f : jumpForwardSpeed;
-            jumpMomentum = moveDirection.normalized * momentumSpeed;
+            jumpMomentum = moveDirection * momentumSpeed;
         }
         else
         {
