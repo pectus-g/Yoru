@@ -209,10 +209,6 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float hallucinationHitReactDuration = 0.7f;
 
     [Header("Knockback Pull")]
-    [Tooltip("ROUND 34. OFF. Every hit used to drag Yoru 0.5m TOWARD whatever hit her — the direction was attacker-minus-her, so a punch pulled her into the puncher. None of the Oni's attacks are grabs (they all have Pulls Player off), so this was pure artefact and it read badly on every single hit. A new switch rather than setting Pull Distance to 0, because that field already has 0.5 saved in the scene and a changed code default would be ignored. Tick it only if you deliberately want hits to suck her in.")]
-    [SerializeField] private bool hitReactionPullsTowardAttacker = false;
-    [Tooltip("ROUND 34. ON keeps the existing behaviour of turning Yoru to face whatever just hit her. This is rotation only, no movement — untick if the snap bothers you.")]
-    [SerializeField] private bool hitReactionFacesAttacker = true;
     [SerializeField] private float pullDistance = 0.5f;
     [SerializeField] private float pullDuration = 0.15f;
 
@@ -2133,17 +2129,9 @@ public class PlayerCombat : MonoBehaviour
             pullDir.y = 0f;
             if (pullDir.sqrMagnitude > 0.01f)
             {
-                if (hitReactionFacesAttacker)
-                    cachedTransform.rotation = Quaternion.LookRotation(pullDir.normalized);
-
-                // ROUND 34: the pull is off. It moved her along attacker-minus-her, i.e. straight
-                // INTO whatever hit her, on every hit from every enemy. Facing the attacker is
-                // kept; being dragged at him is not.
-                if (hitReactionPullsTowardAttacker)
-                {
-                    if (pullCoroutine != null) StopCoroutine(pullCoroutine);
-                    pullCoroutine = StartCoroutine(SmoothPull(pullDir.normalized, pullDistance, pullDuration));
-                }
+                cachedTransform.rotation = Quaternion.LookRotation(pullDir.normalized);
+                if (pullCoroutine != null) StopCoroutine(pullCoroutine);
+                pullCoroutine = StartCoroutine(SmoothPull(pullDir.normalized, pullDistance, pullDuration));
             }
         }
 
