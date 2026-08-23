@@ -1,25 +1,22 @@
 using UnityEngine;
 
 /// <summary>
-/// ROUND 40 — the Oni's ground wave, Hazel's rule set as of round 40: the wave VISUAL appears on
-/// EVERY swing, and only its DAMAGE depends on the club. Club did not connect → the wave is
-/// ARMED (damage &gt; 0, half the club's). Club connected → the wave is spawned with damage 0 and
-/// is pure effect, start to finish. A club that connects only after the wave was released
-/// disarms it in flight (CancelledByClub) — the visual keeps flying either way, so a wave is
-/// SEEN on every single swing.
+/// ROUND 38 — the Oni's ground wave, redesigned to Hazel's rule set. It only exists when the
+/// club itself MISSED (a club that connects cancels the swing's wave outright — see
+/// OniBoss.OnStrikeResolved), and it is a REAL hitbox for its entire travel: what you see
+/// rushing along the floor is exactly what can hurt her, from the frame it is born to the frame
+/// it dissolves. There is no "picture" phase.
 ///
-/// An armed wave resolves ON TOUCH. The instant its front reaches Yoru while she is ON THE
-/// GROUND, she takes its damage and plays her full hit reaction, that same frame — and the wave
-/// then KEEPS FLYING as spent effect to the end of its travel (round 40: it no longer dies on
-/// her, which made close hits invisible). While she is airborne it passes underneath and spends
-/// nothing — jumping is the designed escape, so the gate is her movement state, not collider
-/// geometry.
+/// It resolves ON TOUCH. The instant its front reaches Yoru while she is ON THE GROUND, she
+/// takes its damage (half the club's, decided by the caller) and plays her full hit reaction,
+/// that same frame. While she is airborne it passes underneath and spends nothing — jumping is
+/// the designed escape, so the gate is her movement state, not collider geometry.
 ///
 /// It is fast and short-lived on purpose: armed life = travel / speed (≈ half a second at the
 /// defaults), so a hit can only ever come from the swing she is watching — the old
 /// four-second waves that arrived from swings long finished are physically impossible now.
-/// At the end of its travel it does not vanish and does not hang frozen: it stops emitting,
-/// eases to a halt, and is destroyed once its particles have faded.
+/// When its travel ends (or it has hit her) it does not vanish and does not hang frozen: it
+/// stops emitting, eases to a halt, and is destroyed once its particles have faded.
 ///
 /// Collision is deliberately NOT a physics query. It measures the PLANAR distance from Yoru to
 /// the segment the wave swept this frame, so a fast wave cannot skip past her between frames,
@@ -45,9 +42,6 @@ public class SwingWaveProjectile : MonoBehaviour
     private float hitVFXOffset;
     private float fadeLifetime;
 
-    /// <summary>ROUND 39: tells the owning swing its wave touched her first (first touch wins).</summary>
-    public System.Action<SwingWaveProjectile> onConnected;
-
     private bool spent;          // the hit is delivered — one wave can never hit twice
     private bool dissolving;     // travel over (or hit landed): hitbox dead, effect fading out
     private float dissolveDecel; // how hard it brakes while dissolving, m/s^2
@@ -55,9 +49,9 @@ public class SwingWaveProjectile : MonoBehaviour
     private ParticleSystem[] particles;   // cached once at spawn — never queried per frame
 
     /// <summary>
-    /// Spawns a ground wave carrying `visual` and sends it along `dir`. damage &gt; 0 = armed for
-    /// its whole travel; damage 0 = pure visual (ROUND 40: the club already connected, but the
-    /// wave still appears — "wave won't hit but looks on the effect", her words).
+    /// Spawns a ground wave carrying `visual` and sends it along `dir`, armed with `damage` for
+    /// its whole travel. The caller decides whether it spawns at all (club connected = no wave),
+    /// so unlike round 36 there is no cosmetic damage-0 mode any more.
     /// </summary>
     public static SwingWaveProjectile Launch(GameObject visual, Vector3 origin, Vector3 dir,
                                              Transform attacker, Transform target,
@@ -137,11 +131,10 @@ public class SwingWaveProjectile : MonoBehaviour
         Vector3 next = prev + direction * (speed * Time.deltaTime);
         transform.position = next;
 
-        // Armed for the WHOLE travel — but only while it carries damage: a visual-only wave
-        // (damage 0) never even looks for contact and just flies. Airborne = safe,
-        // unconditionally: this is ground force and jumping over it is the counter Hazel
-        // designed. If PlayerMovement was not found the check fails open (treated as grounded).
-        if (!spent && damage > 0 && target != null)
+        // Armed for the WHOLE travel. Airborne = safe, unconditionally: this is ground force and
+        // jumping over it is the counter Hazel designed. If PlayerMovement was not found the
+        // check fails open (treated as grounded) so the wave still works.
+        if (!spent && target != null)
         {
             bool airborne = targetMove != null && targetMove.IsAirborne();
             if (!airborne && PlanarDistanceToSegment(target.position, prev, next) <= hitWidth)
@@ -151,11 +144,12 @@ public class SwingWaveProjectile : MonoBehaviour
             }
         }
 
-        // ROUND 40: the travel end is the ONLY thing that retires a wave — hitting her no longer
-        // does, so the effect is always seen completing its run.
-        Vector3 flown = transform.position - startPos;
-        flown.y = 0f;
-        if (flown.sqrMagnitude >= maxDistance * maxDistance) BeginDissolve();
+        if (!spent)
+        {
+            Vector3 flown = transform.position - startPos;
+            flown.y = 0f;
+            if (flown.sqrMagnitude >= maxDistance * maxDistance) BeginDissolve();
+        }
     }
 
     /// <summary>
@@ -193,22 +187,9 @@ public class SwingWaveProjectile : MonoBehaviour
             Vector3 flownV = transform.position - startPos; flownV.y = 0f;
             Debug.Log($"[OniBoss:Wave] wave TOUCHED Yoru (grounded) for {damage} after "
                     + $"{flownV.magnitude:F1}m / {Time.time - bornTime:F2}s of travel.");
-
-            onConnected?.Invoke(this);   // ROUND 39: the swing is spent — the club stands down
         }
 
-        // ROUND 40: no dissolve here — the wave flies on as spent effect so the hit is SEEN.
-    }
-
-    /// <summary>
-    /// ROUND 40: the club reached her after this wave was already released — her rule says the
-    /// club's hit cancels the wave's DAMAGE, not its picture: "wave won't hit but looks on the
-    /// effect". So it is disarmed and keeps flying to the end of its travel. Harmless if it
-    /// already connected or is already visual-only.
-    /// </summary>
-    public void CancelledByClub()
-    {
-        damage = 0;
+        BeginDissolve();
     }
 
     /// <summary>

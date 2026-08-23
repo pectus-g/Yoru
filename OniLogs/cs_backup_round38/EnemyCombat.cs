@@ -75,12 +75,6 @@ public class EnemyCombat : MonoBehaviour
         [Tooltip("WHEN during the attack clip the strike lands (damage, camera shake, player reaction), as a fraction of the clip. 1 = at the very end — the original behavior and the default for every enemy. Below 1 the hurt fires at that point of the clip so it matches the VISUAL impact frame (Oni: swings ~0.5, slam ~0.6, charge ~0.7) instead of arriving late.")]
         [Range(0.1f, 1f)]
         public float strikeMoment = 1f;
-        // ROUND 39, runtime-only (set by a boss layer via SetAttackTouchDriven, never saved):
-        // this attack's damage is delivered by TOUCH — the boss layer watches the weapon and
-        // calls DeliverStrikeOnTouch() the frame it really reaches the player. While true, the
-        // Strike Moment above no longer deals damage; it is only the RELEASE point that the
-        // StrikeResolved event fires on (the Oni's ground wave spawns off a not-connected result).
-        [System.NonSerialized] public bool touchDriven;
         [Tooltip("Is this AoE? (damage all in range vs single target)")]
         public bool isAoE = false;
         [Tooltip("If true, damage scales DOWN with distance: full Damage up close, falling to Min Damage At Range at the edge of Range. Use for a roar/shockwave that hurts more the closer you are. Leave off for flat damage.")]
@@ -408,7 +402,6 @@ public class EnemyCombat : MonoBehaviour
     private float cachedClipLength;
     private bool clipLengthRead;
     private bool strikeFired; // Strike Moment already resolved for the current attack clip
-    private bool touchStrikeConnected; // ROUND 39: a touch-driven attack's hit was delivered this clip
     
     // Close-attack grab sequence (cinematic swoop + lean + yank-in + freeze, run as a coroutine
     // like the teleport). isGrabbing bypasses the normal Attack handler while it plays.
@@ -1227,44 +1220,6 @@ public class EnemyCombat : MonoBehaviour
     }
 
     /// <summary>
-    /// ROUND 39. Runtime opt-in, per attack: hand this attack's damage to a boss layer that
-    /// detects real weapon CONTACT (see DeliverStrikeOnTouch). Nothing is serialized — every
-    /// other enemy, and every attack not named, keeps the timed Strike Moment behavior exactly.
-    /// </summary>
-    public bool SetAttackTouchDriven(string attackNameOrAnim, bool on)
-    {
-        if (attacks == null || string.IsNullOrEmpty(attackNameOrAnim)) return false;
-        bool any = false;
-        foreach (var a in attacks)
-        {
-            if (a == null) continue;
-            if (a.attackName == attackNameOrAnim || a.attackAnim == attackNameOrAnim)
-            {
-                a.touchDriven = on;
-                any = true;
-            }
-        }
-        return any;
-    }
-
-    /// <summary>
-    /// ROUND 39. Called by a boss layer the FRAME its weapon really touches the player, for an
-    /// attack switched to touchDriven. Runs the exact same damage pipeline as the timed strike —
-    /// camera shake, heavy/light combo rules, stun, hallucination, hit log — minus the
-    /// center-distance range gate, because actual contact beats any distance rule. Delivers at
-    /// most once per attack clip; returns whether THIS call delivered.
-    /// </summary>
-    public bool DeliverStrikeOnTouch()
-    {
-        if (currentState != EnemyState.Attack) return false;
-        if (currentAttack == null || !currentAttack.touchDriven || player == null) return false;
-        if (touchStrikeConnected) return false;
-        touchStrikeConnected = true;
-        DealDamageToPlayerCore(false, false);
-        return true;
-    }
-
-    /// <summary>
     /// Runtime opt-in used by boss layers (OniBoss) so the behavior can be switched on WITHOUT any
     /// inspector work and WITHOUT changing the default for any other enemy. Every parameter keeps
     /// its serialized value when passed a negative number / null, so a boss can enable the behavior
@@ -1362,34 +1317,20 @@ public class EnemyCombat : MonoBehaviour
         // Early strike: when this attack defines a Strike Moment below 1, the damage (and the
         // player's reaction, camera shake, etc.) fires the moment the clip crosses that fraction —
         // synced to the visual impact frame instead of the clip end. Fires at most once per attack.
-        // ROUND 39: a TOUCH-DRIVEN attack (the Oni's club) no longer damages on this clock — its
-        // damage lands the frame the weapon really touches the player (DeliverStrikeOnTouch). For
-        // those, the Strike Moment is only the RELEASE point: StrikeResolved fires here, carrying
-        // whether the weapon has already connected, so the boss layer can spawn its ground wave
-        // when it has not (yet).
         if (currentAttack != null && currentAttack.strikeMoment < 1f && !strikeFired
             && AttackClipProgress() >= currentAttack.strikeMoment)
         {
             strikeFired = true;
-            if (currentAttack.touchDriven)
-                StrikeResolved?.Invoke(touchStrikeConnected);
-            else
-                DealDamageToPlayer();
+            DealDamageToPlayer();
         }
 
         // Run until the attack clip has actually finished, then resolve damage on the strike
         // (unless the early Strike Moment already resolved it above — original path unchanged
-        // for every attack left at the default strikeMoment = 1). A touch-driven attack never
-        // deals end-of-clip damage; if its release somehow did not fire yet, fire it now.
+        // for every attack left at the default strikeMoment = 1).
         if (AttackAnimationComplete())
         {
             if (!strikeFired)
-            {
-                if (currentAttack != null && currentAttack.touchDriven)
-                    StrikeResolved?.Invoke(touchStrikeConnected);
-                else
-                    DealDamageToPlayer();
-            }
+                DealDamageToPlayer();
             SetState(EnemyState.Recovery);
         }
     }
@@ -1927,16 +1868,7 @@ public class EnemyCombat : MonoBehaviour
     #endregion
     
     #region Damage
-   private void DealDamageToPlayer() { DealDamageToPlayerCore(true, true); }
-
-    /// <summary>
-    /// ROUND 39: the one damage pipeline, shared by the timed strike (requireRange = true — the
-    /// legacy center-distance gate) and the touch delivery (requireRange = false — the caller has
-    /// already established real weapon contact, which beats any distance rule). raiseStrikeResolved:
-    /// the timed path announces its result through StrikeResolved; the touch path must not — its
-    /// caller IS the listener.
-    /// </summary>
-    private void DealDamageToPlayerCore(bool requireRange, bool raiseStrikeResolved)
+   private void DealDamageToPlayer()
     {
         if (currentAttack == null || player == null) return;
 
@@ -1947,15 +1879,14 @@ public class EnemyCombat : MonoBehaviour
 
         float dist = DistanceToPlayer();
 
-        if (requireRange && dist > currentAttack.range)
+        if (dist > currentAttack.range)
         {
             DebugLog($"Attack missed, player out of range ({dist:F1}m > {currentAttack.range}m)");
-            if (raiseStrikeResolved) StrikeResolved?.Invoke(false);   // ROUND 38: the miss is a result too — the Oni's ground wave spawns off it
             return;
         }
 
         PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
-        if (playerHealth == null) { if (raiseStrikeResolved) StrikeResolved?.Invoke(false); return; }
+        if (playerHealth == null) return;
 
         // Distance falloff (roar/shockwave): full Damage up close, easing to minDamageAtRange at the edge.
         int dmg = currentAttack.damage;
@@ -1992,11 +1923,6 @@ public class EnemyCombat : MonoBehaviour
             playerHealth.ApplyStun(currentAttack.stunPlayerDuration);
             DebugLog($"Player stunned for {currentAttack.stunPlayerDuration}s");
         }
-
-        // ROUND 38: raised AFTER the damage and reaction have been delivered, so a listener that
-        // spawns things (the Oni's ground wave) always acts on a world where the hit already
-        // happened. True = connected.
-        if (raiseStrikeResolved) StrikeResolved?.Invoke(true);
     }
     #endregion
     
@@ -2589,7 +2515,6 @@ private void TriggerHitFlash()
         clipLengthRead = false;
         cachedClipLength = 0f;
         strikeFired = false; // re-arm the Strike Moment for the new clip
-        touchStrikeConnected = false; // ROUND 39: re-arm the touch delivery too
         
         if (animator == null || string.IsNullOrEmpty(stateName)) return;
         
@@ -2694,24 +2619,6 @@ private void TriggerHitFlash()
 
     /// <summary>Read-only: this enemy's melee attack range (boss layers size their step-in from it).</summary>
     public float AttackRange() => attackRange;
-
-    /// <summary>
-    /// ROUND 38. Raised the instant a strike resolves, exactly once per attack, from the same call
-    /// that deals (or misses) the damage: true = the hit connected and the player was hurt, false =
-    /// the strike moment came and went with the player out of range. The Oni's boss layer listens to
-    /// decide that swing's ground wave in the SAME frame — club connected: no wave at all; club
-    /// missed: the wave spawns armed. One source of truth, no re-derived range checks, no
-    /// execution-order races. Other enemies simply have no listener.
-    /// </summary>
-    public event System.Action<bool> StrikeResolved;
-
-    /// <summary>Read-only: damage of the attack currently being performed (0 when none). ROUND 38:
-    /// the Oni's ground wave derives its damage from this (half), so club tuning carries the wave.</summary>
-    public int CurrentAttackDamage() => currentAttack != null ? currentAttack.damage : 0;
-
-    /// <summary>Read-only, ROUND 39: whether the current attack's damage is delivered by touch
-    /// (see SetAttackTouchDriven). False when no attack is playing.</summary>
-    public bool CurrentAttackTouchDriven() => currentAttack != null && currentAttack.touchDriven;
 
     /// <summary>Read-only: the attack currently being performed, or "" when none.</summary>
     public string CurrentAttackName() => currentAttack != null ? currentAttack.attackName : "";

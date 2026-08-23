@@ -208,8 +208,8 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private bool clubTouchEnabled = true;
     [Tooltip("ROUND 39. How close the club's shaft line must come to Yoru's body to count as touching, metres. The kanabo is thick and she has a body, so ~0.7 reads honestly. Raise it if visual grazes fail to register; lower it if 'air touches' land. The [OniBoss:Touch] log prints the measured distance of every touch AND every swing's closest miss — tune from those numbers, not from feel.")]
     [SerializeField] private float clubTouchRadius = 0.7f;
-    [Tooltip("ROUND 41. The club only counts as touching while its tip is MOVING at least this fast, m/s. Measured over two full sessions: real blows sweep at 85-190 m/s, while the follow-through drift after a swing sits at 33-36 — and two of Hazel's 'reaction came when it finished' hits were exactly her stepping into that drifting club at clip 0.89-0.93. 50 splits the two cleanly: a finished swing can never hit, a real blow always can. The touch log prints tip speed on every touch and the swing's fastest tip on every miss.")]
-    [SerializeField] private float clubTouchMinSpeed = 50f;
+    [Tooltip("ROUND 39. The club only counts as touching while its tip is MOVING at least this fast, m/s — a real blow sweeps at 10-30. This is what stops his recovery pose (club resting near her after a swing — measured hovering 0.4m from her) from counting as a hit. The touch log prints tip speed on every touch and the swing's fastest tip on every miss.")]
+    [SerializeField] private float clubTouchMinSpeed = 6f;
     [Tooltip("ROUND 39. The touch check arms only after this fraction of the attack clip, so the WINDUP (the club whipping up/back at full speed, sometimes through her space at point-blank) can never deliver the hit early. Every measured real contact sits at 0.29-0.94 of its clip; windups live below 0.2. This is NOT a strike moment — inside the armed part, only real contact decides.")]
     [Range(0f, 0.9f)]
     [SerializeField] private float clubTouchArmFrom = 0.2f;

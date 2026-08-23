@@ -161,8 +161,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private string hitReactLight2Leg = "HitReact_Light_2Leg";
     [SerializeField] private string hitReactLight4Leg = "HitReact_Running_4Leg";
     [SerializeField] private string hitReactHeavy2Leg = "HitReact_Heavy_2Leg";
-    [Tooltip("ROUND 41. Heavy hit reaction while on 4 legs. RENAMED from hitReactHeavy4Leg: the player prefab had 'HitReact_Running_4Leg' (the RUN state!) saved in the old field, so every heavy hit in 4-leg form played running for up to 2.5s instead of a reaction — the saved value silently overrode the code. The rename drops that stale value; this default is the real reaction clip (the same one the 4-leg grab already uses).")]
-    [SerializeField] private string heavy4LegReactState = "Bhit_run_reaction_4";
+    [SerializeField] private string hitReactHeavy4Leg = "Bhit_run_reaction_4";
 
     [Header("Grab Reaction (Nopperabo close attack)")]
     [Tooltip("Reaction state played when an enemy grab catches Yoru while he is on 2 legs.")]
@@ -200,8 +199,6 @@ public class PlayerCombat : MonoBehaviour
     [Header("Hit Reaction Timing")]
     [SerializeField] private float lightHitReactDuration = 0.3f;
     [SerializeField] private float heavyHitReactDuration = 0.5f;
-    [Tooltip("ROUND 41. Seconds skipped at the START of every hit-reaction clip, so the visible flinch pose shows the same frame the hit lands instead of after the clip's wind-up frames. ~0.10 skips the anticipation of the ~1s reaction clips. 0 = play from frame 0 (old behavior). Measured fact: the reaction always fires 0ms after the hit — any remaining 'late' feel was these first frames.")]
-    [SerializeField] private float hitReactStartOffset = 0.10f;
     [Tooltip("Cut the 4-leg heavy hit reaction (Bhit_run_reaction_4) at this frame and blend back to idle, so the clips run-cycle tail does not read as Yoru jogging in place. 0 = play the full duration with no cut.")]
     [SerializeField] private int heavy4LegHitCutFrame = 60;
     [Tooltip("Total frame count of the 4-leg heavy reaction clip, used to convert the cut frame into a normalized time.")]
@@ -211,18 +208,13 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Reaction duration for light hits that land while the magic-mushroom hallucination is active (the Mushroom strike itself). The default 0.3s light reaction is unreadable under the screen distortion, so these hits hold the light reaction clip this long instead. The clip still blends out early if it finishes before this time.")]
     [SerializeField] private float hallucinationHitReactDuration = 0.7f;
 
-    // ROUND 36. The hit-reaction pull and the hit-reaction auto-facing are GONE — deleted, not
-    // switched off. A switch was tried first and it did nothing, because Unity keeps a serialized
-    // value in the open editor's memory across a recompile: the field had been born `true`, so it
-    // stayed `true` no matter what the code default said. Deleting the fields is the only change
-    // that cannot be ignored. Nothing moves or turns Yoru now except the player's own input.
-    // What she used to do on every hit, from every enemy:
-    //   • slide 0.5m along (attackerPos - herPos), i.e. straight INTO whatever hit her
-    //   • snap instantly to face the attacker, whipping 180 degrees if he was behind her
-    // She still feels the hit — reaction animation, flinch, VFX and the wave's impact are untouched.
-
-    [Tooltip("ROUND 36. Logs which hit-reaction clip played, its real length, and how long the blend into it takes. Diagnostic only — turn off once the reaction timing is settled.")]
-    [SerializeField] private bool logHitReactTiming = true;
+    [Header("Knockback Pull")]
+    [Tooltip("ROUND 34. OFF. Every hit used to drag Yoru 0.5m TOWARD whatever hit her — the direction was attacker-minus-her, so a punch pulled her into the puncher. None of the Oni's attacks are grabs (they all have Pulls Player off), so this was pure artefact and it read badly on every single hit. A new switch rather than setting Pull Distance to 0, because that field already has 0.5 saved in the scene and a changed code default would be ignored. Tick it only if you deliberately want hits to suck her in.")]
+    [SerializeField] private bool hitReactionPullsTowardAttacker = false;
+    [Tooltip("ROUND 34. ON keeps the existing behaviour of turning Yoru to face whatever just hit her. This is rotation only, no movement — untick if the snap bothers you.")]
+    [SerializeField] private bool hitReactionFacesAttacker = true;
+    [SerializeField] private float pullDistance = 0.5f;
+    [SerializeField] private float pullDuration = 0.15f;
 
     [Header("Layer Settings")]
     [SerializeField] private int combatLayerIndex = 1;
@@ -2135,12 +2127,32 @@ public class PlayerCombat : MonoBehaviour
 
         EndActiveCombatActions();
 
+        if (attackerPos != Vector3.zero && characterController != null)
+        {
+            Vector3 pullDir = attackerPos - cachedTransform.position;
+            pullDir.y = 0f;
+            if (pullDir.sqrMagnitude > 0.01f)
+            {
+                if (hitReactionFacesAttacker)
+                    cachedTransform.rotation = Quaternion.LookRotation(pullDir.normalized);
+
+                // ROUND 34: the pull is off. It moved her along attacker-minus-her, i.e. straight
+                // INTO whatever hit her, on every hit from every enemy. Facing the attacker is
+                // kept; being dragged at him is not.
+                if (hitReactionPullsTowardAttacker)
+                {
+                    if (pullCoroutine != null) StopCoroutine(pullCoroutine);
+                    pullCoroutine = StartCoroutine(SmoothPull(pullDir.normalized, pullDistance, pullDuration));
+                }
+            }
+        }
+
         string animState;
         float duration;
 
         if (isHeavy)
         {
-            animState = is4Leg ? heavy4LegReactState : hitReactHeavy2Leg;
+            animState = is4Leg ? hitReactHeavy4Leg : hitReactHeavy2Leg;
             duration = heavyHitReactDuration;
 
             // Clip-driven 4-leg heavy reaction: when a cut frame is configured, the reaction must
@@ -2148,7 +2160,7 @@ public class PlayerCombat : MonoBehaviour
             // 2s in), so the 0.5s timer is replaced by the max-hold ceiling. HoldHitReaction ends
             // the reaction the moment the clip crosses the cut frame, so the ceiling only matters
             // if the clip never gets there.
-            if (animState == heavy4LegReactState && heavy4LegHitCutFrame > 0 && heavy4LegHitTotalFrames > 0)
+            if (animState == hitReactHeavy4Leg && heavy4LegHitCutFrame > 0 && heavy4LegHitTotalFrames > 0)
                 duration = heavy4LegHitMaxHold;
         }
         else
@@ -2174,12 +2186,6 @@ public class PlayerCombat : MonoBehaviour
             hitReactHoldCoroutine = StartCoroutine(HoldHitReaction(animState, duration));
             lastCombatCrossFadeTime = Time.time;
             DebugLog($"Hit react: {animState} ({duration}s)");
-
-            // ROUND 36: the reaction fires at 0ms — measured 21 times out of 21 — so if it still
-            // reads late, the delay is inside the ANIMATION. This reports the clip that was chosen,
-            // how long it is, and how much of it is spent blending in, so a slow wind-in shows up
-            // as a number instead of a feeling.
-            if (logHitReactTiming) StartCoroutine(TraceHitReactClip(animState, duration));
         }
 
         if (CombatFeedbackManager.Instance != null)
@@ -2293,7 +2299,7 @@ public class PlayerCombat : MonoBehaviour
         // Both the heavy hit clip and the 4-leg grab clip carry a run/locomotion tail past the
         // reaction beat. Cut the release at the configured frame so Yoru blends back to idle instead
         // of playing that tail in place (which reads as running without moving).
-        bool hasHeavyCut = state == heavy4LegReactState && heavy4LegHitTotalFrames > 0 && heavy4LegHitCutFrame > 0;
+        bool hasHeavyCut = state == hitReactHeavy4Leg && heavy4LegHitTotalFrames > 0 && heavy4LegHitCutFrame > 0;
         bool hasGrabCut = state == grabReact4LegState && grabReact4LegTotalFrames > 0 && grabReact4LegCutFrame > 0;
         bool hasCut = hasHeavyCut || hasGrabCut;
         if (hasHeavyCut)
@@ -2328,29 +2334,6 @@ public class PlayerCombat : MonoBehaviour
         grabReactionCoroutine = null;
     }
     #endregion
-
-    /// <summary>
-    /// ROUND 36. Waits for the crossfade to resolve, then reports what the animator actually
-    /// ended up playing for this hit reaction: the clip, its length, and the blend time spent
-    /// before it. If the reaction is firing instantly but still reading late, the answer is in
-    /// these numbers — a clip whose first frames do not look like an impact will always feel
-    /// delayed no matter how fast the code is, and that is an FBX fix rather than a code one.
-    /// </summary>
-    private IEnumerator TraceHitReactClip(string requested, float requestedDuration)
-    {
-        float t0 = Time.time;
-        int guard = 0;
-        while (animator != null && animator.IsInTransition(combatLayerIndex) && guard++ < 120)
-            yield return null;
-
-        if (animator == null) yield break;
-        var st = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-        Debug.Log($"[HitReactTrace] asked for '{requested}' ({requestedDuration:F2}s) — "
-                + $"blend resolved after {(Time.time - t0) * 1000f:F0} ms, "
-                + $"now playing a clip {st.length:F2}s long at speed {st.speed:F2}, "
-                + $"layer weight {animator.GetLayerWeight(combatLayerIndex):F2}, "
-                + $"animator.speed {animator.speed:F2}.");
-    }
 
     private IEnumerator SmoothPull(Vector3 direction, float distance, float duration)
     {
@@ -2483,7 +2466,7 @@ public class PlayerCombat : MonoBehaviour
     {
         int hash = Animator.StringToHash(state);
         animator.SetLayerWeight(combatLayerIndex, 1f);
-        animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, Mathf.Max(0f, hitReactStartOffset));   // ROUND 41: skip the clip's wind-up so the flinch is visible the frame the hit lands
+        animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, 0f);
         yield return null;
 
         // Optional early cut: the 4-leg heavy clip (Bhit_run_reaction_4) runs into a locomotion cycle
@@ -2493,7 +2476,7 @@ public class PlayerCombat : MonoBehaviour
         // every other reaction.
         const float cutBlendOut = 0.12f;
         float cutNorm = 1f;
-        bool hasCut = state == heavy4LegReactState && heavy4LegHitTotalFrames > 0 && heavy4LegHitCutFrame > 0;
+        bool hasCut = state == hitReactHeavy4Leg && heavy4LegHitTotalFrames > 0 && heavy4LegHitCutFrame > 0;
         if (hasCut)
             cutNorm = Mathf.Clamp01((float)heavy4LegHitCutFrame / heavy4LegHitTotalFrames);
 
@@ -2509,7 +2492,7 @@ public class PlayerCombat : MonoBehaviour
             {
                 // Lost the reaction state (something overwrote the one-shot crossfade): re-assert it.
                 if (!animator.IsInTransition(combatLayerIndex))
-                    animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, Mathf.Max(0f, hitReactStartOffset));   // ROUND 41: skip the clip's wind-up so the flinch is visible the frame the hit lands
+                    animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, 0f);
 
                 // If the state has never been reached after repeated re-asserts, the state name
                 // almost certainly does not exist on the combat layer (CrossFade to a missing
@@ -2517,7 +2500,7 @@ public class PlayerCombat : MonoBehaviour
                 // Shout once so the broken Inspector field is identifiable from the console.
                 if (!settledOnce && !missingStateWarned && elapsed > 0.4f)
                 {
-                    Debug.LogWarning($"[Combat] Hit react state '{state}' never settled on combat layer {combatLayerIndex}. The reaction is firing but nothing is visible. Check the Hit Reaction state-name fields on PlayerCombat in the Inspector (expected: {hitReactLight2Leg} / {hitReactLight4Leg} / {hitReactHeavy2Leg} / {heavy4LegReactState}).");
+                    Debug.LogWarning($"[Combat] Hit react state '{state}' never settled on combat layer {combatLayerIndex}. The reaction is firing but nothing is visible. Check the Hit Reaction state-name fields on PlayerCombat in the Inspector (expected: {hitReactLight2Leg} / {hitReactLight4Leg} / {hitReactHeavy2Leg} / {hitReactHeavy4Leg}).");
                     missingStateWarned = true;
                 }
             }

@@ -203,21 +203,6 @@ public class OniBoss : MonoBehaviour
         new StrikeMomentOverride("KanaboSweep", 0.48f),
     };
 
-    [Header("Club touch — round 39")]
-    [Tooltip("ROUND 39 — Hazel's rule: whichever touches first is the hit. The club's damage now lands the FRAME the club really touches Yoru — the weapon is tracked as a LINE from handle to tip, every frame of the swing, so it is correct at every distance and every attack. The Strike Moments above stop dealing damage; their only job left is deciding when a missed swing RELEASES its ground wave. Untick to fall back to the timed strikes.")]
-    [SerializeField] private bool clubTouchEnabled = true;
-    [Tooltip("ROUND 39. How close the club's shaft line must come to Yoru's body to count as touching, metres. The kanabo is thick and she has a body, so ~0.7 reads honestly. Raise it if visual grazes fail to register; lower it if 'air touches' land. The [OniBoss:Touch] log prints the measured distance of every touch AND every swing's closest miss — tune from those numbers, not from feel.")]
-    [SerializeField] private float clubTouchRadius = 0.7f;
-    [Tooltip("ROUND 41. The club only counts as touching while its tip is MOVING at least this fast, m/s. Measured over two full sessions: real blows sweep at 85-190 m/s, while the follow-through drift after a swing sits at 33-36 — and two of Hazel's 'reaction came when it finished' hits were exactly her stepping into that drifting club at clip 0.89-0.93. 50 splits the two cleanly: a finished swing can never hit, a real blow always can. The touch log prints tip speed on every touch and the swing's fastest tip on every miss.")]
-    [SerializeField] private float clubTouchMinSpeed = 50f;
-    [Tooltip("ROUND 39. The touch check arms only after this fraction of the attack clip, so the WINDUP (the club whipping up/back at full speed, sometimes through her space at point-blank) can never deliver the hit early. Every measured real contact sits at 0.29-0.94 of its clip; windups live below 0.2. This is NOT a strike moment — inside the armed part, only real contact decides.")]
-    [Range(0f, 0.9f)]
-    [SerializeField] private float clubTouchArmFrom = 0.2f;
-    [Tooltip("ROUND 40. Bottom of Yoru's body line, metres above her feet. The club is now compared against her WHOLE body (a vertical line from here to Body Top), not one chest point — a slam descending from above meets her head first, so with a single chest point the hit registered ~100-150ms late ('slam hits very late'), and a high horizontal sweep could pass through her shoulders without ever nearing the chest point.")]
-    [SerializeField] private float clubTouchBodyBottom = 0.25f;
-    [Tooltip("ROUND 40. Top of Yoru's body line, metres above her feet — about her head. See Body Bottom.")]
-    [SerializeField] private float clubTouchBodyTop = 1.55f;
-
     [System.Serializable]
     public class StrikeMomentOverride
     {
@@ -314,17 +299,6 @@ public class OniBoss : MonoBehaviour
     private PlayerHealth playerHealthRef;
     private PlayerMovement playerMoveRef;   // ROUND 38: the wave's airborne check — jumping clears it
     private string waveAttackName = "";     // trail bookkeeping only (see UpdateSwingTrail)
-
-    // ROUND 39 — club touch state (see UpdateClubTouch).
-    private SwingWaveProjectile currentSwingWave;  // this swing's released wave, so a late club touch can cancel it
-    private Transform clubRootBone;                // shallowest kanabo bone — the handle end of the shaft line
-    private string clubTouchAttackName = "";       // which swing the touch bookkeeping belongs to
-    private bool   swingHitDelivered;              // the ONE hit of this swing has landed (club or wave)
-    private bool   clubPrevTipValid;               // tip speed needs last frame's tip position
-    private Vector3 clubPrevTipPos;
-    private float  clubTouchClosest = float.MaxValue;  // per-swing closest shaft-to-body distance, logged on swing end
-    private float  clubTouchClosestClip = -1f;
-    private float  clubTouchMaxSpeed;
 
     [Header("Strike contact measurement — round 15 (diagnostic, temporary)")]
     [Tooltip("ROUND 15. Measures, at RUNTIME, the moment his club is physically closest to Yoru during each swing, and compares it to the Strike Moment the damage actually fires on. The existing moments were measured from the FBX clips, which shows where the club is in the animation but not where SHE was standing — so it cannot tell you whether the club reaches her at real play distance. Pure measurement: reads the skeleton, changes no behaviour. Untick when the numbers are in.")]
@@ -562,29 +536,24 @@ public class OniBoss : MonoBehaviour
 
         // ROUND 15: locate the club's TIP — the deepest bone whose name matches — so the distance
         // being measured is the business end, not the handle in his fist.
-        // ROUND 25: found whenever the measurement, the swing wave, or the touch hit needs it.
-        // ROUND 39: ALSO the shallowest match — the handle end — so the club is a LINE from handle
-        // to tip for the touch check. A tip-only point misses shaft hits: close-range Club_Swing
-        // puts the tip 1-2m PAST her while the shaft crosses her body (measured, not guessed).
-        if ((measureStrikeContact || swingWaveEnabled || clubTouchEnabled) && !string.IsNullOrEmpty(clubBoneNameContains))
+        // ROUND 25: found whenever EITHER the measurement or the swing wave needs it — the hit
+        // effect is anchored to the club's tip, so it must not disappear when the diagnostic is
+        // switched off at the end of the hunt.
+        if ((measureStrikeContact || swingWaveEnabled) && !string.IsNullOrEmpty(clubBoneNameContains))
         {
             string needle = clubBoneNameContains.ToLowerInvariant();
             int bestDepth = -1;
-            int rootDepth = int.MaxValue;
             foreach (var t in GetComponentsInChildren<Transform>(true))
             {
                 if (t == null || !t.name.ToLowerInvariant().Contains(needle)) continue;
                 int depth = 0;
                 for (Transform w = t; w != null && w != transform; w = w.parent) depth++;
                 if (depth > bestDepth) { bestDepth = depth; clubBone = t; }
-                if (depth < rootDepth) { rootDepth = depth; clubRootBone = t; }
             }
-            if (clubRootBone == null || clubRootBone == clubBone)
-                clubRootBone = (clubBone != null && clubBone.parent != null) ? clubBone.parent : clubBone;
             if (clubBone != null)
-                DebugLog($"club tracking ON — tip '{clubBone.name}' (depth {bestDepth}), shaft root '{(clubRootBone != null ? clubRootBone.name : "none")}'.");
+                DebugLog($"strike contact measurement ON — tracking '{clubBone.name}' at depth {bestDepth}.");
             else
-                Debug.LogWarning($"[OniBoss] club tracking: no bone containing '{clubBoneNameContains}' under him. Touch hits and measurement are off; nothing else is affected.");
+                Debug.LogWarning($"[OniBoss] strike contact measurement: no bone containing '{clubBoneNameContains}' under him. Measurement is off; nothing else is affected.");
         }
 
         // The mesh must never be culled while its bones are on screen (see Charge Travel Cancel).
@@ -654,27 +623,6 @@ public class OniBoss : MonoBehaviour
                 else Debug.LogWarning($"[OniBoss] strike moment override: no attack named/animated '{o.attack}' on EnemyCombat.");
             }
             if (applied.Length > 0) DebugLog($"strike moments overridden:{applied}");
-        }
-
-        // ROUND 39 — her rule: whichever touches first is the hit. The engine hands these four
-        // attacks' damage to the touch detector (UpdateClubTouch); the strike moments above keep
-        // only one job — releasing the ground wave when a swing has not connected. The charge is
-        // NOT included: it keeps its own timed impact. If the club bones were not found, nothing
-        // is handed over and the timed strikes keep working exactly as before.
-        if (clubTouchEnabled && clubBone != null)
-        {
-            var touched = new System.Text.StringBuilder();
-            foreach (var name in new[] { "Club_Swing", "ClubSwing2", "ClubSlam", "KanaboSweep" })
-            {
-                if (combat.SetAttackTouchDriven(name, true)) touched.Append(' ').Append(name);
-                else Debug.LogWarning($"[OniBoss] club touch: no attack named/animated '{name}' on EnemyCombat.");
-            }
-            DebugLog($"club TOUCH hits ON (radius {clubTouchRadius:F2}m, min tip speed {clubTouchMinSpeed:F0}m/s, armed from {clubTouchArmFrom:F2} of the clip):{touched}. "
-                   + "First touch wins — club full damage, wave half, one hit per swing.");
-        }
-        else if (clubTouchEnabled)
-        {
-            Debug.LogWarning("[OniBoss] club touch is enabled but the club bone was not found — falling back to the timed strikes.");
         }
 
         // Turn the Oni into a committing heavy instead of a circling one. Done from code on purpose:
@@ -1065,17 +1013,14 @@ public class OniBoss : MonoBehaviour
             }
         }
 
-        // ROUND 39: for a TOUCH-DRIVEN attack the hit and its effect were already delivered at the
-        // touch. A timed attack (the fallback, or one not handed to the touch detector) still gets
-        // its impact effect at its own connected strike, exactly as before.
-        if (clubConnected && !combat.CurrentAttackTouchDriven()) SpawnHitLandVFX(hitPrefab);
+        if (clubConnected)
+        {
+            SpawnHitLandVFX(hitPrefab);
+            DebugLog($"{atk}: club connected — this swing's wave is cancelled.");
+            return;
+        }
 
         if (prefab == null) return;
-
-        // ROUND 40 — her words: "i really want to see the wave in every attack. wave hits if the
-        // club didn't hit, and if club did hit then wave won't hit but looks on the effect."
-        // So the wave SPAWNS EVERY SWING; the club only decides whether it carries damage.
-        bool armed = !clubConnected;
 
         // Born OUTSIDE his ~1.4m body (the scene's saved 0.3 had it born hidden inside him), low
         // to the floor, flying his forward — which is locked on where she was when the swing
@@ -1086,9 +1031,9 @@ public class OniBoss : MonoBehaviour
                        + transform.right   * nudge.x;
 
         float travel = Mathf.Max(0.5f, groundWaveTravel);
-        int waveDamage = armed ? Mathf.Max(1, combat.CurrentAttackDamage() / 2) : 0;   // half the club's when armed, always derived; 0 = pure visual
+        int waveDamage = Mathf.Max(1, combat.CurrentAttackDamage() / 2);   // half the club's — always derived, never its own number
 
-        var wave = SwingWaveProjectile.Launch(
+        SwingWaveProjectile.Launch(
             prefab, origin, transform.forward,
             transform, playerT, playerHealthRef, playerMoveRef,
             groundWaveSpeed, travel, groundWaveWidth,
@@ -1096,185 +1041,9 @@ public class OniBoss : MonoBehaviour
             hitPrefab, hitLandVFXLifetime, hitLandVFXOffset,
             life, tilt, swingWaveVisualPlaybackSpeed);
 
-        if (armed)
-        {
-            // ROUND 39: this swing owns its armed wave. If the wave touches her first, it spends
-            // the swing and the club stands down; if the club touches her first, the wave is
-            // DISARMED mid-flight and flies on as pure effect (see UpdateClubTouch). First touch
-            // wins, one hit per swing.
-            currentSwingWave = wave;
-            wave.onConnected = OnSwingWaveConnected;
-
-            DebugLog($"{atk}: club has not connected — ground wave released ARMED, {groundWaveStartDistance + nudge.z:F1}m in front, "
-                   + $"{groundWaveSpeed:F0}m/s x {travel:F1}m = {travel / Mathf.Max(0.01f, groundWaveSpeed):F2}s, "
-                   + $"carrying {waveDamage} (half of the club's {combat.CurrentAttackDamage()}).");
-        }
-        else
-        {
-            DebugLog($"{atk}: club already hit — ground wave released as VISUAL only (0 damage), per round 40.");
-        }
-    }
-
-    /// <summary>
-    /// ROUND 39/40 — the club's hit, by TOUCH. Runs in LateUpdate so the skeleton is posed. The
-    /// club is a line from handle to tip, and (ROUND 40) Yoru is a line from her feet to her head
-    /// — the frame those two lines come within Club Touch Radius of each other, while the tip is
-    /// genuinely swinging and the clip is past the windup, the engine delivers the full club hit
-    /// (same pipeline as ever: shake, heavy/light, reaction, stun, that frame) and this swing is
-    /// spent: its wave is DISARMED (it flies on as pure effect — round 40, the wave is always
-    /// seen) or spawns unarmed. If the wave was released first AND touched her first, the wave's
-    /// hit spent the swing and the club stands down. Whichever touches first — exactly as Hazel
-    /// put it. Every swing logs either its touch (distance, clip position, tip speed) or its
-    /// closest miss, so the tunables are tuned from numbers, never from feel.
-    /// </summary>
-    private void UpdateClubTouch()
-    {
-        if (!clubTouchEnabled || combat == null || clubBone == null || clubRootBone == null || playerT == null) return;
-
-        bool inAttack = combat.GetCurrentState() == EnemyCombat.EnemyState.Attack;
-        string atk = inAttack ? combat.CurrentAttackName() : "";
-        bool isCharge = inAttack && (atk == chargeStateName || combat.CurrentAttackAnim() == chargeStateName);
-
-        if (!inAttack || isCharge)
-        {
-            if (clubTouchAttackName.Length > 0) FlushClubTouchSwing();
-            clubPrevTipValid = false;
-            return;
-        }
-
-        if (atk != clubTouchAttackName)
-        {
-            if (clubTouchAttackName.Length > 0) FlushClubTouchSwing();
-            clubTouchAttackName  = atk;
-            swingHitDelivered    = false;
-            currentSwingWave     = null;   // a new swing owns no wave yet; an older wave flies on under its own swing's account
-            clubPrevTipValid     = false;
-            clubTouchClosest     = float.MaxValue;
-            clubTouchClosestClip = -1f;
-            clubTouchMaxSpeed    = 0f;
-        }
-
-        // Tip speed from last frame's posed position — the "is it actually swinging" gate.
-        Vector3 tip = clubBone.position;
-        float dt = Time.deltaTime;
-        float tipSpeed = (clubPrevTipValid && dt > 0.0001f) ? Vector3.Distance(tip, clubPrevTipPos) / dt : 0f;
-        clubPrevTipPos   = tip;
-        clubPrevTipValid = true;
-        if (tipSpeed > clubTouchMaxSpeed) clubTouchMaxSpeed = tipSpeed;
-
-        if (swingHitDelivered) return;
-        if (animator == null || animator.IsInTransition(0)) return;
-
-        float clip = Mathf.Clamp01(animator.GetCurrentAnimatorStateInfo(0).normalizedTime);
-        if (clip < clubTouchArmFrom) return;
-
-        // ROUND 40: her WHOLE body line, not one chest point — a slam descending from above meets
-        // her head long before it meets a chest-height point, and that gap was the measured
-        // ~100-150ms of "slam hits very late". A high sweep through her shoulders counts now too.
-        Vector3 bodyBottom = playerT.position + Vector3.up * clubTouchBodyBottom;
-        Vector3 bodyTop    = playerT.position + Vector3.up * clubTouchBodyTop;
-        float shaftDist = DistanceSegmentToSegment(clubRootBone.position, tip, bodyBottom, bodyTop);
-        if (shaftDist < clubTouchClosest) { clubTouchClosest = shaftDist; clubTouchClosestClip = clip; }
-
-        if (shaftDist > clubTouchRadius) return;
-        if (tipSpeed < clubTouchMinSpeed) return;
-
-        // Contact. The engine runs the full club hit this frame — or refuses if this attack's hit
-        // was somehow already delivered engine-side; either way the swing is spent.
-        bool delivered = combat.DeliverStrikeOnTouch();
-        swingHitDelivered = true;
-        if (!delivered) return;
-
-        SpawnHitLandVFX(HitVFXForAttack(atk, combat.CurrentAttackAnim()));
-        bool disarmedWave = currentSwingWave != null;
-        if (disarmedWave) currentSwingWave.CancelledByClub();   // released before he reached her — the club got there first, so it flies on as pure effect
-
-        Debug.Log($"[OniBoss:Touch] {atk}: club TOUCHED Yoru at clip {clip:F2} — shaft {shaftDist:F2}m from her body line, tip speed {tipSpeed:F0}m/s. Full club hit delivered this frame."
-                + (disarmedWave ? " This swing's wave is disarmed and flies on as visual." : ""));
-    }
-
-    /// <summary>ROUND 39. End-of-swing bookkeeping + the tuning line: how close the club came when
-    /// it did NOT touch. Prints only while the ClubPos diagnostic is on.</summary>
-    private void FlushClubTouchSwing()
-    {
-        if (logClubPositionAtStrike && !swingHitDelivered && clubTouchClosestClip >= 0f && clubTouchClosest < float.MaxValue * 0.5f)
-            Debug.Log($"[OniBoss:Touch] {clubTouchAttackName}: no touch this swing — closest {clubTouchClosest:F2}m at clip {clubTouchClosestClip:F2}, fastest tip {clubTouchMaxSpeed:F0}m/s (radius {clubTouchRadius:F2}, min speed {clubTouchMinSpeed:F0}).");
-        clubTouchAttackName  = "";
-        swingHitDelivered    = false;
-        currentSwingWave     = null;
-        clubTouchClosest     = float.MaxValue;
-        clubTouchClosestClip = -1f;
-        clubTouchMaxSpeed    = 0f;
-    }
-
-    /// <summary>ROUND 39. This swing's wave touched her first — the swing is spent and the club
-    /// stands down. A wave connecting after its swing already ended is its own business (the
-    /// current-swing reference was cleared), so it can never block the NEXT swing's club.</summary>
-    private void OnSwingWaveConnected(SwingWaveProjectile w)
-    {
-        if (w != null && ReferenceEquals(w, currentSwingWave)) swingHitDelivered = true;
-    }
-
-    /// <summary>ROUND 39. The hit effect this attack's row wants (or the fallback) — shared by the
-    /// touch delivery and the timed fallback.</summary>
-    private GameObject HitVFXForAttack(string atk, string anim)
-    {
-        GameObject hitPrefab = hitLandVFX;
-        if (swingWaveVFXByAttack != null)
-        {
-            foreach (var b in swingWaveVFXByAttack)
-            {
-                if (b == null || string.IsNullOrEmpty(b.attack)) continue;
-                if (b.attack != atk && b.attack != anim) continue;
-                if (b.hitVFX != null) hitPrefab = b.hitVFX;
-                break;
-            }
-        }
-        return hitPrefab;
-    }
-
-    /// <summary>ROUND 40. Shortest distance between two segments — the club's shaft line against
-    /// Yoru's body line. Closed-form clamped solution (Ericson, Real-Time Collision Detection).
-    /// 3D on purpose: jumping over a low sweep genuinely clears the shaft.</summary>
-    private static float DistanceSegmentToSegment(Vector3 p1, Vector3 q1, Vector3 p2, Vector3 q2)
-    {
-        Vector3 d1 = q1 - p1;   // club: root -> tip
-        Vector3 d2 = q2 - p2;   // body: bottom -> top
-        Vector3 r  = p1 - p2;
-        float a = Vector3.Dot(d1, d1);
-        float e = Vector3.Dot(d2, d2);
-        float f = Vector3.Dot(d2, r);
-        const float EPS = 0.00000001f;
-
-        float s, t;
-        if (a <= EPS && e <= EPS) return r.magnitude;
-        if (a <= EPS)
-        {
-            s = 0f;
-            t = Mathf.Clamp01(f / e);
-        }
-        else
-        {
-            float c = Vector3.Dot(d1, r);
-            if (e <= EPS)
-            {
-                t = 0f;
-                s = Mathf.Clamp01(-c / a);
-            }
-            else
-            {
-                float b = Vector3.Dot(d1, d2);
-                float denom = a * e - b * b;
-                s = denom > EPS ? Mathf.Clamp01((b * f - c * e) / denom) : 0f;
-                t = (b * s + f) / e;
-                if (t < 0f)      { t = 0f; s = Mathf.Clamp01(-c / a); }
-                else if (t > 1f) { t = 1f; s = Mathf.Clamp01((b - c) / a); }
-            }
-        }
-
-        Vector3 c1 = p1 + d1 * s;
-        Vector3 c2 = p2 + d2 * t;
-        return Vector3.Distance(c1, c2);
+        DebugLog($"{atk}: club missed — ground wave born {groundWaveStartDistance + nudge.z:F1}m in front, "
+               + $"{groundWaveSpeed:F0}m/s x {travel:F1}m = armed {travel / Mathf.Max(0.01f, groundWaveSpeed):F2}s, "
+               + $"carrying {waveDamage} (half of the club's {combat.CurrentAttackDamage()}).");
     }
 
     /// <summary>
@@ -1373,7 +1142,6 @@ public class OniBoss : MonoBehaviour
     private void LateUpdate()
     {
         UpdateChargePin();
-        UpdateClubTouch();              // ROUND 39 — the club's real hit; needs the posed skeleton
         UpdateStrikeContactMeasure();   // ROUND 15 diagnostic — needs the posed skeleton
     }
 
