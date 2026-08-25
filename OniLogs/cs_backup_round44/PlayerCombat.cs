@@ -166,8 +166,8 @@ public class PlayerCombat : MonoBehaviour
 
     [Tooltip("ROUND 42 — Hazel's rule: a LIGHT hit while Yoru is on 4 legs AND truly moving (faster than Running React Min Speed) plays THIS reaction, so she reacts in stride instead of stopping. Standing-ish on 4 legs keeps the normal 4-leg light reaction above.")]
     [SerializeField] private string runningLightReactState = "HitReact_Running_4Leg";
-    [Tooltip("ROUND 42/44. How fast Yoru must actually be moving (m/s, from the CharacterController) for the running reaction above to be chosen. Her run speed is ~7. ROUND 44: lowered to 1.5 ('moving at all') because at 3 the reaction never triggered in two full test sessions — she slows the instant the hit lands.")]
-    [SerializeField] private float runningReactMinSpeed = 1.5f;
+    [Tooltip("ROUND 42. How fast Yoru must actually be moving (m/s, from the CharacterController) for the running reaction above to be chosen. Her run speed is ~7; 3 means 'clearly moving'.")]
+    [SerializeField] private float runningReactMinSpeed = 3f;
 
     [Header("Grab Reaction (Nopperabo close attack)")]
     [Tooltip("Reaction state played when an enemy grab catches Yoru while he is on 2 legs.")]

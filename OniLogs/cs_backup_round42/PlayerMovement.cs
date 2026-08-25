@@ -742,21 +742,7 @@ public class PlayerMovement : MonoBehaviour
    
     
     /// <summary>Returns true while the player is off the ground (jumping or falling). Read-only; used by enemies for anti-air timing.</summary>
-    public bool IsAirborne() => !HasState(PlayerState.Grounded);
-
-    /// <summary>ROUND 42. Actual planar speed this frame (m/s), straight from the CharacterController —
-    /// used by PlayerCombat to tell "hit while truly running" from "hit while standing in 4-leg form".</summary>
-    public float CurrentPlanarSpeed
-    {
-        get
-        {
-            if (controller == null) return 0f;
-            Vector3 v = controller.velocity;
-            v.y = 0f;
-            return v.magnitude;
-        }
-    }
-
+    public bool IsAirborne() => !HasState(PlayerState.Grounded);    
     /// <summary>Returns remaining time in the jump window. Used by PlayerCombat for air dodge/dash timing.</summary>
     public float GetJumpWindowTimer() => jumpWindowTimer;
     

@@ -218,19 +218,6 @@ public class OniBoss : MonoBehaviour
     [Tooltip("ROUND 40. Top of Yoru's body line, metres above her feet — about her head. See Body Bottom.")]
     [SerializeField] private float clubTouchBodyTop = 1.55f;
 
-    [Header("Combo ramp & finisher wave — round 42")]
-    [Tooltip("ROUND 42. Damage multiplier for the MIDDLE hits of a combo (2nd, 3rd... before the last). Hazel's pick, like other action games: fixed by position, resets every combo. 1 = off. Pushed into the shared engine at Start, so other enemies stay untouched.")]
-    [SerializeField] private float comboMidDamageMult = 1.25f;
-    [Tooltip("ROUND 42. Damage multiplier for the LAST hit of a combo — the finisher. Applies to the club touch AND carries into what the finisher wave derives from.")]
-    [SerializeField] private float comboFinisherDamageMult = 1.5f;
-    [Tooltip("ROUND 42. The combo finisher's wave is THIS many times bigger — visual size and hit width. Only the finisher: every other wave keeps the base size you tuned in the fields above.")]
-    [SerializeField] private float finisherWaveScale = 2f;
-    [Tooltip("ROUND 42. The combo finisher's wave travels THIS many times further than Ground Wave Travel.")]
-    [SerializeField] private float finisherWaveTravelMult = 2f;
-    [Tooltip("ROUND 44. Chance that a charge picked ALONE chains straight into a fast random melee follow-up — the charge stops being a blunt single hit. The follow-up is the combo finisher: x1.5 damage and the big finisher wave. 0 = off.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float chargeFollowUpChance = 0.9f;
-
     [System.Serializable]
     public class StrikeMomentOverride
     {
@@ -335,7 +322,6 @@ public class OniBoss : MonoBehaviour
     private bool   swingHitDelivered;              // the ONE hit of this swing has landed (club or wave)
     private bool   clubPrevTipValid;               // tip speed needs last frame's tip position
     private Vector3 clubPrevTipPos;
-    private Vector3 clubPrevRootPos;               // ROUND 42: the shaft root moves too — needed for the one-frame prediction
     private float  clubTouchClosest = float.MaxValue;  // per-swing closest shaft-to-body distance, logged on swing end
     private float  clubTouchClosestClip = -1f;
     private float  clubTouchMaxSpeed;
@@ -389,12 +375,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float chargeWaveInterval = 0.09f;
     [Tooltip("Width of each wave arc in metres. Scale to the Oni's size.")]
     [SerializeField] private float chargeWaveScale = 2.6f;
-    [Tooltip("ROUND 43 — YOUR fire for the charge. Drag a fire VFX prefab here: while the rush travels, one puff spawns at his feet every Charge Wave Interval seconds and lives Charge Trail Lifetime seconds — a burning line follows him along the ground. Empty = no fire trail. (This replaces the gray placeholder arcs; the old toggle below only matters when this slot is empty.)")]
-    [SerializeField] private GameObject chargeGroundTrailVFX;
-    [Tooltip("ROUND 43. Seconds each fire puff of the charge trail burns before it is destroyed.")]
-    [SerializeField] private float chargeTrailLifetime = 1.5f;
-    [Tooltip("ROUND 43. Effect spawned ON Yoru at the exact moment the charge's damage connects. Empty = the shared Hit Land VFX is used.")]
-    [SerializeField] private GameObject chargeHitVFX;
 
     [Header("Boss Bar")]
     [Tooltip("Drive the screen-top BossHealthBarUI for this boss: show on any hostile state, crimson at phase 2, hide on disengage. Needs a BossHealthBar object (with BossHealthBarUI) on the HUD canvas.")]
@@ -695,21 +675,6 @@ public class OniBoss : MonoBehaviour
         else if (clubTouchEnabled)
         {
             Debug.LogWarning("[OniBoss] club touch is enabled but the club bone was not found — falling back to the timed strikes.");
-        }
-
-        // ROUND 42 — combo damage ramp, her pick ("like other games"): opener x1, middle hits
-        // x1.25, finisher x1.5, fixed by position. Pushed from here so the shared engine keeps
-        // x1 for every other enemy. The waves inherit it automatically through CurrentAttackDamage.
-        combat.ConfigureComboDamageRamp(comboMidDamageMult, comboFinisherDamageMult);
-        DebugLog($"combo damage ramp ON: mid x{comboMidDamageMult:F2}, finisher x{comboFinisherDamageMult:F2} — "
-               + $"finisher wave carries FULL damage at x{finisherWaveScale:F1} size, x{finisherWaveTravelMult:F1} travel.");
-
-        // ROUND 44 — her call ("yes"): the charge alone looks blunt, so ~90% of solo charges chain
-        // into a fast melee follow-up through the normal combo machinery.
-        if (chargeFollowUpChance > 0f)
-        {
-            combat.ConfigureChargeFollowUp(chargeStateName, chargeFollowUpChance);
-            DebugLog($"charge follow-up ON: {chargeFollowUpChance:P0} of solo charges chain into a random melee finisher.");
         }
 
         // Turn the Oni into a committing heavy instead of a circling one. Done from code on purpose:
@@ -1050,22 +1015,7 @@ public class OniBoss : MonoBehaviour
 
         string atk  = combat.CurrentAttackName();
         string anim = combat.CurrentAttackAnim();
-        if (atk == chargeStateName || anim == chargeStateName)
-        {
-            // The charge owns its own impact — ROUND 43: and it finally SHOWS one. Fired from the
-            // engine's own resolution, so the effect appears the exact frame the charge damage lands.
-            if (clubConnected && playerT != null)
-            {
-                GameObject fx = chargeHitVFX != null ? chargeHitVFX : hitLandVFX;
-                if (fx != null)
-                {
-                    GameObject go = Instantiate(fx, playerT.position + Vector3.up * strikeContactBodyHeight,
-                                                Quaternion.LookRotation(-transform.forward));
-                    if (hitLandVFXLifetime > 0f) Destroy(go, hitLandVFXLifetime);
-                }
-            }
-            return;
-        }
+        if (atk == chargeStateName || anim == chargeStateName) return;   // the charge owns its own impact
 
         // ROUND 26 — measurement only. The swing effect is currently spawned at a point measured
         // from his FEET (Swing Wave VFX Forward / Height), numbers that were guessed before anyone
@@ -1135,26 +1085,16 @@ public class OniBoss : MonoBehaviour
                        + Vector3.up        * (groundWaveHeight        + nudge.y)
                        + transform.right   * nudge.x;
 
-        // ROUND 42 — the combo FINISHER's wave is the show-piece: bigger, further, and FULL club
-        // damage instead of half. Single attacks and combo openers keep the normal wave exactly
-        // as tuned. (CurrentAttackDamage already carries the combo ramp, so a finisher wave is
-        // full ramped damage.)
-        bool finisher = combat.CurrentAttackIsComboFinisher();
-        float travel = Mathf.Max(0.5f, groundWaveTravel) * (finisher ? Mathf.Max(1f, finisherWaveTravelMult) : 1f);
-        float width  = groundWaveWidth * (finisher ? Mathf.Max(1f, finisherWaveScale) : 1f);
-        int waveDamage = 0;
-        if (armed)
-            waveDamage = finisher ? Mathf.Max(1, combat.CurrentAttackDamage())
-                                  : Mathf.Max(1, combat.CurrentAttackDamage() / 2);
+        float travel = Mathf.Max(0.5f, groundWaveTravel);
+        int waveDamage = armed ? Mathf.Max(1, combat.CurrentAttackDamage() / 2) : 0;   // half the club's when armed, always derived; 0 = pure visual
 
         var wave = SwingWaveProjectile.Launch(
             prefab, origin, transform.forward,
             transform, playerT, playerHealthRef, playerMoveRef,
-            groundWaveSpeed, travel, width,
+            groundWaveSpeed, travel, groundWaveWidth,
             waveDamage,
             hitPrefab, hitLandVFXLifetime, hitLandVFXOffset,
-            life, tilt, swingWaveVisualPlaybackSpeed,
-            finisher ? Mathf.Max(1f, finisherWaveScale) : 1f);
+            life, tilt, swingWaveVisualPlaybackSpeed);
 
         if (armed)
         {
@@ -1167,13 +1107,11 @@ public class OniBoss : MonoBehaviour
 
             DebugLog($"{atk}: club has not connected — ground wave released ARMED, {groundWaveStartDistance + nudge.z:F1}m in front, "
                    + $"{groundWaveSpeed:F0}m/s x {travel:F1}m = {travel / Mathf.Max(0.01f, groundWaveSpeed):F2}s, "
-                   + (finisher
-                        ? $"COMBO FINISHER: FULL {waveDamage} damage, x{finisherWaveScale:F1} size, x{finisherWaveTravelMult:F1} travel."
-                        : $"carrying {waveDamage} (half of the club's {combat.CurrentAttackDamage()})."));
+                   + $"carrying {waveDamage} (half of the club's {combat.CurrentAttackDamage()}).");
         }
         else
         {
-            DebugLog($"{atk}: club already hit — ground wave released as VISUAL only (0 damage){(finisher ? $", finisher size x{finisherWaveScale:F1}" : "")}.");
+            DebugLog($"{atk}: club already hit — ground wave released as VISUAL only (0 damage), per round 40.");
         }
     }
 
@@ -1217,21 +1155,11 @@ public class OniBoss : MonoBehaviour
         }
 
         // Tip speed from last frame's posed position — the "is it actually swinging" gate.
-        Vector3 tip  = clubBone.position;
-        Vector3 root = clubRootBone.position;
+        Vector3 tip = clubBone.position;
         float dt = Time.deltaTime;
-        bool havePrev = clubPrevTipValid && dt > 0.0001f;
-        float tipSpeed  = havePrev ? Vector3.Distance(tip, clubPrevTipPos) / dt : 0f;
-        Vector3 tipVel  = havePrev ? (tip  - clubPrevTipPos)  / dt : Vector3.zero;
-        Vector3 rootVel = havePrev ? (root - clubPrevRootPos) / dt : Vector3.zero;
+        float tipSpeed = (clubPrevTipValid && dt > 0.0001f) ? Vector3.Distance(tip, clubPrevTipPos) / dt : 0f;
         clubPrevTipPos   = tip;
-        clubPrevRootPos  = root;
         clubPrevTipValid = true;
-
-        // ROUND 42: skeleton SNAPS (blend pops, state jumps) read as impossible speeds — measured
-        // spikes of 519-1078 m/s while real blows top out around 190. A frame like that is a
-        // teleport, not a swing: no touch, no prediction, and it is not a real "fastest tip".
-        if (tipSpeed > 300f) return;
         if (tipSpeed > clubTouchMaxSpeed) clubTouchMaxSpeed = tipSpeed;
 
         if (swingHitDelivered) return;
@@ -1245,21 +1173,10 @@ public class OniBoss : MonoBehaviour
         // ~100-150ms of "slam hits very late". A high sweep through her shoulders counts now too.
         Vector3 bodyBottom = playerT.position + Vector3.up * clubTouchBodyBottom;
         Vector3 bodyTop    = playerT.position + Vector3.up * clubTouchBodyTop;
-        float shaftDist = DistanceSegmentToSegment(root, tip, bodyBottom, bodyTop);
+        float shaftDist = DistanceSegmentToSegment(clubRootBone.position, tip, bodyBottom, bodyTop);
         if (shaftDist < clubTouchClosest) { clubTouchClosest = shaftDist; clubTouchClosestClip = clip; }
 
-        // ROUND 42 — one frame of foresight. At 85-190 m/s the club crosses 1.5-3m between two
-        // frames, so waiting for "inside NOW" can be one frame behind what the eye already saw.
-        // If NEXT frame's projected club line is already inside her, the touch is this instant.
-        bool touching  = shaftDist <= clubTouchRadius;
-        bool predicted = false;
-        if (!touching && havePrev)
-        {
-            float nextDist = DistanceSegmentToSegment(root + rootVel * dt, tip + tipVel * dt, bodyBottom, bodyTop);
-            if (nextDist <= clubTouchRadius) { touching = true; predicted = true; shaftDist = nextDist; }
-        }
-
-        if (!touching) return;
+        if (shaftDist > clubTouchRadius) return;
         if (tipSpeed < clubTouchMinSpeed) return;
 
         // Contact. The engine runs the full club hit this frame — or refuses if this attack's hit
@@ -1272,7 +1189,7 @@ public class OniBoss : MonoBehaviour
         bool disarmedWave = currentSwingWave != null;
         if (disarmedWave) currentSwingWave.CancelledByClub();   // released before he reached her — the club got there first, so it flies on as pure effect
 
-        Debug.Log($"[OniBoss:Touch] {atk}: club TOUCHED Yoru at clip {clip:F2} — shaft {shaftDist:F2}m from her body line, tip speed {tipSpeed:F0}m/s{(predicted ? ", ONE FRAME EARLY (predicted)" : "")}. Full club hit delivered this frame."
+        Debug.Log($"[OniBoss:Touch] {atk}: club TOUCHED Yoru at clip {clip:F2} — shaft {shaftDist:F2}m from her body line, tip speed {tipSpeed:F0}m/s. Full club hit delivered this frame."
                 + (disarmedWave ? " This swing's wave is disarmed and flies on as visual." : ""));
     }
 
@@ -1686,21 +1603,7 @@ public class OniBoss : MonoBehaviour
                     }
                     combat.HoldAttackSafety();                                              // a long rush is not a hung state
 
-                    if (chargeGroundTrailVFX != null)
-                    {
-                        // ROUND 43 — Hazel's fire: a puff at his feet on a timer, so the rush
-                        // leaves a burning line on the ground behind him.
-                        chargeWaveTimer -= Time.unscaledDeltaTime;
-                        if (chargeWaveTimer <= 0f)
-                        {
-                            chargeWaveTimer = Mathf.Max(0.02f, chargeWaveInterval);
-                            GameObject puff = Instantiate(chargeGroundTrailVFX,
-                                transform.position + Vector3.up * 0.08f,
-                                Quaternion.LookRotation(transform.forward));
-                            Destroy(puff, Mathf.Max(0.2f, chargeTrailLifetime));
-                        }
-                    }
-                    else if (chargeTrailVFX)
+                    if (chargeTrailVFX)
                     {
                         chargeWaveTimer -= Time.unscaledDeltaTime;
                         if (chargeWaveTimer <= 0f)

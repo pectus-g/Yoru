@@ -1293,48 +1293,6 @@ public class EnemyCombat : MonoBehaviour
     public bool CurrentAttackIsComboFinisher()
         => currentAttack != null && !string.IsNullOrEmpty(activeComboName) && comboQueue != null && comboQueue.Count == 0;
 
-    // ROUND 44: "the charge alone looks blunt" — when the named attack is chosen as a SINGLE, it
-    // chains into a fast random melee follow-up this often, through the normal combo machinery
-    // (sharp no-cooldown transition; the round-42 ramp makes the follow-up the finisher). NOT
-    // serialized: off by default, a boss layer opts in — other enemies unchanged.
-    private string chargeFollowUpAttackName = "";
-    private float chargeFollowUpChance = 0f;
-
-    public void ConfigureChargeFollowUp(string attackNameOrAnim, float chance)
-    {
-        chargeFollowUpAttackName = attackNameOrAnim;
-        chargeFollowUpChance = Mathf.Clamp01(chance);
-    }
-
-    /// <summary>ROUND 44. Weighted random pick of a plain melee attack for the charge's follow-up:
-    /// phase-valid, not the charge itself, no pulls, no lunges, no ranged picks.</summary>
-    private EnemyAttack PickMeleeFollowUp(EnemyAttack exclude)
-    {
-        if (attacks == null) return null;
-        int totalWeight = 0;
-        for (int i = 0; i < attacks.Length; i++)
-        {
-            var a = attacks[i];
-            if (a == null || a == exclude || a.pullsPlayer || a.lungeToPlayer) continue;
-            if (a.maxSelectRange > 0f) continue;
-            if (!IsAttackValid(a)) continue;
-            totalWeight += a.weight;
-        }
-        if (totalWeight == 0) return null;
-        int roll = Random.Range(0, totalWeight);
-        int running = 0;
-        for (int i = 0; i < attacks.Length; i++)
-        {
-            var a = attacks[i];
-            if (a == null || a == exclude || a.pullsPlayer || a.lungeToPlayer) continue;
-            if (a.maxSelectRange > 0f) continue;
-            if (!IsAttackValid(a)) continue;
-            running += a.weight;
-            if (roll < running) return a;
-        }
-        return null;
-    }
-
     /// <summary>
     /// Runtime opt-in used by boss layers (OniBoss) so the behavior can be switched on WITHOUT any
     /// inspector work and WITHOUT changing the default for any other enemy. Every parameter keeps
@@ -1606,25 +1564,6 @@ public class EnemyCombat : MonoBehaviour
                     // telegraph), so reset the fired flag so the hallucination still fires here.
                     if (oldState != EnemyState.Telegraph)
                         hallucinationFiredThisAttack = false;
-
-                    // ROUND 44 — the charge is never blunt: chosen ALONE, it arms a fast random
-                    // melee follow-up (~90%) that HandleRecovery chains with no cooldown. The
-                    // combo ramp then makes that follow-up the finisher (x1.5 + the big wave).
-                    if (chargeFollowUpChance > 0f && string.IsNullOrEmpty(activeComboName)
-                        && !string.IsNullOrEmpty(chargeFollowUpAttackName)
-                        && (currentAttack.attackName == chargeFollowUpAttackName || currentAttack.attackAnim == chargeFollowUpAttackName)
-                        && Random.value < chargeFollowUpChance)
-                    {
-                        EnemyAttack next = PickMeleeFollowUp(currentAttack);
-                        if (next != null)
-                        {
-                            comboQueue.Clear();
-                            comboQueue.Enqueue(next);
-                            activeComboName = "ChargeFollowUp";
-                            comboStepIndex = 1;
-                            DebugLog($"charge follow-up armed: {next.attackName} chains after the charge.");
-                        }
-                    }
 
                     // Close attack becomes the cinematic grab (swoop + lean + yank-in + freeze +
                     // camera roll + return), run as its own coroutine. It owns the entire strike,

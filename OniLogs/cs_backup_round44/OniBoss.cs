@@ -227,9 +227,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float finisherWaveScale = 2f;
     [Tooltip("ROUND 42. The combo finisher's wave travels THIS many times further than Ground Wave Travel.")]
     [SerializeField] private float finisherWaveTravelMult = 2f;
-    [Tooltip("ROUND 44. Chance that a charge picked ALONE chains straight into a fast random melee follow-up — the charge stops being a blunt single hit. The follow-up is the combo finisher: x1.5 damage and the big finisher wave. 0 = off.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float chargeFollowUpChance = 0.9f;
 
     [System.Serializable]
     public class StrikeMomentOverride
@@ -703,14 +700,6 @@ public class OniBoss : MonoBehaviour
         combat.ConfigureComboDamageRamp(comboMidDamageMult, comboFinisherDamageMult);
         DebugLog($"combo damage ramp ON: mid x{comboMidDamageMult:F2}, finisher x{comboFinisherDamageMult:F2} — "
                + $"finisher wave carries FULL damage at x{finisherWaveScale:F1} size, x{finisherWaveTravelMult:F1} travel.");
-
-        // ROUND 44 — her call ("yes"): the charge alone looks blunt, so ~90% of solo charges chain
-        // into a fast melee follow-up through the normal combo machinery.
-        if (chargeFollowUpChance > 0f)
-        {
-            combat.ConfigureChargeFollowUp(chargeStateName, chargeFollowUpChance);
-            DebugLog($"charge follow-up ON: {chargeFollowUpChance:P0} of solo charges chain into a random melee finisher.");
-        }
 
         // Turn the Oni into a committing heavy instead of a circling one. Done from code on purpose:
         // the shared EnemyCombat keeps its old defaults for every other enemy and no inspector work

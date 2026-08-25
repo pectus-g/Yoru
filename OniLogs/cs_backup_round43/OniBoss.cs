@@ -227,9 +227,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float finisherWaveScale = 2f;
     [Tooltip("ROUND 42. The combo finisher's wave travels THIS many times further than Ground Wave Travel.")]
     [SerializeField] private float finisherWaveTravelMult = 2f;
-    [Tooltip("ROUND 44. Chance that a charge picked ALONE chains straight into a fast random melee follow-up — the charge stops being a blunt single hit. The follow-up is the combo finisher: x1.5 damage and the big finisher wave. 0 = off.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float chargeFollowUpChance = 0.9f;
 
     [System.Serializable]
     public class StrikeMomentOverride
@@ -389,12 +386,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float chargeWaveInterval = 0.09f;
     [Tooltip("Width of each wave arc in metres. Scale to the Oni's size.")]
     [SerializeField] private float chargeWaveScale = 2.6f;
-    [Tooltip("ROUND 43 — YOUR fire for the charge. Drag a fire VFX prefab here: while the rush travels, one puff spawns at his feet every Charge Wave Interval seconds and lives Charge Trail Lifetime seconds — a burning line follows him along the ground. Empty = no fire trail. (This replaces the gray placeholder arcs; the old toggle below only matters when this slot is empty.)")]
-    [SerializeField] private GameObject chargeGroundTrailVFX;
-    [Tooltip("ROUND 43. Seconds each fire puff of the charge trail burns before it is destroyed.")]
-    [SerializeField] private float chargeTrailLifetime = 1.5f;
-    [Tooltip("ROUND 43. Effect spawned ON Yoru at the exact moment the charge's damage connects. Empty = the shared Hit Land VFX is used.")]
-    [SerializeField] private GameObject chargeHitVFX;
 
     [Header("Boss Bar")]
     [Tooltip("Drive the screen-top BossHealthBarUI for this boss: show on any hostile state, crimson at phase 2, hide on disengage. Needs a BossHealthBar object (with BossHealthBarUI) on the HUD canvas.")]
@@ -703,14 +694,6 @@ public class OniBoss : MonoBehaviour
         combat.ConfigureComboDamageRamp(comboMidDamageMult, comboFinisherDamageMult);
         DebugLog($"combo damage ramp ON: mid x{comboMidDamageMult:F2}, finisher x{comboFinisherDamageMult:F2} — "
                + $"finisher wave carries FULL damage at x{finisherWaveScale:F1} size, x{finisherWaveTravelMult:F1} travel.");
-
-        // ROUND 44 — her call ("yes"): the charge alone looks blunt, so ~90% of solo charges chain
-        // into a fast melee follow-up through the normal combo machinery.
-        if (chargeFollowUpChance > 0f)
-        {
-            combat.ConfigureChargeFollowUp(chargeStateName, chargeFollowUpChance);
-            DebugLog($"charge follow-up ON: {chargeFollowUpChance:P0} of solo charges chain into a random melee finisher.");
-        }
 
         // Turn the Oni into a committing heavy instead of a circling one. Done from code on purpose:
         // the shared EnemyCombat keeps its old defaults for every other enemy and no inspector work
@@ -1050,22 +1033,7 @@ public class OniBoss : MonoBehaviour
 
         string atk  = combat.CurrentAttackName();
         string anim = combat.CurrentAttackAnim();
-        if (atk == chargeStateName || anim == chargeStateName)
-        {
-            // The charge owns its own impact — ROUND 43: and it finally SHOWS one. Fired from the
-            // engine's own resolution, so the effect appears the exact frame the charge damage lands.
-            if (clubConnected && playerT != null)
-            {
-                GameObject fx = chargeHitVFX != null ? chargeHitVFX : hitLandVFX;
-                if (fx != null)
-                {
-                    GameObject go = Instantiate(fx, playerT.position + Vector3.up * strikeContactBodyHeight,
-                                                Quaternion.LookRotation(-transform.forward));
-                    if (hitLandVFXLifetime > 0f) Destroy(go, hitLandVFXLifetime);
-                }
-            }
-            return;
-        }
+        if (atk == chargeStateName || anim == chargeStateName) return;   // the charge owns its own impact
 
         // ROUND 26 — measurement only. The swing effect is currently spawned at a point measured
         // from his FEET (Swing Wave VFX Forward / Height), numbers that were guessed before anyone
@@ -1686,21 +1654,7 @@ public class OniBoss : MonoBehaviour
                     }
                     combat.HoldAttackSafety();                                              // a long rush is not a hung state
 
-                    if (chargeGroundTrailVFX != null)
-                    {
-                        // ROUND 43 — Hazel's fire: a puff at his feet on a timer, so the rush
-                        // leaves a burning line on the ground behind him.
-                        chargeWaveTimer -= Time.unscaledDeltaTime;
-                        if (chargeWaveTimer <= 0f)
-                        {
-                            chargeWaveTimer = Mathf.Max(0.02f, chargeWaveInterval);
-                            GameObject puff = Instantiate(chargeGroundTrailVFX,
-                                transform.position + Vector3.up * 0.08f,
-                                Quaternion.LookRotation(transform.forward));
-                            Destroy(puff, Mathf.Max(0.2f, chargeTrailLifetime));
-                        }
-                    }
-                    else if (chargeTrailVFX)
+                    if (chargeTrailVFX)
                     {
                         chargeWaveTimer -= Time.unscaledDeltaTime;
                         if (chargeWaveTimer <= 0f)

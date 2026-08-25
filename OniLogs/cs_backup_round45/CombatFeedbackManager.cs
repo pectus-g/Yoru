@@ -158,13 +158,8 @@ public class CombatFeedbackManager : MonoBehaviour
         PostProcessPulse(pulseIntensity * 1.2f, pulseDuration);
 
         // Game Feel v3: FOV zoom in on parry (dramatic focus)
-        // ROUND 45: plus Hazel's glass-window slam — the camera rams the impact point and
-        // bounces off, so a blocked hit reads like smashing into an invisible wall.
         if (CameraGameFeel.Instance != null)
-        {
             CameraGameFeel.Instance.PunchParry();
-            CameraGameFeel.Instance.RamTowards(contactPoint);
-        }
 
         // Keep combat music alive during active fighting
         if (CombatMusicManager.Instance != null)

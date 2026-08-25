@@ -358,7 +358,6 @@ public class EnemyCombat : MonoBehaviour
     // Combo — queued attackNames for the active sequence. Empty = single attack.
     private readonly System.Collections.Generic.Queue<EnemyAttack> comboQueue = new System.Collections.Generic.Queue<EnemyAttack>();
     private string activeComboName = "";
-    private int comboStepIndex; // ROUND 42: 1-based position of the current attack inside its combo (see ComboDamageMultiplier)
     
     // Alert (only triggers once per encounter)
     private bool hasAlerted;
@@ -868,7 +867,6 @@ public class EnemyCombat : MonoBehaviour
                 if (rangedCombo != null && QueueComboSequence(rangedCombo))
                 {
                     currentAttack = comboQueue.Dequeue();
-                    comboStepIndex = 1;   // ROUND 42: combo opener
                     DebugLog($"Ranged combo started: {rangedCombo.comboName} ({comboQueue.Count + 1} steps, dist {dist:F1}m)");
                     SetState(ShouldSkipTelegraph(currentAttack) ? EnemyState.Attack : EnemyState.Telegraph);
                     return;
@@ -1266,75 +1264,6 @@ public class EnemyCombat : MonoBehaviour
         return true;
     }
 
-    // ROUND 42: combo damage ramp — opener x1, middle hits x comboMidDamageMult, finisher
-    // x comboFinisherDamageMult. NOT serialized: both default to 1 (off) and a boss layer opts in
-    // via ConfigureComboDamageRamp, so every other enemy is byte-for-byte unchanged.
-    private float comboMidDamageMult = 1f;
-    private float comboFinisherDamageMult = 1f;
-
-    public void ConfigureComboDamageRamp(float midMult, float finisherMult)
-    {
-        comboMidDamageMult      = Mathf.Max(0.1f, midMult);
-        comboFinisherDamageMult = Mathf.Max(0.1f, finisherMult);
-    }
-
-    /// <summary>ROUND 42. Damage multiplier of the CURRENT attack from its combo position:
-    /// 1 outside combos and on openers; the mid multiplier from the 2nd hit on; the finisher
-    /// multiplier on the last. Fixed by position, like other action games — resets every combo.</summary>
-    public float ComboDamageMultiplier()
-    {
-        if (currentAttack == null || string.IsNullOrEmpty(activeComboName)) return 1f;
-        if (comboQueue == null || comboQueue.Count == 0) return comboFinisherDamageMult;
-        return comboStepIndex >= 2 ? comboMidDamageMult : 1f;
-    }
-
-    /// <summary>ROUND 42. True while the attack being performed is the LAST step of a combo —
-    /// the Oni's finisher wave (bigger, further, full damage) keys off this.</summary>
-    public bool CurrentAttackIsComboFinisher()
-        => currentAttack != null && !string.IsNullOrEmpty(activeComboName) && comboQueue != null && comboQueue.Count == 0;
-
-    // ROUND 44: "the charge alone looks blunt" — when the named attack is chosen as a SINGLE, it
-    // chains into a fast random melee follow-up this often, through the normal combo machinery
-    // (sharp no-cooldown transition; the round-42 ramp makes the follow-up the finisher). NOT
-    // serialized: off by default, a boss layer opts in — other enemies unchanged.
-    private string chargeFollowUpAttackName = "";
-    private float chargeFollowUpChance = 0f;
-
-    public void ConfigureChargeFollowUp(string attackNameOrAnim, float chance)
-    {
-        chargeFollowUpAttackName = attackNameOrAnim;
-        chargeFollowUpChance = Mathf.Clamp01(chance);
-    }
-
-    /// <summary>ROUND 44. Weighted random pick of a plain melee attack for the charge's follow-up:
-    /// phase-valid, not the charge itself, no pulls, no lunges, no ranged picks.</summary>
-    private EnemyAttack PickMeleeFollowUp(EnemyAttack exclude)
-    {
-        if (attacks == null) return null;
-        int totalWeight = 0;
-        for (int i = 0; i < attacks.Length; i++)
-        {
-            var a = attacks[i];
-            if (a == null || a == exclude || a.pullsPlayer || a.lungeToPlayer) continue;
-            if (a.maxSelectRange > 0f) continue;
-            if (!IsAttackValid(a)) continue;
-            totalWeight += a.weight;
-        }
-        if (totalWeight == 0) return null;
-        int roll = Random.Range(0, totalWeight);
-        int running = 0;
-        for (int i = 0; i < attacks.Length; i++)
-        {
-            var a = attacks[i];
-            if (a == null || a == exclude || a.pullsPlayer || a.lungeToPlayer) continue;
-            if (a.maxSelectRange > 0f) continue;
-            if (!IsAttackValid(a)) continue;
-            running += a.weight;
-            if (roll < running) return a;
-        }
-        return null;
-    }
-
     /// <summary>
     /// Runtime opt-in used by boss layers (OniBoss) so the behavior can be switched on WITHOUT any
     /// inspector work and WITHOUT changing the default for any other enemy. Every parameter keeps
@@ -1495,7 +1424,6 @@ public class EnemyCombat : MonoBehaviour
             if (comboQueue.Count > 0)
             {
                 currentAttack = comboQueue.Dequeue();
-                comboStepIndex++;   // ROUND 42: next combo step — the ramp climbs with it
                 LookAtPlayer();
                 SetState(ShouldSkipTelegraph(currentAttack) ? EnemyState.Attack : EnemyState.Telegraph);
                 return;
@@ -1606,25 +1534,6 @@ public class EnemyCombat : MonoBehaviour
                     // telegraph), so reset the fired flag so the hallucination still fires here.
                     if (oldState != EnemyState.Telegraph)
                         hallucinationFiredThisAttack = false;
-
-                    // ROUND 44 — the charge is never blunt: chosen ALONE, it arms a fast random
-                    // melee follow-up (~90%) that HandleRecovery chains with no cooldown. The
-                    // combo ramp then makes that follow-up the finisher (x1.5 + the big wave).
-                    if (chargeFollowUpChance > 0f && string.IsNullOrEmpty(activeComboName)
-                        && !string.IsNullOrEmpty(chargeFollowUpAttackName)
-                        && (currentAttack.attackName == chargeFollowUpAttackName || currentAttack.attackAnim == chargeFollowUpAttackName)
-                        && Random.value < chargeFollowUpChance)
-                    {
-                        EnemyAttack next = PickMeleeFollowUp(currentAttack);
-                        if (next != null)
-                        {
-                            comboQueue.Clear();
-                            comboQueue.Enqueue(next);
-                            activeComboName = "ChargeFollowUp";
-                            comboStepIndex = 1;
-                            DebugLog($"charge follow-up armed: {next.attackName} chains after the charge.");
-                        }
-                    }
 
                     // Close attack becomes the cinematic grab (swoop + lean + yank-in + freeze +
                     // camera roll + return), run as its own coroutine. It owns the entire strike,
@@ -1956,7 +1865,6 @@ public class EnemyCombat : MonoBehaviour
 
                 // First step dequeued and returned; the rest stay queued for HandleRecovery.
                 EnemyAttack first = comboQueue.Dequeue();
-                comboStepIndex = 1;   // ROUND 42: combo opener
                 DebugLog($"Combo started: {combo.comboName} ({comboQueue.Count + 1} steps remaining)");
                 return first;
             }
@@ -2049,14 +1957,12 @@ public class EnemyCombat : MonoBehaviour
         PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
         if (playerHealth == null) { if (raiseStrikeResolved) StrikeResolved?.Invoke(false); return; }
 
-        // ROUND 42: combo position ramp first (opener x1, mid hits, finisher), then the
-        // distance falloff (roar/shockwave): full damage up close, easing to minDamageAtRange.
-        float comboMult = ComboDamageMultiplier();
-        int dmg = Mathf.Max(1, Mathf.RoundToInt(currentAttack.damage * comboMult));
+        // Distance falloff (roar/shockwave): full Damage up close, easing to minDamageAtRange at the edge.
+        int dmg = currentAttack.damage;
         if (currentAttack.damageFallsOffWithDistance && currentAttack.range > 0.01f)
         {
             float t = Mathf.Clamp01(dist / currentAttack.range); // 0 = point-blank, 1 = edge of range
-            dmg = Mathf.RoundToInt(Mathf.Lerp(dmg, currentAttack.minDamageAtRange, t));
+            dmg = Mathf.RoundToInt(Mathf.Lerp(currentAttack.damage, currentAttack.minDamageAtRange, t));
         }
 
         // Combo hits read light until the finisher: only the last hit of an active combo
@@ -2078,7 +1984,7 @@ public class EnemyCombat : MonoBehaviour
         // interruptsCombo OFF (Mushroom) routes through the feedback-only path: the hit still lands and
         // shows its received-hit cue, but it does not reset Yoru's combo or play his flinch.
         playerHealth.TakeDamage(dmg, isHeavy, reactPos, !currentAttack.interruptsCombo);
-        DebugLog($"Hit player for {dmg} ({currentAttack.attackName}){(comboMult > 1.001f ? $" [combo x{comboMult:F2}]" : "")}");
+        DebugLog($"Hit player for {dmg} ({currentAttack.attackName})");
 
         // Apply stun if attack has it
         if (currentAttack.stunPlayerDuration > 0)
@@ -2799,10 +2705,9 @@ private void TriggerHitFlash()
     /// </summary>
     public event System.Action<bool> StrikeResolved;
 
-    /// <summary>Read-only: damage of the attack currently being performed (0 when none), WITH the
-    /// round-42 combo ramp applied — the Oni's ground wave derives its damage from this (half, or
-    /// full on a finisher), so club tuning and the combo ramp both carry into the wave.</summary>
-    public int CurrentAttackDamage() => currentAttack != null ? Mathf.Max(1, Mathf.RoundToInt(currentAttack.damage * ComboDamageMultiplier())) : 0;
+    /// <summary>Read-only: damage of the attack currently being performed (0 when none). ROUND 38:
+    /// the Oni's ground wave derives its damage from this (half), so club tuning carries the wave.</summary>
+    public int CurrentAttackDamage() => currentAttack != null ? currentAttack.damage : 0;
 
     /// <summary>Read-only, ROUND 39: whether the current attack's damage is delivered by touch
     /// (see SetAttackTouchDriven). False when no attack is playing.</summary>

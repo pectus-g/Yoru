@@ -164,11 +164,6 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("ROUND 41. Heavy hit reaction while on 4 legs. RENAMED from hitReactHeavy4Leg: the player prefab had 'HitReact_Running_4Leg' (the RUN state!) saved in the old field, so every heavy hit in 4-leg form played running for up to 2.5s instead of a reaction — the saved value silently overrode the code. The rename drops that stale value; this default is the real reaction clip (the same one the 4-leg grab already uses).")]
     [SerializeField] private string heavy4LegReactState = "Bhit_run_reaction_4";
 
-    [Tooltip("ROUND 42 — Hazel's rule: a LIGHT hit while Yoru is on 4 legs AND truly moving (faster than Running React Min Speed) plays THIS reaction, so she reacts in stride instead of stopping. Standing-ish on 4 legs keeps the normal 4-leg light reaction above.")]
-    [SerializeField] private string runningLightReactState = "HitReact_Running_4Leg";
-    [Tooltip("ROUND 42/44. How fast Yoru must actually be moving (m/s, from the CharacterController) for the running reaction above to be chosen. Her run speed is ~7. ROUND 44: lowered to 1.5 ('moving at all') because at 3 the reaction never triggered in two full test sessions — she slows the instant the hit lands.")]
-    [SerializeField] private float runningReactMinSpeed = 1.5f;
-
     [Header("Grab Reaction (Nopperabo close attack)")]
     [Tooltip("Reaction state played when an enemy grab catches Yoru while he is on 2 legs.")]
     [SerializeField] private string grabReact2LegState = "HitReact_Heavy_2Leg";
@@ -2158,12 +2153,7 @@ public class PlayerCombat : MonoBehaviour
         }
         else
         {
-            // ROUND 42 — hit while truly RUNNING on 4 legs reacts in stride (running reaction)
-            // instead of stopping; standing-ish on 4 legs keeps the normal light reaction.
-            bool running4 = is4Leg && playerMovement != null
-                            && playerMovement.CurrentPlanarSpeed >= runningReactMinSpeed
-                            && !string.IsNullOrEmpty(runningLightReactState);
-            animState = is4Leg ? (running4 ? runningLightReactState : hitReactLight4Leg) : hitReactLight2Leg;
+            animState = is4Leg ? hitReactLight4Leg : hitReactLight2Leg;
             duration = lightHitReactDuration;
 
             // Mushroom strike readability: a 0.3s light reaction is lost under the hallucination

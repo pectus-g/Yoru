@@ -49,10 +49,7 @@ public class SwingWaveProjectile : MonoBehaviour
     public System.Action<SwingWaveProjectile> onConnected;
 
     private bool spent;          // the hit is delivered — one wave can never hit twice
-    private bool connected;      // ROUND 43: it really hit her (spent alone can also mean dissolved)
     private bool dissolving;     // travel over (or hit landed): hitbox dead, effect fading out
-    private float closestToTarget = float.MaxValue;   // ROUND 43: armed near-miss telemetry
-    private bool airborneAtClosest;
     private float dissolveDecel; // how hard it brakes while dissolving, m/s^2
     private float bornTime;
     private ParticleSystem[] particles;   // cached once at spawn — never queried per frame
@@ -68,8 +65,7 @@ public class SwingWaveProjectile : MonoBehaviour
                                              float speed, float maxDistance, float hitWidth,
                                              int damage,
                                              GameObject hitVFX, float hitVFXLifetime, float hitVFXOffset,
-                                             float fadeLifetime, Vector3 visualTilt, float visualPlaybackSpeed,
-                                             float visualScale)
+                                             float fadeLifetime, Vector3 visualTilt, float visualPlaybackSpeed)
     {
         dir.y = 0f;
         if (dir.sqrMagnitude < 0.0001f) dir = Vector3.forward;
@@ -89,11 +85,6 @@ public class SwingWaveProjectile : MonoBehaviour
             // travel rather than a world angle. 0,0,0 faces straight down the wave's path;
             // rolling Z is what lays a slash diagonally across the swing instead of flat.
             visualInstance.transform.localRotation = Quaternion.Euler(visualTilt);
-
-            // ROUND 42: the combo finisher's wave is scaled up — only the EFFECT grows (the hit
-            // width is widened by the caller separately, in honest metres).
-            if (!Mathf.Approximately(visualScale, 1f))
-                visualInstance.transform.localScale = visualInstance.transform.localScale * visualScale;
         }
 
         var w = go.AddComponent<SwingWaveProjectile>();
@@ -152,13 +143,8 @@ public class SwingWaveProjectile : MonoBehaviour
         // designed. If PlayerMovement was not found the check fails open (treated as grounded).
         if (!spent && damage > 0 && target != null)
         {
-            // ROUND 43: every armed wave measures how close it came and whether she was airborne
-            // there, so a wave that LOOKED like it should hit explains itself in the log.
-            float d = PlanarDistanceToSegment(target.position, prev, next);
             bool airborne = targetMove != null && targetMove.IsAirborne();
-            if (d < closestToTarget) { closestToTarget = d; airborneAtClosest = airborne; }
-
-            if (!airborne && d <= hitWidth)
+            if (!airborne && PlanarDistanceToSegment(target.position, prev, next) <= hitWidth)
             {
                 spent = true;
                 Connect();
@@ -180,7 +166,6 @@ public class SwingWaveProjectile : MonoBehaviour
     {
         if (targetHealth != null && damage > 0)
         {
-            connected = true;
             Vector3 from = transform.position;
             Vector3 contact = target.position + Vector3.up * 0.4f;   // shin height fallback
             Collider col = target.GetComponent<Collider>();
@@ -233,14 +218,6 @@ public class SwingWaveProjectile : MonoBehaviour
     private void BeginDissolve()
     {
         if (dissolving) return;
-
-        // ROUND 43: an ARMED wave that never touched her says how close it came — that number is
-        // the difference between "she jumped it" (airborne), "she sidestepped it" (metres off its
-        // line), and "the hit width is thinner than the visual" (barely outside hitWidth).
-        if (damage > 0 && !connected && closestToTarget < float.MaxValue * 0.5f)
-            Debug.Log($"[OniBoss:Wave] armed wave expired UNTOUCHED — closest {closestToTarget:F2}m to Yoru "
-                    + $"(hit width {hitWidth:F2}), she was {(airborneAtClosest ? "AIRBORNE" : "grounded")} at the closest moment.");
-
         dissolving = true;
         spent = true;
         dissolveDecel = Mathf.Max(1f, speed / 0.35f);   // ~0.35s ease-out from full speed

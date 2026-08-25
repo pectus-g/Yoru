@@ -89,14 +89,6 @@ public class CameraGameFeel : MonoBehaviour
     [Tooltip("How fast charge FOV ramps in")]
     [SerializeField] private float heavyChargeFOVSpeed = 4f;
 
-    [Header("Parry Glass Slam — round 45")]
-    [Tooltip("ROUND 45 — Hazel's 'smashed into an invisible window' parry: on a perfect parry the camera RAMS this many metres toward the impact point and springs back with a small bounce. 0 = off. Obeys the shake multiplier.")]
-    [SerializeField] private float parryRamDistance = 0.45f;
-    [Tooltip("Seconds the ram takes to hit the glass. Short = hard impact.")]
-    [SerializeField] private float parryRamInTime = 0.05f;
-    [Tooltip("Seconds the spring-back takes; it overshoots slightly on the way out so it reads as a bounce off the glass.")]
-    [SerializeField] private float parryRamOutTime = 0.25f;
-
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = false;
     #endregion
@@ -118,11 +110,6 @@ public class CameraGameFeel : MonoBehaviour
     private float rollDurationTotal;
     private float rollElapsed;
     private bool rollActive;
-
-    // Parry ram state (glass slam: positional punch toward a world point, sprung return)
-    private Vector3 ramTargetPoint;
-    private float ramElapsed;
-    private bool ramActive;
 
     // FOV Punch state (coroutine-driven, single-active)
     private float currentPunchOffset;
@@ -212,40 +199,6 @@ public class CameraGameFeel : MonoBehaviour
                               * rollShakeAngle * shakeMultiplier * fade;
 
                 camTransform.Rotate(0f, 0f, angle, Space.Self);
-            }
-        }
-
-        // === PARRY RAM (glass slam, round 45) ===
-        // A positional punch TOWARD the parry impact, then a sprung return with one small
-        // overshoot — the camera hits the invisible window and bounces off it. Additive after
-        // Cinemachine each frame like the shake, so nothing accumulates or drifts.
-        if (ramActive && shakeMultiplier > 0f)
-        {
-            ramElapsed += Time.unscaledDeltaTime;
-            float inT  = Mathf.Max(0.02f, parryRamInTime);
-            float outT = Mathf.Max(0.05f, parryRamOutTime);
-            if (ramElapsed >= inT + outT)
-            {
-                ramActive = false;
-            }
-            else
-            {
-                float k;
-                if (ramElapsed < inT)
-                {
-                    float t = ramElapsed / inT;
-                    k = t * t;                                     // accelerate INTO the glass
-                }
-                else
-                {
-                    float t = (ramElapsed - inT) / outT;
-                    k = Mathf.Cos(t * Mathf.PI * 1.5f) * (1f - t); // sprung return with one bounce
-                }
-
-                Vector3 dir = ramTargetPoint - camTransform.position;
-                dir.y *= 0.35f;                                    // mostly a forward punch, not a dive
-                if (dir.sqrMagnitude > 0.0001f)
-                    camTransform.position += dir.normalized * (parryRamDistance * shakeMultiplier * k);
             }
         }
 
@@ -345,20 +298,6 @@ public class CameraGameFeel : MonoBehaviour
     {
         StartPunch(parryPunch, punchDuration * 1.5f);
         DebugLog($"FOV punch: parry ({parryPunch:+0.0;-0.0}°)");
-    }
-
-    /// <summary>
-    /// ROUND 45 — the glass-window parry slam: the camera punches toward `worldPoint` and springs
-    /// back with a bounce. Fired together with the parry freeze and zoom, the sum reads as the
-    /// blow smashing into an invisible wall in front of Yoru.
-    /// </summary>
-    public void RamTowards(Vector3 worldPoint)
-    {
-        if (shakeMultiplier <= 0f || parryRamDistance <= 0.001f) return;
-        ramTargetPoint = worldPoint;
-        ramElapsed = 0f;
-        ramActive = true;
-        DebugLog($"Ram: toward {worldPoint} dist={parryRamDistance:F2}m");
     }
 
     /// <summary>
