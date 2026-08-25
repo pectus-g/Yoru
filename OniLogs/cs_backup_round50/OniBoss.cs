@@ -343,6 +343,7 @@ public class OniBoss : MonoBehaviour
     private Vector3 clubPrevTipPos;
     private Vector3 clubPrevRootPos;               // ROUND 42: the shaft root moves too — needed for the one-frame prediction
     private GameObject chargeTrailInstance;        // ROUND 47: the fire attached to him during the rush
+    private Vector3 chargeGroundFireLastPos;       // ROUND 49: where the last floor fire was planted
     private float  clubTouchClosest = float.MaxValue;  // per-swing closest shaft-to-body distance, logged on swing end
     private float  clubTouchClosestClip = -1f;
     private float  clubTouchMaxSpeed;
@@ -402,10 +403,12 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float chargeTrailLifetime = 1.5f;
     [Tooltip("ROUND 43. Effect spawned ON Yoru at the exact moment the charge's damage connects. Empty = the shared Hit Land VFX is used.")]
     [SerializeField] private GameObject chargeHitVFX;
-    // ROUND 50: the round-49 "second standing-fire slot" was a misunderstanding and is deleted —
-    // there is ONE fire (the trail prefab above). How long its line stays on the ground and how
-    // gradually it fades are the PREFAB's own Trail Renderer settings: Time and the Color
-    // gradient's end alpha. The code's only duty is never to cut it short (see ReleaseChargeTrail).
+    [Tooltip("ROUND 49 — the tire-fire: a STANDING fire prefab (not the trail one — something that burns in place) planted on the floor every few metres along the rush path, each left burning where he passed — burning tracks like a car tire on fire. Works together with the ribbon above. Empty = no floor fires.")]
+    [SerializeField] private GameObject chargeGroundFireVFX;
+    [Tooltip("ROUND 49. Metres between planted floor fires along the rush path.")]
+    [SerializeField] private float chargeGroundFireEveryMeters = 0.8f;
+    [Tooltip("ROUND 49. Seconds each planted floor fire burns before it goes out.")]
+    [SerializeField] private float chargeGroundFireLifetime = 4f;
 
     [Header("Boss Bar")]
     [Tooltip("Drive the screen-top BossHealthBarUI for this boss: show on any hostile state, crimson at phase 2, hide on disengage. Needs a BossHealthBar object (with BossHealthBarUI) on the HUD canvas.")]
@@ -1756,7 +1759,28 @@ public class OniBoss : MonoBehaviour
                                 tr.Clear();
                                 tr.emitting = true;
                             }
+                            chargeGroundFireLastPos = transform.position;
                             DebugLog($"charge fire trail: '{chargeGroundTrailVFX.name}' attached to his feet for the rush.");
+                        }
+                    }
+
+                    // ROUND 49 — the tire-fire: every few metres of the rush, plant a STANDING
+                    // fire on the floor where he passed and leave it burning there — the burning
+                    // track Hazel described ("like a tire of a car made fire").
+                    if (chargeGroundFireVFX != null)
+                    {
+                        Vector3 moved = transform.position - chargeGroundFireLastPos;
+                        moved.y = 0f;
+                        float step = Mathf.Max(0.3f, chargeGroundFireEveryMeters);
+                        if (moved.sqrMagnitude >= step * step)
+                        {
+                            chargeGroundFireLastPos = transform.position;
+                            GameObject fire = Instantiate(chargeGroundFireVFX,
+                                transform.position + Vector3.up * 0.05f,
+                                Quaternion.LookRotation(transform.forward));
+                            foreach (var ps in fire.GetComponentsInChildren<ParticleSystem>(true))
+                                if (!ps.isPlaying) ps.Play(true);
+                            Destroy(fire, Mathf.Max(0.5f, chargeGroundFireLifetime));
                         }
                     }
                     else if (chargeTrailVFX)

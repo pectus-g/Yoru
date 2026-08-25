@@ -800,11 +800,39 @@ public class EnemyCombat : MonoBehaviour
                 return;
             }
 
-            // On cooldown, circle the player. (ROUND 46: the ring math lives in
-            // CircleAroundPlayer so the hold-ground Watch phase can reuse it.)
+            // On cooldown, circle the player.
             if (circleStrafe)
             {
-                CircleAroundPlayer();
+                // Orbit Yoru on an invisible ring of radius circleRadius. The move target is placed a
+                // fixed arc AHEAD on that ring (circleLeadAngle), far enough that it clears the agent's
+                // stopping distance. If the target sits too close the agent thinks it has arrived and
+                // stands still while the walk clip plays (walking on the spot). The agent walks toward
+                // the lead point at strafeSpeed, and because that point is recomputed from the current
+                // angle every frame the lion keeps following the circle. The target always sits at
+                // circleRadius, so the radius self-corrects if the lion drifts. Facing the way it walks
+                // keeps the forward walk clip matching the motion, so there is no slide.
+                if (navAgent != null && navAgent.isOnNavMesh)
+                {
+                    const float circleLeadAngle = -35f; // negative circles the other way so the head (turned in the walk clip) faces the player, not outward
+                    Vector3 toEnemy = transform.position - player.position;
+                    toEnemy.y = 0f;
+                    if (toEnemy.sqrMagnitude < 0.0001f) toEnemy = -transform.forward;
+                    Vector3 leadRadial = Quaternion.AngleAxis(circleLeadAngle, Vector3.up) * toEnemy.normalized;
+                    Vector3 ringTarget = player.position + leadRadial * circleRadius;
+
+                    navAgent.isStopped = false;
+                    navAgent.speed = strafeSpeed;
+                    navAgent.SetDestination(ringTarget);
+
+                    Vector3 face = ringTarget - transform.position;
+                    face.y = 0f;
+                    if (face.sqrMagnitude > 0.0001f)
+                    {
+                        Quaternion look = Quaternion.LookRotation(face.normalized);
+                        transform.rotation = Quaternion.Slerp(transform.rotation, look, Time.deltaTime * rotationSpeed);
+                    }
+                }
+                PlayAnimation(walkAnim);
                 return;
             }
 
@@ -999,25 +1027,7 @@ public class EnemyCombat : MonoBehaviour
 
             case HoldPhase.Watch:
             {
-                // ROUND 46: Circle Strafe was unreachable for hold-ground enemies — every hold
-                // path returned before the chase-loop circle code, so ticking the box did nothing
-                // for the Oni. With the flag on, the cooldown wait is now spent MOVING: a slow
-                // ring around the player, until the last Reaim Lead seconds, which are still
-                // spent standing and turning to face her so the next attack aims true. Without
-                // the flag, the original stand-and-watch is unchanged.
-                // ROUND 49: only the pauses that ROLLED a ring circle at all — each with its own
-                // direction. Standing pauses truly stand (watch or idle, as rolled).
-                if (holdPauseCircleDir != 0 && cooldownTimer > Mathf.Max(0.05f, holdGroundReaimLead))
-                {
-                    CircleAroundPlayer(holdPauseCircleDir);
-                    return;
-                }
-
                 StopNav();
-
-                // ROUND 47: back from circling (or plain waiting) — make sure the rolled stance
-                // is what plays, never a leftover walk loop on the spot.
-                if (!string.IsNullOrEmpty(currentHoldStance)) PlayAnimation(currentHoldStance);
 
                 // The one permitted turn between attacks.
                 if (holdGroundReaimLead > 0f && cooldownTimer <= holdGroundReaimLead)
@@ -1055,77 +1065,14 @@ public class EnemyCombat : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// ROUND 46 (extracted from the chase loop). The ring walk: orbit the player on an invisible
-    /// ring of radius circleRadius. The move target is a fixed arc AHEAD on the ring
-    /// (circleLeadAngle) — far enough that it clears the agent's stopping distance, or the agent
-    /// thinks it has arrived and walks on the spot. Recomputed every frame, so the enemy keeps
-    /// following the circle and the radius self-corrects. Facing the way it walks keeps the
-    /// forward walk clip matching the motion — no slide. Shared by the plain-chase cooldown
-    /// circle and the hold-ground Watch circle.
-    /// </summary>
-    private void CircleAroundPlayer(int direction = -1)
-    {
-        if (player == null) { StopNav(); return; }
-
-        if (navAgent != null && navAgent.isOnNavMesh)
-        {
-            // ROUND 49: direction is per-pause (-1 = the original side, +1 = mirrored), so the
-            // ring can start left or right. Callers that pass nothing keep the original side.
-            float circleLeadAngle = 35f * Mathf.Clamp(direction == 0 ? -1 : direction, -1, 1);
-            Vector3 toEnemy = transform.position - player.position;
-            toEnemy.y = 0f;
-            if (toEnemy.sqrMagnitude < 0.0001f) toEnemy = -transform.forward;
-            Vector3 leadRadial = Quaternion.AngleAxis(circleLeadAngle, Vector3.up) * toEnemy.normalized;
-            Vector3 ringTarget = player.position + leadRadial * circleRadius;
-
-            navAgent.isStopped = false;
-            navAgent.speed = strafeSpeed;
-            navAgent.SetDestination(ringTarget);
-
-            Vector3 face = ringTarget - transform.position;
-            face.y = 0f;
-            if (face.sqrMagnitude > 0.0001f)
-            {
-                Quaternion look = Quaternion.LookRotation(face.normalized);
-                transform.rotation = Quaternion.Slerp(transform.rotation, look, Time.deltaTime * rotationSpeed);
-            }
-        }
-        PlayAnimation(walkAnim);
-        SetAnimSpeed(1f);
-    }
-
-    // ROUND 47: chance a hold-ground pause stands in plain idle instead of the Watch stance —
-    // "the wait should not be the same pose every time" (Hazel). NOT serialized; defaults to 0
-    // (always Watch, the original behavior) and a boss layer opts in.
-    private float holdWatchIdleChance = 0f;
-    private string currentHoldStance = "";   // the stance this pause rolled — re-asserted after circling
-    private float holdWaitCircleChance = 0f;  // ROUND 49: chance a pause walks a ring at all (boss opt-in; needs circleStrafe)
-    private int holdPauseCircleDir;           // ROUND 49: this pause's ring direction (-1/+1); 0 = a standing pause
-
-    public void SetHoldWatchIdleChance(float chance) => holdWatchIdleChance = Mathf.Clamp01(chance);
-    public void SetHoldWaitCircleChance(float chance) => holdWaitCircleChance = Mathf.Clamp01(chance);
-
     private void EnterHoldWatch()
     {
         StopNav();
         SetAnimSpeed(1f);
-        // ROUND 47 — each pause rolls its stance: the tense Watch, or plain idle. One roll per
-        // pause (this runs once per Watch entry), so the pose holds steady until the next beat.
-        currentHoldStance = string.IsNullOrEmpty(holdAnim) ? idleAnim : holdAnim;
-        if (holdWatchIdleChance > 0f && Random.value < holdWatchIdleChance)
-            currentHoldStance = idleAnim;
-
-        // ROUND 49 — Hazel: the pause itself must be random. Some pauses stand (watch or idle,
-        // rolled above), some walk a ring — and the ring's direction is a coin flip too, so he
-        // never "always leans to the same side".
-        holdPauseCircleDir = 0;
-        if (circleStrafe && holdWaitCircleChance > 0f && Random.value < holdWaitCircleChance)
-            holdPauseCircleDir = Random.value < 0.5f ? -1 : 1;
         // PlayReversed tags currentPlayingAnim with a "#reversed" suffix, so coming out of a backstep
         // this is a real crossfade back into the stance; coming from Recovery (already in the stance)
         // it early-outs and the pose simply continues — no restart hitch either way.
-        PlayAnimation(currentHoldStance);
+        PlayAnimation(string.IsNullOrEmpty(holdAnim) ? idleAnim : holdAnim);
     }
 
     private int backstepStateHash;

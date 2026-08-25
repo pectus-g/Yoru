@@ -230,12 +230,9 @@ public class OniBoss : MonoBehaviour
     [Tooltip("ROUND 44. Chance that a charge picked ALONE chains straight into a fast random melee follow-up — the charge stops being a blunt single hit. The follow-up is the combo finisher: x1.5 damage and the big finisher wave. 0 = off.")]
     [Range(0f, 1f)]
     [SerializeField] private float chargeFollowUpChance = 0.9f;
-    [Tooltip("ROUND 47 — Hazel: the wait between attacks should not be one pose. Chance that a STANDING pause uses plain IDLE instead of the Watch stance. 0 = always Watch, 1 = always Idle, 0.5 = random mix.")]
+    [Tooltip("ROUND 47 — Hazel: the wait between attacks should not be one pose. Chance that a pause stands in plain IDLE instead of the Watch stance. 0 = always Watch, 1 = always Idle, 0.5 = random mix.")]
     [Range(0f, 1f)]
     [SerializeField] private float waitIdleChance = 0.5f;
-    [Tooltip("ROUND 49. Chance that a pause WALKS A RING around Yoru instead of standing (needs Circle Strafe ticked on EnemyCombat). Each ring rolls its own direction — sometimes left, sometimes right. The rest of the pauses stand, split by the chance above. 0 = never circle.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float waitCircleChance = 0.5f;
 
     [System.Serializable]
     public class StrikeMomentOverride
@@ -402,10 +399,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float chargeTrailLifetime = 1.5f;
     [Tooltip("ROUND 43. Effect spawned ON Yoru at the exact moment the charge's damage connects. Empty = the shared Hit Land VFX is used.")]
     [SerializeField] private GameObject chargeHitVFX;
-    // ROUND 50: the round-49 "second standing-fire slot" was a misunderstanding and is deleted —
-    // there is ONE fire (the trail prefab above). How long its line stays on the ground and how
-    // gradually it fades are the PREFAB's own Trail Renderer settings: Time and the Color
-    // gradient's end alpha. The code's only duty is never to cut it short (see ReleaseChargeTrail).
 
     [Header("Boss Bar")]
     [Tooltip("Drive the screen-top BossHealthBarUI for this boss: show on any hostile state, crimson at phase 2, hide on disengage. Needs a BossHealthBar object (with BossHealthBarUI) on the HUD canvas.")]
@@ -654,10 +647,8 @@ public class OniBoss : MonoBehaviour
         // light tap however much damage it does.
         combat.SetComboStepsUseDamageThreshold(true);
 
-        // ROUND 47/49 — the wait is not one pose: each pause rolls stand-Watch, stand-Idle, or a
-        // slow ring around her that starts left or right at random.
+        // ROUND 47 — the wait is not one pose: each pause rolls Watch vs plain Idle.
         combat.SetHoldWatchIdleChance(waitIdleChance);
-        combat.SetHoldWaitCircleChance(waitCircleChance);
 
         if (chargeDriveEnabled)
         {
@@ -1425,25 +1416,13 @@ public class OniBoss : MonoBehaviour
     {
         if (chargeTrailInstance == null) return;
         chargeTrailInstance.transform.SetParent(null, true);
-
-        // ROUND 48: the destroy timer must never cut the effect shorter than the prefab's OWN
-        // persistence — the ribbon's Time and the particles' lifetime are Hazel's tuning knobs,
-        // so the linger stretches to whichever is longest.
-        float linger = Mathf.Max(0.5f, chargeTrailLifetime);
         foreach (var ps in chargeTrailInstance.GetComponentsInChildren<ParticleSystem>(true))
-        {
             ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
-            var main = ps.main;
-            linger = Mathf.Max(linger, main.startLifetime.constantMax + 0.25f);
-        }
         foreach (var tr in chargeTrailInstance.GetComponentsInChildren<TrailRenderer>(true))
-        {
             tr.emitting = false;
-            linger = Mathf.Max(linger, tr.time + 0.25f);
-        }
-        Destroy(chargeTrailInstance, linger);
+        Destroy(chargeTrailInstance, Mathf.Max(0.5f, chargeTrailLifetime));
         chargeTrailInstance = null;
-        DebugLog($"charge fire trail: released — burns out over {linger:F1}s where the rush ended.");
+        DebugLog("charge fire trail: released — fades where the rush ended.");
     }
 
     /// <summary>

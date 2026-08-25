@@ -169,10 +169,6 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("ROUND 42/44. How fast Yoru must actually be moving (m/s, from the CharacterController) for the running reaction above to be chosen. Her run speed is ~7. ROUND 44: lowered to 1.5 ('moving at all') because at 3 the reaction never triggered in two full test sessions — she slows the instant the hit lands.")]
     [SerializeField] private float runningReactMinSpeed = 1.5f;
 
-    private Vector3 lastPlanarPos;        // ROUND 49: transform-based speed sampling (see Update)
-    private bool planarPosInit;
-    private float measuredPlanarSpeed;    // ROUND 49: robust even when locomotion bypasses the CharacterController
-
     [Header("Grab Reaction (Nopperabo close attack)")]
     [Tooltip("Reaction state played when an enemy grab catches Yoru while he is on 2 legs.")]
     [SerializeField] private string grabReact2LegState = "HitReact_Heavy_2Leg";
@@ -665,16 +661,6 @@ public class PlayerCombat : MonoBehaviour
     private void Update()
     {
         if (characterController != null && characterController.isGrounded) lastGroundedTime = Time.time;
-
-        // ROUND 49: measure her ACTUAL planar speed from the transform. The running hit reaction
-        // never fired in three test sessions — if 4-leg locomotion moves the body outside the
-        // CharacterController, controller.velocity reads ~0 and a velocity check can never pass.
-        // This measure works no matter what moves her.
-        Vector3 planarNow = transform.position;
-        if (!planarPosInit) { planarPosInit = true; lastPlanarPos = planarNow; }
-        Vector3 planarDelta = planarNow - lastPlanarPos; planarDelta.y = 0f;
-        if (Time.deltaTime > 0.0001f) measuredPlanarSpeed = planarDelta.magnitude / Time.deltaTime;
-        lastPlanarPos = planarNow;
         EnforcePositionLock();
         // Sampled before input, so the airtime window the aerial spin checks is this frame's value.
         TrackFallAcceleration();
@@ -2172,18 +2158,13 @@ public class PlayerCombat : MonoBehaviour
         }
         else
         {
-            // ROUND 42/49 — hit while truly RUNNING on 4 legs reacts in stride (running reaction)
+            // ROUND 42 — hit while truly RUNNING on 4 legs reacts in stride (running reaction)
             // instead of stopping; standing-ish on 4 legs keeps the normal light reaction.
-            // ROUND 49: speed = the MAX of the controller's velocity and the transform-measured
-            // speed, so it works whichever system actually moves her — and every 4-leg hit LOGS
-            // the measured number, so the threshold gets tuned from data instead of guesses.
-            float planarSpd = Mathf.Max(playerMovement != null ? playerMovement.CurrentPlanarSpeed : 0f, measuredPlanarSpeed);
-            bool running4 = is4Leg && planarSpd >= runningReactMinSpeed
+            bool running4 = is4Leg && playerMovement != null
+                            && playerMovement.CurrentPlanarSpeed >= runningReactMinSpeed
                             && !string.IsNullOrEmpty(runningLightReactState);
             animState = is4Leg ? (running4 ? runningLightReactState : hitReactLight4Leg) : hitReactLight2Leg;
             duration = lightHitReactDuration;
-            if (logHitReactTiming && is4Leg)
-                Debug.Log($"[HitReactTrace] 4-leg LIGHT hit at {planarSpd:F2} m/s (running threshold {runningReactMinSpeed:F2}) → {(running4 ? "RUNNING" : "standing")} reaction.");
 
             // Mushroom strike readability: a 0.3s light reaction is lost under the hallucination
             // screen distortion (and the 4-leg light clip reads like normal running at that length).

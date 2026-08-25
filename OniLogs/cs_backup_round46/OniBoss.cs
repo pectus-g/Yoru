@@ -230,12 +230,6 @@ public class OniBoss : MonoBehaviour
     [Tooltip("ROUND 44. Chance that a charge picked ALONE chains straight into a fast random melee follow-up — the charge stops being a blunt single hit. The follow-up is the combo finisher: x1.5 damage and the big finisher wave. 0 = off.")]
     [Range(0f, 1f)]
     [SerializeField] private float chargeFollowUpChance = 0.9f;
-    [Tooltip("ROUND 47 — Hazel: the wait between attacks should not be one pose. Chance that a STANDING pause uses plain IDLE instead of the Watch stance. 0 = always Watch, 1 = always Idle, 0.5 = random mix.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float waitIdleChance = 0.5f;
-    [Tooltip("ROUND 49. Chance that a pause WALKS A RING around Yoru instead of standing (needs Circle Strafe ticked on EnemyCombat). Each ring rolls its own direction — sometimes left, sometimes right. The rest of the pauses stand, split by the chance above. 0 = never circle.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float waitCircleChance = 0.5f;
 
     [System.Serializable]
     public class StrikeMomentOverride
@@ -342,7 +336,6 @@ public class OniBoss : MonoBehaviour
     private bool   clubPrevTipValid;               // tip speed needs last frame's tip position
     private Vector3 clubPrevTipPos;
     private Vector3 clubPrevRootPos;               // ROUND 42: the shaft root moves too — needed for the one-frame prediction
-    private GameObject chargeTrailInstance;        // ROUND 47: the fire attached to him during the rush
     private float  clubTouchClosest = float.MaxValue;  // per-swing closest shaft-to-body distance, logged on swing end
     private float  clubTouchClosestClip = -1f;
     private float  clubTouchMaxSpeed;
@@ -398,14 +391,10 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float chargeWaveScale = 2.6f;
     [Tooltip("ROUND 43 — YOUR fire for the charge. Drag a fire VFX prefab here: while the rush travels, one puff spawns at his feet every Charge Wave Interval seconds and lives Charge Trail Lifetime seconds — a burning line follows him along the ground. Empty = no fire trail. (This replaces the gray placeholder arcs; the old toggle below only matters when this slot is empty.)")]
     [SerializeField] private GameObject chargeGroundTrailVFX;
-    [Tooltip("ROUND 47. Seconds the fire keeps burning/fading where the rush ended, after the charge is over.")]
+    [Tooltip("ROUND 43. Seconds each fire puff of the charge trail burns before it is destroyed.")]
     [SerializeField] private float chargeTrailLifetime = 1.5f;
     [Tooltip("ROUND 43. Effect spawned ON Yoru at the exact moment the charge's damage connects. Empty = the shared Hit Land VFX is used.")]
     [SerializeField] private GameObject chargeHitVFX;
-    // ROUND 50: the round-49 "second standing-fire slot" was a misunderstanding and is deleted —
-    // there is ONE fire (the trail prefab above). How long its line stays on the ground and how
-    // gradually it fades are the PREFAB's own Trail Renderer settings: Time and the Color
-    // gradient's end alpha. The code's only duty is never to cut it short (see ReleaseChargeTrail).
 
     [Header("Boss Bar")]
     [Tooltip("Drive the screen-top BossHealthBarUI for this boss: show on any hostile state, crimson at phase 2, hide on disengage. Needs a BossHealthBar object (with BossHealthBarUI) on the HUD canvas.")]
@@ -653,11 +642,6 @@ public class OniBoss : MonoBehaviour
         // only a combo's FINAL step reads heavy. Without this the lance rush would land on Yoru as a
         // light tap however much damage it does.
         combat.SetComboStepsUseDamageThreshold(true);
-
-        // ROUND 47/49 — the wait is not one pose: each pause rolls stand-Watch, stand-Idle, or a
-        // slow ring around her that starts left or right at random.
-        combat.SetHoldWatchIdleChance(waitIdleChance);
-        combat.SetHoldWaitCircleChance(waitCircleChance);
 
         if (chargeDriveEnabled)
         {
@@ -1023,17 +1007,11 @@ public class OniBoss : MonoBehaviour
     /// </summary>
     private void UpdateSwingTrail()
     {
-        if (combat == null) return;
+        if (!swingWaveEnabled || combat == null || animator == null) return;
 
         bool inAttack = combat.GetCurrentState() == EnemyCombat.EnemyState.Attack;
         string atk = inAttack ? combat.CurrentAttackName() : "";
         bool isCharge = inAttack && (atk == chargeStateName || combat.CurrentAttackAnim() == chargeStateName);
-
-        // ROUND 47: the moment the rush state is over, the attached fire is released — unparented,
-        // emission stopped, left to burn out where the rush ended.
-        if (chargeTrailInstance != null && !(inAttack && isCharge)) ReleaseChargeTrail();
-
-        if (!swingWaveEnabled || animator == null) return;
 
         if (!inAttack || isCharge)
         {
@@ -1418,35 +1396,6 @@ public class OniBoss : MonoBehaviour
     }
 
     /// <summary>
-    /// ROUND 47. Lets go of the charge fire: unparented so it stays where the rush ended, all
-    /// emission stopped so it draws no further, destroyed once its fade time is up.
-    /// </summary>
-    private void ReleaseChargeTrail()
-    {
-        if (chargeTrailInstance == null) return;
-        chargeTrailInstance.transform.SetParent(null, true);
-
-        // ROUND 48: the destroy timer must never cut the effect shorter than the prefab's OWN
-        // persistence — the ribbon's Time and the particles' lifetime are Hazel's tuning knobs,
-        // so the linger stretches to whichever is longest.
-        float linger = Mathf.Max(0.5f, chargeTrailLifetime);
-        foreach (var ps in chargeTrailInstance.GetComponentsInChildren<ParticleSystem>(true))
-        {
-            ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
-            var main = ps.main;
-            linger = Mathf.Max(linger, main.startLifetime.constantMax + 0.25f);
-        }
-        foreach (var tr in chargeTrailInstance.GetComponentsInChildren<TrailRenderer>(true))
-        {
-            tr.emitting = false;
-            linger = Mathf.Max(linger, tr.time + 0.25f);
-        }
-        Destroy(chargeTrailInstance, linger);
-        chargeTrailInstance = null;
-        DebugLog($"charge fire trail: released — burns out over {linger:F1}s where the rush ended.");
-    }
-
-    /// <summary>
     /// ROUND 28. Ends the trail. Unparented first so it stops being carried around by him and
     /// fades where the swing left it, instead of vanishing mid-arc.
     /// </summary>
@@ -1739,24 +1688,16 @@ public class OniBoss : MonoBehaviour
 
                     if (chargeGroundTrailVFX != null)
                     {
-                        // ROUND 47 — 'ToonFireTrail' is a TRAIL-type effect: it only draws while
-                        // its transform MOVES, so the stationary puffs of rounds 43-46 spawned
-                        // provably (the log said so) yet rendered nothing. Attached to HIM for
-                        // the rush, it paints the burning line itself as he travels — exactly
-                        // "fire follows the oni's foot". Released and left to fade at rush end.
-                        if (chargeTrailInstance == null)
+                        // ROUND 43 — Hazel's fire: a puff at his feet on a timer, so the rush
+                        // leaves a burning line on the ground behind him.
+                        chargeWaveTimer -= Time.unscaledDeltaTime;
+                        if (chargeWaveTimer <= 0f)
                         {
-                            chargeTrailInstance = Instantiate(chargeGroundTrailVFX,
-                                transform.position + Vector3.up * 0.15f,
-                                Quaternion.LookRotation(transform.forward), transform);
-                            foreach (var ps in chargeTrailInstance.GetComponentsInChildren<ParticleSystem>(true))
-                                if (!ps.isPlaying) ps.Play(true);
-                            foreach (var tr in chargeTrailInstance.GetComponentsInChildren<TrailRenderer>(true))
-                            {
-                                tr.Clear();
-                                tr.emitting = true;
-                            }
-                            DebugLog($"charge fire trail: '{chargeGroundTrailVFX.name}' attached to his feet for the rush.");
+                            chargeWaveTimer = Mathf.Max(0.02f, chargeWaveInterval);
+                            GameObject puff = Instantiate(chargeGroundTrailVFX,
+                                transform.position + Vector3.up * 0.08f,
+                                Quaternion.LookRotation(transform.forward));
+                            Destroy(puff, Mathf.Max(0.2f, chargeTrailLifetime));
                         }
                     }
                     else if (chargeTrailVFX)

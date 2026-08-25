@@ -1005,19 +1005,13 @@ public class EnemyCombat : MonoBehaviour
                 // ring around the player, until the last Reaim Lead seconds, which are still
                 // spent standing and turning to face her so the next attack aims true. Without
                 // the flag, the original stand-and-watch is unchanged.
-                // ROUND 49: only the pauses that ROLLED a ring circle at all — each with its own
-                // direction. Standing pauses truly stand (watch or idle, as rolled).
-                if (holdPauseCircleDir != 0 && cooldownTimer > Mathf.Max(0.05f, holdGroundReaimLead))
+                if (circleStrafe && cooldownTimer > Mathf.Max(0.05f, holdGroundReaimLead))
                 {
-                    CircleAroundPlayer(holdPauseCircleDir);
+                    CircleAroundPlayer();
                     return;
                 }
 
                 StopNav();
-
-                // ROUND 47: back from circling (or plain waiting) — make sure the rolled stance
-                // is what plays, never a leftover walk loop on the spot.
-                if (!string.IsNullOrEmpty(currentHoldStance)) PlayAnimation(currentHoldStance);
 
                 // The one permitted turn between attacks.
                 if (holdGroundReaimLead > 0f && cooldownTimer <= holdGroundReaimLead)
@@ -1064,15 +1058,13 @@ public class EnemyCombat : MonoBehaviour
     /// forward walk clip matching the motion — no slide. Shared by the plain-chase cooldown
     /// circle and the hold-ground Watch circle.
     /// </summary>
-    private void CircleAroundPlayer(int direction = -1)
+    private void CircleAroundPlayer()
     {
         if (player == null) { StopNav(); return; }
 
         if (navAgent != null && navAgent.isOnNavMesh)
         {
-            // ROUND 49: direction is per-pause (-1 = the original side, +1 = mirrored), so the
-            // ring can start left or right. Callers that pass nothing keep the original side.
-            float circleLeadAngle = 35f * Mathf.Clamp(direction == 0 ? -1 : direction, -1, 1);
+            const float circleLeadAngle = -35f; // negative circles the other way so the head (turned in the walk clip) faces the player, not outward
             Vector3 toEnemy = transform.position - player.position;
             toEnemy.y = 0f;
             if (toEnemy.sqrMagnitude < 0.0001f) toEnemy = -transform.forward;
@@ -1095,37 +1087,14 @@ public class EnemyCombat : MonoBehaviour
         SetAnimSpeed(1f);
     }
 
-    // ROUND 47: chance a hold-ground pause stands in plain idle instead of the Watch stance —
-    // "the wait should not be the same pose every time" (Hazel). NOT serialized; defaults to 0
-    // (always Watch, the original behavior) and a boss layer opts in.
-    private float holdWatchIdleChance = 0f;
-    private string currentHoldStance = "";   // the stance this pause rolled — re-asserted after circling
-    private float holdWaitCircleChance = 0f;  // ROUND 49: chance a pause walks a ring at all (boss opt-in; needs circleStrafe)
-    private int holdPauseCircleDir;           // ROUND 49: this pause's ring direction (-1/+1); 0 = a standing pause
-
-    public void SetHoldWatchIdleChance(float chance) => holdWatchIdleChance = Mathf.Clamp01(chance);
-    public void SetHoldWaitCircleChance(float chance) => holdWaitCircleChance = Mathf.Clamp01(chance);
-
     private void EnterHoldWatch()
     {
         StopNav();
         SetAnimSpeed(1f);
-        // ROUND 47 — each pause rolls its stance: the tense Watch, or plain idle. One roll per
-        // pause (this runs once per Watch entry), so the pose holds steady until the next beat.
-        currentHoldStance = string.IsNullOrEmpty(holdAnim) ? idleAnim : holdAnim;
-        if (holdWatchIdleChance > 0f && Random.value < holdWatchIdleChance)
-            currentHoldStance = idleAnim;
-
-        // ROUND 49 — Hazel: the pause itself must be random. Some pauses stand (watch or idle,
-        // rolled above), some walk a ring — and the ring's direction is a coin flip too, so he
-        // never "always leans to the same side".
-        holdPauseCircleDir = 0;
-        if (circleStrafe && holdWaitCircleChance > 0f && Random.value < holdWaitCircleChance)
-            holdPauseCircleDir = Random.value < 0.5f ? -1 : 1;
         // PlayReversed tags currentPlayingAnim with a "#reversed" suffix, so coming out of a backstep
         // this is a real crossfade back into the stance; coming from Recovery (already in the stance)
         // it early-outs and the pose simply continues — no restart hitch either way.
-        PlayAnimation(currentHoldStance);
+        PlayAnimation(string.IsNullOrEmpty(holdAnim) ? idleAnim : holdAnim);
     }
 
     private int backstepStateHash;
