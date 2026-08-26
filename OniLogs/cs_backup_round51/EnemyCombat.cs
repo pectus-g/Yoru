@@ -753,50 +753,6 @@ public class EnemyCombat : MonoBehaviour
             }
         }
 
-        // ── ROUND 51: ANTI-KITE ───────────────────────────────────────────────
-        // Time spent chasing without getting her in reach builds frustration; reaching her or
-        // starting any attack clears it. 4s of failed chase → a swing thrown from out of reach
-        // (its wave flies at the runner). 6s → the charge runs her down.
-        if (dist <= attackRange) chaseFrustration = 0f;
-        else chaseFrustration += Time.deltaTime;
-
-        if (cooldownTimer <= 0 && dist > attackRange && !forceRunReengage)
-        {
-            // Long failure → the charge.
-            if (chaseChargeAfterSeconds > 0f && chaseFrustration >= chaseChargeAfterSeconds
-                && dist > attackRange + 1f && !string.IsNullOrEmpty(chasePunishChargeName))
-            {
-                EnemyAttack rush = FindAttackByName(chasePunishChargeName);
-                if (rush != null && IsAttackValid(rush))
-                {
-                    comboQueue.Clear();
-                    activeComboName = "";
-                    currentAttack = rush;
-                    chaseFrustration = 0f;
-                    DebugLog($"chase punish: {chaseChargeAfterSeconds:F0}s of failed chase — CHARGING her down from {dist:F1}m.");
-                    SetState(ShouldSkipTelegraph(currentAttack) ? EnemyState.Attack : EnemyState.Telegraph);
-                    return;
-                }
-            }
-
-            // Short failure → the thrown swing: the club misses on purpose, the wave clips her.
-            if (chaseWaveAfterSeconds > 0f && chaseFrustration >= chaseWaveAfterSeconds
-                && dist <= chaseWaveThrowMaxRange)
-            {
-                EnemyAttack swing = PickMeleeFollowUp(null);
-                if (swing != null)
-                {
-                    comboQueue.Clear();
-                    activeComboName = "";
-                    currentAttack = swing;
-                    chaseFrustration = 0f;
-                    DebugLog($"chase punish: {chaseWaveAfterSeconds:F0}s of failed chase — throwing {swing.attackName} from {dist:F1}m so the wave flies at her.");
-                    SetState(ShouldSkipTelegraph(currentAttack) ? EnemyState.Attack : EnemyState.Telegraph);
-                    return;
-                }
-            }
-        }
-
         // ── MELEE BAND (≤ attackRange) ────────────────────────────────────────
         // Attack when ready; otherwise circle the player. This is the ONLY place the walk
         // animation is used (slow circling reads fine up close; walking to close a gap looks wrong).
@@ -1149,24 +1105,6 @@ public class EnemyCombat : MonoBehaviour
 
     public void SetHoldWatchIdleChance(float chance) => holdWatchIdleChance = Mathf.Clamp01(chance);
     public void SetHoldWaitCircleChance(float chance) => holdWaitCircleChance = Mathf.Clamp01(chance);
-
-    // ROUND 51: anti-kite — a chase that FAILS for N seconds stops being a chase. First a melee
-    // swing thrown from out of reach (the club misses by design, so its ground wave flies at the
-    // runner and clips her); keeps failing → the charge, the one tool that outruns a runner.
-    // Off by default; the Oni opts in via ConfigureChasePunish.
-    private float chaseWaveAfterSeconds = 0f;
-    private float chaseWaveThrowMaxRange = 7.5f;
-    private float chaseChargeAfterSeconds = 0f;
-    private string chasePunishChargeName = "";
-    private float chaseFrustration;
-
-    public void ConfigureChasePunish(float waveAfterSeconds, float waveThrowMaxRange, float chargeAfterSeconds, string chargeAttackName)
-    {
-        chaseWaveAfterSeconds   = Mathf.Max(0f, waveAfterSeconds);
-        chaseWaveThrowMaxRange  = Mathf.Max(4f, waveThrowMaxRange);
-        chaseChargeAfterSeconds = Mathf.Max(0f, chargeAfterSeconds);
-        chasePunishChargeName   = chargeAttackName;
-    }
 
     private void EnterHoldWatch()
     {
@@ -2799,7 +2737,6 @@ private void TriggerHitFlash()
         cachedClipLength = 0f;
         strikeFired = false; // re-arm the Strike Moment for the new clip
         touchStrikeConnected = false; // ROUND 39: re-arm the touch delivery too
-        chaseFrustration = 0f; // ROUND 51: any attack starting means the chase is no longer failing
         
         if (animator == null || string.IsNullOrEmpty(stateName)) return;
         

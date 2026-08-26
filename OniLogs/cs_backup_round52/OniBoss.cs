@@ -241,37 +241,6 @@ public class OniBoss : MonoBehaviour
     [Tooltip("ROUND 51 — anti-kite, step 2: after this many seconds of STILL-failing chase, he charges her down instead. Her pick: 6. 0 = off.")]
     [SerializeField] private float chaseChargeAfter = 6f;
 
-    [Header("Phase-2 Ground Pound — round 52")]
-    [Tooltip("ROUND 52 — Hazel's phase-2 entrance. The transition roar chains STRAIGHT into this, no wait: he jumps high and pounds the floor. The landing fires a huge jumpable shockwave, her impact effect, and the biggest camera shake of the fight. Also repeats rarely during phase 2. Untick to disable.")]
-    [SerializeField] private bool groundPoundEnabled = true;
-    [Tooltip("Animator state of the jump-and-pound animation (confirmed from the controller).")]
-    [SerializeField] private string groundPoundState = "Ground_Pound";
-    [Tooltip("Playback speed of the pound clip. 1 = as authored.")]
-    [SerializeField] private float poundAnimSpeed = 1f;
-    [Tooltip("Normalized moment of the clip where he SLAMS the floor — shockwave, damage and shake fire here. Watch the [OniBoss:Pound] log line after the first test and correct this number from it.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float poundStrikeMoment = 0.6f;
-    [Tooltip("Damage the landing shockwave deals to a GROUNDED Yoru. Jumping over it = safe, as always. Her pick: 45.")]
-    [SerializeField] private int poundDamage = 45;
-    [Tooltip("How fast the shockwave ring expands, m/s. Fast = hard to escape by running.")]
-    [SerializeField] private float poundRingSpeed = 12f;
-    [Tooltip("How far the shockwave reaches, metres.")]
-    [SerializeField] private float poundRingMaxRadius = 12f;
-    [Tooltip("Thickness of the ring's hit band, metres.")]
-    [SerializeField] private float poundRingWidth = 1.6f;
-    [Tooltip("Camera shake at the slam — the 'cave is about to fall' one. The phase roar is 0.6 for 0.5s; this tops it.")]
-    [SerializeField] private float poundShakeIntensity = 1.1f;
-    [SerializeField] private float poundShakeDuration = 0.8f;
-    [Tooltip("YOUR explosion/impact prefab, spawned at the landing point. Empty = only the code-built ring is drawn.")]
-    [SerializeField] private GameObject poundImpactVFX;
-    [Tooltip("Seconds before the impact effect is destroyed.")]
-    [SerializeField] private float poundImpactVFXLifetime = 4f;
-    [Tooltip("ROUND 52 — 'only at phase 2 sometimes': earliest seconds between pounds during phase 2. 0 = the entrance pound only, no repeats.")]
-    [SerializeField] private float poundRepeatCooldown = 25f;
-    [Tooltip("Once the cooldown is over, roughly this chance PER SECOND that a pound fires while he is chasing her in phase 2.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float poundRepeatChancePerSecond = 0.15f;
-
     [System.Serializable]
     public class StrikeMomentOverride
     {
@@ -378,16 +347,6 @@ public class OniBoss : MonoBehaviour
     private Vector3 clubPrevTipPos;
     private Vector3 clubPrevRootPos;               // ROUND 42: the shaft root moves too — needed for the one-frame prediction
     private GameObject chargeTrailInstance;        // ROUND 47: the fire attached to him during the rush
-
-    // ROUND 52 — ground pound state.
-    private Coroutine poundRoutine;
-    private bool poundActive;
-    private float nextPoundAllowedTime;
-    private bool poundRingActive;
-    private bool poundRingSpent;
-    private Vector3 poundRingCenter;
-    private float poundRingRadius;
-    private float poundRingPrevRadius;
     private float  clubTouchClosest = float.MaxValue;  // per-swing closest shaft-to-body distance, logged on swing end
     private float  clubTouchClosestClip = -1f;
     private float  clubTouchMaxSpeed;
@@ -967,8 +926,6 @@ public class OniBoss : MonoBehaviour
         UpdateAttackStepIn();
         UpdateSwingTrail();         // ROUND 38: trails only — the wave itself spawns from EnemyCombat's StrikeResolved
         UpdatePhaseTransition();
-        UpdatePoundRing();          // ROUND 52: the pound's expanding shockwave
-        UpdatePoundRepeat();        // ROUND 52: rare phase-2 repeats
         UpdateReactionFreezeGuard();
         UpdateSlowMotionWatchdog();
         UpdatePreCombatWatch();
@@ -1065,7 +1022,7 @@ public class OniBoss : MonoBehaviour
     private void KeepAnimationSpeed()
     {
         if (animator == null || oniAnimationSpeed <= 0f) return;
-        if (phaseTransitionActive || poundActive) return;  // the roar / the pound own the speed
+        if (phaseTransitionActive) return;                 // the roar owns the speed
         if (animator.speed < 0.05f) return;                // hitstop is running, leave it frozen
         if (!Mathf.Approximately(animator.speed, oniAnimationSpeed))
             animator.speed = oniAnimationSpeed;
@@ -2325,161 +2282,12 @@ public class OniBoss : MonoBehaviour
         phaseTransitionActive = false;
         phaseTransitionRoutine = null;
 
-        DebugLog($"PHASE 2: transition over after {Time.unscaledTime - startReal:F2}s real — he is back, and angrier");
-
-        // ROUND 52 — Hazel: the entrance chains STRAIGHT into the Ground Pound, like a combo, no
-        // wait. The pound routine parks the engine itself and releases it when the slam is done.
-        if (groundPoundEnabled && HasState(groundPoundState) && combat != null
-            && combat.GetCurrentState() != EnemyCombat.EnemyState.Dead)
-        {
-            DebugLog("PHASE 2: chaining into the GROUND POUND — no pause.");
-            if (poundRoutine != null) StopCoroutine(poundRoutine);
-            poundRoutine = StartCoroutine(GroundPoundRoutine("phase-2 entrance"));
-        }
-        else if (combat != null && combat.GetCurrentState() == EnemyCombat.EnemyState.Stagger)
-        {
-            // End the window ourselves — do not wait for a game-time timer that Yoru's
-            // slow-motion can stretch. Chase re-decides everything on the next frame.
-            combat.SetState(EnemyCombat.EnemyState.Chase);
-        }
-    }
-
-    /// <summary>
-    /// ROUND 52 — the Ground Pound, driven exactly like the phase transition (time written by
-    /// hand, engine parked via the Stagger window): jump high, slam the floor at Pound Strike
-    /// Moment, fire the shockwave + shake + impact effect, hand the engine back.
-    /// </summary>
-    private System.Collections.IEnumerator GroundPoundRoutine(string reason)
-    {
-        poundActive = true;
-        nextPoundAllowedTime = Time.time + Mathf.Max(5f, poundRepeatCooldown);
-
-        combat.TriggerStagger(3f);   // parks the agent and cancels attack/combo, same as the roar
-        int hash = Animator.StringToHash(groundPoundState);
-        animator.CrossFadeInFixedTime(hash, 0.05f, 0, 0f);
-
-        float speed = Mathf.Clamp(poundAnimSpeed, 0.2f, 2f);
-        float startReal = Time.unscaledTime;
-        float clipLen = -1f;
-        bool slammed = false, driving = false;
-
-        DebugLog($"GROUND POUND ({reason}): driving '{groundPoundState}' at x{speed:F2}, slam at {poundStrikeMoment:F2}");
-
-        while (true)
-        {
-            yield return null;
-            if (combat == null || animator == null) break;
-            float elapsed = Time.unscaledTime - startReal;
-
-            if (clipLen < 0f)
-            {
-                clipLen = StateClipLength(hash);
-                if (clipLen > 0f)
-                {
-                    driving = true;
-                    DebugLog($"GROUND POUND: clip is {clipLen:F2}s → {clipLen / speed:F2}s on screen");
-                }
-            }
-
-            if (driving)
-            {
-                float t = Mathf.Clamp01(elapsed * speed / clipLen);
-                animator.Play(hash, 0, t);
-                combat.SetStaggerTimer(2f);
-
-                if (!slammed && t >= poundStrikeMoment)
-                {
-                    slammed = true;
-                    DoPoundImpact();
-                    Debug.Log($"[OniBoss:Pound] SLAM at clip {t:F2} ({elapsed:F2}s real) — ring {poundRingSpeed:F0}m/s out to {poundRingMaxRadius:F0}m, {poundDamage} damage, jumpable.");
-                }
-
-                if (elapsed >= clipLen / speed) break;
-            }
-
-            if (elapsed > 8f) { DebugLog("GROUND POUND: hard-capped at 8s real"); break; }
-            if (combat.GetCurrentState() == EnemyCombat.EnemyState.Dead) break;
-        }
-
-        poundActive = false;
-        poundRoutine = null;
+        // End the window ourselves — do not wait for a game-time timer that Yoru's slow-motion can
+        // stretch. Chase re-decides everything (hold-ground, cooldown) on the next frame.
         if (combat != null && combat.GetCurrentState() == EnemyCombat.EnemyState.Stagger)
             combat.SetState(EnemyCombat.EnemyState.Chase);
-        DebugLog("GROUND POUND: done — the engine is his again.");
-    }
 
-    /// <summary>ROUND 52. The landing itself: the biggest shake in the fight, the code-built ring,
-    /// her impact prefab, and the expanding hit ring armed (checked per frame in UpdatePoundRing).</summary>
-    private void DoPoundImpact()
-    {
-        poundRingCenter = transform.position;
-        poundRingRadius = 0f;
-        poundRingPrevRadius = 0f;
-        poundRingSpent = false;
-        poundRingActive = true;
-
-        if (CombatFeedbackManager.Instance != null && poundShakeIntensity > 0f)
-            CombatFeedbackManager.Instance.CameraShake(poundShakeIntensity, poundShakeDuration);
-        ProceduralImpactFX.Shockwave(poundRingCenter, poundRingMaxRadius, 0.8f, new Color(1f, 0.45f, 0.1f));
-
-        if (poundImpactVFX != null)
-        {
-            GameObject fx = Instantiate(poundImpactVFX, poundRingCenter + Vector3.up * 0.05f, Quaternion.identity);
-            foreach (var ps in fx.GetComponentsInChildren<ParticleSystem>(true))
-                if (!ps.isPlaying) ps.Play(true);
-            Destroy(fx, Mathf.Max(1f, poundImpactVFXLifetime));
-        }
-    }
-
-    /// <summary>
-    /// ROUND 52. The pound's shockwave: a ring expanding from the landing point. The sweep test
-    /// (previous radius → current radius) means it cannot skip her between frames. Grounded =
-    /// hit once for Pound Damage with a HEAVY reaction; airborne = it passes under her, the same
-    /// jump rule as every wave.
-    /// </summary>
-    private void UpdatePoundRing()
-    {
-        if (!poundRingActive) return;
-
-        poundRingPrevRadius = poundRingRadius;
-        poundRingRadius += poundRingSpeed * Time.deltaTime;
-
-        if (!poundRingSpent && playerT != null && playerHealthRef != null)
-        {
-            bool airborne = playerMoveRef != null && playerMoveRef.IsAirborne();
-            if (!airborne)
-            {
-                Vector3 to = playerT.position - poundRingCenter;
-                to.y = 0f;
-                float d = to.magnitude;
-                float halfW = Mathf.Max(0.2f, poundRingWidth) * 0.5f;
-                if (d <= poundRingRadius + halfW && d >= poundRingPrevRadius - halfW)
-                {
-                    poundRingSpent = true;
-                    playerHealthRef.TakeDamage(poundDamage, true, poundRingCenter, false);
-                    SpawnHitLandVFX(hitLandVFX);
-                    Debug.Log($"[OniBoss:Pound] shockwave CAUGHT Yoru (grounded) at {d:F1}m for {poundDamage}.");
-                }
-            }
-        }
-
-        if (poundRingRadius > poundRingMaxRadius) poundRingActive = false;
-    }
-
-    /// <summary>ROUND 52 — "only at phase 2 sometimes": once the cooldown since the last pound is
-    /// over, a small per-second chance fires it again while he is chasing her in phase 2.</summary>
-    private void UpdatePoundRepeat()
-    {
-        if (!groundPoundEnabled || poundActive || poundRepeatCooldown <= 0f) return;
-        if (combat == null || animator == null || playerT == null) return;
-        if (!combat.IsPhase2() || phaseTransitionActive) return;
-        if (Time.time < nextPoundAllowedTime) return;
-        if (combat.GetCurrentState() != EnemyCombat.EnemyState.Chase) return;
-        if (Random.value >= poundRepeatChancePerSecond * Time.deltaTime) return;
-        if (!HasState(groundPoundState)) return;
-
-        if (poundRoutine != null) StopCoroutine(poundRoutine);
-        poundRoutine = StartCoroutine(GroundPoundRoutine("phase-2 repeat"));
+        DebugLog($"PHASE 2: transition over after {Time.unscaledTime - startReal:F2}s real — he is back, and angrier");
     }
 
     /// <summary>Raw length of the clip on a given state (independent of every speed multiplier).</summary>
