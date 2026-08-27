@@ -112,23 +112,9 @@ public class StormWeather : MonoBehaviour
         if (debugLog) Debug.Log("[StormWeather] Ready. Rain on, floor drying... wait, soaking.");
     }
 
-    // ROUND 58 (Oni cinematic): while held, the storm does NOT break even though phase 2 is on —
-    // the boss layer holds it through the roar and releases it at the LIGHTNING-ON-THE-CLUB beat,
-    // so the heavy rain and the sky bolt land together with her strike. Never serialized; if the
-    // boss object dies the release is called from its OnDisable, and with no boss the hold is
-    // simply never set.
-    private bool breakHold;
-
-    public void SetBreakHold(bool held)
-    {
-        breakHold = held;
-        if (debugLog) Debug.Log($"[StormWeather] storm break {(held ? "HELD (waiting for the lightning beat)" : "released")}");
-    }
-
     private void Update()
     {
         if (phase2 || oniCombat == null) return;
-        if (breakHold) return;   // ROUND 58: the cinematic decides the moment
         if (oniCombat.IsPhase2())
         {
             phase2 = true;

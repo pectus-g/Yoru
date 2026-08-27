@@ -283,31 +283,9 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float cineRoarSpeed = 0.8f;
     [Tooltip("REAL seconds he keeps roaring after the scream lands, then the jump starts. The old clip tail + hold are SKIPPED in the cinematic — this linger replaces them.")]
     [SerializeField] private float cineRoarLinger = 0.9f;
-    [Tooltip("ROUND 58 — the RISE speed of the jump clip, in clip-seconds per REAL second (fresh name: the old saved 0.70 was part of 'camera too fast'). 0.45 → the climb + 180° turn breathes. After the apex hang, the fall runs at the normal Pound Anim Speed.")]
+    [Tooltip("The jump clip's speed until the apex, in clip-seconds per REAL second. ROUND 55: default 0.55 (was 0.7) — Hazel: 'maybe slower would be better'. The rise + 180° orbit now takes ~2.3s. After the apex the clip continues at the normal Pound Anim Speed.")]
     [Range(0.1f, 2f)]
-    [SerializeField] private float cineRiseSpeed = 0.45f;
-
-    [Header("Lightning Beat + Top Hang — round 58")]
-    [Tooltip("ROUND 58 — Hazel's frames: from THIS frame of the Ground_Pound clip the deep slow begins (him, world, camera together).")]
-    [SerializeField] private float cineSlowFrameStart = 27f;
-    [Tooltip("…until THIS frame. Between the two: the lightning strikes the club and the storm breaks.")]
-    [SerializeField] private float cineSlowFrameEnd = 37f;
-    [Tooltip("Total frames of the Ground_Pound clip (my 30fps guess for a 3.13s clip = 94). If the beat lands early/late in your test, correct THIS number in the inspector — no recompile.")]
-    [SerializeField] private float cineClipTotalFrames = 94f;
-    [Tooltip("World speed inside the frames window — the deep dive for the lightning. Her pick: ~20%.")]
-    [Range(0.05f, 1f)]
-    [SerializeField] private float cineBeatSlow = 0.2f;
-    [Tooltip("ROUND 58 — seconds he HANGS frozen at the top of the jump, electrified club raised, before the drop. Her pick: 2. World stays in slow motion through the hang (her pick).")]
-    [SerializeField] private float cineTopHold = 2f;
-    [Tooltip("Gentle camera drift during the hang, degrees per second — keeps the shot alive without sweeping.")]
-    [SerializeField] private float cineHangDrift = 7f;
-    [Tooltip("YOUR lightning prefab — spawned ON the club tip at the beat, parented to the club so it rides the pose. Empty = the shake + storm bolt still fire.")]
-    [SerializeField] private GameObject cineLightningVFX;
-    [Tooltip("Seconds before the lightning instance is destroyed.")]
-    [SerializeField] private float cineLightningLifetime = 4f;
-    [Tooltip("Camera shake when the lightning hits the club.")]
-    [SerializeField] private float cineLightningShake = 0.9f;
-    [SerializeField] private float cineLightningShakeDuration = 0.5f;
+    [SerializeField] private float cineJumpSpeed = 0.55f;
     [Tooltip("The cinematic camera stands this many metres from him.")]
     [SerializeField] private float cineCamDistance = 7f;
     [Tooltip("ROUND 54 — camera height above his feet for the roar shot. LOW (1.2m) so the camera looks UP at him and he fills the screen.")]
@@ -493,14 +471,9 @@ public class OniBoss : MonoBehaviour
     // ROUND 57 modes: 1 roar shot · 2 ascent ride+orbit · 3 descent ride+orbit · 4 exit fade.
     private int cineShotMode;
     private float cineShotProgress;           // roar: clip t · ascent/descent: 0..1 across that half
-    private bool cineDescending;              // past the apex+hang — normal speed, camera riding him down
+    private bool cineDescending;              // past the apex — normal speed, camera riding him down
     private float cineExitElapsed;            // exit fade: unscaled seconds since he landed
     private Vector3 cineAimSmoothed;          // the cameraman's eased aim point
-
-    // ROUND 58 — lightning beat + top hang state.
-    private float cineWorldSpeedNow = 1f;     // the slow the camera driver asserts this frame (roar 0.45 / beat 0.2 / hang 0.45)
-    private float cineHangExtra;              // extra drift degrees accumulated during the hang
-    private StormWeather stormRef;            // to hold the storm break until the lightning beat
 
     // ROUND 55 — boss music state.
     private bool musicFightStarted;
@@ -751,23 +724,11 @@ public class OniBoss : MonoBehaviour
             if (playerMoveRef == null) playerMoveRef = playerT.GetComponentInChildren<PlayerMovement>();
             playerCombatRef = playerT.GetComponent<PlayerCombat>();
             if (playerCombatRef == null) playerCombatRef = playerT.GetComponentInChildren<PlayerCombat>();
-
             DebugLog($"ground wave ON (round 38): half the club's damage on TOUCH, {groundWaveSpeed:F0}m/s x {groundWaveTravel:F1}m "
                    + $"from {groundWaveStartDistance:F1}m in front at {groundWaveHeight:F2}m height — a club hit cancels that swing's wave, "
                    + $"jumping clears it. Per-attack effects come from the Swing Wave VFX By Attack rows. "
                    + $"PlayerHealth {(playerHealthRef != null ? "found" : "NOT FOUND — wave damage disabled")}, "
                    + $"PlayerMovement {(playerMoveRef != null ? "found" : "NOT FOUND — she will count as grounded")}.");
-        }
-
-        // ROUND 58 — the arena's storm, so the cinematic can hold its break for the lightning
-        // beat. Held from HERE (not from the cut) because the storm polls phase 2 in its own
-        // Update — script order could let it break one frame before the cut. Released at the
-        // beat; safety releases live in EndPhaseCinematic and OnDisable. Cinematic off = stock.
-        stormRef = FindObjectOfType<StormWeather>();
-        if (stormRef != null && cinematicEnabled && phaseTransitionEnabled)
-        {
-            stormRef.SetBreakHold(true);
-            DebugLog("storm break HELD — it releases at the lightning-on-the-club beat.");
         }
 
         // ROUND 15: locate the club's TIP — the deepest bone whose name matches — so the distance
@@ -1040,10 +1001,8 @@ public class OniBoss : MonoBehaviour
         // guard. It "rescued" him 0.5s into the entrance jump (round-55 log: Stagger held 3.21s →
         // forcing Chase), the freed engine swung a club from the SKY (tip 17.14m up), the swing's
         // armed wave clipped Yoru the moment control returned, and the first-attack grace was
-        // bypassed. Both driven windows get the same real-time room; the ceiling still stands.
-        // ROUND 58: room 12 → 20 — the entrance now carries the lightning beat + the top hang
-        // (~10.3s at defaults), and her tuning the hang longer must not re-open the round-55 bug.
-        if (phaseTransitionActive || poundActive) limit = 20f;
+        // bypassed. Both driven windows get the same 12s real-time room; the ceiling still stands.
+        if (phaseTransitionActive || poundActive) limit = 12f;
 
         if (limit <= 0f) return;
 
@@ -1110,9 +1069,6 @@ public class OniBoss : MonoBehaviour
         // ROUND 55: and never leave the boss music looping over an empty arena.
         if (CombatMusicManager.Instance != null && (musicFightStarted || musicPhase2Started) && !musicStoppedOnDeath)
             CombatMusicManager.Instance.StopBossTrack(0.5f);
-
-        // ROUND 58: and never leave the storm waiting for a beat that can no longer come.
-        ReleaseStormBreak();
     }
 
     private void Update()
@@ -2391,7 +2347,7 @@ public class OniBoss : MonoBehaviour
 
         phaseTransitionDone = true;
         var s = combat.GetCurrentState();
-        if (s == EnemyCombat.EnemyState.Dead) { ReleaseStormBreak(); return; }
+        if (s == EnemyCombat.EnemyState.Dead) return;
 
         // ROUND 57 — Hazel: phase 2 STARTS at exactly half. The triggering hit usually lands him
         // below 50% (her log: 245/500 = 49%); snap him back up so the crimson bar returns at a
@@ -2406,7 +2362,7 @@ public class OniBoss : MonoBehaviour
             }
         }
 
-        if (!HasState(phaseTransitionState)) { phaseRoarReached = true; ReleaseStormBreak(); return; }
+        if (!HasState(phaseTransitionState)) { phaseRoarReached = true; return; }
 
         if (phaseTransitionRoutine != null) StopCoroutine(phaseTransitionRoutine);
         phaseTransitionRoutine = StartCoroutine(PhaseTransitionRoutine());
@@ -2443,10 +2399,6 @@ public class OniBoss : MonoBehaviour
         // untouchable, the cinematic camera flying in. It ends at the TOP of the pound jump (or
         // right after this routine, if no pound follows) — never later.
         BeginPhaseCinematic();
-
-        // ROUND 58 — if the cinematic did NOT take (unticked, or no camera), there will be no
-        // lightning beat: the storm breaks right here, like stock, instead of waiting forever.
-        if (!cineActive) ReleaseStormBreak();
 
         // ROUND 55 — the transition piece starts AT the cut, together with the bars (Hazel's
         // pick). Plays with or without the cinematic — it belongs to the transition section.
@@ -2592,10 +2544,8 @@ public class OniBoss : MonoBehaviour
 
         float speed = Mathf.Clamp(poundAnimSpeed, 0.2f, 2f);
         float startReal = Time.unscaledTime;
-        float clock = 0f;   // clip-seconds — the ONE clock (rise / beat / hang / fall, see below)
+        float clock = 0f;   // clip-seconds — the ONE clock (Cine Jump Speed until the apex, Pound Anim Speed after)
         float clipLen = -1f;
-        float topHang = 0f;          // ROUND 58: real seconds he has hung frozen at the peak
-        bool beatFired = false;      // ROUND 58: the lightning-on-the-club moment fires once
         bool slammed = false, driving = false;
 
         DebugLog($"GROUND POUND ({reason}): driving '{groundPoundState}' at x{speed:F2}, slam at {poundStrikeMoment:F2}"
@@ -2606,41 +2556,10 @@ public class OniBoss : MonoBehaviour
             yield return null;
             if (combat == null || animator == null) break;
 
-            // ROUND 58 — the clock, phase by phase (rates in clip-seconds per REAL second):
-            //   rise                → Cine Rise Speed at the roar's slow-mo
-            //   frames 27-37        → the DEEP dive (Cine Beat Slow): lightning hits the club here
-            //   top of the jump     → clock FROZEN for Cine Top Hold seconds — he hangs, club raised
-            //   fall + all repeats  → Pound Anim Speed at full world speed
-            float tNow = clipLen > 0f ? Mathf.Clamp01(clock / clipLen) : 0f;
-            bool riding = cineActive && !cineDescending;
-            float beatStartN = Mathf.Clamp01(cineSlowFrameStart / Mathf.Max(1f, cineClipTotalFrames));
-            float beatEndN   = Mathf.Clamp01(cineSlowFrameEnd   / Mathf.Max(1f, cineClipTotalFrames));
-            bool inBeat  = riding && clipLen > 0f && tNow >= beatStartN && tNow < beatEndN;
-            bool hanging = riding && clipLen > 0f && tNow >= cineApexMoment && topHang < Mathf.Max(0f, cineTopHold);
-
-            if (inBeat && !beatFired)
-            {
-                beatFired = true;
-                FireLightningBeat();
-            }
-
-            if (riding)
-                cineWorldSpeedNow = inBeat ? Mathf.Clamp(cineBeatSlow, 0.05f, 1f)
-                                           : Mathf.Clamp(cineSlowMotion, 0.1f, 1f);
-
-            if (hanging)
-            {
-                topHang += Time.unscaledDeltaTime;                                     // he hangs; the clip waits
-                cineHangExtra += Mathf.Max(0f, cineHangDrift) * Time.unscaledDeltaTime; // the camera drifts gently
-            }
-            else
-            {
-                float rate = !riding
-                    ? speed
-                    : Mathf.Clamp(cineRiseSpeed, 0.1f, 2f)
-                      * (inBeat ? Mathf.Clamp(cineBeatSlow, 0.05f, 1f) / Mathf.Clamp(cineSlowMotion, 0.1f, 1f) : 1f);
-                clock += Time.unscaledDeltaTime * rate;
-            }
+            // ROUND 54 — one clock, no stacking: Cine Jump Speed carries the rise (in REAL
+            // seconds); Pound Anim Speed carries the fall (round 57: normal speed from the apex,
+            // camera still riding him) and every repeat.
+            clock += Time.unscaledDeltaTime * ((cineActive && !cineDescending) ? Mathf.Clamp(cineJumpSpeed, 0.1f, 2f) : speed);
             float elapsed = clock;
 
             if (clipLen < 0f)
@@ -2675,13 +2594,6 @@ public class OniBoss : MonoBehaviour
                         cineShotMode = 2;
                         cineShotProgress = Mathf.Clamp01(t / Mathf.Max(0.05f, cineApexMoment));
                     }
-                    else if (topHang < Mathf.Max(0f, cineTopHold))
-                    {
-                        // ROUND 58 — the HANG: he is frozen at the peak (the clock above stopped),
-                        // the camera holds the top of its circle and drifts. World stays slow.
-                        cineShotMode = 2;
-                        cineShotProgress = 1f;
-                    }
                     else
                     {
                         if (!cineDescending)
@@ -2689,7 +2601,7 @@ public class OniBoss : MonoBehaviour
                             cineDescending = true;
                             if (cineTimeSlowed) Time.timeScale = 1f;
                             cineTimeSlowed = false;
-                            Debug.Log($"[OniBoss:Cine] the DROP at clip {t:F2} (hung {topHang:F1}s) — full speed, the camera rides him DOWN.");
+                            Debug.Log($"[OniBoss:Cine] APEX at clip {t:F2} — normal speed, the camera rides him DOWN.");
                         }
                         cineShotMode = 3;
                         cineShotProgress = Mathf.Clamp01((t - cineApexMoment)
@@ -2750,9 +2662,7 @@ public class OniBoss : MonoBehaviour
 
         cineActive = true;
         cineTimeSlowed = true;
-        cineWorldSpeedNow = Mathf.Clamp(cineSlowMotion, 0.1f, 1f);   // ROUND 58: the driver asserts THIS
-        cineHangExtra = 0f;
-        Time.timeScale = cineWorldSpeedNow;
+        Time.timeScale = Mathf.Clamp(cineSlowMotion, 0.1f, 1f);
 
         // Orbit zero: his flattened facing the moment the cut lands. He faces Yoru here, so the
         // shot starts as a front three-quarter view and the circle is anchored to his body.
@@ -2774,43 +2684,9 @@ public class OniBoss : MonoBehaviour
         // uses — ends it this frame; the per-frame freeze below keeps her standing.
         if (playerCombatRef != null) playerCombatRef.ForceResetCombat();
 
-        Debug.Log($"[OniBoss:Cine] CINEMATIC ON — hard cut, bars in, world at x{cineWorldSpeedNow:F2}, "
-                + $"roar at x{cineRoarSpeed:F2} + {cineRoarLinger:F1}s linger, rise at x{cineRiseSpeed:F2}, "
-                + $"beat frames {cineSlowFrameStart:F0}-{cineSlowFrameEnd:F0}/{cineClipTotalFrames:F0} at x{cineBeatSlow:F2}, "
-                + $"hang {cineTopHold:F1}s, orbit {cineOrbitDegrees:F0}°+{cineOrbitDegrees:F0}°, apex at clip {cineApexMoment:F2}.");
-    }
-
-    /// <summary>ROUND 58 — the Thor moment, once per entrance, inside the deep-slow window: her
-    /// lightning prefab spawned ON the club tip (parented, so it rides the raised pose), the big
-    /// shake, and the storm break released — heavy rain and the sky bolt answer in the same
-    /// breath. Works with an empty slot: then it is shake + storm only.</summary>
-    private void FireLightningBeat()
-    {
-        Transform anchor = clubBone != null ? clubBone : transform;
-        Vector3 at = clubBone != null ? clubBone.position : transform.position + Vector3.up * 3f;
-
-        if (cineLightningVFX != null)
-        {
-            GameObject fx = Instantiate(cineLightningVFX, at, Quaternion.identity, anchor);
-            foreach (var ps in fx.GetComponentsInChildren<ParticleSystem>(true))
-                if (!ps.isPlaying) ps.Play(true);
-            Destroy(fx, Mathf.Max(0.5f, cineLightningLifetime));
-        }
-
-        if (CombatFeedbackManager.Instance != null && cineLightningShake > 0f)
-            CombatFeedbackManager.Instance.CameraShake(cineLightningShake, Mathf.Max(0.1f, cineLightningShakeDuration));
-
-        ReleaseStormBreak();   // NOW the sky answers
-
-        Debug.Log("[OniBoss:Cine] LIGHTNING BEAT — "
-                + (cineLightningVFX != null ? $"'{cineLightningVFX.name}' on the club tip" : "slot EMPTY (shake + storm only)")
-                + ", storm break released.");
-    }
-
-    /// <summary>ROUND 58 — safe from every path, harmless when called twice or never held.</summary>
-    private void ReleaseStormBreak()
-    {
-        if (stormRef != null) stormRef.SetBreakHold(false);
+        Debug.Log($"[OniBoss:Cine] CINEMATIC ON — hard cut, bars in, world at x{Mathf.Clamp(cineSlowMotion, 0.1f, 1f):F2}, "
+                + $"roar at x{cineRoarSpeed:F2} + {cineRoarLinger:F1}s linger, jump at x{cineJumpSpeed:F2}, "
+                + $"orbit {cineOrbitDegrees:F0}°+{cineOrbitDegrees:F0}°, apex at pound clip {cineApexMoment:F2}.");
     }
 
     /// <summary>Camera position on the circle around him: azimuth degrees from his facing at the
@@ -2857,7 +2733,7 @@ public class OniBoss : MonoBehaviour
             // sweeping the first half-circle. He can jump as high as he likes — the camera is
             // always slightly above him, looking a little down. The club never leaves the frame.
             float a = Mathf.Clamp01(cineShotProgress);
-            cineAzimuthNow = cineCamSideAngle + cineOrbitDegrees * a + cineHangExtra;   // +the hang's gentle drift
+            cineAzimuthNow = cineCamSideAngle + cineOrbitDegrees * a;
             float boneUp = (travelBone != null ? travelBone.position.y : transform.position.y + cineShotLookHeight)
                          - transform.position.y;                          // his body height above his feet
             float rideH = boneUp + cineAboveOffset;
@@ -2872,7 +2748,7 @@ public class OniBoss : MonoBehaviour
             // ROUND 57 — the descent RIDE: same tracking on the way DOWN, sweeping the second
             // half-circle at full weight. Yoru is still frozen; control comes at the landing.
             float p = Mathf.Clamp01(cineShotProgress);
-            cineAzimuthNow = cineCamSideAngle + cineOrbitDegrees * (1f + p) + cineHangExtra;   // 180° → 360°, from wherever the drift left it
+            cineAzimuthNow = cineCamSideAngle + cineOrbitDegrees * (1f + p);   // 180° → 360°
             float boneUp = (travelBone != null ? travelBone.position.y : transform.position.y + cineShotLookHeight)
                          - transform.position.y;
             camPos = CineOrbitPos(cineAzimuthNow, Mathf.Max(2f, cineCamDistance), boneUp + cineAboveOffset);
@@ -2906,7 +2782,7 @@ public class OniBoss : MonoBehaviour
         if (cineActive)
         {
             if (!cineDescending)
-                Time.timeScale = cineWorldSpeedNow;   // ROUND 58: roar/rise 0.45, beat 0.2, hang 0.45
+                Time.timeScale = Mathf.Clamp(cineSlowMotion, 0.1f, 1f);
             if (playerHealthRef != null)
             {
                 playerHealthRef.ApplyStun(0.25f);          // the engine's own capture freeze
@@ -2951,10 +2827,6 @@ public class OniBoss : MonoBehaviour
             CameraGameFeel.Instance.SetLetterbox(0f);   // bars out = the player's control signal
             CameraGameFeel.Instance.PunchHit(false);    // small FOV kick — the "snap awake"
         }
-
-        // ROUND 58 — if the beat never fired (early end, no pound, boss died), the storm must
-        // never stay held. Releasing twice is harmless.
-        ReleaseStormBreak();
 
         if (isActiveAndEnabled && cineShotMode != 0)
         {
@@ -3221,9 +3093,7 @@ public class OniBoss : MonoBehaviour
         {
             if (barShown)
             {
-                // ROUND 58: HideInstant, not Hide — the normal hide is a fade on game time, and
-                // the cinematic slows game time, so the bar sat there dissolving over the roar.
-                BossHealthBarUI.Instance.HideInstant("cinematic");
+                BossHealthBarUI.Instance.Hide("cinematic");
                 barShown = false;
                 phase2Sent = false;
                 DebugLog("boss bar hidden (cinematic)");

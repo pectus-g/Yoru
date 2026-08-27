@@ -294,20 +294,6 @@ public class BossHealthBarUI : MonoBehaviour
     }
 
     /// <summary>
-    /// ROUND 58 — hide NOW, no fade. The Oni's cinematic needs the HUD gone on the cut frame:
-    /// the normal Hide only starts a fade, and that fade runs on game time, which the cinematic
-    /// slows — so the bar sat there slowly dissolving over the roar (Hazel's report).
-    /// </summary>
-    public void HideInstant(string reason = "")
-    {
-        isShowing = false;
-        targetAlpha = 0f;
-        currentAlpha = 0f;
-        if (canvasGroup != null) canvasGroup.alpha = 0f;
-        DebugLog($"Hiding bar INSTANTLY{(reason != "" ? $" ({reason})" : "")}");
-    }
-
-    /// <summary>
     /// Notify that the tracked enemy has died. Starts the fade-out delay.
     /// </summary>
     public void NotifyEnemyDead(EnemyHealth enemy)
