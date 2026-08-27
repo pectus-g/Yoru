@@ -35,16 +35,6 @@ public class ThirdPersonCamera : MonoBehaviour
              "value if the camera grazes the ground when you tilt down to look up at Yoru.")]
     [SerializeField] private float minHeightAboveGround = 0.5f;
     
-    [Header("Sky Peek — round 64 (testing aid)")]
-    [Tooltip("ROUND 64 — hold the key below and the camera's AIM point glides up above Yoru, tilting the lens to the SKY (for checking the weather). Release = glides back to exactly what it was. The camera's POSITION never moves: floor clamp, deoccluder, zoom and damping are untouched. Untick to disable the key completely.")]
-    [SerializeField] private bool skyPeekEnabled = true;
-    [Tooltip("The hold-to-look-up key.")]
-    [SerializeField] private KeyCode skyPeekKey = KeyCode.U;
-    [Tooltip("How high above Yoru the aim point rises, metres. Higher = steeper look at the sky.")]
-    [SerializeField] private float skyPeekHeight = 14f;
-    [Tooltip("Seconds for the tilt up (and back down).")]
-    [SerializeField] private float skyPeekTime = 0.35f;
-
     [Header("References")]
     [SerializeField] private Transform playerTransform;
     [SerializeField] private CinemachineCamera virtualCamera;
@@ -63,11 +53,6 @@ public class ThirdPersonCamera : MonoBehaviour
     // Form height offset: written by FormController on transform to lift the camera for Granny's
     // taller silhouette. Cat form uses 0. See SetFormHeightOffset.
     private float formHeightOffset = 0f;
-
-    // ROUND 64 — sky peek state. The peek rides ADDITIVELY on the form's own aim height
-    // (lookAtBaseY), so a form change mid-peek stays correct and the release restores exactly.
-    private float skyPeekAmount = 0f;   // 0 = normal aim, 1 = fully tilted to the sky
-    private float lookAtBaseY = 1f;     // the aim's own height (form-dependent), tracked below
     
     // Zoom state
     private float defaultDistance;
@@ -103,10 +88,6 @@ public class ThirdPersonCamera : MonoBehaviour
             followComponent = virtualCamera.GetComponent<CinemachineFollow>();
             lookAtComponent = virtualCamera.GetComponent<CinemachineHardLookAt>();
         }
-
-        // ROUND 64 — remember the aim's own height so the sky peek can ride on it and restore it.
-        if (lookAtComponent != null)
-            lookAtBaseY = lookAtComponent.LookAtOffset.y;
         
         if (playerTransform != null)
         {
@@ -189,25 +170,6 @@ public class ThirdPersonCamera : MonoBehaviour
             }
         }
         
-        // === SKY PEEK (round 64, testing aid) ===
-        // Hold the key: the AIM point (not the camera) glides Sky Peek Height metres above Yoru —
-        // the lens tilts up to the sky. Release: glides back to the form's own aim height.
-        // Skipped while the tail-shot aim owns the view. Writes only while moving or held, so
-        // the normal frame path costs nothing when idle.
-        if (skyPeekEnabled && lookAtComponent != null)
-        {
-            bool wantPeek = !aimModeActive && Input.GetKey(skyPeekKey);
-            float peekTarget = wantPeek ? 1f : 0f;
-            if (wantPeek || !Mathf.Approximately(skyPeekAmount, peekTarget))
-            {
-                skyPeekAmount = Mathf.MoveTowards(skyPeekAmount, peekTarget,
-                    Time.unscaledDeltaTime / Mathf.Max(0.05f, skyPeekTime));
-                Vector3 lo = lookAtComponent.LookAtOffset;
-                lo.y = lookAtBaseY + skyPeekAmount * skyPeekHeight;
-                lookAtComponent.LookAtOffset = lo;
-            }
-        }
-
         // Smooth zoom interpolation
         currentDistance = Mathf.SmoothDamp(currentDistance, targetDistance, ref zoomVelocity, zoomSmoothTime);
         
@@ -287,11 +249,10 @@ public class ThirdPersonCamera : MonoBehaviour
     /// </summary>
     public void SetFormLookAtOffset(float yOffset)
     {
-        lookAtBaseY = yOffset;   // ROUND 64: the sky peek rides ON TOP of the form's aim height
         if (lookAtComponent != null)
         {
             Vector3 offset = lookAtComponent.LookAtOffset;
-            offset.y = yOffset + skyPeekAmount * skyPeekHeight;
+            offset.y = yOffset;
             lookAtComponent.LookAtOffset = offset;
         }
     }

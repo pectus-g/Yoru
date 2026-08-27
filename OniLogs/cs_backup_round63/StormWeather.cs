@@ -1,7 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using DistantLands.Cozy;        // ROUND 63 — the COZY bridge (package installed; same usings as YoruCozyIntegration)
-using DistantLands.Cozy.Data;
 
 /// <summary>
 /// The Oni arena's weather profile.
@@ -76,14 +74,6 @@ public class StormWeather : MonoBehaviour
     [SerializeField] private float flashDuration = 0.22f;
     [SerializeField] private Color flashColor = new Color(0.8f, 0.88f, 1f);
 
-    [Header("COZY bridge - round 63 (Hazel's weather arc)")]
-    [Tooltip("ROUND 63 - drive the COZY weather system through the fight: phase 1 = your dark-cloudy profile from scene start, and from the lightning beat on = your storm-chaos profile. NEEDS the COZY rig in THIS scene (like DemoScene_Day has); without it, this does nothing and the cave behaves exactly as before. When COZY runs, the old Rain_Cave particles are retired - COZY owns the rain (Hazel's pick). Untick to go back to the pre-COZY cave.")]
-    [SerializeField] private bool driveCozy = true;
-    [Tooltip("YOUR pick - the phase-1 mood. Try 'Imminent Storm', 'Approaching Storm' or 'Overcast' from the COZY package's Weather Profiles folder.")]
-    [SerializeField] private WeatherProfile phase1Weather;
-    [Tooltip("YOUR pick - from the lightning beat to the end of the fight. Try 'Thunder Storm' (or 'Storm Eye' / 'Electric Fog' for weirder chaos).")]
-    [SerializeField] private WeatherProfile phase2Weather;
-
     [SerializeField] private bool debugLog = true;
 
     // ---- runtime ----
@@ -102,9 +92,6 @@ public class StormWeather : MonoBehaviour
     private MonoBehaviour kronnectFog;
     private System.Reflection.PropertyInfo fogDensity;
 
-    // ROUND 63 — COZY runtime.
-    private CozyWeather cozy;
-
     private void Start()
     {
         if (oniCombat == null)
@@ -121,46 +108,8 @@ public class StormWeather : MonoBehaviour
 
         StartCoroutine(WetnessLoop());
         StartCoroutine(LightningLoop());
-        StartCoroutine(CozyBootstrap());   // ROUND 63 — no-op if no COZY rig in the scene
 
         if (debugLog) Debug.Log("[StormWeather] Ready. Rain on, floor drying... wait, soaking.");
-    }
-
-    // ---- ROUND 63: the COZY bridge — Hazel's weather arc -------------------------------------
-    // Phase 1: dark clouds gather (her profile, set once COZY is up).
-    // The lightning beat / phase 2: storm chaos (set in Update's phase-2 block below).
-    // COZY owns the rain: the old Rain_Cave is retired while the bridge runs. Everything is
-    // null-safe — a cave without the COZY rig behaves exactly as before this round.
-
-    private IEnumerator CozyBootstrap()
-    {
-        if (!driveCozy) yield break;
-
-        float until = Time.unscaledTime + 5f;
-        while (CozyWeather.instance == null && Time.unscaledTime < until) yield return null;
-        cozy = CozyWeather.instance;
-        if (cozy == null)
-        {
-            if (debugLog) Debug.Log("[StormWeather] COZY bridge: no COZY rig in this scene — cave weather stays as before.");
-            yield break;
-        }
-
-        if (rainRoot != null)
-        {
-            rainRoot.gameObject.SetActive(false);
-            if (debugLog) Debug.Log("[StormWeather] COZY bridge: Rain_Cave retired — COZY owns the rain now.");
-        }
-
-        SetCozyWeather(phase1Weather, "phase 1 — dark clouds gather");
-    }
-
-    private void SetCozyWeather(WeatherProfile profile, string why)
-    {
-        if (cozy == null || profile == null) return;
-        var eco = cozy.weatherModule != null ? cozy.weatherModule.ecosystem : null;
-        if (eco == null) return;
-        eco.SetWeather(profile);
-        if (debugLog) Debug.Log($"[StormWeather] COZY → '{profile.name}' ({why})");
     }
 
     // ROUND 58 (Oni cinematic): while held, the storm does NOT break even though phase 2 is on —
@@ -185,7 +134,6 @@ public class StormWeather : MonoBehaviour
             phase2 = true;
             StartCoroutine(RampStorm());
             Strike();
-            SetCozyWeather(phase2Weather, "the sky answers — storm chaos");   // ROUND 63
             if (debugLog) Debug.Log("[StormWeather] PHASE 2 - storm breaking.");
         }
     }
