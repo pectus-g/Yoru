@@ -138,7 +138,6 @@ public class CameraGameFeel : MonoBehaviour
     private Vector3 cinePos;
     private Quaternion cineRot = Quaternion.identity;
     private float cineWeight;
-    private float cineFov = -1f;              // ROUND 59: cinematic lens, degrees; negative = no override
     private float cineLastSetUnscaled = -10f;
 
     // Letterbox state (round 54): target set by the boss layer, amount animated here each frame,
@@ -291,13 +290,6 @@ public class CameraGameFeel : MonoBehaviour
             }
         }
 
-        // === CINEMATIC FOV (round 59) ===
-        // Hazel's wide-to-narrow lens for the Oni entrance. Applied on top of whatever FOV
-        // Cinemachine wrote this frame, blended by the same cinematic weight as the pose, so the
-        // lens returns to gameplay exactly as the camera does. Additive punches still stack after.
-        if (cineWeight > 0.001f && cineFov > 0f)
-            mainCamera.fieldOfView = Mathf.Lerp(mainCamera.fieldOfView, cineFov, cineWeight);
-
         // === FOV OFFSETS ===
 
         // Sprint FOV (smooth lerp)
@@ -443,17 +435,9 @@ public class CameraGameFeel : MonoBehaviour
     /// </summary>
     public void SetCinematicPose(Vector3 position, Quaternion rotation, float weight)
     {
-        SetCinematicPose(position, rotation, weight, -1f);
-    }
-
-    /// <summary>ROUND 59 — same, plus the cinematic LENS in degrees (Unity FOV = the up-down
-    /// wideness of the picture). Pass a negative fov to leave the gameplay lens alone.</summary>
-    public void SetCinematicPose(Vector3 position, Quaternion rotation, float weight, float fov)
-    {
         cinePos = position;
         cineRot = rotation;
         cineWeight = Mathf.Clamp01(weight);
-        cineFov = fov;
         cineLastSetUnscaled = Time.unscaledTime;
     }
 
@@ -461,7 +445,6 @@ public class CameraGameFeel : MonoBehaviour
     public void ClearCinematicPose()
     {
         cineWeight = 0f;
-        cineFov = -1f;
     }
 
     /// <summary>

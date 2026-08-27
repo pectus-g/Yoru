@@ -320,10 +320,7 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float cinePushIn = 1.2f;
     [Tooltip("ROUND 54 — degrees of orbit around him during the RISE (and the same again on the way DOWN). 180 + 180 = the full circle Hazel asked for.")]
     [SerializeField] private float cineOrbitDegrees = 180f;
-    [Tooltip("ROUND 60 — Hazel's foot-to-sky framing: how much the camera RIDES his body during the jump. 0 = the camera STAYS at foot level (Cine Shot Height) and tilts up as he flies — ground and sky both in frame. 1 = the old full body-ride. Between = between.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float cineRideAmount = 0f;
-    [Tooltip("Only matters when Cine Ride Amount > 0: the riding camera's offset from his body, metres. Positive = above him, negative = below him.")]
+    [Tooltip("ROUND 57/59 — the camera RIDES his body through the jump, offset by this many metres. POSITIVE = above him looking down. NEGATIVE (Hazel's round-59 low shot: try -1.2) = below him looking UP — he towers, strong and big. The frame-fit safety below keeps body + club in view either way.")]
     [SerializeField] private float cineAboveOffset = 1.8f;
     [Tooltip("ROUND 59 — Hazel: the LENS. Wide at the cut… (Unity FOV = the up-down wideness of the picture, in degrees). 72 = wide hero view. Above ~80 the cave edges start bending fisheye — that is the 'not too much' line.")]
     [Range(40f, 90f)]
@@ -2880,9 +2877,7 @@ public class OniBoss : MonoBehaviour
             cineAzimuthNow = cineCamSideAngle + cineOrbitDegrees * a + cineHangExtra;   // +the hang's gentle drift
             float boneUp = (travelBone != null ? travelBone.position.y : transform.position.y + cineShotLookHeight)
                          - transform.position.y;                          // his body height above his feet
-            // ROUND 60 — Hazel's foot-to-sky: Ride Amount 0 keeps the camera at foot level (it
-            // only TILTS up as he flies); 1 is the old body-ride; between blends.
-            float rideH = Mathf.Lerp(cineShotHeight, boneUp + cineAboveOffset, Mathf.Clamp01(cineRideAmount));
+            float rideH = boneUp + cineAboveOffset;
             float camH = Mathf.Lerp(cineShotHeight, rideH, Mathf.Clamp01(a / 0.35f));   // ease off the roar shot
             float dist = (Mathf.Max(2f, cineCamDistance) - cinePushIn) + cinePushIn * a;
             camPos = CineOrbitPos(cineAzimuthNow, dist, camH);
@@ -2897,8 +2892,7 @@ public class OniBoss : MonoBehaviour
             cineAzimuthNow = cineCamSideAngle + cineOrbitDegrees * (1f + p) + cineHangExtra;   // 180° → 360°, from wherever the drift left it
             float boneUp = (travelBone != null ? travelBone.position.y : transform.position.y + cineShotLookHeight)
                          - transform.position.y;
-            float downH = Mathf.Lerp(cineShotHeight, boneUp + cineAboveOffset, Mathf.Clamp01(cineRideAmount));   // ROUND 60
-            camPos = CineOrbitPos(cineAzimuthNow, Mathf.Max(2f, cineCamDistance), downH);
+            camPos = CineOrbitPos(cineAzimuthNow, Mathf.Max(2f, cineCamDistance), boneUp + cineAboveOffset);
             aimTarget = travelBone != null ? travelBone.position
                                            : transform.position + Vector3.up * cineShotLookHeight;
         }
@@ -2911,8 +2905,7 @@ public class OniBoss : MonoBehaviour
             weight = 1f - p;
             float boneUp = (travelBone != null ? travelBone.position.y : transform.position.y + cineShotLookHeight)
                          - transform.position.y;
-            float exitH = Mathf.Lerp(cineShotHeight, boneUp + cineAboveOffset, Mathf.Clamp01(cineRideAmount));    // ROUND 60
-            camPos = CineOrbitPos(cineAzimuthNow, Mathf.Max(2f, cineCamDistance), exitH);
+            camPos = CineOrbitPos(cineAzimuthNow, Mathf.Max(2f, cineCamDistance), boneUp + cineAboveOffset);
             aimTarget = travelBone != null ? travelBone.position
                                            : transform.position + Vector3.up * cineShotLookHeight;
             if (p >= 1f)
@@ -2976,7 +2969,6 @@ public class OniBoss : MonoBehaviour
         needed = Mathf.Max(needed, NeededFovFor(camPos, camRot, aspect, clubBone));
         needed = Mathf.Max(needed, NeededFovFor(camPos, camRot, aspect, clubRootBone));
         needed = Mathf.Max(needed, NeededFovFor(camPos, camRot, aspect, travelBone));
-        needed = Mathf.Max(needed, NeededFovFor(camPos, camRot, aspect, transform));   // ROUND 60: his FEET — foot-to-sky guaranteed
 
         needed = Mathf.Min(needed, Mathf.Max(plannedFov, cineFovMax));
         if (needed > plannedFov && needed > cineFovAutoPeak) cineFovAutoPeak = needed;
