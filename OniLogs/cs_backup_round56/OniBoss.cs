@@ -432,7 +432,6 @@ public class OniBoss : MonoBehaviour
 
     private PlayerHealth playerHealthRef;
     private PlayerMovement playerMoveRef;   // ROUND 38: the wave's airborne check — jumping clears it
-    private PlayerCombat playerCombatRef;   // ROUND 56: to end her in-flight combo at the cinematic cut
     private string waveAttackName = "";     // trail bookkeeping only (see UpdateSwingTrail)
 
     // ROUND 39 — club touch state (see UpdateClubTouch).
@@ -720,8 +719,6 @@ public class OniBoss : MonoBehaviour
             if (playerHealthRef == null) playerHealthRef = playerT.GetComponentInChildren<PlayerHealth>();
             playerMoveRef = playerT.GetComponent<PlayerMovement>();
             if (playerMoveRef == null) playerMoveRef = playerT.GetComponentInChildren<PlayerMovement>();
-            playerCombatRef = playerT.GetComponent<PlayerCombat>();
-            if (playerCombatRef == null) playerCombatRef = playerT.GetComponentInChildren<PlayerCombat>();
             DebugLog($"ground wave ON (round 38): half the club's damage on TOUCH, {groundWaveSpeed:F0}m/s x {groundWaveTravel:F1}m "
                    + $"from {groundWaveStartDistance:F1}m in front at {groundWaveHeight:F2}m height — a club hit cancels that swing's wave, "
                    + $"jumping clears it. Per-attack effects come from the Swing Wave VFX By Attack rows. "
@@ -995,12 +992,7 @@ public class OniBoss : MonoBehaviour
 
         // The phase-2 roar borrows the Stagger window and ends it itself; give it room, but still
         // guard it — a blanket exemption is what let the 7.5s freeze go unnoticed.
-        // ROUND 56: the GROUND POUND parks the engine the same way — and nobody had told this
-        // guard. It "rescued" him 0.5s into the entrance jump (round-55 log: Stagger held 3.21s →
-        // forcing Chase), the freed engine swung a club from the SKY (tip 17.14m up), the swing's
-        // armed wave clipped Yoru the moment control returned, and the first-attack grace was
-        // bypassed. Both driven windows get the same 12s real-time room; the ceiling still stands.
-        if (phaseTransitionActive || poundActive) limit = 12f;
+        if (phaseTransitionActive) limit = 12f;
 
         if (limit <= 0f) return;
 
@@ -2644,12 +2636,6 @@ public class OniBoss : MonoBehaviour
         cineShotProgress = 0f;
         cineAimSmoothed = transform.position + Vector3.up * cineShotLookHeight;   // seed — no first-frame swing
         CameraGameFeel.Instance.SetLetterbox(1f);
-
-        // ROUND 56 — weapons down: if Yoru was mid-combo when the cut landed, her attack kept
-        // playing in slow motion through the whole cinematic (her round-55 report: "stuck in
-        // animation"). Her engine's own full reset — the same clean state the grab reaction
-        // uses — ends it this frame; the per-frame freeze below keeps her standing.
-        if (playerCombatRef != null) playerCombatRef.ForceResetCombat();
 
         Debug.Log($"[OniBoss:Cine] CINEMATIC ON — hard cut, bars in, world at x{Mathf.Clamp(cineSlowMotion, 0.1f, 1f):F2}, "
                 + $"roar at x{cineRoarSpeed:F2} + {cineRoarLinger:F1}s linger, jump at x{cineJumpSpeed:F2}, "

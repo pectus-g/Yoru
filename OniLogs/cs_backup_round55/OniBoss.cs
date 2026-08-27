@@ -283,9 +283,9 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float cineRoarSpeed = 0.8f;
     [Tooltip("REAL seconds he keeps roaring after the scream lands, then the jump starts. The old clip tail + hold are SKIPPED in the cinematic — this linger replaces them.")]
     [SerializeField] private float cineRoarLinger = 0.9f;
-    [Tooltip("The jump clip's speed until the apex, in clip-seconds per REAL second. ROUND 55: default 0.55 (was 0.7) — Hazel: 'maybe slower would be better'. The rise + 180° orbit now takes ~2.3s. After the apex the clip continues at the normal Pound Anim Speed.")]
+    [Tooltip("The jump clip's speed until the apex, in clip-seconds per REAL second. 0.7 → the rise (and the 180° orbit) takes ~1.8s. After the apex the clip continues at the normal Pound Anim Speed.")]
     [Range(0.1f, 2f)]
-    [SerializeField] private float cineJumpSpeed = 0.55f;
+    [SerializeField] private float cineJumpSpeed = 0.7f;
     [Tooltip("The cinematic camera stands this many metres from him.")]
     [SerializeField] private float cineCamDistance = 7f;
     [Tooltip("ROUND 54 — camera height above his feet for the roar shot. LOW (1.2m) so the camera looks UP at him and he fills the screen.")]
@@ -300,42 +300,13 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float cineOrbitDegrees = 180f;
     [Tooltip("ROUND 54 — metres the camera RISES during the ascent orbit, following him toward the sky.")]
     [SerializeField] private float cineOrbitRise = 3.5f;
-    [Tooltip("ROUND 54 — seconds of the homeward half-circle after the apex (runs during his fall, while the gameplay camera takes back over underneath). ROUND 55: default 0.8 (was 0.5) — the 360°/s whip was part of 'camera wasn't smooth'.")]
-    [SerializeField] private float cineReturnTime = 0.8f;
-    [Tooltip("ROUND 55 — how fast the camera's aim catches up with him (per second). The aim point is smoothed like a human cameraman instead of snapping to the bone every frame. Lower = lazier, floatier camera; 8-12 feels filmic.")]
-    [Range(1f, 30f)]
-    [SerializeField] private float cineAimSmoothing = 10f;
+    [Tooltip("ROUND 54 — seconds of the homeward half-circle after the apex (runs during his fall, while the gameplay camera takes back over underneath).")]
+    [SerializeField] private float cineReturnTime = 0.5f;
     [Tooltip("Normalized moment of the POUND clip that counts as the top of the jump — normal time, bars out, control back, all HERE. Must be BEFORE Pound Strike Moment (0.6); lower it (0.30) if the slam feels too sudden after the handback.")]
     [Range(0f, 0.95f)]
     [SerializeField] private float cineApexMoment = 0.4f;
     [Tooltip("ROUND 53 — Hazel: after the cinematic the Oni waits AT LEAST this many seconds before his first attack, so the entrance never turns into an instant cheap hit. 0 = no grace.")]
     [SerializeField] private float cineFirstAttackGrace = 2f;
-
-    [Header("Boss Music & Roar — round 55")]
-    [Tooltip("ROUND 55 — the Oni's own soundtrack. All four clip slots are YOURS to fill; an empty slot simply plays nothing (no errors). The pieces crossfade through CombatMusicManager, and the fades run on real time so the cinematic's slow motion never drags them.")]
-    [SerializeField] private bool oniMusicEnabled = true;
-    [Tooltip("YOUR clip — phase-1 fight music. Fades in the first time he engages Yoru.")]
-    [SerializeField] private AudioClip phase1Music;
-    [Tooltip("YOUR clip — the transition-section piece. Starts AT the cinematic cut, together with the bars (Hazel's pick).")]
-    [SerializeField] private AudioClip transitionMusic;
-    [Tooltip("YOUR clip — phase-2 fight music. DROPS exactly at the pound's slam and carries the rest of the fight (Hazel's pick).")]
-    [SerializeField] private AudioClip phase2Music;
-    [Tooltip("YOUR clip — his scream, one-shot, played exactly at the roar moment from his head (3D-ish point sound).")]
-    [SerializeField] private AudioClip roarSFX;
-    [Tooltip("Volume for all three music pieces.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float bossMusicVolume = 0.8f;
-    [Tooltip("Volume of the roar scream.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float roarSfxVolume = 1f;
-    [Tooltip("Seconds phase-1 music fades in when the fight starts.")]
-    [SerializeField] private float musicFadeSeconds = 1.2f;
-    [Tooltip("Seconds of the switch INTO the transition piece at the cut. Short = the music change itself announces the cutscene.")]
-    [SerializeField] private float cineMusicFade = 0.2f;
-    [Tooltip("Seconds of the phase-2 DROP at the slam. Near-instant = the impact IS the downbeat.")]
-    [SerializeField] private float slamMusicFade = 0.15f;
-    [Tooltip("Seconds the boss music takes to fade out when he dies.")]
-    [SerializeField] private float deathMusicFade = 3f;
 
     [System.Serializable]
     public class StrikeMomentOverride
@@ -432,7 +403,6 @@ public class OniBoss : MonoBehaviour
 
     private PlayerHealth playerHealthRef;
     private PlayerMovement playerMoveRef;   // ROUND 38: the wave's airborne check — jumping clears it
-    private PlayerCombat playerCombatRef;   // ROUND 56: to end her in-flight combo at the cinematic cut
     private string waveAttackName = "";     // trail bookkeeping only (see UpdateSwingTrail)
 
     // ROUND 39 — club touch state (see UpdateClubTouch).
@@ -455,28 +425,14 @@ public class OniBoss : MonoBehaviour
     private float poundRingRadius;
     private float poundRingPrevRadius;
 
-    // ROUND 53/54/55 — phase-2 entrance cinematic state.
+    // ROUND 53/54 — phase-2 entrance cinematic state.
     private bool cineActive;                  // the cinematic is running NOW (cut → top of the jump)
     private bool cineTimeSlowed;              // we own Time.timeScale — restore to 1 on ANY exit
     private float cineWeight;                 // camera blend, 0..1 (1 through the cut; fades on the way home)
     private Vector3 cineBaseForward = Vector3.forward;  // his facing when the cut lands — orbit zero
     private float cineAzimuthNow;             // current orbit angle (deg) — the homeward half continues from here
     private float cineHeightNow;              // current camera height — the homeward half eases down from here
-
-    // ROUND 55 — the camera is COMPUTED in LateUpdate (after the Animator poses the skeleton;
-    // round 54 computed it in the routines, Update phase, where bones are a frame stale — that
-    // was the jitter her test caught). The routines only set MODE + PROGRESS; LateUpdate sees.
-    private int cineShotMode;                 // 0 none · 1 roar shot · 2 ascent orbit · 3 homeward half-circle
-    private float cineShotProgress;           // roar: clip t · ascent: 0..1 toward the apex
-    private float cineReturnElapsed;          // homeward: unscaled seconds since the apex
-    private float cineReturnFromAzimuth;      // where the homeward half-circle picks up
-    private float cineReturnFromHeight;
-    private Vector3 cineAimSmoothed;          // the cameraman's eased aim point
-
-    // ROUND 55 — boss music state.
-    private bool musicFightStarted;
-    private bool musicPhase2Started;
-    private bool musicStoppedOnDeath;
+    private Coroutine cineBlendOutRoutine;
     private float  clubTouchClosest = float.MaxValue;  // per-swing closest shaft-to-body distance, logged on swing end
     private float  clubTouchClosestClip = -1f;
     private float  clubTouchMaxSpeed;
@@ -720,8 +676,6 @@ public class OniBoss : MonoBehaviour
             if (playerHealthRef == null) playerHealthRef = playerT.GetComponentInChildren<PlayerHealth>();
             playerMoveRef = playerT.GetComponent<PlayerMovement>();
             if (playerMoveRef == null) playerMoveRef = playerT.GetComponentInChildren<PlayerMovement>();
-            playerCombatRef = playerT.GetComponent<PlayerCombat>();
-            if (playerCombatRef == null) playerCombatRef = playerT.GetComponentInChildren<PlayerCombat>();
             DebugLog($"ground wave ON (round 38): half the club's damage on TOUCH, {groundWaveSpeed:F0}m/s x {groundWaveTravel:F1}m "
                    + $"from {groundWaveStartDistance:F1}m in front at {groundWaveHeight:F2}m height — a club hit cancels that swing's wave, "
                    + $"jumping clears it. Per-attack effects come from the Swing Wave VFX By Attack rows. "
@@ -995,12 +949,7 @@ public class OniBoss : MonoBehaviour
 
         // The phase-2 roar borrows the Stagger window and ends it itself; give it room, but still
         // guard it — a blanket exemption is what let the 7.5s freeze go unnoticed.
-        // ROUND 56: the GROUND POUND parks the engine the same way — and nobody had told this
-        // guard. It "rescued" him 0.5s into the entrance jump (round-55 log: Stagger held 3.21s →
-        // forcing Chase), the freed engine swung a club from the SKY (tip 17.14m up), the swing's
-        // armed wave clipped Yoru the moment control returned, and the first-attack grace was
-        // bypassed. Both driven windows get the same 12s real-time room; the ceiling still stands.
-        if (phaseTransitionActive || poundActive) limit = 12f;
+        if (phaseTransitionActive) limit = 12f;
 
         if (limit <= 0f) return;
 
@@ -1063,10 +1012,6 @@ public class OniBoss : MonoBehaviour
         // mid-cinematic. (The camera and Yoru's protection also expire by themselves — this is
         // the belt to their braces.)
         EndPhaseCinematic("boss disabled");
-
-        // ROUND 55: and never leave the boss music looping over an empty arena.
-        if (CombatMusicManager.Instance != null && (musicFightStarted || musicPhase2Started) && !musicStoppedOnDeath)
-            CombatMusicManager.Instance.StopBossTrack(0.5f);
     }
 
     private void Update()
@@ -1077,7 +1022,6 @@ public class OniBoss : MonoBehaviour
         UpdatePhaseTransition();
         UpdatePoundRing();          // ROUND 52: the pound's expanding shockwave
         UpdatePoundRepeat();        // ROUND 52: rare phase-2 repeats
-        UpdateBossMusic();          // ROUND 55: phase-1 music on engage, fade-out on death
         UpdateReactionFreezeGuard();
         UpdateSlowMotionWatchdog();
         UpdatePreCombatWatch();
@@ -1671,7 +1615,6 @@ public class OniBoss : MonoBehaviour
 
     private void LateUpdate()
     {
-        UpdateCinematicCamera();        // ROUND 55 — the cinematic shot; needs the posed skeleton, like everything below
         UpdateChargePin();
         UpdateClubTouch();              // ROUND 39 — the club's real hit; needs the posed skeleton
         UpdateStrikeContactMeasure();   // ROUND 15 diagnostic — needs the posed skeleton
@@ -2384,11 +2327,6 @@ public class OniBoss : MonoBehaviour
         // right after this routine, if no pound follows) — never later.
         BeginPhaseCinematic();
 
-        // ROUND 55 — the transition piece starts AT the cut, together with the bars (Hazel's
-        // pick). Plays with or without the cinematic — it belongs to the transition section.
-        if (oniMusicEnabled && transitionMusic != null && CombatMusicManager.Instance != null)
-            CombatMusicManager.Instance.PlayBossTrack(transitionMusic, Mathf.Max(0.05f, cineMusicFade), bossMusicVolume);
-
         float speed = Mathf.Clamp(phaseTransitionAnimSpeed, 0.2f, 1.5f);
         float hold = Mathf.Max(0f, phaseTransitionHold);
         float startReal = Time.unscaledTime;
@@ -2432,13 +2370,9 @@ public class OniBoss : MonoBehaviour
                 animator.Play(hash, 0, t);                       // the time is ours, whatever speed says
                 combat.SetStaggerTimer(2f);                      // keep the engine parked; we end it
 
-                // ROUND 55 — the roar shot is COMPUTED in LateUpdate (fresh bones); here we only
-                // say which shot and how far along it is.
+                // ROUND 54 — the roar shot: LOW camera looking up at him, creeping in as he screams.
                 if (cineActive)
-                {
-                    cineShotMode = 1;
-                    cineShotProgress = t;
-                }
+                    DriveCineRoar(t);
 
                 if (!roared && t >= phaseRoarNormalizedTime)
                 {
@@ -2449,9 +2383,6 @@ public class OniBoss : MonoBehaviour
                         CombatFeedbackManager.Instance.CameraShake(phaseRoarShakeIntensity, phaseRoarShakeDuration);
                     if (phaseRoarRingRadius > 0f)
                         ProceduralImpactFX.Shockwave(transform.position, phaseRoarRingRadius, 0.6f, new Color(1f, 0.25f, 0.2f));
-                    // ROUND 55 — his scream, exactly here.
-                    if (oniMusicEnabled && roarSFX != null)
-                        AudioSource.PlayClipAtPoint(roarSFX, transform.position + Vector3.up * 2.5f, roarSfxVolume);
                     DebugLog($"PHASE 2: roar at {elapsed:F2} clip-s");
                 }
 
@@ -2492,7 +2423,6 @@ public class OniBoss : MonoBehaviour
             // ROUND 53: no pound to follow (state missing, disabled, or he died mid-roar) — the
             // cinematic ends HERE instead of at the jump apex. Same snap-back either way.
             EndPhaseCinematic("transition over, no pound to follow");
-            StartPhase2Music("no pound followed");   // ROUND 55 — phase 2 still deserves its music
             if (combat != null && combat.GetCurrentState() == EnemyCombat.EnemyState.Stagger)
             {
                 // End the window ourselves — do not wait for a game-time timer that Yoru's
@@ -2565,13 +2495,10 @@ public class OniBoss : MonoBehaviour
                     animator.Play(hash, 0, t);
                 combat.SetStaggerTimer(2f);
 
-                // ROUND 55 — the ascent orbit is COMPUTED in LateUpdate (fresh bones); here we
-                // only say which shot and how far up the rise we are.
+                // ROUND 54 — the ascent orbit: the camera rises with him and circles half around
+                // his body, aimed at his hips, all the way to the apex.
                 if (cineActive)
-                {
-                    cineShotMode = 2;
-                    cineShotProgress = Mathf.Clamp01(t / Mathf.Max(0.05f, cineApexMoment));
-                }
+                    DriveCineJump(Mathf.Clamp01(t / Mathf.Max(0.05f, cineApexMoment)));
 
                 // The TOP of the jump: normal time, bars out, control returned, and the camera
                 // starts its homeward half-circle. Everything after this line — the fall, the
@@ -2629,7 +2556,7 @@ public class OniBoss : MonoBehaviour
 
         cineActive = true;
         cineTimeSlowed = true;
-        Time.timeScale = Mathf.Clamp(cineSlowMotion, 0.1f, 1f);
+        if (cineBlendOutRoutine != null) { StopCoroutine(cineBlendOutRoutine); cineBlendOutRoutine = null; }
 
         // Orbit zero: his flattened facing the moment the cut lands. He faces Yoru here, so the
         // shot starts as a front three-quarter view and the circle is anchored to his body.
@@ -2638,18 +2565,9 @@ public class OniBoss : MonoBehaviour
         cineAzimuthNow = cineCamSideAngle;
         cineHeightNow = cineShotHeight;
 
-        // HARD CUT: the roar shot owns this very frame — LateUpdate computes the pose after the
-        // Animator, so the cut lands with a FRESH skeleton (round 55). Bars slide in with it.
-        cineShotMode = 1;
-        cineShotProgress = 0f;
-        cineAimSmoothed = transform.position + Vector3.up * cineShotLookHeight;   // seed — no first-frame swing
+        // HARD CUT: the shot owns the very first frame — no drift-in — and the bars slide in.
         CameraGameFeel.Instance.SetLetterbox(1f);
-
-        // ROUND 56 — weapons down: if Yoru was mid-combo when the cut landed, her attack kept
-        // playing in slow motion through the whole cinematic (her round-55 report: "stuck in
-        // animation"). Her engine's own full reset — the same clean state the grab reaction
-        // uses — ends it this frame; the per-frame freeze below keeps her standing.
-        if (playerCombatRef != null) playerCombatRef.ForceResetCombat();
+        DriveCineRoar(0f);
 
         Debug.Log($"[OniBoss:Cine] CINEMATIC ON — hard cut, bars in, world at x{Mathf.Clamp(cineSlowMotion, 0.1f, 1f):F2}, "
                 + $"roar at x{cineRoarSpeed:F2} + {cineRoarLinger:F1}s linger, jump at x{cineJumpSpeed:F2}, "
@@ -2665,87 +2583,52 @@ public class OniBoss : MonoBehaviour
     }
 
     /// <summary>
-    /// ROUND 55 — the cinematic camera, computed in LateUpdate AFTER the Animator has posed the
-    /// skeleton this frame (and before CameraGameFeel applies it at execution order 200). Round
-    /// 54 computed it inside the routines — Update phase, bones a frame STALE — and the camera
-    /// jittered and trailed him; same lesson the club touch learned in round 39. The aim point
-    /// is also smoothed, so the camera follows him like a cameraman, not a laser pen.
-    /// Modes: 1 = roar shot (low, push-in) · 2 = ascent orbit · 3 = homeward half-circle.
-    /// While the cinematic proper runs (1-2) this is also where the slow world clock and Yoru's
-    /// freeze + protection are re-asserted every frame.
+    /// ROUND 54 — the shared cinematic frame duties: re-assert the slow world clock (nothing that
+    /// also writes Time.timeScale can win for more than one frame), refresh Yoru's freeze +
+    /// protection (both expire by themselves moments after the last refresh), and hand the camera
+    /// its pose at full weight (hard cut — no ramp).
     /// </summary>
-    private void UpdateCinematicCamera()
+    private void ApplyCineFrame(Vector3 camPos, Vector3 lookPoint)
     {
-        if (cineShotMode == 0) return;
-        var feel = CameraGameFeel.Instance;
-        if (feel == null) { cineShotMode = 0; return; }
+        Time.timeScale = Mathf.Clamp(cineSlowMotion, 0.1f, 1f);
 
-        Vector3 camPos;
-        Vector3 aimTarget;
-        float weight = 1f;
-
-        if (cineShotMode == 1)
+        if (playerHealthRef != null)
         {
-            // The roar: LOW shot looking up, creeping Cine Push In metres closer as he screams.
-            cineAzimuthNow = cineCamSideAngle;
-            cineHeightNow = cineShotHeight;
-            float dist = Mathf.Max(2f, cineCamDistance) - cinePushIn * Mathf.Clamp01(cineShotProgress);
-            camPos = CineOrbitPos(cineAzimuthNow, dist, cineHeightNow);
-            aimTarget = transform.position + Vector3.up * cineShotLookHeight;
-        }
-        else if (cineShotMode == 2)
-        {
-            // The ascent: rise + the first half-circle, aimed at his hips (posed THIS frame).
-            float a = Mathf.Clamp01(cineShotProgress);
-            cineAzimuthNow = cineCamSideAngle + cineOrbitDegrees * a;
-            cineHeightNow = cineShotHeight + cineOrbitRise * a;
-            float dist = (Mathf.Max(2f, cineCamDistance) - cinePushIn) + cinePushIn * a;
-            camPos = CineOrbitPos(cineAzimuthNow, dist, cineHeightNow);
-            aimTarget = travelBone != null ? travelBone.position
-                                           : transform.position + Vector3.up * cineShotLookHeight;
-        }
-        else
-        {
-            // The homeward half-circle: weight fades while the camera finishes the circle,
-            // still watching the falling body — it lands behind Yoru with no snap.
-            cineReturnElapsed += Time.unscaledDeltaTime;
-            float p = Mathf.Clamp01(cineReturnElapsed / Mathf.Max(0.1f, cineReturnTime));
-            weight = 1f - p;
-            float az = cineReturnFromAzimuth + cineOrbitDegrees * p;
-            float h = Mathf.Lerp(cineReturnFromHeight, cineShotHeight + cineOrbitRise * 0.4f, p);
-            camPos = CineOrbitPos(az, Mathf.Max(2f, cineCamDistance), h);
-            aimTarget = travelBone != null ? travelBone.position
-                                           : transform.position + Vector3.up * cineShotLookHeight;
-            if (p >= 1f)
-            {
-                cineShotMode = 0;
-                cineWeight = 0f;
-                feel.ClearCinematicPose();
-                return;
-            }
+            playerHealthRef.ApplyStun(0.25f);          // the engine's own capture freeze — movement + attacks blocked
+            playerHealthRef.SetCinematicGuard(0.3f);   // and NOTHING can hurt her (GATE 0.7 in PlayerHealth)
         }
 
-        // The cinematic proper (roar + rise): keep the world slow and Yoru safe EVERY frame, so
-        // nothing that also writes these can win for more than one frame.
-        if (cineActive)
-        {
-            Time.timeScale = Mathf.Clamp(cineSlowMotion, 0.1f, 1f);
-            if (playerHealthRef != null)
-            {
-                playerHealthRef.ApplyStun(0.25f);          // the engine's own capture freeze
-                playerHealthRef.SetCinematicGuard(0.3f);   // and NOTHING can hurt her (GATE 0.7)
-            }
-        }
+        cineWeight = 1f;
+        Vector3 to = lookPoint - camPos;
+        if (CameraGameFeel.Instance != null && to.sqrMagnitude > 0.001f)
+            CameraGameFeel.Instance.SetCinematicPose(camPos, Quaternion.LookRotation(to.normalized, Vector3.up), 1f);
+    }
 
-        // The cameraman: the aim EASES toward the target (frame-rate independent), instead of
-        // snapping to the bone every frame.
-        float k = 1f - Mathf.Exp(-Mathf.Max(1f, cineAimSmoothing) * Time.unscaledDeltaTime);
-        cineAimSmoothed = Vector3.Lerp(cineAimSmoothed, aimTarget, k);
+    /// <summary>ROUND 54 — the roar shot: LOW camera (Cine Shot Height) aiming UP at his
+    /// chest/head, creeping Cine Push In metres closer as the clip runs. clipT = 0..1.</summary>
+    private void DriveCineRoar(float clipT)
+    {
+        if (!cineActive) return;
+        cineAzimuthNow = cineCamSideAngle;
+        cineHeightNow = cineShotHeight;
+        float dist = Mathf.Max(2f, cineCamDistance) - cinePushIn * Mathf.Clamp01(clipT);
+        ApplyCineFrame(CineOrbitPos(cineAzimuthNow, dist, cineHeightNow),
+                       transform.position + Vector3.up * cineShotLookHeight);
+    }
 
-        cineWeight = weight;
-        Vector3 to = cineAimSmoothed - camPos;
-        if (to.sqrMagnitude > 0.001f)
-            feel.SetCinematicPose(camPos, Quaternion.LookRotation(to.normalized, Vector3.up), weight);
+    /// <summary>ROUND 54 — the ascent orbit: across ascend 0..1 (cut of the pound clip up to the
+    /// apex) the camera sweeps Cine Orbit Degrees around him, rises Cine Orbit Rise metres, eases
+    /// back out from the push-in, and aims at his hips the whole way up.</summary>
+    private void DriveCineJump(float ascend)
+    {
+        if (!cineActive) return;
+        ascend = Mathf.Clamp01(ascend);
+        cineAzimuthNow = cineCamSideAngle + cineOrbitDegrees * ascend;
+        cineHeightNow = cineShotHeight + cineOrbitRise * ascend;
+        float dist = (Mathf.Max(2f, cineCamDistance) - cinePushIn) + cinePushIn * ascend;
+        Vector3 look = travelBone != null ? travelBone.position
+                                          : transform.position + Vector3.up * cineShotLookHeight;
+        ApplyCineFrame(CineOrbitPos(cineAzimuthNow, dist, cineHeightNow), look);
     }
 
     /// <summary>
@@ -2776,16 +2659,11 @@ public class OniBoss : MonoBehaviour
 
         if (isActiveAndEnabled)
         {
-            // ROUND 55 — Hazel's second 180°: the homeward half-circle, driven from LateUpdate
-            // (mode 3) with fresh bones, weight fading 1→0 across Cine Return Time.
-            cineShotMode = 3;
-            cineReturnElapsed = 0f;
-            cineReturnFromAzimuth = cineAzimuthNow;
-            cineReturnFromHeight = cineHeightNow;
+            if (cineBlendOutRoutine != null) StopCoroutine(cineBlendOutRoutine);
+            cineBlendOutRoutine = StartCoroutine(CineReturnRoutine(cineAzimuthNow, cineHeightNow));
         }
         else
         {
-            cineShotMode = 0;
             cineWeight = 0f;
             if (CameraGameFeel.Instance != null) CameraGameFeel.Instance.ClearCinematicPose();
         }
@@ -2794,46 +2672,31 @@ public class OniBoss : MonoBehaviour
                 + $"homeward half-circle over {cineReturnTime:F2}s.");
     }
 
-    /// <summary>ROUND 55 — phase-2 music, once: normally the DROP at the slam (Hazel's pick);
-    /// also fired if the transition ends with no pound to follow. Empty slot = nothing plays and
-    /// the transition piece simply carries on.</summary>
-    private void StartPhase2Music(string when)
+    /// <summary>ROUND 54 — Hazel's second 180°: after the apex the camera keeps circling him on
+    /// its way home, weight fading 1→0, still aimed at the falling body — so it finishes the full
+    /// circle and lands behind Yoru with no snap. The gameplay camera is live underneath.</summary>
+    private System.Collections.IEnumerator CineReturnRoutine(float fromAzimuth, float fromHeight)
     {
-        if (musicPhase2Started) return;
-        musicPhase2Started = true;
-        if (!oniMusicEnabled || CombatMusicManager.Instance == null) return;
-        if (phase2Music != null)
-            CombatMusicManager.Instance.PlayBossTrack(phase2Music, Mathf.Max(0.05f, slamMusicFade), bossMusicVolume);
-        Debug.Log($"[OniBoss:Music] phase-2 music at {when}"
-                + (phase2Music == null ? " — slot EMPTY, nothing to play." : $" — '{phase2Music.name}'."));
-    }
-
-    /// <summary>ROUND 55 — watches the fight for the two music moments the routines cannot see:
-    /// the FIRST engagement (phase-1 music in) and his death (everything out).</summary>
-    private void UpdateBossMusic()
-    {
-        if (!oniMusicEnabled || combat == null || CombatMusicManager.Instance == null) return;
-
-        var s = combat.GetCurrentState();
-
-        if (!musicStoppedOnDeath && s == EnemyCombat.EnemyState.Dead)
+        float dur = Mathf.Max(0.1f, cineReturnTime);
+        float e = 0f;
+        while (e < dur && CameraGameFeel.Instance != null)
         {
-            musicStoppedOnDeath = true;
-            CombatMusicManager.Instance.StopBossTrack(Mathf.Max(0.1f, deathMusicFade));
-            Debug.Log("[OniBoss:Music] he is dead — boss music fading out.");
-            return;
+            e += Time.unscaledDeltaTime;
+            float p = Mathf.Clamp01(e / dur);
+            cineWeight = 1f - p;
+            float az = fromAzimuth + cineOrbitDegrees * p;
+            float h = Mathf.Lerp(fromHeight, cineShotHeight + cineOrbitRise * 0.4f, p);
+            Vector3 camPos = CineOrbitPos(az, Mathf.Max(2f, cineCamDistance), h);
+            Vector3 look = travelBone != null ? travelBone.position
+                                              : transform.position + Vector3.up * cineShotLookHeight;
+            Vector3 to = look - camPos;
+            if (to.sqrMagnitude > 0.001f)
+                CameraGameFeel.Instance.SetCinematicPose(camPos, Quaternion.LookRotation(to.normalized, Vector3.up), cineWeight);
+            yield return null;
         }
-        if (musicStoppedOnDeath || musicFightStarted) return;
-
-        if (s == EnemyCombat.EnemyState.Alert || s == EnemyCombat.EnemyState.Chase
-         || s == EnemyCombat.EnemyState.Telegraph || s == EnemyCombat.EnemyState.Attack)
-        {
-            musicFightStarted = true;
-            if (phase1Music != null)
-                CombatMusicManager.Instance.PlayBossTrack(phase1Music, Mathf.Max(0.1f, musicFadeSeconds), bossMusicVolume);
-            Debug.Log("[OniBoss:Music] fight engaged — phase-1 music"
-                    + (phase1Music == null ? " slot EMPTY, nothing to play." : $" '{phase1Music.name}' in."));
-        }
+        cineWeight = 0f;
+        if (CameraGameFeel.Instance != null) CameraGameFeel.Instance.ClearCinematicPose();
+        cineBlendOutRoutine = null;
     }
 
     /// <summary>ROUND 52. The landing itself: the biggest shake in the fight, the code-built ring,
@@ -2845,10 +2708,6 @@ public class OniBoss : MonoBehaviour
         poundRingPrevRadius = 0f;
         poundRingSpent = false;
         poundRingActive = true;
-
-        // ROUND 55 — Hazel's pick: phase-2 music DROPS exactly at the slam. Flag-guarded, so
-        // repeat pounds later in phase 2 do not restart the track.
-        StartPhase2Music("the slam");
 
         if (CombatFeedbackManager.Instance != null && poundShakeIntensity > 0f)
             CombatFeedbackManager.Instance.CameraShake(poundShakeIntensity, poundShakeDuration);

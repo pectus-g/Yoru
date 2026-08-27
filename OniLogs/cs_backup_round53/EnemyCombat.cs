@@ -1168,15 +1168,6 @@ public class EnemyCombat : MonoBehaviour
         chasePunishChargeName   = chargeAttackName;
     }
 
-    // ROUND 53: phase-2 entrance cinematic — right after the ground pound hands the engine back,
-    // the boss layer lifts the cooldown clock so the Oni gives Yoru a breath before his FIRST
-    // attack ("a bit longer time to get the hit than usual" — Hazel). Only ever RAISES the timer,
-    // never lowers it. Not serialized and called by no other enemy — they are unchanged.
-    public void RaiseAttackCooldown(float seconds)
-    {
-        cooldownTimer = Mathf.Max(cooldownTimer, seconds);
-    }
-
     private void EnterHoldWatch()
     {
         StopNav();

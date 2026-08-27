@@ -97,13 +97,6 @@ public class CameraGameFeel : MonoBehaviour
     [Tooltip("Seconds the spring-back takes; it overshoots slightly on the way out so it reads as a bounce off the glass.")]
     [SerializeField] private float parryRamOutTime = 0.25f;
 
-    [Header("Letterbox — round 54")]
-    [Tooltip("ROUND 54 — the black cinema bars for the Oni's phase-2 cinematic. Each bar covers this fraction of the screen height when fully in. 0.11 ≈ the classic 2.35:1 movie look.")]
-    [Range(0f, 0.25f)]
-    [SerializeField] private float letterboxMaxFraction = 0.11f;
-    [Tooltip("Seconds for the bars to slide fully in or out (unscaled — slow motion does not drag them).")]
-    [SerializeField] private float letterboxSlideTime = 0.25f;
-
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = false;
     #endregion
@@ -130,21 +123,6 @@ public class CameraGameFeel : MonoBehaviour
     private Vector3 ramTargetPoint;
     private float ramElapsed;
     private bool ramActive;
-
-    // Cinematic override state (round 53 — the Oni's phase-2 entrance). While weight > 0 the
-    // camera is pulled from wherever Cinemachine put it toward a full pose the boss layer hands
-    // in EVERY frame. Shake / roll / ram still apply ON TOP afterwards, so the roar can rattle
-    // the cinematic shot too. A pose that stops being refreshed is dropped by the watchdog below.
-    private Vector3 cinePos;
-    private Quaternion cineRot = Quaternion.identity;
-    private float cineWeight;
-    private float cineLastSetUnscaled = -10f;
-
-    // Letterbox state (round 54): target set by the boss layer, amount animated here each frame,
-    // bars drawn in OnGUI. Pure code — no Canvas, no scene object, nothing to wire.
-    private float letterboxTarget;
-    private float letterboxAmount;
-    private Texture2D letterboxTex;
 
     // FOV Punch state (coroutine-driven, single-active)
     private float currentPunchOffset;
@@ -181,25 +159,6 @@ public class CameraGameFeel : MonoBehaviour
     private void LateUpdate()
     {
         if (mainCamera == null || camTransform == null) return;
-
-        // === CINEMATIC OVERRIDE (round 53) ===
-        // Cinemachine wrote the gameplay pose this frame; blend it toward the cinematic pose the
-        // boss layer fed in. Weight 1 = fully the cinematic shot, anything between = a clean fly
-        // between the two (the gameplay camera keeps computing underneath the whole time).
-        // Watchdog: if the driver stops feeding poses (boss object died mid-cinematic), the
-        // override lets go by itself within half a second — the camera can never be stranded.
-        if (cineWeight > 0.001f)
-        {
-            if (Time.unscaledTime - cineLastSetUnscaled > 0.5f)
-            {
-                cineWeight = 0f;
-            }
-            else
-            {
-                camTransform.position = Vector3.Lerp(camTransform.position, cinePos, cineWeight);
-                camTransform.rotation = Quaternion.Slerp(camTransform.rotation, cineRot, cineWeight);
-            }
-        }
 
         // === POSITION SHAKE ===
         // Cinemachine set the camera's world position this frame.
@@ -315,31 +274,6 @@ public class CameraGameFeel : MonoBehaviour
         float totalFOVOffset = currentPunchOffset + currentSprintOffset + currentChargeOffset;
         if (Mathf.Abs(totalFOVOffset) > 0.01f)
             mainCamera.fieldOfView += totalFOVOffset;
-
-        // === LETTERBOX SLIDE (round 54) ===
-        // Unscaled, so the bars move at full speed even while the cinematic slows the world.
-        letterboxAmount = Mathf.MoveTowards(
-            letterboxAmount, letterboxTarget,
-            Time.unscaledDeltaTime / Mathf.Max(0.05f, letterboxSlideTime));
-    }
-
-    /// <summary>Round 54 — draws the letterbox bars. OnGUI needs no Canvas and survives every
-    /// camera change; only the Repaint pass draws, the rest are skipped.</summary>
-    private void OnGUI()
-    {
-        if (letterboxAmount <= 0.001f) return;
-        if (Event.current.type != EventType.Repaint) return;
-
-        if (letterboxTex == null)
-        {
-            letterboxTex = new Texture2D(1, 1);
-            letterboxTex.SetPixel(0, 0, Color.black);
-            letterboxTex.Apply();
-        }
-
-        float h = Screen.height * letterboxMaxFraction * letterboxAmount;
-        GUI.DrawTexture(new Rect(0f, 0f, Screen.width, h), letterboxTex);
-        GUI.DrawTexture(new Rect(0f, Screen.height - h, Screen.width, h), letterboxTex);
     }
     #endregion
 
@@ -425,36 +359,6 @@ public class CameraGameFeel : MonoBehaviour
         ramElapsed = 0f;
         ramActive = true;
         DebugLog($"Ram: toward {worldPoint} dist={parryRamDistance:F2}m");
-    }
-
-    /// <summary>
-    /// ROUND 53 — the Oni's phase-2 entrance cinematic. Feed a full camera pose plus a 0..1
-    /// blend weight EVERY frame the cinematic runs (a pose not refreshed for 0.5s is dropped —
-    /// see the watchdog in LateUpdate). Applied after Cinemachine, before shake, so the shot is
-    /// absolute but still rattles with the roar and the slam.
-    /// </summary>
-    public void SetCinematicPose(Vector3 position, Quaternion rotation, float weight)
-    {
-        cinePos = position;
-        cineRot = rotation;
-        cineWeight = Mathf.Clamp01(weight);
-        cineLastSetUnscaled = Time.unscaledTime;
-    }
-
-    /// <summary>Drop the cinematic override instantly (the normal path walks weight to 0 first).</summary>
-    public void ClearCinematicPose()
-    {
-        cineWeight = 0f;
-    }
-
-    /// <summary>
-    /// ROUND 54 — the cinema bars. 1 = slide fully in, 0 = slide out; the slide itself is
-    /// animated here at Letterbox Slide Time, in unscaled seconds. The bars ARE the player's
-    /// signal: bars on screen = cutscene, bars gone = you have control.
-    /// </summary>
-    public void SetLetterbox(float target01)
-    {
-        letterboxTarget = Mathf.Clamp01(target01);
     }
 
     /// <summary>

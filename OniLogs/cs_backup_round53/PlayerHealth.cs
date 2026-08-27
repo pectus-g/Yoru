@@ -20,13 +20,6 @@ public class PlayerHealth : MonoBehaviour
     [Header("Stun")]
     [SerializeField] private float stunTimer;
 
-    // ROUND 53 (Oni phase-2 cinematic): while > 0, NOTHING can hurt Yoru. The entrance cinematic
-    // freezes her, and a frozen player must never eat a hit she cannot answer. The boss layer
-    // refreshes this every cinematic frame and zeroes it the moment control returns; it counts
-    // down in UNSCALED time (the cinematic slows the world clock), so even if the boss object
-    // died mid-cinematic it expires by itself a fraction of a second later. Not serialized.
-    private float cinematicGuardTimer;
-
     [Header("UI")]
     [SerializeField] private Image healthBarFill;
     [SerializeField] private TMP_Text healthText;
@@ -53,9 +46,6 @@ public class PlayerHealth : MonoBehaviour
 
         if (stunTimer > 0f)
             stunTimer -= Time.deltaTime;
-
-        if (cinematicGuardTimer > 0f)
-            cinematicGuardTimer -= Time.unscaledDeltaTime; // unscaled — the cinematic slows Time.timeScale
     }
 
     /// <summary>
@@ -91,13 +81,6 @@ public class PlayerHealth : MonoBehaviour
         // are open the player is frozen and cannot respond, so no damage lands and no
         // combat engagement is marked. The world keeps moving; the player does not bleed.
         if (MenuGuard.IsAnyMenuOpen)
-            return;
-
-        // GATE 0.7: Boss cinematic (round 53) — Yoru is frozen and untouchable while the Oni's
-        // phase-2 entrance plays. No damage, no i-frames, no combat engagement marked: the hit
-        // simply never happened. The window is refreshed per frame by the boss layer and cleared
-        // the instant control returns, so the slam that follows is dodged in normal gameplay.
-        if (cinematicGuardTimer > 0f)
             return;
 
         // Mark combat engaged — enemy→Yoru half of "hit exchanged either way" per
@@ -175,16 +158,6 @@ public class PlayerHealth : MonoBehaviour
     public void ApplyStun(float duration)
     {
         stunTimer = duration;
-    }
-
-    /// <summary>
-    /// ROUND 53 — set (not extend) the cinematic protection window, in seconds of UNSCALED time.
-    /// The Oni's boss layer refreshes it every frame the phase-2 cinematic runs and sets it to 0
-    /// the moment control returns. While > 0, TakeDamage drops every hit at GATE 0.7.
-    /// </summary>
-    public void SetCinematicGuard(float seconds)
-    {
-        cinematicGuardTimer = Mathf.Max(0f, seconds);
     }
 
     public void Heal(int amount)
