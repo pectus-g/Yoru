@@ -279,49 +279,13 @@ public class StormWeather : MonoBehaviour
     /// the storm's own strikes fly at y=45 — that was Hazel's empty sky).</summary>
     public void StrikeAt(Vector3 pos)
     {
-        StrikeAt(pos, 1f);
-    }
-
-    /// <summary>ROUND 65 — same, with a size multiplier for fatter cinematic bolts.</summary>
-    public void StrikeAt(Vector3 pos, float scale)
-    {
         pos.y = strikeOrigin.y;   // the sky is up there
 
         if (lightningPrefab != null)
-        {
-            GameObject bolt = Instantiate(lightningPrefab, pos, Quaternion.identity);
-            if (!Mathf.Approximately(scale, 1f))
-                bolt.transform.localScale *= Mathf.Clamp(scale, 0.3f, 4f);
-            Destroy(bolt, 5f);
-        }
+            Destroy(Instantiate(lightningPrefab, pos, Quaternion.identity), 5f);
 
         if (flashLight != null) StartCoroutine(Flash());
-        if (debugLog) Debug.Log($"[StormWeather] ⚡ strike at {pos}"
-                              + (Mathf.Approximately(scale, 1f) ? "" : $" x{scale:F1}"));
-    }
-
-    // ROUND 65 — COZY's own thunder on demand: its full screen flash + bolt + rumble SOUND, from
-    // the weather system already in the project. Null-safe: without the COZY rig (or before its
-    // thunder FX is live) it does nothing. The manager is cached after the first find.
-    private CozyThunderManager cozyThunderMgr;
-
-    public void ThunderNow()
-    {
-        if (cozyThunderMgr == null) cozyThunderMgr = FindObjectOfType<CozyThunderManager>();
-        if (cozyThunderMgr == null || cozyThunderMgr.thunderFX == null || cozyThunderMgr.weatherSphere == null)
-        {
-            if (debugLog) Debug.Log("[StormWeather] COZY thunder skipped — no live thunder manager in the scene.");
-            return;
-        }
-        try
-        {
-            cozyThunderMgr.Strike();
-            if (debugLog) Debug.Log("[StormWeather] COZY thunder → Strike()");
-        }
-        catch (System.Exception e)
-        {
-            if (debugLog) Debug.Log($"[StormWeather] COZY thunder failed safely: {e.Message}");
-        }
+        if (debugLog) Debug.Log($"[StormWeather] ⚡ strike at {pos}");
     }
 
     /// Shaped falloff (from LightingController) - the sine gives the strobing

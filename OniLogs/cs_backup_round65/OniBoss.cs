@@ -325,13 +325,6 @@ public class OniBoss : MonoBehaviour
     [Tooltip("Strength of the whole show: scales the sky light spikes and the white flash. 1 = tuned default.")]
     [Range(0.2f, 2f)]
     [SerializeField] private float cineSkyShowIntensity = 1f;
-    [Tooltip("ROUND 65 — Hazel: during the PULL the camera's aim glides THIS many metres above him — the sky fills the top of the frame while he holds the bottom with the raised club; at the climax the aim snaps back to him for the strike. 0 = no tilt.")]
-    [SerializeField] private float cineSkyTilt = 10f;
-    [Tooltip("ROUND 65 — size multiplier for the converging storm bolts. Each strike also spawns a second, slightly offset twin.")]
-    [SerializeField] private float cineSkyBoltScale = 1.5f;
-    [Tooltip("ROUND 65 — COZY thunders fired during the build: your weather system's own full flash + bolt + rumble SOUND. Needs the COZY rig in the scene; 0 = none.")]
-    [Range(0, 4)]
-    [SerializeField] private int cineCozyThunders = 2;
     [Tooltip("The cinematic camera stands this many metres from him.")]
     [SerializeField] private float cineCamDistance = 7f;
     [Tooltip("ROUND 54 — camera height above his feet for the roar shot. LOW (1.2m) so the camera looks UP at him and he fills the screen.")]
@@ -553,8 +546,6 @@ public class OniBoss : MonoBehaviour
     private float skyPulse;                   // current flicker strength, decays per frame
     private bool streamersLive;               // ROUND 62: streamers flicker on their own fast clock while true
     private float streamerFlickerTimer;
-    private float cineTiltNow;                // ROUND 65: current sky-tilt 0..1 (smoothed in the camera driver)
-    private float cineTiltTarget;             // set by the show: 1 through the pull, 0 at the climax
     private Light skySunRef;                  // the scene's directional light
     private float skySunBaseIntensity;
     private Color skySunBaseColor;
@@ -2818,8 +2809,6 @@ public class OniBoss : MonoBehaviour
         cineWorldSpeedNow = Mathf.Clamp(cineSlowMotion, 0.1f, 1f);   // ROUND 58: the driver asserts THIS
         cineHangExtra = 0f;
         cineFovAutoPeak = 0f;                                        // ROUND 59: frame-fit diagnostic
-        cineTiltNow = 0f;                                            // ROUND 65: sky tilt starts level
-        cineTiltTarget = 0f;
         Time.timeScale = cineWorldSpeedNow;
 
         // Orbit zero: his flattened facing the moment the cut lands. He faces Yoru here, so the
@@ -2920,31 +2909,21 @@ public class OniBoss : MonoBehaviour
         }
 
         // ---- THE BUILD — convergence + acceleration = the PULL. Streamers flicker on their own
-        // fast clock (UpdateSkyPulse) from here until the climax, the camera's aim tilts up to
-        // the sky (round 65), and COZY's own thunders join in with their rumble sound.
+        // fast clock (UpdateSkyPulse) from here until the climax.
         streamersLive = true;
-        cineTiltTarget = 1f;                          // ROUND 65: look up — the sky is answering
-        int thundersFired = 0;
         int bolts = Mathf.Clamp(cineSkyBolts, 2, 12);
         for (int i = 0; i < bolts; i++)
         {
             float k = bolts <= 1 ? 1f : (float)i / (bolts - 1);
             StrikeRing(Mathf.Lerp(Mathf.Max(6f, cineSkyBoltRange), 4f, k));
-            SpawnSkyFill(2);
+            SpawnSkyFill(1);
             SkyFlicker(Mathf.Lerp(0.5f, 1.2f, k) * I);
-            if (thundersFired < cineCozyThunders && stormRef != null
-                && i == Mathf.RoundToInt((float)(thundersFired + 1) * bolts / (cineCozyThunders + 1)))
-            {
-                thundersFired++;
-                stormRef.ThunderNow();                // ROUND 65: COZY's flash + bolt + RUMBLE
-            }
             if (CombatFeedbackManager.Instance != null)
                 CombatFeedbackManager.Instance.CameraShake(0.15f + 0.15f * k, 0.15f);
             yield return new WaitForSecondsRealtime(Mathf.Lerp(0.26f, 0.09f, k));
         }
 
-        // ---- THE CLIMAX — the club takes the storm; the aim snaps back down to HIM.
-        cineTiltTarget = 0f;                          // ROUND 65
+        // ---- THE CLIMAX — the club takes the storm.
         SpawnClubLightning();
         SpawnSkyFill(2);
         if (stormRef != null) stormRef.StrikeAt(transform.position - cineBaseForward * 3f);
@@ -2974,11 +2953,7 @@ public class OniBoss : MonoBehaviour
     {
         if (stormRef == null) return;
         Vector3 dir = Quaternion.AngleAxis(cineAzimuthNow + 180f + Random.Range(-60f, 60f), Vector3.up) * cineBaseForward;
-        Vector3 basePos = transform.position + dir * Mathf.Max(3f, dist);
-        float s = Mathf.Clamp(cineSkyBoltScale, 0.3f, 4f);
-        stormRef.StrikeAt(basePos, s);
-        // ROUND 65 — the twin: a second, slightly offset bolt makes every strike read thick.
-        stormRef.StrikeAt(basePos + Vector3.Cross(dir, Vector3.up) * Random.Range(2f, 4f), s * 0.8f);
+        stormRef.StrikeAt(transform.position + dir * Mathf.Max(3f, dist));
     }
 
     /// <summary>ROUND 62 — the SKY FILL: extra lightning instances spawned HIGH around him, all
@@ -3218,13 +3193,6 @@ public class OniBoss : MonoBehaviour
             camPos = CineOrbitPos(cineAzimuthNow, dist, camH);
             aimTarget = travelBone != null ? travelBone.position
                                            : transform.position + Vector3.up * cineShotLookHeight;
-
-            // ROUND 65 — the sky tilt: through the pull the aim rides up toward the answering
-            // sky (slowly), and snaps back down to him for the strike (fast). The frame-fit
-            // safety keeps him and the club in the picture the whole time.
-            float tiltRate = cineTiltTarget > cineTiltNow ? 1.25f : 4f;
-            cineTiltNow = Mathf.MoveTowards(cineTiltNow, cineTiltTarget, tiltRate * Time.unscaledDeltaTime);
-            aimTarget += Vector3.up * (Mathf.Max(0f, cineSkyTilt) * cineTiltNow);
         }
         else if (cineShotMode == 3)
         {
@@ -3350,7 +3318,6 @@ public class OniBoss : MonoBehaviour
         if (!cineActive) return;
         cineActive = false;
         cineDescending = false;
-        cineTiltTarget = 0f;   // ROUND 65: whatever ends the cinematic, the aim comes home
 
         if (playerHealthRef != null)
         {
