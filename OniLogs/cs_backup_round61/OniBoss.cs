@@ -308,23 +308,6 @@ public class OniBoss : MonoBehaviour
     [Tooltip("Camera shake when the lightning hits the club.")]
     [SerializeField] private float cineLightningShake = 0.9f;
     [SerializeField] private float cineLightningShakeDuration = 0.5f;
-
-    [Header("Sky Show — round 61 (he pulls the storm)")]
-    [Tooltip("ROUND 61 — Hazel's magical moment, built the way the pros build it (light + rhythm): the sky flickers awake, bolts strike closer and closer (the PULL), thin sky-to-club streamers flicker, and the big strike lands on the club with a white flash frame — then the sky calms while he hangs. Untick = the plain round-58 strike.")]
-    [SerializeField] private bool cineSkyShowEnabled = true;
-    [Tooltip("ROUND 62 — converging bolts in the build-up (the STORM's lightning prefab, spawned at SKY height now): first far away, each next one closer, faster and faster. Fresh name so round-61 saved values die.")]
-    [Range(2, 12)]
-    [SerializeField] private int cineSkyBolts = 9;
-    [Tooltip("ROUND 62 — where the FIRST bolts land, metres from him; the last lands almost on top of him. 14 keeps the whole pull visible through the cave's storm fog (24 was fog-eaten).")]
-    [SerializeField] private float cineSkyBoltRange = 14f;
-    [Tooltip("ROUND 62 — EXTRA lightning instances spawned HIGH around him during the build, so the sky truly fills. EMPTY = automatically uses your Cine Lightning VFX — your look, more of it. Drag a different sky bolt here whenever you find one.")]
-    [SerializeField] private GameObject cineSkyFillVFX;
-    [Tooltip("Thin flickering sky-to-club streamer bolts during the build — code-built, no assets. 0 = none.")]
-    [Range(0, 6)]
-    [SerializeField] private int cineStreamerCount = 3;
-    [Tooltip("Strength of the whole show: scales the sky light spikes and the white flash. 1 = tuned default.")]
-    [Range(0.2f, 2f)]
-    [SerializeField] private float cineSkyShowIntensity = 1f;
     [Tooltip("The cinematic camera stands this many metres from him.")]
     [SerializeField] private float cineCamDistance = 7f;
     [Tooltip("ROUND 54 — camera height above his feet for the roar shot. LOW (1.2m) so the camera looks UP at him and he fills the screen.")]
@@ -537,22 +520,6 @@ public class OniBoss : MonoBehaviour
     // ROUND 59 — cinematic lens state.
     private Camera cineCam;                   // Camera.main, cached for the frame-fit check
     private float cineFovAutoPeak;            // widest the frame-fit safety had to go (0 = never engaged) — logged at the end
-
-    // ROUND 61 — sky show state. All lighting values are CACHED before the show and restored
-    // EXACTLY after (and from EndPhaseCinematic + OnDisable, so an aborted show can never leave
-    // the scene lit wrong).
-    private Coroutine skyShowRoutine;
-    private bool skyShowActive;
-    private float skyPulse;                   // current flicker strength, decays per frame
-    private bool streamersLive;               // ROUND 62: streamers flicker on their own fast clock while true
-    private float streamerFlickerTimer;
-    private Light skySunRef;                  // the scene's directional light
-    private float skySunBaseIntensity;
-    private Color skySunBaseColor;
-    private Color skyAmbientBase;
-    private float skyAmbientIntensityBase;
-    private Color skyFogBase;
-    private readonly System.Collections.Generic.List<LineRenderer> streamers = new System.Collections.Generic.List<LineRenderer>();
 
     // ROUND 55 — boss music state.
     private bool musicFightStarted;
@@ -1165,9 +1132,6 @@ public class OniBoss : MonoBehaviour
 
         // ROUND 58: and never leave the storm waiting for a beat that can no longer come.
         ReleaseStormBreak();
-
-        // ROUND 61: nor the sky mid-flicker.
-        RestoreSkyShow("boss disabled");
     }
 
     private void Update()
@@ -1179,7 +1143,6 @@ public class OniBoss : MonoBehaviour
         UpdatePoundRing();          // ROUND 52: the pound's expanding shockwave
         UpdatePoundRepeat();        // ROUND 52: rare phase-2 repeats
         UpdateBossMusic();          // ROUND 55: phase-1 music on engage, fade-out on death
-        UpdateSkyPulse();           // ROUND 61: the sky show's flicker decay (no-op unless the show runs)
         UpdateReactionFreezeGuard();
         UpdateSlowMotionWatchdog();
         UpdatePreCombatWatch();
@@ -2837,299 +2800,31 @@ public class OniBoss : MonoBehaviour
                 + $"hang {cineTopHold:F1}s, orbit {cineOrbitDegrees:F0}°+{cineOrbitDegrees:F0}°, apex at clip {cineApexMoment:F2}.");
     }
 
-    /// <summary>ROUND 61 — the Thor moment, once per entrance, at the start of the deep-slow
-    /// window. With the sky show ON it runs the four-phase sequence the pros use (call → build →
-    /// climax → resolve); with it OFF it is the plain round-58 strike. Either way the storm break
-    /// releases HERE — the rain starts building the moment he calls the sky.</summary>
+    /// <summary>ROUND 58 — the Thor moment, once per entrance, inside the deep-slow window: her
+    /// lightning prefab spawned ON the club tip (parented, so it rides the raised pose), the big
+    /// shake, and the storm break released — heavy rain and the sky bolt answer in the same
+    /// breath. Works with an empty slot: then it is shake + storm only.</summary>
     private void FireLightningBeat()
     {
-        ReleaseStormBreak();   // the rain answers first
-
-        if (cineSkyShowEnabled && isActiveAndEnabled)
-        {
-            if (skyShowRoutine != null) StopCoroutine(skyShowRoutine);
-            skyShowRoutine = StartCoroutine(SkyShowRoutine());
-            Debug.Log("[OniBoss:Cine] LIGHTNING BEAT — the SKY SHOW begins: "
-                    + $"{cineSkyBolts} bolts converging from {cineSkyBoltRange:F0}m (sky height), "
-                    + $"club strike at call AND climax, sky-fill "
-                    + (cineSkyFillVFX != null ? $"'{cineSkyFillVFX.name}'" : (cineLightningVFX != null ? $"'{cineLightningVFX.name}' (club slot)" : "EMPTY"))
-                    + $", {cineStreamerCount} streamers, storm released.");
-        }
-        else
-        {
-            SpawnClubLightning();
-            if (CombatFeedbackManager.Instance != null && cineLightningShake > 0f)
-                CombatFeedbackManager.Instance.CameraShake(cineLightningShake, Mathf.Max(0.1f, cineLightningShakeDuration));
-            Debug.Log("[OniBoss:Cine] LIGHTNING BEAT — sky show off, single strike"
-                    + (cineLightningVFX != null ? $" '{cineLightningVFX.name}'." : " (slot EMPTY)."));
-        }
-    }
-
-    /// <summary>Her prefab, spawned ON the club tip (parented, rides the raised pose).</summary>
-    private void SpawnClubLightning()
-    {
-        if (cineLightningVFX == null)
-        {
-            Debug.Log("[OniBoss:Cine] club lightning slot EMPTY — the code layers still play.");
-            return;
-        }
         Transform anchor = clubBone != null ? clubBone : transform;
         Vector3 at = clubBone != null ? clubBone.position : transform.position + Vector3.up * 3f;
-        GameObject fx = Instantiate(cineLightningVFX, at, Quaternion.identity, anchor);
-        foreach (var ps in fx.GetComponentsInChildren<ParticleSystem>(true))
-            if (!ps.isPlaying) ps.Play(true);
-        Destroy(fx, Mathf.Max(0.5f, cineLightningLifetime));
-    }
 
-    /// <summary>
-    /// ROUND 61 — the show itself, on REAL-time rhythm (the world may be at 20% but the drama
-    /// keeps its own clock). Four phases:
-    ///   CALL    (~0.5s) — the sky notices him: nervous flickers, one far bolt.
-    ///   BUILD   (~1.1s) — bolts marching IN, faster and faster; streamers flicker sky-to-club.
-    ///   CLIMAX  — her prefab on the club + a bolt at his back + the white frame + max spike.
-    ///     Timed to land right as he freezes at the peak of the jump.
-    ///   RESOLVE (~1.6s) — the sky calms in steps while he hangs, electrified.
-    /// </summary>
-    private System.Collections.IEnumerator SkyShowRoutine()
-    {
-        CacheSkyLights();
-        BuildStreamers();
-        float I = Mathf.Clamp(cineSkyShowIntensity, 0.2f, 2f);
-
-        // ---- THE CALL — ROUND 62: her club prefab fires HERE too (the look rounds 58-60 had),
-        // the climax hits it AGAIN. Add, never replace.
-        SpawnClubLightning();
-        SpawnSkyFill(2);
-        StrikeRing(Mathf.Max(6f, cineSkyBoltRange));
-        float callEnd = Time.unscaledTime + 0.5f;
-        while (Time.unscaledTime < callEnd)
+        if (cineLightningVFX != null)
         {
-            SkyFlicker(Random.Range(0.15f, 0.4f) * I);
-            yield return new WaitForSecondsRealtime(Random.Range(0.06f, 0.12f));
-        }
-
-        // ---- THE BUILD — convergence + acceleration = the PULL. Streamers flicker on their own
-        // fast clock (UpdateSkyPulse) from here until the climax.
-        streamersLive = true;
-        int bolts = Mathf.Clamp(cineSkyBolts, 2, 12);
-        for (int i = 0; i < bolts; i++)
-        {
-            float k = bolts <= 1 ? 1f : (float)i / (bolts - 1);
-            StrikeRing(Mathf.Lerp(Mathf.Max(6f, cineSkyBoltRange), 4f, k));
-            SpawnSkyFill(1);
-            SkyFlicker(Mathf.Lerp(0.5f, 1.2f, k) * I);
-            if (CombatFeedbackManager.Instance != null)
-                CombatFeedbackManager.Instance.CameraShake(0.15f + 0.15f * k, 0.15f);
-            yield return new WaitForSecondsRealtime(Mathf.Lerp(0.26f, 0.09f, k));
-        }
-
-        // ---- THE CLIMAX — the club takes the storm.
-        SpawnClubLightning();
-        SpawnSkyFill(2);
-        if (stormRef != null) stormRef.StrikeAt(transform.position - cineBaseForward * 3f);
-        if (CameraGameFeel.Instance != null)
-            CameraGameFeel.Instance.ScreenFlash(Mathf.Clamp01(0.85f * I), 0.14f);
-        SkyFlicker(2.2f * I);
-        if (CombatFeedbackManager.Instance != null && cineLightningShake > 0f)
-            CombatFeedbackManager.Instance.CameraShake(cineLightningShake, Mathf.Max(0.1f, cineLightningShakeDuration));
-        HideStreamers();   // the pull completed — the filaments vanish with the strike
-        Debug.Log("[OniBoss:Cine] SKY SHOW CLIMAX — the club takes the storm.");
-
-        // ---- THE RESOLVE — nervous afterglow while he hangs.
-        float resolveEnd = Time.unscaledTime + 1.6f;
-        while (Time.unscaledTime < resolveEnd)
-        {
-            SkyFlicker(Random.Range(0.1f, 0.35f) * I);
-            yield return new WaitForSecondsRealtime(Random.Range(0.12f, 0.3f));
-        }
-
-        RestoreSkyShow("show complete");
-        skyShowRoutine = null;
-    }
-
-    /// <summary>A converging bolt: placed on the FAR side of him from the camera (±60°), so it
-    /// lands in the background of the shot, behind his silhouette.</summary>
-    private void StrikeRing(float dist)
-    {
-        if (stormRef == null) return;
-        Vector3 dir = Quaternion.AngleAxis(cineAzimuthNow + 180f + Random.Range(-60f, 60f), Vector3.up) * cineBaseForward;
-        stormRef.StrikeAt(transform.position + dir * Mathf.Max(3f, dist));
-    }
-
-    /// <summary>ROUND 62 — the SKY FILL: extra lightning instances spawned HIGH around him, all
-    /// directions, so the air itself crackles. Uses the Sky Fill slot, or falls back to her club
-    /// prefab — her look, more of it. Nothing spawns if both slots are empty.</summary>
-    private void SpawnSkyFill(int count)
-    {
-        GameObject prefab = cineSkyFillVFX != null ? cineSkyFillVFX : cineLightningVFX;
-        if (prefab == null) return;
-        Vector3 tip = clubBone != null ? clubBone.position : transform.position + Vector3.up * 4f;
-        for (int i = 0; i < count; i++)
-        {
-            Vector3 at = tip
-                       + Vector3.up * Random.Range(6f, 16f)
-                       + new Vector3(Random.Range(-11f, 11f), 0f, Random.Range(-11f, 11f));
-            GameObject fx = Instantiate(prefab, at, Quaternion.identity);
+            GameObject fx = Instantiate(cineLightningVFX, at, Quaternion.identity, anchor);
             foreach (var ps in fx.GetComponentsInChildren<ParticleSystem>(true))
                 if (!ps.isPlaying) ps.Play(true);
-            Destroy(fx, 3f);
+            Destroy(fx, Mathf.Max(0.5f, cineLightningLifetime));
         }
-    }
 
-    private void SkyFlicker(float strength)
-    {
-        skyPulse = Mathf.Max(skyPulse, Mathf.Clamp(strength, 0f, 2.5f));
-    }
+        if (CombatFeedbackManager.Instance != null && cineLightningShake > 0f)
+            CombatFeedbackManager.Instance.CameraShake(cineLightningShake, Mathf.Max(0.1f, cineLightningShakeDuration));
 
-    /// <summary>Per frame while the show runs (called from Update): the flicker pulse decays and
-    /// drives the directional light + ambient + fog toward storm blue-white. All from cached
-    /// bases, so restoring is exact.</summary>
-    private void UpdateSkyPulse()
-    {
-        if (!skyShowActive) return;
-        skyPulse = Mathf.MoveTowards(skyPulse, 0f, 6f * Time.unscaledDeltaTime);
-        float p = Mathf.Clamp01(skyPulse);
+        ReleaseStormBreak();   // NOW the sky answers
 
-        // ROUND 62 — multipliers roughly doubled: a cave interior needs a far harder ambient
-        // push than an open field for the flash to read (her test: "so weak").
-        if (skySunRef != null)
-        {
-            skySunRef.intensity = skySunBaseIntensity * (1f + 3.2f * skyPulse);
-            skySunRef.color = Color.Lerp(skySunBaseColor, new Color(0.82f, 0.88f, 1f), p);
-        }
-        RenderSettings.ambientLight = Color.Lerp(skyAmbientBase, new Color(0.75f, 0.82f, 1f), p);
-        RenderSettings.ambientIntensity = skyAmbientIntensityBase * (1f + 1.6f * skyPulse);
-        if (RenderSettings.fog)
-            RenderSettings.fogColor = Color.Lerp(skyFogBase, new Color(0.7f, 0.78f, 0.95f), p * 0.85f);
-
-        // ROUND 62 — the streamers flicker on their own fast clock through the build.
-        if (streamersLive)
-        {
-            streamerFlickerTimer -= Time.unscaledDeltaTime;
-            if (streamerFlickerTimer <= 0f)
-            {
-                FlickerStreamers();
-                streamerFlickerTimer = Random.Range(0.05f, 0.1f);
-            }
-        }
-    }
-
-    private void CacheSkyLights()
-    {
-        if (skyShowActive) return;
-        skySunRef = RenderSettings.sun;
-        if (skySunRef == null)
-        {
-            float best = -1f;
-            foreach (var l in FindObjectsOfType<Light>())
-                if (l.type == LightType.Directional && l.intensity > best) { best = l.intensity; skySunRef = l; }
-        }
-        if (skySunRef != null) { skySunBaseIntensity = skySunRef.intensity; skySunBaseColor = skySunRef.color; }
-        skyAmbientBase = RenderSettings.ambientLight;
-        skyAmbientIntensityBase = RenderSettings.ambientIntensity;
-        skyFogBase = RenderSettings.fogColor;
-        skyPulse = 0f;
-        skyShowActive = true;
-    }
-
-    /// <summary>Exact restore of every lighting value + streamer cleanup. Safe to call twice.</summary>
-    private void RestoreSkyShow(string why)
-    {
-        KillStreamers();
-        if (!skyShowActive) return;
-        skyShowActive = false;
-        skyPulse = 0f;
-        if (skySunRef != null) { skySunRef.intensity = skySunBaseIntensity; skySunRef.color = skySunBaseColor; }
-        RenderSettings.ambientLight = skyAmbientBase;
-        RenderSettings.ambientIntensity = skyAmbientIntensityBase;
-        RenderSettings.fogColor = skyFogBase;
-        DebugLog($"sky show lights restored ({why})");
-    }
-
-    /// <summary>The thin sky-to-club filaments: classic midpoint-displacement LineRenderer bolts,
-    /// zero assets. Built once per show, re-jagged on every flicker, destroyed at the end.</summary>
-    private void BuildStreamers()
-    {
-        KillStreamers();
-        int n = Mathf.Clamp(cineStreamerCount, 0, 6);
-        if (n == 0) return;
-        Shader sh = Shader.Find("Legacy Shaders/Particles/Additive");
-        if (sh == null) sh = Shader.Find("Sprites/Default");
-        if (sh == null) { DebugLog("sky show: no line shader found — streamers skipped."); return; }
-
-        for (int i = 0; i < n; i++)
-        {
-            var go = new GameObject("CineStreamer_" + i);
-            var lr = go.AddComponent<LineRenderer>();
-            lr.material = new Material(sh);
-            lr.startColor = new Color(0.90f, 0.95f, 1f, 1f);      // ROUND 62: brighter…
-            lr.endColor   = new Color(0.75f, 0.88f, 1f, 0.9f);
-            lr.startWidth = 0.42f;                                 // …and roughly twice as fat
-            lr.endWidth = 0.12f;
-            lr.positionCount = 14;
-            lr.useWorldSpace = true;
-            lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            lr.receiveShadows = false;
-            lr.enabled = false;
-            streamers.Add(lr);
-        }
-    }
-
-    /// <summary>Each build step: some streamers vanish, some re-jag from a new sky point down to
-    /// the club tip — the storm's filaments feeling for him.</summary>
-    private void FlickerStreamers()
-    {
-        if (streamers.Count == 0) return;
-        Vector3 tip = clubBone != null ? clubBone.position : transform.position + Vector3.up * 4f;
-        foreach (var lr in streamers)
-        {
-            if (lr == null) continue;
-            if (Random.value < 0.45f) { lr.enabled = false; continue; }
-            Vector3 skyPoint = tip + Vector3.up * Random.Range(18f, 30f)
-                             + new Vector3(Random.Range(-14f, 14f), 0f, Random.Range(-14f, 14f));
-            JaggedLine(lr, skyPoint, tip);
-            lr.enabled = true;
-        }
-    }
-
-    private void HideStreamers()
-    {
-        streamersLive = false;   // ROUND 62: stops their own fast flicker clock too
-        foreach (var lr in streamers) if (lr != null) lr.enabled = false;
-    }
-
-    private void KillStreamers()
-    {
-        streamersLive = false;
-        foreach (var lr in streamers)
-        {
-            if (lr == null) continue;
-            if (lr.material != null) Destroy(lr.material);
-            Destroy(lr.gameObject);
-        }
-        streamers.Clear();
-    }
-
-    /// <summary>Midpoint-displacement bolt: pinned at both ends, widest jitter mid-way.</summary>
-    private void JaggedLine(LineRenderer lr, Vector3 from, Vector3 to)
-    {
-        int n = lr.positionCount;
-        Vector3 dir = to - from;
-        Vector3 axis = dir.sqrMagnitude > 0.01f ? dir.normalized : Vector3.down;
-        Vector3 side = Vector3.Cross(axis, Vector3.right);
-        if (side.sqrMagnitude < 0.1f) side = Vector3.Cross(axis, Vector3.forward);
-        side.Normalize();
-        Vector3 side2 = Vector3.Cross(axis, side);
-
-        for (int i = 0; i < n; i++)
-        {
-            float t = (float)i / (n - 1);
-            float amp = Mathf.Sin(t * Mathf.PI) * 1.6f;
-            Vector3 p = from + dir * t
-                      + side * Random.Range(-amp, amp)
-                      + side2 * Random.Range(-amp, amp);
-            lr.SetPosition(i, p);
-        }
+        Debug.Log("[OniBoss:Cine] LIGHTNING BEAT — "
+                + (cineLightningVFX != null ? $"'{cineLightningVFX.name}' on the club tip" : "slot EMPTY (shake + storm only)")
+                + ", storm break released.");
     }
 
     /// <summary>ROUND 58 — safe from every path, harmless when called twice or never held.</summary>
@@ -3334,11 +3029,6 @@ public class OniBoss : MonoBehaviour
         // ROUND 58 — if the beat never fired (early end, no pound, boss died), the storm must
         // never stay held. Releasing twice is harmless.
         ReleaseStormBreak();
-
-        // ROUND 61 — an aborted show may not leave the sky lit wrong or filaments hanging.
-        // (The completed show restored itself already; these are then no-ops.)
-        if (skyShowRoutine != null) { StopCoroutine(skyShowRoutine); skyShowRoutine = null; }
-        RestoreSkyShow("cinematic ended");
 
         if (isActiveAndEnabled && cineShotMode != 0)
         {

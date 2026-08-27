@@ -312,13 +312,11 @@ public class OniBoss : MonoBehaviour
     [Header("Sky Show — round 61 (he pulls the storm)")]
     [Tooltip("ROUND 61 — Hazel's magical moment, built the way the pros build it (light + rhythm): the sky flickers awake, bolts strike closer and closer (the PULL), thin sky-to-club streamers flicker, and the big strike lands on the club with a white flash frame — then the sky calms while he hangs. Untick = the plain round-58 strike.")]
     [SerializeField] private bool cineSkyShowEnabled = true;
-    [Tooltip("ROUND 62 — converging bolts in the build-up (the STORM's lightning prefab, spawned at SKY height now): first far away, each next one closer, faster and faster. Fresh name so round-61 saved values die.")]
-    [Range(2, 12)]
-    [SerializeField] private int cineSkyBolts = 9;
-    [Tooltip("ROUND 62 — where the FIRST bolts land, metres from him; the last lands almost on top of him. 14 keeps the whole pull visible through the cave's storm fog (24 was fog-eaten).")]
-    [SerializeField] private float cineSkyBoltRange = 14f;
-    [Tooltip("ROUND 62 — EXTRA lightning instances spawned HIGH around him during the build, so the sky truly fills. EMPTY = automatically uses your Cine Lightning VFX — your look, more of it. Drag a different sky bolt here whenever you find one.")]
-    [SerializeField] private GameObject cineSkyFillVFX;
+    [Tooltip("Converging bolts in the build-up (they use the STORM's lightning prefab): first far away, each next one closer, faster and faster.")]
+    [Range(2, 10)]
+    [SerializeField] private int cineSkyBoltCount = 6;
+    [Tooltip("Where the FIRST bolts land, metres from him. The last lands almost on top of him.")]
+    [SerializeField] private float cineSkyBoltMaxDistance = 24f;
     [Tooltip("Thin flickering sky-to-club streamer bolts during the build — code-built, no assets. 0 = none.")]
     [Range(0, 6)]
     [SerializeField] private int cineStreamerCount = 3;
@@ -544,8 +542,6 @@ public class OniBoss : MonoBehaviour
     private Coroutine skyShowRoutine;
     private bool skyShowActive;
     private float skyPulse;                   // current flicker strength, decays per frame
-    private bool streamersLive;               // ROUND 62: streamers flicker on their own fast clock while true
-    private float streamerFlickerTimer;
     private Light skySunRef;                  // the scene's directional light
     private float skySunBaseIntensity;
     private Color skySunBaseColor;
@@ -2850,10 +2846,7 @@ public class OniBoss : MonoBehaviour
             if (skyShowRoutine != null) StopCoroutine(skyShowRoutine);
             skyShowRoutine = StartCoroutine(SkyShowRoutine());
             Debug.Log("[OniBoss:Cine] LIGHTNING BEAT — the SKY SHOW begins: "
-                    + $"{cineSkyBolts} bolts converging from {cineSkyBoltRange:F0}m (sky height), "
-                    + $"club strike at call AND climax, sky-fill "
-                    + (cineSkyFillVFX != null ? $"'{cineSkyFillVFX.name}'" : (cineLightningVFX != null ? $"'{cineLightningVFX.name}' (club slot)" : "EMPTY"))
-                    + $", {cineStreamerCount} streamers, storm released.");
+                    + $"{cineSkyBoltCount} bolts converging from {cineSkyBoltMaxDistance:F0}m, {cineStreamerCount} streamers, storm released.");
         }
         else
         {
@@ -2896,11 +2889,8 @@ public class OniBoss : MonoBehaviour
         BuildStreamers();
         float I = Mathf.Clamp(cineSkyShowIntensity, 0.2f, 2f);
 
-        // ---- THE CALL — ROUND 62: her club prefab fires HERE too (the look rounds 58-60 had),
-        // the climax hits it AGAIN. Add, never replace.
-        SpawnClubLightning();
-        SpawnSkyFill(2);
-        StrikeRing(Mathf.Max(6f, cineSkyBoltRange));
+        // ---- THE CALL
+        StrikeRing(Mathf.Max(8f, cineSkyBoltMaxDistance));
         float callEnd = Time.unscaledTime + 0.5f;
         while (Time.unscaledTime < callEnd)
         {
@@ -2908,24 +2898,21 @@ public class OniBoss : MonoBehaviour
             yield return new WaitForSecondsRealtime(Random.Range(0.06f, 0.12f));
         }
 
-        // ---- THE BUILD — convergence + acceleration = the PULL. Streamers flicker on their own
-        // fast clock (UpdateSkyPulse) from here until the climax.
-        streamersLive = true;
-        int bolts = Mathf.Clamp(cineSkyBolts, 2, 12);
+        // ---- THE BUILD — convergence + acceleration = the PULL.
+        int bolts = Mathf.Clamp(cineSkyBoltCount, 2, 10);
         for (int i = 0; i < bolts; i++)
         {
             float k = bolts <= 1 ? 1f : (float)i / (bolts - 1);
-            StrikeRing(Mathf.Lerp(Mathf.Max(6f, cineSkyBoltRange), 4f, k));
-            SpawnSkyFill(1);
+            StrikeRing(Mathf.Lerp(Mathf.Max(8f, cineSkyBoltMaxDistance), 4f, k));
             SkyFlicker(Mathf.Lerp(0.5f, 1.2f, k) * I);
+            FlickerStreamers();
             if (CombatFeedbackManager.Instance != null)
                 CombatFeedbackManager.Instance.CameraShake(0.15f + 0.15f * k, 0.15f);
-            yield return new WaitForSecondsRealtime(Mathf.Lerp(0.26f, 0.09f, k));
+            yield return new WaitForSecondsRealtime(Mathf.Lerp(0.28f, 0.1f, k));
         }
 
         // ---- THE CLIMAX — the club takes the storm.
         SpawnClubLightning();
-        SpawnSkyFill(2);
         if (stormRef != null) stormRef.StrikeAt(transform.position - cineBaseForward * 3f);
         if (CameraGameFeel.Instance != null)
             CameraGameFeel.Instance.ScreenFlash(Mathf.Clamp01(0.85f * I), 0.14f);
@@ -2956,26 +2943,6 @@ public class OniBoss : MonoBehaviour
         stormRef.StrikeAt(transform.position + dir * Mathf.Max(3f, dist));
     }
 
-    /// <summary>ROUND 62 — the SKY FILL: extra lightning instances spawned HIGH around him, all
-    /// directions, so the air itself crackles. Uses the Sky Fill slot, or falls back to her club
-    /// prefab — her look, more of it. Nothing spawns if both slots are empty.</summary>
-    private void SpawnSkyFill(int count)
-    {
-        GameObject prefab = cineSkyFillVFX != null ? cineSkyFillVFX : cineLightningVFX;
-        if (prefab == null) return;
-        Vector3 tip = clubBone != null ? clubBone.position : transform.position + Vector3.up * 4f;
-        for (int i = 0; i < count; i++)
-        {
-            Vector3 at = tip
-                       + Vector3.up * Random.Range(6f, 16f)
-                       + new Vector3(Random.Range(-11f, 11f), 0f, Random.Range(-11f, 11f));
-            GameObject fx = Instantiate(prefab, at, Quaternion.identity);
-            foreach (var ps in fx.GetComponentsInChildren<ParticleSystem>(true))
-                if (!ps.isPlaying) ps.Play(true);
-            Destroy(fx, 3f);
-        }
-    }
-
     private void SkyFlicker(float strength)
     {
         skyPulse = Mathf.Max(skyPulse, Mathf.Clamp(strength, 0f, 2.5f));
@@ -2990,28 +2957,15 @@ public class OniBoss : MonoBehaviour
         skyPulse = Mathf.MoveTowards(skyPulse, 0f, 6f * Time.unscaledDeltaTime);
         float p = Mathf.Clamp01(skyPulse);
 
-        // ROUND 62 — multipliers roughly doubled: a cave interior needs a far harder ambient
-        // push than an open field for the flash to read (her test: "so weak").
         if (skySunRef != null)
         {
-            skySunRef.intensity = skySunBaseIntensity * (1f + 3.2f * skyPulse);
+            skySunRef.intensity = skySunBaseIntensity * (1f + 1.8f * skyPulse);
             skySunRef.color = Color.Lerp(skySunBaseColor, new Color(0.82f, 0.88f, 1f), p);
         }
-        RenderSettings.ambientLight = Color.Lerp(skyAmbientBase, new Color(0.75f, 0.82f, 1f), p);
-        RenderSettings.ambientIntensity = skyAmbientIntensityBase * (1f + 1.6f * skyPulse);
+        RenderSettings.ambientLight = Color.Lerp(skyAmbientBase, new Color(0.75f, 0.82f, 1f), p * 0.8f);
+        RenderSettings.ambientIntensity = skyAmbientIntensityBase * (1f + 0.9f * skyPulse);
         if (RenderSettings.fog)
-            RenderSettings.fogColor = Color.Lerp(skyFogBase, new Color(0.7f, 0.78f, 0.95f), p * 0.85f);
-
-        // ROUND 62 — the streamers flicker on their own fast clock through the build.
-        if (streamersLive)
-        {
-            streamerFlickerTimer -= Time.unscaledDeltaTime;
-            if (streamerFlickerTimer <= 0f)
-            {
-                FlickerStreamers();
-                streamerFlickerTimer = Random.Range(0.05f, 0.1f);
-            }
-        }
+            RenderSettings.fogColor = Color.Lerp(skyFogBase, new Color(0.7f, 0.78f, 0.95f), p * 0.7f);
     }
 
     private void CacheSkyLights()
@@ -3062,10 +3016,10 @@ public class OniBoss : MonoBehaviour
             var go = new GameObject("CineStreamer_" + i);
             var lr = go.AddComponent<LineRenderer>();
             lr.material = new Material(sh);
-            lr.startColor = new Color(0.90f, 0.95f, 1f, 1f);      // ROUND 62: brighter…
-            lr.endColor   = new Color(0.75f, 0.88f, 1f, 0.9f);
-            lr.startWidth = 0.42f;                                 // …and roughly twice as fat
-            lr.endWidth = 0.12f;
+            lr.startColor = new Color(0.85f, 0.92f, 1f, 0.9f);
+            lr.endColor   = new Color(0.70f, 0.85f, 1f, 0.75f);
+            lr.startWidth = 0.18f;
+            lr.endWidth = 0.05f;
             lr.positionCount = 14;
             lr.useWorldSpace = true;
             lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -3094,13 +3048,11 @@ public class OniBoss : MonoBehaviour
 
     private void HideStreamers()
     {
-        streamersLive = false;   // ROUND 62: stops their own fast flicker clock too
         foreach (var lr in streamers) if (lr != null) lr.enabled = false;
     }
 
     private void KillStreamers()
     {
-        streamersLive = false;
         foreach (var lr in streamers)
         {
             if (lr == null) continue;

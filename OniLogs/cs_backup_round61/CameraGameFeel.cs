@@ -147,12 +147,6 @@ public class CameraGameFeel : MonoBehaviour
     private float letterboxAmount;
     private Texture2D letterboxTex;
 
-    // Screen flash state (round 61): the over-bright frame of the lightning climax. Set by
-    // ScreenFlash, decays here on unscaled time, drawn in OnGUI under the letterbox bars.
-    private float flashAlpha;
-    private float flashFadePerSec = 7f;
-    private Texture2D flashTex;
-
     // FOV Punch state (coroutine-driven, single-active)
     private float currentPunchOffset;
     private Coroutine activePunchCoroutine;
@@ -335,49 +329,25 @@ public class CameraGameFeel : MonoBehaviour
         letterboxAmount = Mathf.MoveTowards(
             letterboxAmount, letterboxTarget,
             Time.unscaledDeltaTime / Mathf.Max(0.05f, letterboxSlideTime));
-
-        // === SCREEN FLASH DECAY (round 61) ===
-        if (flashAlpha > 0f)
-            flashAlpha = Mathf.MoveTowards(flashAlpha, 0f, flashFadePerSec * Time.unscaledDeltaTime);
     }
 
     /// <summary>Round 54 — draws the letterbox bars. OnGUI needs no Canvas and survives every
     /// camera change; only the Repaint pass draws, the rest are skipped.</summary>
     private void OnGUI()
     {
-        bool wantBars = letterboxAmount > 0.001f;
-        bool wantFlash = flashAlpha > 0.001f;
-        if (!wantBars && !wantFlash) return;
+        if (letterboxAmount <= 0.001f) return;
         if (Event.current.type != EventType.Repaint) return;
 
-        // The over-bright frame first (round 61) — the bars stay black on top of it.
-        if (wantFlash)
+        if (letterboxTex == null)
         {
-            if (flashTex == null)
-            {
-                flashTex = new Texture2D(1, 1);
-                flashTex.SetPixel(0, 0, Color.white);
-                flashTex.Apply();
-            }
-            Color prev = GUI.color;
-            GUI.color = new Color(1f, 1f, 1f, flashAlpha);
-            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), flashTex);
-            GUI.color = prev;
+            letterboxTex = new Texture2D(1, 1);
+            letterboxTex.SetPixel(0, 0, Color.black);
+            letterboxTex.Apply();
         }
 
-        if (wantBars)
-        {
-            if (letterboxTex == null)
-            {
-                letterboxTex = new Texture2D(1, 1);
-                letterboxTex.SetPixel(0, 0, Color.black);
-                letterboxTex.Apply();
-            }
-
-            float h = Screen.height * letterboxMaxFraction * letterboxAmount;
-            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, h), letterboxTex);
-            GUI.DrawTexture(new Rect(0f, Screen.height - h, Screen.width, h), letterboxTex);
-        }
+        float h = Screen.height * letterboxMaxFraction * letterboxAmount;
+        GUI.DrawTexture(new Rect(0f, 0f, Screen.width, h), letterboxTex);
+        GUI.DrawTexture(new Rect(0f, Screen.height - h, Screen.width, h), letterboxTex);
     }
     #endregion
 
@@ -502,17 +472,6 @@ public class CameraGameFeel : MonoBehaviour
     public void SetLetterbox(float target01)
     {
         letterboxTarget = Mathf.Clamp01(target01);
-    }
-
-    /// <summary>
-    /// ROUND 61 — the over-bright frame of the lightning climax: a white full-screen pop at
-    /// `peakAlpha` (0..1) that fades out over `fadeSeconds`, on unscaled time. The pros' secret:
-    /// this one bright frame is what makes lightning FEEL like lightning.
-    /// </summary>
-    public void ScreenFlash(float peakAlpha, float fadeSeconds)
-    {
-        flashAlpha = Mathf.Clamp01(peakAlpha);
-        flashFadePerSec = 1f / Mathf.Max(0.02f, fadeSeconds);
     }
 
     /// <summary>

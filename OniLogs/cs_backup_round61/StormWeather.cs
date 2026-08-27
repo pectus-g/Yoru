@@ -216,19 +216,6 @@ public class StormWeather : MonoBehaviour
     {
         Vector3 pos = strikeOrigin + new Vector3(Random.Range(-strikeSpread, strikeSpread), 0f,
                                                  Random.Range(-strikeSpread, strikeSpread));
-        StrikeAt(pos);
-    }
-
-    /// <summary>ROUND 61 (Oni cinematic) — a strike at a CHOSEN point: the converging burst of
-    /// the lightning-pull moment places its bolts by hand (far → near → almost on him) instead
-    /// of the random spread. Same prefab, same light flash as every storm strike.
-    /// ROUND 62: the caller chooses WHERE on the ground — the bolt itself always spawns at the
-    /// storm's SKY height (round 61 spawned placed bolts at floor level: log showed y=0.14 while
-    /// the storm's own strikes fly at y=45 — that was Hazel's empty sky).</summary>
-    public void StrikeAt(Vector3 pos)
-    {
-        pos.y = strikeOrigin.y;   // the sky is up there
-
         if (lightningPrefab != null)
             Destroy(Instantiate(lightningPrefab, pos, Quaternion.identity), 5f);
 
