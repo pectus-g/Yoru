@@ -332,25 +332,6 @@ public class OniBoss : MonoBehaviour
     [Tooltip("ROUND 65 — COZY thunders fired during the build: your weather system's own full flash + bolt + rumble SOUND. Needs the COZY rig in the scene; 0 = none.")]
     [Range(0, 4)]
     [SerializeField] private int cineCozyThunders = 2;
-
-    [Header("Entrance SFX — round 66 (drop your clips)")]
-    [Tooltip("ROUND 66 — the PUNCH sounds of the entrance, played as flat 2D one-shots at the exact moments (no distance falloff). All slots optional. The pros' rule: the COZY rumbles are the background weather layer — these are the punches, and quiet before a punch makes it huge.")]
-    [SerializeField] private AudioClip cineCutSFX;
-    [Tooltip("Volume of the deep hit at the hard cut (a 'braam' / sub-drop).")]
-    [Range(0f, 1f)]
-    [SerializeField] private float cineCutSFXVolume = 0.9f;
-    [Tooltip("THE moment — the huge CLOSE thunder CRACK when the club takes the storm. Sharp attack, not a rumble. This is the clip you asked to drop.")]
-    [SerializeField] private AudioClip cineClimaxSFX;
-    [Range(0f, 1f)]
-    [SerializeField] private float cineClimaxSFXVolume = 1f;
-    [Tooltip("The falling whoosh when the drop begins.")]
-    [SerializeField] private AudioClip cineDropSFX;
-    [Range(0f, 1f)]
-    [SerializeField] private float cineDropSFXVolume = 0.8f;
-    [Tooltip("The ground impact at the SLAM — plays on EVERY pound, entrance and repeats.")]
-    [SerializeField] private AudioClip poundSlamSFX;
-    [Range(0f, 1f)]
-    [SerializeField] private float poundSlamSFXVolume = 1f;
     [Tooltip("The cinematic camera stands this many metres from him.")]
     [SerializeField] private float cineCamDistance = 7f;
     [Tooltip("ROUND 54 — camera height above his feet for the roar shot. LOW (1.2m) so the camera looks UP at him and he fills the screen.")]
@@ -2773,7 +2754,6 @@ public class OniBoss : MonoBehaviour
                             cineDescending = true;
                             if (cineTimeSlowed) Time.timeScale = 1f;
                             cineTimeSlowed = false;
-                            PlayOneShot2D(cineDropSFX, cineDropSFXVolume);   // ROUND 66 — the falling whoosh
                             Debug.Log($"[OniBoss:Cine] the DROP at clip {t:F2} (hung {topHang:F1}s) — full speed, the camera rides him DOWN.");
                         }
                         cineShotMode = 3;
@@ -2855,7 +2835,6 @@ public class OniBoss : MonoBehaviour
         cineShotProgress = 0f;
         cineAimSmoothed = transform.position + Vector3.up * cineShotLookHeight;   // seed — no first-frame swing
         CameraGameFeel.Instance.SetLetterbox(1f);
-        PlayOneShot2D(cineCutSFX, cineCutSFXVolume);   // ROUND 66 — the braam announces the cut
 
         // ROUND 56 — weapons down: if Yoru was mid-combo when the cut landed, her attack kept
         // playing in slow motion through the whole cinematic (her round-55 report: "stuck in
@@ -2889,28 +2868,12 @@ public class OniBoss : MonoBehaviour
         }
         else
         {
-            PlayOneShot2D(cineClimaxSFX, cineClimaxSFXVolume);   // ROUND 66 — the crack still lands
             SpawnClubLightning();
             if (CombatFeedbackManager.Instance != null && cineLightningShake > 0f)
                 CombatFeedbackManager.Instance.CameraShake(cineLightningShake, Mathf.Max(0.1f, cineLightningShakeDuration));
             Debug.Log("[OniBoss:Cine] LIGHTNING BEAT — sky show off, single strike"
                     + (cineLightningVFX != null ? $" '{cineLightningVFX.name}'." : " (slot EMPTY)."));
         }
-    }
-
-    /// <summary>ROUND 66 — flat 2D one-shot (no distance falloff, unaffected by slow motion):
-    /// the entrance punch sounds. Null clip or zero volume = silence, no object made.</summary>
-    private void PlayOneShot2D(AudioClip clip, float volume)
-    {
-        if (clip == null || volume <= 0f) return;
-        var go = new GameObject("OneShot2D_" + clip.name);
-        var src = go.AddComponent<AudioSource>();
-        src.clip = clip;
-        src.volume = Mathf.Clamp01(volume);
-        src.spatialBlend = 0f;
-        src.playOnAwake = false;
-        src.Play();
-        Destroy(go, clip.length + 0.2f);
     }
 
     /// <summary>Her prefab, spawned ON the club tip (parented, rides the raised pose).</summary>
@@ -2982,7 +2945,6 @@ public class OniBoss : MonoBehaviour
 
         // ---- THE CLIMAX — the club takes the storm; the aim snaps back down to HIM.
         cineTiltTarget = 0f;                          // ROUND 65
-        PlayOneShot2D(cineClimaxSFX, cineClimaxSFXVolume);   // ROUND 66 — the big CRACK
         SpawnClubLightning();
         SpawnSkyFill(2);
         if (stormRef != null) stormRef.StrikeAt(transform.position - cineBaseForward * 3f);
@@ -3483,8 +3445,6 @@ public class OniBoss : MonoBehaviour
         poundRingPrevRadius = 0f;
         poundRingSpent = false;
         poundRingActive = true;
-
-        PlayOneShot2D(poundSlamSFX, poundSlamSFXVolume);   // ROUND 66 — the impact boom, every pound
 
         // ROUND 55 — Hazel's pick: phase-2 music DROPS exactly at the slam. Flag-guarded, so
         // repeat pounds later in phase 2 do not restart the track.
