@@ -325,6 +325,8 @@ public class OniBoss : MonoBehaviour
     [Tooltip("Strength of the whole show: scales the sky light spikes and the white flash. 1 = tuned default.")]
     [Range(0.2f, 2f)]
     [SerializeField] private float cineSkyShowIntensity = 1f;
+    [Tooltip("ROUND 65 — Hazel: during the PULL the camera's aim glides THIS many metres above him — the sky fills the top of the frame while he holds the bottom with the raised club; at the climax the aim snaps back to him for the strike. 0 = no tilt.")]
+    [SerializeField] private float cineSkyTilt = 10f;
     [Tooltip("ROUND 65 — size multiplier for the converging storm bolts. Each strike also spawns a second, slightly offset twin.")]
     [SerializeField] private float cineSkyBoltScale = 1.5f;
     [Tooltip("ROUND 65 — COZY thunders fired during the build: your weather system's own full flash + bolt + rumble SOUND. Needs the COZY rig in the scene; 0 = none.")]
@@ -349,37 +351,35 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private AudioClip poundSlamSFX;
     [Range(0f, 1f)]
     [SerializeField] private float poundSlamSFXVolume = 1f;
-    [Header("Cinematic Camera — round 67 (composition: one lens, one move per beat)")]
-    [Tooltip("ROUND 67 — the ONE lens for the whole cinematic (Unity FOV = the up-down wideness). No zooming anymore — the camera MOVES to frame him. 62-68 is a natural film lens. (The saved 90→68 zoom was what read as 'zooms the Oni too much'.)")]
-    [Range(40f, 90f)]
-    [SerializeField] private float cineFov = 65f;
-    [Tooltip("ROUND 67 — how much of the screen HEIGHT he fills, feet to raised club tip (0.7 = 70%). The camera computes its own distance EVERY frame to hold this, so his size never swings: as he rises with the club up, the camera steps back by itself — a cameraman walking backwards.")]
-    [Range(0.3f, 0.95f)]
-    [SerializeField] private float cineSubjectFill = 0.7f;
-    [Tooltip("ROUND 67 — where he sits on the screen during the RISE and the HANG, measured from the bottom: 0.5 = dead center, 0.4 = lower third (the sky owns the top). The roar is always centered.")]
-    [Range(0.2f, 0.6f)]
-    [SerializeField] private float cineSubjectScreenY = 0.4f;
-    [Tooltip("ROUND 67 — where he sits during the PULL itself (the deep-slow beat while the sky answers). Lower = more sky above him. This replaces the round-65 sky tilt with real composition.")]
-    [Range(0.15f, 0.6f)]
-    [SerializeField] private float cinePullScreenY = 0.33f;
-    [Tooltip("ROUND 67 — the camera stays this many metres BELOW the middle of his body — a natural look-up angle that follows him up the whole jump. Bigger = more from below.")]
-    [SerializeField] private float cineCamBelow = 3f;
-    [Tooltip("The camera never sits lower than this above his feet (floor safety).")]
-    [SerializeField] private float cineCamMinHeight = 1.0f;
-    [Tooltip("Degrees the shot starts around from straight-in-front (a 3/4 view). Every beat's orbit continues from where the last one stopped.")]
+    [Tooltip("The cinematic camera stands this many metres from him.")]
+    [SerializeField] private float cineCamDistance = 7f;
+    [Tooltip("ROUND 54 — camera height above his feet for the roar shot. LOW (1.2m) so the camera looks UP at him and he fills the screen.")]
+    [SerializeField] private float cineShotHeight = 1.2f;
+    [Tooltip("Degrees the shot steps around from straight-in-front, so the roar is a 3/4 view. Also where the 180° orbit starts.")]
     [SerializeField] private float cineCamSideAngle = 25f;
-    [Tooltip("ROUND 67 — degrees of orbit during the ROAR. The orbit IS the roar's motion (distance and height stay put).")]
-    [SerializeField] private float cineRoarOrbit = 120f;
-    [Tooltip("ROUND 67 — degrees of orbit during the RISE. Small: the climb is the motion now, the orbit only drifts.")]
-    [SerializeField] private float cineRiseOrbit = 40f;
-    [Tooltip("ROUND 67 — degrees of orbit during the DROP.")]
-    [SerializeField] private float cineDropOrbit = 30f;
-    [Tooltip("ROUND 67 — how fast the auto-distance settles (per second). Lower = lazier, more cinematic pull-back.")]
-    [Range(1f, 20f)]
-    [SerializeField] private float cineFramingSmoothing = 5f;
-    [Tooltip("Safety margin in degrees kept between the club tip and the picture edge — if anything would poke out, the camera steps BACK (never a zoom).")]
+    [Tooltip("ROUND 54 — height on his body the low camera AIMS at during the roar (chest/head). Higher than the camera = looking up = he looks huge.")]
+    [SerializeField] private float cineShotLookHeight = 3.0f;
+    [Tooltip("ROUND 54 — metres the camera pushes IN toward him across the roar. The slow creep that other games use.")]
+    [SerializeField] private float cinePushIn = 1.2f;
+    [Tooltip("ROUND 54 — degrees of orbit around him during the RISE (and the same again on the way DOWN). 180 + 180 = the full circle Hazel asked for.")]
+    [SerializeField] private float cineOrbitDegrees = 180f;
+    [Tooltip("ROUND 60 — Hazel's foot-to-sky framing: how much the camera RIDES his body during the jump. 0 = the camera STAYS at foot level (Cine Shot Height) and tilts up as he flies — ground and sky both in frame. 1 = the old full body-ride. Between = between.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float cineRideAmount = 0f;
+    [Tooltip("Only matters when Cine Ride Amount > 0: the riding camera's offset from his body, metres. Positive = above him, negative = below him.")]
+    [SerializeField] private float cineAboveOffset = 1.8f;
+    [Tooltip("ROUND 59 — Hazel: the LENS. Wide at the cut… (Unity FOV = the up-down wideness of the picture, in degrees). 72 = wide hero view. Above ~80 the cave edges start bending fisheye — that is the 'not too much' line.")]
+    [Range(40f, 90f)]
+    [SerializeField] private float cineFovStart = 72f;
+    [Tooltip("…narrowing to THIS by the top of the jump — the slow 'focusing in on him'. Set Start and End closer together (68→62) if the change feels like a zoom drift.")]
+    [Range(40f, 90f)]
+    [SerializeField] private float cineFovEnd = 60f;
+    [Tooltip("ROUND 59 — the ALWAYS-IN-FRAME safety: every cinematic frame the code checks his body and the club tip against the picture edges, and if anything would poke out it WIDENS the lens just enough, up to this ceiling. It only ever widens — your tuned look is untouched while everything fits.")]
+    [Range(60f, 110f)]
+    [SerializeField] private float cineFovMax = 88f;
+    [Tooltip("Safety margin in degrees kept between the club tip and the picture edge.")]
     [Range(0f, 15f)]
-    [SerializeField] private float cineFrameMargin = 4f;
+    [SerializeField] private float cineFrameMargin = 5f;
     [Tooltip("ROUND 57 — seconds the camera takes to hand back to the gameplay view AFTER he lands (control returns at the landing now). Short — the slam shake covers it.")]
     [SerializeField] private float cineExitFade = 0.3f;
     [Tooltip("ROUND 55 — how fast the camera's aim catches up with him (per second). The aim point is smoothed like a human cameraman instead of snapping to the bone every frame. Lower = lazier, floatier camera; 8-12 feels filmic.")]
@@ -543,6 +543,7 @@ public class OniBoss : MonoBehaviour
     private float cineWeight;                 // camera blend, 0..1 (1 through the cut; fades on the way home)
     private Vector3 cineBaseForward = Vector3.forward;  // his facing when the cut lands — orbit zero
     private float cineAzimuthNow;             // current orbit angle (deg) — the homeward half continues from here
+    private float cineHeightNow;              // current camera height — the homeward half eases down from here
 
     // ROUND 55 — the camera is COMPUTED in LateUpdate (after the Animator poses the skeleton;
     // round 54 computed it in the routines, Update phase, where bones are a frame stale — that
@@ -559,13 +560,9 @@ public class OniBoss : MonoBehaviour
     private float cineHangExtra;              // extra drift degrees accumulated during the hang
     private StormWeather stormRef;            // to hold the storm break until the lightning beat
 
-    // ROUND 67 — composition camera state.
-    private Camera cineCam;                   // Camera.main, cached for the aspect ratio
-    private float cineFrameDist = -1f;        // smoothed camera-to-subject distance (-1 = snap on the first frame)
-    private float cineScreenYNow = 0.5f;      // smoothed screen placement of his body (from the bottom)
-    private float cinePeakDist;               // farthest the camera stepped back — logged at the end
-    private int cineLastMode;                 // to pick each beat's orbit up where the last one stopped
-    private float cineBeatBaseAz;             // the azimuth the current beat started from
+    // ROUND 59 — cinematic lens state.
+    private Camera cineCam;                   // Camera.main, cached for the frame-fit check
+    private float cineFovAutoPeak;            // widest the frame-fit safety had to go (0 = never engaged) — logged at the end
 
     // ROUND 61 — sky show state. All lighting values are CACHED before the show and restored
     // EXACTLY after (and from EndPhaseCinematic + OnDisable, so an aborted show can never leave
@@ -2840,11 +2837,7 @@ public class OniBoss : MonoBehaviour
         cineTimeSlowed = true;
         cineWorldSpeedNow = Mathf.Clamp(cineSlowMotion, 0.1f, 1f);   // ROUND 58: the driver asserts THIS
         cineHangExtra = 0f;
-        cineFrameDist = -1f;                                         // ROUND 67: snap the framing on the first frame
-        cineScreenYNow = 0.5f;
-        cinePeakDist = 0f;
-        cineLastMode = 0;
-        cineBeatBaseAz = cineCamSideAngle;
+        cineFovAutoPeak = 0f;                                        // ROUND 59: frame-fit diagnostic
         cineTiltNow = 0f;                                            // ROUND 65: sky tilt starts level
         cineTiltTarget = 0f;
         Time.timeScale = cineWorldSpeedNow;
@@ -2854,12 +2847,13 @@ public class OniBoss : MonoBehaviour
         Vector3 fwd = transform.forward; fwd.y = 0f;
         cineBaseForward = fwd.sqrMagnitude < 0.001f ? Vector3.forward : fwd.normalized;
         cineAzimuthNow = cineCamSideAngle;
+        cineHeightNow = cineShotHeight;
 
         // HARD CUT: the roar shot owns this very frame — LateUpdate computes the pose after the
         // Animator, so the cut lands with a FRESH skeleton (round 55). Bars slide in with it.
         cineShotMode = 1;
         cineShotProgress = 0f;
-        cineAimSmoothed = transform.position + Vector3.up * 2.5f;   // seed — the first frame recomputes it anyway
+        cineAimSmoothed = transform.position + Vector3.up * cineShotLookHeight;   // seed — no first-frame swing
         CameraGameFeel.Instance.SetLetterbox(1f);
         PlayOneShot2D(cineCutSFX, cineCutSFXVolume);   // ROUND 66 — the braam announces the cut
 
@@ -2872,8 +2866,7 @@ public class OniBoss : MonoBehaviour
         Debug.Log($"[OniBoss:Cine] CINEMATIC ON — hard cut, bars in, world at x{cineWorldSpeedNow:F2}, "
                 + $"roar at x{cineRoarSpeed:F2} + {cineRoarLinger:F1}s linger, rise at x{cineRiseSpeed:F2}, "
                 + $"beat frames {cineSlowFrameStart:F0}-{cineSlowFrameEnd:F0}/{cineClipTotalFrames:F0} at x{cineBeatSlow:F2}, "
-                + $"hang {cineTopHold:F1}s, orbit roar {cineRoarOrbit:F0}° / rise {cineRiseOrbit:F0}° / drop {cineDropOrbit:F0}°, "
-                + $"lens {cineFov:F0}° locked, fill {cineSubjectFill:F2}, screen-y {cineSubjectScreenY:F2}/{cinePullScreenY:F2}, apex at clip {cineApexMoment:F2}.");
+                + $"hang {cineTopHold:F1}s, orbit {cineOrbitDegrees:F0}°+{cineOrbitDegrees:F0}°, apex at clip {cineApexMoment:F2}.");
     }
 
     /// <summary>ROUND 61 — the Thor moment, once per entrance, at the start of the deep-slow
@@ -3209,87 +3202,94 @@ public class OniBoss : MonoBehaviour
     }
 
     /// <summary>Camera position on the circle around him: azimuth degrees from his facing at the
-    /// cut, horizontal distance out, world height. Every cinematic shot is one call to this.</summary>
-    private Vector3 CineOrbitPos(float azimuthDeg, float distance, float worldY)
+    /// cut, distance out, height up. Every cinematic shot is one call to this.</summary>
+    private Vector3 CineOrbitPos(float azimuthDeg, float distance, float height)
     {
         Vector3 dir = Quaternion.AngleAxis(azimuthDeg, Vector3.up) * cineBaseForward;
-        Vector3 p = transform.position + dir * Mathf.Max(1.5f, distance);
-        p.y = worldY;
-        return p;
+        return transform.position + dir * Mathf.Max(1.5f, distance) + Vector3.up * height;
     }
 
     /// <summary>
-    /// ROUND 67 — the cinematic camera rebuilt as COMPOSITION (Hazel: "think like an artist").
-    /// Three honest numbers replace six fighting ones: ONE locked lens (no zoom, ever); Subject
-    /// Fill — how much of the screen he occupies, the camera computing its own distance every
-    /// frame to hold it, stepping BACK as he rises with the club up; and Subject Screen Y —
-    /// where he sits: centered for the roar, lower third for the rise/peak so the sky owns the
-    /// top (lower still during the pull). One motion per beat: roar = orbit only · rise = climb
-    /// + step back, orbit drifts · hang = near still · drop = follow down. Frame safety steps
-    /// the camera back instead of widening the lens.
-    /// Still computed in LateUpdate after the Animator (fresh bones — the round-55 lesson), and
-    /// still where the slow world clock and Yoru's freeze + protection are re-asserted.
+    /// ROUND 55 — the cinematic camera, computed in LateUpdate AFTER the Animator has posed the
+    /// skeleton this frame (and before CameraGameFeel applies it at execution order 200). Round
+    /// 54 computed it inside the routines — Update phase, bones a frame STALE — and the camera
+    /// jittered and trailed him; same lesson the club touch learned in round 39. The aim point
+    /// is also smoothed, so the camera follows him like a cameraman, not a laser pen.
+    /// Modes: 1 = roar shot (low, push-in) · 2 = ascent orbit · 3 = homeward half-circle.
+    /// While the cinematic proper runs (1-2) this is also where the slow world clock and Yoru's
+    /// freeze + protection are re-asserted every frame.
     /// </summary>
     private void UpdateCinematicCamera()
     {
         if (cineShotMode == 0) return;
         var feel = CameraGameFeel.Instance;
         if (feel == null) { cineShotMode = 0; return; }
-        if (cineCam == null) cineCam = Camera.main;
 
-        // ---- the subject: feet → highest of body / club handle / club tip (posed THIS frame)
-        Vector3 feet = transform.position;
-        float top = feet.y + 4f;
-        if (travelBone != null)   top = Mathf.Max(top, travelBone.position.y);
-        if (clubRootBone != null) top = Mathf.Max(top, clubRootBone.position.y);
-        if (clubBone != null)     top = Mathf.Max(top, clubBone.position.y);
-        top += 0.4f;                                                  // a little air above the tip
-        float subjectH = Mathf.Max(2f, top - feet.y);
-        Vector3 center = new Vector3(feet.x, (feet.y + top) * 0.5f, feet.z);
-
-        // ---- a new beat picks its orbit up where the last one stopped (no jumps)
-        if (cineShotMode != cineLastMode)
-        {
-            cineBeatBaseAz = cineAzimuthNow;
-            cineLastMode = cineShotMode;
-        }
-
-        // ---- per beat: orbit angle, screen placement, weight
-        float az;
-        float syTarget;
+        Vector3 camPos;
+        Vector3 aimTarget;
         float weight = 1f;
+
         if (cineShotMode == 1)
         {
-            // THE ROAR — the orbit is the motion. Centered, steady distance, steady height.
-            az = cineCamSideAngle + cineRoarOrbit * Mathf.Clamp01(cineShotProgress);
-            syTarget = 0.5f;
+            // The roar: LOW shot looking up, creeping Cine Push In metres closer as he screams.
+            cineAzimuthNow = cineCamSideAngle;
+            cineHeightNow = cineShotHeight;
+            float dist = Mathf.Max(2f, cineCamDistance) - cinePushIn * Mathf.Clamp01(cineShotProgress);
+            camPos = CineOrbitPos(cineAzimuthNow, dist, cineHeightNow);
+            aimTarget = transform.position + Vector3.up * cineShotLookHeight;
         }
         else if (cineShotMode == 2)
         {
-            // THE RISE + HANG — the climb is the motion; the orbit only drifts. He settles into
-            // the lower third; during the pull itself lower still, so the sky answers above him
-            // (the round-65 tilt, done as composition).
+            // ROUND 57 — the ascent RIDE: the camera's height follows HIS BODY (posed this
+            // frame) + Cine Above Offset, easing into the ride from the low roar shot, while
+            // sweeping the first half-circle. He can jump as high as he likes — the camera is
+            // always slightly above him, looking a little down. The club never leaves the frame.
             float a = Mathf.Clamp01(cineShotProgress);
-            az = cineBeatBaseAz + cineRiseOrbit * a + cineHangExtra;
+            cineAzimuthNow = cineCamSideAngle + cineOrbitDegrees * a + cineHangExtra;   // +the hang's gentle drift
+            float boneUp = (travelBone != null ? travelBone.position.y : transform.position.y + cineShotLookHeight)
+                         - transform.position.y;                          // his body height above his feet
+            // ROUND 60 — Hazel's foot-to-sky: Ride Amount 0 keeps the camera at foot level (it
+            // only TILTS up as he flies); 1 is the old body-ride; between blends.
+            float rideH = Mathf.Lerp(cineShotHeight, boneUp + cineAboveOffset, Mathf.Clamp01(cineRideAmount));
+            float camH = Mathf.Lerp(cineShotHeight, rideH, Mathf.Clamp01(a / 0.35f));   // ease off the roar shot
+            float dist = (Mathf.Max(2f, cineCamDistance) - cinePushIn) + cinePushIn * a;
+            camPos = CineOrbitPos(cineAzimuthNow, dist, camH);
+            aimTarget = travelBone != null ? travelBone.position
+                                           : transform.position + Vector3.up * cineShotLookHeight;
+
+            // ROUND 65 — the sky tilt: through the pull the aim rides up toward the answering
+            // sky (slowly), and snaps back down to him for the strike (fast). The frame-fit
+            // safety keeps him and the club in the picture the whole time.
             float tiltRate = cineTiltTarget > cineTiltNow ? 1.25f : 4f;
             cineTiltNow = Mathf.MoveTowards(cineTiltNow, cineTiltTarget, tiltRate * Time.unscaledDeltaTime);
-            syTarget = Mathf.Lerp(cineSubjectScreenY, cinePullScreenY, cineTiltNow);
+            aimTarget += Vector3.up * (Mathf.Max(0f, cineSkyTilt) * cineTiltNow);
         }
         else if (cineShotMode == 3)
         {
-            // THE DROP — follow him down; he eases back to center for the impact.
+            // ROUND 57 — the descent RIDE: same tracking on the way DOWN, sweeping the second
+            // half-circle at full weight. Yoru is still frozen; control comes at the landing.
             float p = Mathf.Clamp01(cineShotProgress);
-            az = cineBeatBaseAz + cineDropOrbit * p;
-            syTarget = Mathf.Lerp(cineSubjectScreenY, 0.5f, p);
+            cineAzimuthNow = cineCamSideAngle + cineOrbitDegrees * (1f + p) + cineHangExtra;   // 180° → 360°, from wherever the drift left it
+            float boneUp = (travelBone != null ? travelBone.position.y : transform.position.y + cineShotLookHeight)
+                         - transform.position.y;
+            float downH = Mathf.Lerp(cineShotHeight, boneUp + cineAboveOffset, Mathf.Clamp01(cineRideAmount));   // ROUND 60
+            camPos = CineOrbitPos(cineAzimuthNow, Mathf.Max(2f, cineCamDistance), downH);
+            aimTarget = travelBone != null ? travelBone.position
+                                           : transform.position + Vector3.up * cineShotLookHeight;
         }
         else
         {
-            // THE EXIT FADE — he has landed; hand over to the gameplay camera.
+            // ROUND 57 — the exit fade: he has landed, control is back, and the shot hands over
+            // to the gameplay camera in Cine Exit Fade seconds while the slam shake rattles both.
             cineExitElapsed += Time.unscaledDeltaTime;
             float p = Mathf.Clamp01(cineExitElapsed / Mathf.Max(0.05f, cineExitFade));
             weight = 1f - p;
-            az = cineBeatBaseAz;
-            syTarget = 0.5f;
+            float boneUp = (travelBone != null ? travelBone.position.y : transform.position.y + cineShotLookHeight)
+                         - transform.position.y;
+            float exitH = Mathf.Lerp(cineShotHeight, boneUp + cineAboveOffset, Mathf.Clamp01(cineRideAmount));    // ROUND 60
+            camPos = CineOrbitPos(cineAzimuthNow, Mathf.Max(2f, cineCamDistance), exitH);
+            aimTarget = travelBone != null ? travelBone.position
+                                           : transform.position + Vector3.up * cineShotLookHeight;
             if (p >= 1f)
             {
                 cineShotMode = 0;
@@ -3298,49 +3298,10 @@ public class OniBoss : MonoBehaviour
                 return;
             }
         }
-        cineAzimuthNow = az;
-
-        float dtU = Time.unscaledDeltaTime;
-        cineScreenYNow = Mathf.Lerp(cineScreenYNow, syTarget, 1f - Mathf.Exp(-3f * dtU));
-        float sy = Mathf.Clamp(cineScreenYNow, 0.12f, 0.6f);
-
-        // ---- the lens is locked; the DISTANCE does the framing
-        float fovV = Mathf.Clamp(cineFov, 40f, 90f);
-        float halfV = fovV * 0.5f * Mathf.Deg2Rad;
-        // he spans Fill × FOV around his middle — and must still fit on the short side of Screen Y
-        float fill = Mathf.Min(Mathf.Clamp(cineSubjectFill, 0.3f, 0.95f), 2f * Mathf.Min(sy, 1f - sy) - 0.04f);
-        fill = Mathf.Max(0.25f, fill);
-        float wantR = (subjectH * 0.5f) / Mathf.Tan(fill * halfV);      // camera-to-middle distance
-
-        // ---- camera height: below his body's middle, never under the floor
-        float camY = Mathf.Max(center.y - cineCamBelow, feet.y + Mathf.Max(0.3f, cineCamMinHeight));
-
-        // ---- smooth the distance (snap on the first frame), then place the camera
-        if (cineFrameDist < 0f) cineFrameDist = wantR;
-        float kR = 1f - Mathf.Exp(-Mathf.Max(1f, cineFramingSmoothing) * dtU);
-        cineFrameDist = Mathf.Lerp(cineFrameDist, wantR, kR);
-        Vector3 camPos = PlaceOnOrbit(az, cineFrameDist, camY, center);
-
-        // ---- frame safety: if any point would poke out, step BACK (never a zoom)
-        {
-            float aspect = cineCam != null ? Mathf.Max(1f, cineCam.aspect) : 1.78f;
-            Quaternion probeRot = ComposeAim(camPos, center, sy, fovV);
-            float allowedHalf = Mathf.Max(5f, fovV * 0.5f - Mathf.Max(0f, cineFrameMargin)) * Mathf.Deg2Rad;
-            float factor = 1f;
-            factor = Mathf.Max(factor, StepBackFactor(camPos, probeRot, aspect, allowedHalf, clubBone));
-            factor = Mathf.Max(factor, StepBackFactor(camPos, probeRot, aspect, allowedHalf, clubRootBone));
-            factor = Mathf.Max(factor, StepBackFactor(camPos, probeRot, aspect, allowedHalf, travelBone));
-            factor = Mathf.Max(factor, StepBackFactor(camPos, probeRot, aspect, allowedHalf, transform));
-            if (factor > 1.001f)
-            {
-                cineFrameDist = Mathf.Lerp(cineFrameDist, cineFrameDist * factor, Mathf.Min(1f, 3f * kR));
-                camPos = PlaceOnOrbit(az, cineFrameDist, camY, center);
-            }
-        }
-        if (cineFrameDist > cinePeakDist) cinePeakDist = cineFrameDist;
 
         // The cinematic proper (modes 1-3): keep Yoru safe EVERY frame; keep the world slow
-        // until the apex (the descent runs at full speed, camera still ours).
+        // until the apex (the descent runs at full speed, camera still ours) — so nothing that
+        // also writes these can win for more than one frame.
         if (cineActive)
         {
             if (!cineDescending)
@@ -3352,51 +3313,65 @@ public class OniBoss : MonoBehaviour
             }
         }
 
-        // ---- the aim: put his body's middle at Screen Y, then the cameraman's ease
-        Quaternion aimRot = ComposeAim(camPos, center, sy, fovV);
-        Vector3 aimPoint = camPos + aimRot * Vector3.forward * Mathf.Max(1f, cineFrameDist);
-        float kAim = 1f - Mathf.Exp(-Mathf.Max(1f, cineAimSmoothing) * dtU);
-        cineAimSmoothed = Vector3.Lerp(cineAimSmoothed, aimPoint, kAim);
+        // The cameraman: the aim EASES toward the target (frame-rate independent), instead of
+        // snapping to the bone every frame.
+        float k = 1f - Mathf.Exp(-Mathf.Max(1f, cineAimSmoothing) * Time.unscaledDeltaTime);
+        cineAimSmoothed = Vector3.Lerp(cineAimSmoothed, aimTarget, k);
 
         cineWeight = weight;
         Vector3 to = cineAimSmoothed - camPos;
         if (to.sqrMagnitude <= 0.001f) return;
-        feel.SetCinematicPose(camPos, Quaternion.LookRotation(to.normalized, Vector3.up), weight, fovV);
+        Quaternion rot = Quaternion.LookRotation(to.normalized, Vector3.up);
+
+        // ROUND 59 — the LENS. Wide at the cut, narrowing to the top of the jump (Hazel's pick),
+        // then the frame-fit safety: if his body or the club tip would poke outside the picture,
+        // widen just enough (never past Cine Fov Max). It only ever widens.
+        float fovProgress = cineShotMode == 1 ? Mathf.Clamp01(cineShotProgress) * 0.5f
+                          : cineShotMode == 2 ? 0.5f + Mathf.Clamp01(cineShotProgress) * 0.5f
+                          : 1f;
+        float fov = Mathf.Lerp(cineFovStart, cineFovEnd, fovProgress);
+        fov = FitFovToOni(camPos, rot, fov);
+
+        feel.SetCinematicPose(camPos, rot, weight, fov);
     }
 
-    /// <summary>ROUND 67 — the camera on the orbit around HIM at a straight-line distance R
-    /// from the middle of his body: the horizontal reach follows from R and the height gap.</summary>
-    private Vector3 PlaceOnOrbit(float azimuthDeg, float straightDist, float camY, Vector3 center)
+    /// <summary>
+    /// ROUND 59 — Hazel: "we need to make sure oni's body and club always in the frame."
+    /// Checks the club tip, the club handle, and his body against the picture edges for the
+    /// planned lens; if any would fall outside (plus Cine Frame Margin degrees), returns a lens
+    /// just wide enough to hold it, capped at Cine Fov Max. Runs only during the cinematic —
+    /// a handful of dot products, nothing per-frame-allocated.
+    /// </summary>
+    private float FitFovToOni(Vector3 camPos, Quaternion camRot, float plannedFov)
     {
-        float dy = center.y - camY;
-        float horiz = Mathf.Sqrt(Mathf.Max(6.25f, straightDist * straightDist - dy * dy));   // ≥ 2.5m out
-        return CineOrbitPos(azimuthDeg, horiz, camY);
+        if (cineCam == null) cineCam = Camera.main;
+        float aspect = cineCam != null ? Mathf.Max(1f, cineCam.aspect) : 1.78f;
+
+        float needed = plannedFov;
+        needed = Mathf.Max(needed, NeededFovFor(camPos, camRot, aspect, clubBone));
+        needed = Mathf.Max(needed, NeededFovFor(camPos, camRot, aspect, clubRootBone));
+        needed = Mathf.Max(needed, NeededFovFor(camPos, camRot, aspect, travelBone));
+        needed = Mathf.Max(needed, NeededFovFor(camPos, camRot, aspect, transform));   // ROUND 60: his FEET — foot-to-sky guaranteed
+
+        needed = Mathf.Min(needed, Mathf.Max(plannedFov, cineFovMax));
+        if (needed > plannedFov && needed > cineFovAutoPeak) cineFovAutoPeak = needed;
+        return needed;
     }
 
-    /// <summary>ROUND 67 — aim so that `center` lands at screen height `sy` (0 = bottom,
-    /// 1 = top): look at it, then pitch UP by the matching share of the lens.</summary>
-    private Quaternion ComposeAim(Vector3 camPos, Vector3 center, float sy, float fovV)
+    /// <summary>Vertical FOV (degrees) that keeps `point` inside the picture with the margin.
+    /// Horizontal overshoot is converted through the aspect ratio. 0 = nothing to fit.</summary>
+    private float NeededFovFor(Vector3 camPos, Quaternion camRot, float aspect, Transform point)
     {
-        Vector3 toC = center - camPos;
-        if (toC.sqrMagnitude < 0.001f) toC = cineBaseForward;
-        Quaternion look = Quaternion.LookRotation(toC.normalized, Vector3.up);
-        float pitchUp = (0.5f - sy) * fovV;                       // degrees he sits below the center line
-        return Quaternion.AngleAxis(-pitchUp, look * Vector3.right) * look;
-    }
-
-    /// <summary>ROUND 67 — how much farther back the camera must stand (multiplier ≥ 1) so that
-    /// `point` sits inside the picture with the margin. 1 = already fits.</summary>
-    private float StepBackFactor(Vector3 camPos, Quaternion camRot, float aspect, float allowedHalfRad, Transform point)
-    {
-        if (point == null) return 1f;
+        if (point == null) return 0f;
         Vector3 v = point.position - camPos;
         float fz = Vector3.Dot(v, camRot * Vector3.forward);
-        if (fz < 0.5f) return 1.15f;   // beside or behind the lens — step back, re-check next frame
+        if (fz < 0.5f) return 0f;   // behind or on top of the lens — a lens number cannot help there
+
         float vy = Mathf.Abs(Vector3.Dot(v, camRot * Vector3.up));
-        float vx = Mathf.Abs(Vector3.Dot(v, camRot * Vector3.right)) / aspect;
-        float needed = Mathf.Atan2(Mathf.Max(vy, vx), fz);
-        if (needed <= allowedHalfRad) return 1f;
-        return Mathf.Tan(needed) / Mathf.Tan(allowedHalfRad);
+        float vx = Mathf.Abs(Vector3.Dot(v, camRot * Vector3.right));
+        float vertDeg = 2f * Mathf.Atan2(vy, fz) * Mathf.Rad2Deg;
+        float horDeg  = 2f * Mathf.Atan2(vx / aspect, fz) * Mathf.Rad2Deg;
+        return Mathf.Max(vertDeg, horDeg) + Mathf.Max(0f, cineFrameMargin) * 2f;
     }
 
     /// <summary>
@@ -3452,7 +3427,9 @@ public class OniBoss : MonoBehaviour
 
         Debug.Log($"[OniBoss:Cine] CINEMATIC OFF ({why}) — control returned, bars out, "
                 + $"camera hands over in {cineExitFade:F2}s."
-                + $" Lens locked at {cineFov:F0}°; the camera stepped back to {cinePeakDist:F1}m at the farthest.");
+                + (cineFovAutoPeak > 0f
+                    ? $" Frame-fit safety widened the lens up to {cineFovAutoPeak:F0}° to keep him in view."
+                    : " Frame-fit safety never needed — everything stayed in the picture."));
     }
 
     /// <summary>ROUND 55 — phase-2 music, once: normally the DROP at the slam (Hazel's pick);
