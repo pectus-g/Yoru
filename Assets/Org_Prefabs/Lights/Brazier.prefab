@@ -24258,6 +24258,7 @@ GameObject:
   m_Component:
   - component: {fileID: 597372541004734996}
   - component: {fileID: 2109623350418315986}
+  - component: {fileID: 2074763518104499049}
   m_Layer: 0
   m_Name: Point Light
   m_TagString: Untagged
@@ -24345,6 +24346,31 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &2074763518104499049
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6732657963298836367}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5aa856393fba34c62b6e145dc7ed0a03, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TorchLight
+  flicker: 1
+  flickerDepth: 0.28
+  flickerSpeed: 5.5
+  gusts: 1
+  gustDepth: 0.3
+  gustSpeed: 0.55
+  swayRadius: 0.06
+  swaySpeed: 2.2
+  cullByDistance: 1
+  cullDistance: 45
+  fadeDistance: 12
+  checkInterval: 0.15
+  ignoreSlowMotion: 0
 --- !u!1 &7867766393999256151
 GameObject:
   m_ObjectHideFlags: 0

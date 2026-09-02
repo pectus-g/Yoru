@@ -1,0 +1,1138 @@
+# Oni combat log — 2026-09-02 19:02:37
+# Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
+# columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
+#
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-02_19-02-37.log
+[     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
+  aim VFX right: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/Glow_4Leg_R
+[     1    0.000 x1.00] LOG  [TailAirShot] Ready. drawState=RightTail_Fast castParam=TailCastSpeed (found)
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/vfx_Muzzle_Fireball01Blue
+[     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
+[     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized — Phase 3C v27
+[     1    0.000 x1.00] LOG  [RingMesh] VFX Status:
+[     1    0.000 x1.00] LOG    Left: Prefab=✓, Spawn=Tail6_L_end_end_end
+[     1    0.000 x1.00] LOG    Right: Prefab=✓, Spawn=Tail6_R_end_end_end
+[     1    0.000 x1.00] LOG  === VFX MANAGER INITIALIZED ===
+[     1    0.000 x1.00] LOG  Auto-detect animations: False
+[     1    0.000 x1.00] LOG  Parent effects to tail: True
+[     1    0.000 x1.00] LOG  Prefabs: Jump=True, Land=True, LTail=True, RTail=True
+[     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailVFX
+[     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
+[     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
+[     1    0.000 x1.00] LOG  [StormWeather] COZY bridge: Rain_Cave retired — COZY owns the rain now.
+[     1    0.000 x1.00] LOG  [StormWeather] COZY → 'Receeding Storm' (phase 1 — dark clouds gather)
+[     1    0.000 x1.00] LOG  [StormWeather] Ready. Rain on, floor drying... wait, soaking.
+[     1    0.000 x1.00] LOG  [FreezeDebug v3] Armed. Manual=L. Auto=True. Buffer=60 snaps @ 0.1s = 6.0s history.
+[     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
+[     1    0.000 x1.00] LOG  OniBoss initialized with 500 HP
+[     1    0.000 x1.00] LOG  [OniBoss] ANIMATOR SETUP: cullingMode=CullUpdateTransforms updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [OniBoss] Initialized
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] facing: minFlat 1m, snapOnAttack off, trackInHitReact off
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch model ON: launches ALL THE WAY to an enemy within 4.7m of its surface at 10m/s (stop gap 0.00m, NO minimum distance), else steps 0.90m forward. Targeting cone left exactly as her prefab has it.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch ROUND 9: airborne attacks launch too (ON), edge probe now runs on its OWN layer mask (Everything) instead of the line-of-sight mask - the Ground-only mask found no floor in this cave and was cancelling 100% of launches at 0.00m travelled.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] animator speed x1.35 — his 1.13s swing now plays in 0.84s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] chase speed pushed: phase1 4.5, phase2 5.5 (Yoru runs at 7).
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] ground wave ON (round 38): half the club's damage on TOUCH, 12m/s x 6.0m from 1.6m in front at 0.35m height — a club hit cancels that swing's wave, jumping clears it. Per-attack effects come from the Swing Wave VFX By Attack rows. PlayerHealth found, PlayerMovement found.
+[     1    0.000 x1.00] LOG  [StormWeather] storm break HELD (waiting for the lightning beat)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] storm break HELD — it releases at the lightning-on-the-club beat.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] club tracking ON — tip 'Kanabo3' (depth 4), shaft root 'kanabo'.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] skinned meshes: 46 renderer(s), updateWhenOffscreen ON, body renderer 'Body' rootBone 'Hips'
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge travel bone: 'Hips' at depth 1 under 'OniBoss', rest local (0.00, 3.24, -0.24)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] anti-kite ON: thrown swing after 4s of failed chase (within 7.6m), charge after 6s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge drive ON (windup to 0.40 at x1.3, rush 14m/s stops at 2.6m, steers 0.35s then commits, strike section from 0.58, strike moment 0.76, trail VFX off)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] attack armor ON (his swings are not interrupted by light/medium hits; heavy hits and rapid-hit bursts still stop him)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] strike moments overridden: Club_Swing=0.42 ClubSwing2=0.32 ClubSlam=0.85 KanaboSweep=0.48
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] club TOUCH hits ON (radius 0.70m, min tip speed 50m/s, armed from 0.20 of the clip): Club_Swing ClubSwing2 ClubSlam KanaboSweep. First touch wins — club full damage, wave half, one hit per swing.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] combo damage ramp ON: mid x1.25, finisher x1.50 — finisher wave carries FULL damage at x2.0 size, x2.0 travel.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge follow-up ON: 90 % of solo charges chain into a random melee finisher.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] hold-ground ON (backstep 1.5m @ 1.6m/s after own attacks, watch 'Watch', attack facing LOCKED)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] OniBoss layer ready (reactions, wake-on-hit, watch stance, boss bar). player=found
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge clip 'Oni Charge.fbx' imports with Root Motion Node = None (in place) — good.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] clips importing with Root Transform Position (Y) NOT baked into pose (12): Oni_Alert(Oni Alert), Club_Slam(Oni Club Slam), Club_Swing(Oni Club Swing), Club_swing2(Oni Club Swing 2), Death(Oni Death Kneel), Hit_react_light(Oni Hit react lighter light), KanaboSweep(Oni Kanabo sweep), Phase_Transition(Oni Phase transition), run(Oni Run), Walk(Oni Walk), Watch(Oni Watch), Idle(Oni Idle) — their hips' up/down motion is stripped (see round notes; optional).
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Found VolumetricFog component on mainCamera (1)
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Reflection init: density=True, height=True, baselineHeight=True, alpha=True, noiseStrength=True, lightScatteringExposure=True
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Initialized with Neutral preset (height=60, baselineHeight=0)
+[     1    0.000 x1.00] WARN [VolumetricFogController] WorldStateManager not found!
+[     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
+[     1    2.609 x1.00] LOG  [OniBoss] Playing animation: Idle
+[     1    2.609 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
+[    13    3.480 x1.00] LOG  💨 Landing VFX spawned!
+[    13    3.480 x1.00] LOG  ✅ LANDED! (was jump #0)
+[   305    7.920 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.41s
+  Time   : 4.726s   Frame: 305   Snaps: 45
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=4.710 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(475.20, 1.29, 427.05)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=False
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=False C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (45 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 4.73s  --------    0  n   Y  1.00  0.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.62s  --------    0  n   Y  1.00  0.09 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.51s  --------    0  n   Y  1.00  0.20 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.40s  --------    0  Y   Y  1.00  0.31 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.29s  --------    0  Y   Y  1.00  0.43 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.19s  --------    0  Y   Y  1.00  0.52 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.09s  --------    0  Y   Y  1.00  0.63 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 3.98s  --------    0  Y   Y  1.00  0.73 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 3.88s  --------    0  Y   Y  1.00  0.84 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 3.77s  --------    0  Y   Y  1.00  0.94 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 3.67s  --------    0  Y   Y  1.00  1.05 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 3.56s  --------    0  Y   Y  1.00  1.15 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 3.46s  --------    0  Y   Y  1.00  1.26 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 3.35s  --------    0  Y   Y  1.00  1.37 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 3.24s  --------    0  Y   Y  1.00  1.47 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 3.14s  --------    0  Y   Y  1.00  1.58 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 3.03s  --------    0  Y   Y  1.00  1.68 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.92s  --------    0  Y   Y  1.00  1.80 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.81s  --------    0  Y   Y  1.00  1.90 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.71s  --------    0  Y   Y  1.00  2.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.60s  --------    0  Y   Y  1.00  2.11 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.50s  --------    0  Y   Y  1.00  2.21 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.40s  --------    0  Y   Y  1.00  2.32 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.29s  --------    0  Y   Y  1.00  2.42 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.19s  --------    0  Y   Y  1.00  2.53 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.07s  --------    0  Y   Y  1.00  2.64 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.97s  --------    0  Y   Y  1.00  2.75 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.86s  --------    0  Y   Y  1.00  2.85 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.76s  --------    0  Y   Y  1.00  2.96 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.65s  --------    0  Y   Y  1.00  3.07 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.54s  --------    0  Y   Y  1.00  3.17 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.44s  --------    0  Y   Y  1.00  3.28 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.33s  --------    0  Y   Y  1.00  3.38 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.23s  --------    0  Y   Y  1.00  3.49 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.12s  --------    0  Y   Y  1.00  3.59 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.01s  --------    0  Y   Y  1.00  3.70 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.90s  --------    0  Y   Y  1.00  3.82 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.79s  --------    0  Y   Y  1.00  3.92 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.69s  --------    0  Y   Y  1.00  4.02 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.59s  --------    0  Y   Y  1.00  4.13 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.48s  --------    0  Y   Y  1.00  4.23 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.37s  --------    0  Y   Y  1.00  4.34 1.00 -  |   474.5    427.2  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 0.27s  --------    0  Y   Y  1.00  4.44 1.00 -  |   474.7    427.2  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 0.17s  --------    0  Y   Y  1.00  4.55 1.00 -  |   474.9    427.1  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 0.06s  --------    0  Y   Y  1.00  4.65 1.00 -  |   475.1    427.1  0.00 |  0.0  1.0 0   0   0  0  0  0
+=========================================================== END
+
+[   340    8.441 x1.00] LOG  [OniBoss:Layer] watch stance OFF, back to Idle (player 16.6m)
+[   692   13.782 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.41s
+  Time   : 10.588s   Frame: 692   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=10.571 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(477.23, 0.09, 414.74)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.24s  --------    0  Y   Y  1.00  4.34 1.00 -  |   474.5    427.2  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 6.13s  --------    0  Y   Y  1.00  4.44 1.00 -  |   474.7    427.2  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 6.03s  --------    0  Y   Y  1.00  4.55 1.00 -  |   474.9    427.1  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 5.92s  --------    0  Y   Y  1.00  4.65 1.00 -  |   475.1    427.1  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 5.82s  --------    0  Y   Y  1.00  4.76 1.00 -  |   475.4    427.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.71s  --------    0  Y   Y  1.00  4.86 1.00 -  |   476.0    426.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.61s  --------    0  Y   Y  1.00  4.96 1.00 -  |   476.7    426.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.51s  --------    0  Y   Y  1.00  5.07 1.00 -  |   477.5    426.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.40s  --------    0  Y   Y  1.00  5.17 1.00 -  |   478.2    426.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.29s  --------    0  Y   Y  1.00  5.28 1.00 -  |   478.9    426.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.19s  --------    0  Y   Y  1.00  5.39 1.00 -  |   479.7    425.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.08s  --------    0  Y   Y  1.00  5.49 1.00 -  |   480.3    425.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.98s  --------    0  Y   Y  1.00  5.60 1.00 -  |   481.0    425.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.87s  --------    0  Y   Y  1.00  5.70 1.00 -  |   481.6    425.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.77s  --------    0  Y   Y  1.00  5.81 1.00 -  |   482.4    424.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.66s  --------    0  Y   Y  1.00  5.91 1.00 -  |   482.9    424.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.56s  --------    0  Y   Y  1.00  6.02 1.00 -  |   482.9    423.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.45s  --------    0  Y   Y  1.00  6.12 1.00 -  |   482.4    423.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.35s  --------    0  Y   Y  1.00  6.23 1.00 -  |   481.6    422.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.24s  --------    0  Y   Y  1.00  6.33 1.00 -  |   481.0    422.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.14s  --------    0  Y   Y  1.00  6.44 1.00 -  |   480.3    422.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.03s  --------    0  Y   Y  1.00  6.54 1.00 -  |   479.6    422.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.93s  --------    0  Y   Y  1.00  6.65 1.00 -  |   478.7    422.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.82s  --------    0  Y   Y  1.00  6.75 1.00 -  |   478.0    422.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.72s  --------    0  Y   Y  1.00  6.86 1.00 -  |   477.4    422.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.61s  --------    0  Y   Y  1.00  6.96 1.00 -  |   476.7    421.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.50s  --------    0  Y   Y  1.00  7.07 1.00 -  |   475.9    421.6  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 3.40s  --------    0  Y   Y  1.00  7.18 1.00 -  |   475.6    421.0  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 3.29s  --------    0  Y   Y  1.00  7.28 1.00 -  |   475.6    420.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.19s  --------    0  Y   Y  1.00  7.39 1.00 -  |   475.9    419.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.08s  --------    0  Y   Y  1.00  7.49 1.00 -  |   476.1    418.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.98s  --------    0  Y   Y  1.00  7.60 1.00 -  |   476.3    418.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.87s  --------    0  Y   Y  1.00  7.71 1.00 -  |   476.4    417.4  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 2.76s  --------    0  Y   Y  1.00  7.81 1.00 -  |   476.7    416.6  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 2.66s  --------    0  Y   Y  1.00  7.92 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 2.55s  --------    0  Y   Y  1.00  8.02 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 2.44s  --------    0  Y   Y  1.00  8.13 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.34s  --------    0  Y   Y  1.00  8.24 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.23s  --------    0  Y   Y  1.00  8.34 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.13s  --------    0  Y   Y  1.00  8.45 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.02s  --------    0  Y   Y  1.00  8.55 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.91s  --------    0  Y   Y  1.00  8.67 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.79s  --------    0  Y   Y  1.00  8.78 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.69s  --------    0  Y   Y  1.00  8.89 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.58s  --------    0  Y   Y  1.00  8.99 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.48s  --------    0  Y   Y  1.00  9.10 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.37s  --------    0  Y   Y  1.00  9.20 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.27s  --------    0  Y   Y  1.00  9.31 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.16s  --------    0  Y   Y  1.00  9.41 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.06s  --------    0  Y   Y  1.00  9.52 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.95s  --------    0  Y   Y  1.00  9.62 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.84s  --------    0  Y   Y  1.00  9.74 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.73s  --------    0  Y   Y  1.00  9.84 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.63s  --------    0  Y   Y  1.00  9.94 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.53s  --------    0  Y   Y  1.00 10.05 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.42s  --------    0  Y   Y  1.00 10.15 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.32s  --------    0  Y   Y  1.00 10.26 1.00 -  |   476.9    416.0  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 0.21s  --------    0  Y   Y  1.00 10.36 1.00 -  |   476.9    415.8  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 0.11s  --------    0  Y   Y  1.00 10.47 1.00 -  |   477.0    415.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.00s  --------    0  Y   Y  1.00 10.57 1.00 -  |   477.2    414.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[   747   14.602 x1.00] LOG  🐾 4-LEG JUMP #0
+[   747   14.602 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   766   14.885 x1.00] LOG  🐾 4-LEG JUMP #1
+[   766   14.885 x1.00] LOG  🐾 Jump 2 VFX spawned!
+[   781   15.101 x1.00] LOG  🐾 4-LEG JUMP #2
+[   781   15.101 x1.00] LOG  🐾 Jump 3 VFX spawned!
+[   781   15.101 x1.00] LOG  🚫 Max jumps reached!
+[   850   16.121 x1.00] LOG  💨 Landing VFX spawned!
+[   850   16.121 x1.00] LOG  ✅ LANDED! (was jump #3)
+[   964   17.835 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
+  Time   : 14.641s   Frame: 964   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=14.628 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(484.09, -0.02, 391.04)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.28s  --------    0  Y   Y  1.00  8.34 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 6.18s  --------    0  Y   Y  1.00  8.45 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 6.07s  --------    0  Y   Y  1.00  8.55 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.96s  --------    0  Y   Y  1.00  8.67 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.84s  --------    0  Y   Y  1.00  8.78 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.74s  --------    0  Y   Y  1.00  8.89 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.63s  --------    0  Y   Y  1.00  8.99 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.53s  --------    0  Y   Y  1.00  9.10 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.42s  --------    0  Y   Y  1.00  9.20 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.32s  --------    0  Y   Y  1.00  9.31 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.21s  --------    0  Y   Y  1.00  9.41 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.11s  --------    0  Y   Y  1.00  9.52 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 5.00s  --------    0  Y   Y  1.00  9.62 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.89s  --------    0  Y   Y  1.00  9.74 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.78s  --------    0  Y   Y  1.00  9.84 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.68s  --------    0  Y   Y  1.00  9.94 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.58s  --------    0  Y   Y  1.00 10.05 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.47s  --------    0  Y   Y  1.00 10.15 1.00 -  |   476.8    416.1  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 4.37s  --------    0  Y   Y  1.00 10.26 1.00 -  |   476.9    416.0  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 4.26s  --------    0  Y   Y  1.00 10.36 1.00 -  |   476.9    415.8  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 4.16s  --------    0  Y   Y  1.00 10.47 1.00 -  |   477.0    415.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.05s  --------    0  Y   Y  1.00 10.57 1.00 -  |   477.2    414.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.95s  --------    0  Y   Y  1.00 10.68 1.00 -  |   477.4    414.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.84s  --------    0  Y   Y  1.00 10.78 1.00 -  |   477.6    413.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.74s  --------    0  Y   Y  1.00 10.88 1.00 -  |   477.8    412.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.64s  --------    0  Y   Y  1.00 10.99 1.00 -  |   478.0    411.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.53s  --------    0  Y   Y  1.00 11.09 1.00 -  |   478.2    411.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.43s  --------    0  Y   Y  1.00 11.20 1.00 -  |   478.4    410.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.32s  --------    0  Y   Y  1.00 11.30 1.00 -  |   478.6    409.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.22s  --------    0  n   Y  1.00 11.41 1.00 -  |   478.9    409.1  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 3.11s  --------    0  n   Y  1.00 11.51 1.00 -  |   479.0    408.7  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 3.01s  --------    0  n   Y  1.00 11.62 1.00 -  |   479.1    408.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.90s  --------    0  n   Y  1.00 11.72 1.00 -  |   479.2    407.8  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 2.79s  --------    0  n   Y  1.00 11.84 1.00 -  |   479.4    407.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.69s  --------    0  n   Y  1.00 11.94 1.00 -  |   479.5    406.8  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 2.58s  --------    0  n   Y  1.00 12.04 1.00 -  |   479.6    406.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.48s  --------    0  n   Y  1.00 12.15 1.00 -  |   479.8    405.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.37s  --------    0  n   Y  1.00 12.25 1.00 -  |   479.9    405.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.27s  --------    0  n   Y  1.00 12.36 1.00 -  |   480.0    405.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.16s  --------    0  n   Y  1.00 12.46 1.00 -  |   480.2    404.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.06s  --------    0  n   Y  1.00 12.57 1.00 -  |   480.3    404.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.95s  --------    0  n   Y  1.00 12.67 1.00 -  |   480.4    403.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.84s  --------    0  n   Y  1.00 12.79 1.00 -  |   480.6    403.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.73s  --------    0  n   Y  1.00 12.90 1.00 -  |   480.7    402.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.62s  --------    0  Y   Y  1.00 13.00 1.00 -  |   480.9    402.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.52s  --------    0  Y   Y  1.00 13.11 1.00 -  |   481.1    401.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.41s  --------    0  Y   Y  1.00 13.21 1.00 -  |   481.3    400.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.31s  --------    0  Y   Y  1.00 13.32 1.00 -  |   481.5    399.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.20s  --------    0  Y   Y  1.00 13.42 1.00 -  |   481.7    399.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.09s  --------    0  Y   Y  1.00 13.53 1.00 -  |   482.0    398.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.99s  --------    0  Y   Y  1.00 13.64 1.00 -  |   482.1    397.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.88s  --------    0  Y   Y  1.00 13.74 1.00 -  |   482.3    397.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.78s  --------    0  Y   Y  1.00 13.85 1.00 -  |   482.5    396.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.68s  --------    0  Y   Y  1.00 13.95 1.00 -  |   482.8    395.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.57s  --------    0  Y   Y  1.00 14.06 1.00 -  |   483.0    394.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.46s  --------    0  Y   Y  1.00 14.16 1.00 -  |   483.2    394.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.36s  --------    0  Y   Y  1.00 14.27 1.00 -  |   483.4    393.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.25s  --------    0  Y   Y  1.00 14.37 1.00 -  |   483.6    392.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.15s  --------    0  Y   Y  1.00 14.48 1.00 -  |   483.8    392.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.04s  --------    0  Y   Y  1.00 14.58 1.00 -  |   484.0    391.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[  1238   21.913 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.41s
+  Time   : 18.719s   Frame: 1238   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=18.703 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(492.00, -0.02, 363.74)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=0.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.03s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.24s  --------    0  n   Y  1.00 12.46 1.00 -  |   480.2    404.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.14s  --------    0  n   Y  1.00 12.57 1.00 -  |   480.3    404.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.03s  --------    0  n   Y  1.00 12.67 1.00 -  |   480.4    403.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.92s  --------    0  n   Y  1.00 12.79 1.00 -  |   480.6    403.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.81s  --------    0  n   Y  1.00 12.90 1.00 -  |   480.7    402.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.70s  --------    0  Y   Y  1.00 13.00 1.00 -  |   480.9    402.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.60s  --------    0  Y   Y  1.00 13.11 1.00 -  |   481.1    401.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.49s  --------    0  Y   Y  1.00 13.21 1.00 -  |   481.3    400.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.39s  --------    0  Y   Y  1.00 13.32 1.00 -  |   481.5    399.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.28s  --------    0  Y   Y  1.00 13.42 1.00 -  |   481.7    399.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.17s  --------    0  Y   Y  1.00 13.53 1.00 -  |   482.0    398.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.07s  --------    0  Y   Y  1.00 13.64 1.00 -  |   482.1    397.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.96s  --------    0  Y   Y  1.00 13.74 1.00 -  |   482.3    397.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.86s  --------    0  Y   Y  1.00 13.85 1.00 -  |   482.5    396.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.76s  --------    0  Y   Y  1.00 13.95 1.00 -  |   482.8    395.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.65s  --------    0  Y   Y  1.00 14.06 1.00 -  |   483.0    394.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.54s  --------    0  Y   Y  1.00 14.16 1.00 -  |   483.2    394.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.44s  --------    0  Y   Y  1.00 14.27 1.00 -  |   483.4    393.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.33s  --------    0  Y   Y  1.00 14.37 1.00 -  |   483.6    392.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.23s  --------    0  Y   Y  1.00 14.48 1.00 -  |   483.8    392.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.12s  --------    0  Y   Y  1.00 14.58 1.00 -  |   484.0    391.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.01s  --------    0  Y   Y  1.00 14.69 1.00 -  |   484.2    390.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.90s  --------    0  Y   Y  1.00 14.80 1.00 -  |   484.4    390.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.80s  --------    0  Y   Y  1.00 14.91 1.00 -  |   484.6    389.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.69s  --------    0  Y   Y  1.00 15.01 1.00 -  |   484.8    388.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.58s  --------    0  Y   Y  1.00 15.12 1.00 -  |   485.0    387.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.48s  --------    0  Y   Y  1.00 15.22 1.00 -  |   485.2    387.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.38s  --------    0  Y   Y  1.00 15.33 1.00 -  |   485.5    386.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.27s  --------    0  Y   Y  1.00 15.43 1.00 -  |   485.7    385.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.17s  --------    0  Y   Y  1.00 15.54 1.00 -  |   485.8    385.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.06s  --------    0  Y   Y  1.00 15.64 1.00 -  |   486.0    384.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.96s  --------    0  Y   Y  1.00 15.75 1.00 -  |   486.3    383.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.86s  --------    0  Y   Y  1.00 15.85 1.00 -  |   486.5    382.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.75s  --------    0  Y   Y  1.00 15.95 1.00 -  |   486.7    382.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.64s  --------    0  Y   Y  1.00 16.06 1.00 -  |   486.9    381.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.53s  --------    0  Y   Y  1.00 16.17 1.00 -  |   487.1    380.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.43s  --------    0  Y   Y  1.00 16.28 1.00 -  |   487.3    380.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.32s  --------    0  Y   Y  1.00 16.38 1.00 -  |   487.5    379.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.22s  --------    0  Y   Y  1.00 16.48 1.00 -  |   487.7    378.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.11s  --------    0  Y   Y  1.00 16.59 1.00 -  |   487.9    377.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.01s  --------    0  Y   Y  1.00 16.70 1.00 -  |   488.1    377.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.90s  --------    0  Y   Y  1.00 16.80 1.00 -  |   488.3    376.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.80s  --------    0  Y   Y  1.00 16.90 1.00 -  |   488.5    375.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.69s  --------    0  Y   Y  1.00 17.02 1.00 -  |   488.7    375.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.58s  --------    0  Y   Y  1.00 17.12 1.00 -  |   488.9    374.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.47s  --------    0  Y   Y  1.00 17.23 1.00 -  |   489.2    373.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.37s  --------    0  Y   Y  1.00 17.34 1.00 -  |   489.4    372.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.26s  --------    0  Y   Y  1.00 17.44 1.00 -  |   489.5    372.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.16s  --------    0  Y   Y  1.00 17.54 1.00 -  |   489.7    371.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.06s  --------    0  Y   Y  1.00 17.65 1.00 -  |   490.0    370.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.95s  --------    0  Y   Y  1.00 17.75 1.00 -  |   490.2    370.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.85s  --------    0  Y   Y  1.00 17.85 1.00 -  |   490.4    369.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.75s  --------    0  Y   Y  1.00 17.96 1.00 -  |   490.6    368.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.65s  --------    0  Y   Y  1.00 18.06 1.00 -  |   490.8    368.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.55s  --------    0  Y   Y  1.00 18.16 1.00 -  |   490.9    367.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.44s  --------    0  Y   Y  1.00 18.26 1.00 -  |   491.1    366.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.34s  --------    0  Y   Y  1.00 18.36 1.00 -  |   491.3    366.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.24s  --------    0  Y   Y  1.00 18.47 1.00 -  |   491.6    365.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.13s  --------    0  Y   Y  1.00 18.57 1.00 -  |   491.8    364.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.03s  --------    0  Y   Y  1.00 18.67 1.00 -  |   492.0    363.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[  1487   25.617 x1.00] LOG  [StormWeather] ⚡ strike at (472.06, 45.00, 456.23)
+[  1512   25.993 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
+  Time   : 22.799s   Frame: 1512   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=22.782 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(498.32, -0.02, 337.38)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.19s  --------    0  Y   Y  1.00 16.59 1.00 -  |   487.9    377.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.09s  --------    0  Y   Y  1.00 16.70 1.00 -  |   488.1    377.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.98s  --------    0  Y   Y  1.00 16.80 1.00 -  |   488.3    376.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.88s  --------    0  Y   Y  1.00 16.90 1.00 -  |   488.5    375.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.77s  --------    0  Y   Y  1.00 17.02 1.00 -  |   488.7    375.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.66s  --------    0  Y   Y  1.00 17.12 1.00 -  |   488.9    374.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.56s  --------    0  Y   Y  1.00 17.23 1.00 -  |   489.2    373.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.45s  --------    0  Y   Y  1.00 17.34 1.00 -  |   489.4    372.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.34s  --------    0  Y   Y  1.00 17.44 1.00 -  |   489.5    372.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.24s  --------    0  Y   Y  1.00 17.54 1.00 -  |   489.7    371.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.14s  --------    0  Y   Y  1.00 17.65 1.00 -  |   490.0    370.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.03s  --------    0  Y   Y  1.00 17.75 1.00 -  |   490.2    370.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.93s  --------    0  Y   Y  1.00 17.85 1.00 -  |   490.4    369.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.83s  --------    0  Y   Y  1.00 17.96 1.00 -  |   490.6    368.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.73s  --------    0  Y   Y  1.00 18.06 1.00 -  |   490.8    368.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.63s  --------    0  Y   Y  1.00 18.16 1.00 -  |   490.9    367.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.52s  --------    0  Y   Y  1.00 18.26 1.00 -  |   491.1    366.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.42s  --------    0  Y   Y  1.00 18.36 1.00 -  |   491.3    366.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.32s  --------    0  Y   Y  1.00 18.47 1.00 -  |   491.6    365.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.21s  --------    0  Y   Y  1.00 18.57 1.00 -  |   491.8    364.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.11s  --------    0  Y   Y  1.00 18.67 1.00 -  |   492.0    363.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.01s  --------    0  Y   Y  1.00 18.77 1.00 -  |   492.2    363.2  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 3.90s  --------    0  Y   Y  1.00 18.89 1.00 -  |   492.4    362.4  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 3.79s  --------    0  Y   Y  1.00 18.99 1.00 -  |   492.5    361.9  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 3.69s  --------    0  Y   Y  1.00 19.09 1.00 -  |   492.5    361.9  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 3.59s  --------    0  Y   Y  1.00 19.20 1.00 -  |   492.7    361.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.48s  --------    0  Y   Y  1.00 19.30 1.00 -  |   492.9    360.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.38s  --------    0  Y   Y  1.00 19.41 1.00 -  |   493.1    360.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.27s  --------    0  Y   Y  1.00 19.51 1.00 -  |   493.5    359.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.17s  --------    0  Y   Y  1.00 19.62 1.00 -  |   493.9    358.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.06s  --------    0  Y   Y  1.00 19.72 1.00 -  |   494.3    358.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.96s  --------    0  Y   Y  1.00 19.82 1.00 -  |   494.8    357.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.86s  --------    0  Y   Y  1.00 19.93 1.00 -  |   495.1    356.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.75s  --------    0  Y   Y  1.00 20.03 1.00 -  |   495.4    356.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.65s  --------    0  Y   Y  1.00 20.14 1.00 -  |   495.7    355.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.54s  --------    0  Y   Y  1.00 20.25 1.00 -  |   495.9    355.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.44s  --------    0  Y   Y  1.00 20.35 1.00 -  |   496.0    354.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.33s  --------    0  Y   Y  1.00 20.45 1.00 -  |   496.1    353.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.22s  --------    0  Y   Y  1.00 20.57 1.00 -  |   496.2    352.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.11s  --------    0  Y   Y  1.00 20.67 1.00 -  |   496.3    351.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.01s  --------    0  Y   Y  1.00 20.78 1.00 -  |   496.4    351.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.91s  --------    0  Y   Y  1.00 20.88 1.00 -  |   496.5    350.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.80s  --------    0  Y   Y  1.00 20.99 1.00 -  |   496.6    349.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.69s  --------    0  Y   Y  1.00 21.09 1.00 -  |   496.7    349.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.58s  --------    0  Y   Y  1.00 21.20 1.00 -  |   496.8    348.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.48s  --------    0  Y   Y  1.00 21.31 1.00 -  |   496.9    347.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.37s  --------    0  Y   Y  1.00 21.41 1.00 -  |   497.0    346.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.27s  --------    0  Y   Y  1.00 21.52 1.00 -  |   497.1    346.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.16s  --------    0  Y   Y  1.00 21.62 1.00 -  |   497.2    345.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.06s  --------    0  Y   Y  1.00 21.73 1.00 -  |   497.3    344.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.94s  --------    0  Y   Y  1.00 21.84 1.00 -  |   497.4    343.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.84s  --------    0  Y   Y  1.00 21.94 1.00 -  |   497.5    343.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.74s  --------    0  Y   Y  1.00 22.05 1.00 -  |   497.6    342.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.63s  --------    0  Y   Y  1.00 22.15 1.00 -  |   497.7    341.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.53s  --------    0  Y   Y  1.00 22.26 1.00 -  |   497.8    341.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.42s  --------    0  Y   Y  1.00 22.36 1.00 -  |   497.9    340.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.32s  --------    0  Y   Y  1.00 22.47 1.00 -  |   498.0    339.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.21s  --------    0  Y   Y  1.00 22.57 1.00 -  |   498.1    338.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.11s  --------    0  Y   Y  1.00 22.68 1.00 -  |   498.2    338.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.00s  --------    0  Y   Y  1.00 22.78 1.00 -  |   498.3    337.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[  1783   30.049 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.41s
+  Time   : 26.855s   Frame: 1783   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=26.840 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(502.14, -0.02, 309.22)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.27s  --------    0  Y   Y  1.00 20.57 1.00 -  |   496.2    352.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.17s  --------    0  Y   Y  1.00 20.67 1.00 -  |   496.3    351.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.06s  --------    0  Y   Y  1.00 20.78 1.00 -  |   496.4    351.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.96s  --------    0  Y   Y  1.00 20.88 1.00 -  |   496.5    350.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.85s  --------    0  Y   Y  1.00 20.99 1.00 -  |   496.6    349.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.75s  --------    0  Y   Y  1.00 21.09 1.00 -  |   496.7    349.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.64s  --------    0  Y   Y  1.00 21.20 1.00 -  |   496.8    348.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.53s  --------    0  Y   Y  1.00 21.31 1.00 -  |   496.9    347.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.43s  --------    0  Y   Y  1.00 21.41 1.00 -  |   497.0    346.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.32s  --------    0  Y   Y  1.00 21.52 1.00 -  |   497.1    346.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.22s  --------    0  Y   Y  1.00 21.62 1.00 -  |   497.2    345.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.11s  --------    0  Y   Y  1.00 21.73 1.00 -  |   497.3    344.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.00s  --------    0  Y   Y  1.00 21.84 1.00 -  |   497.4    343.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.90s  --------    0  Y   Y  1.00 21.94 1.00 -  |   497.5    343.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.79s  --------    0  Y   Y  1.00 22.05 1.00 -  |   497.6    342.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.69s  --------    0  Y   Y  1.00 22.15 1.00 -  |   497.7    341.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.58s  --------    0  Y   Y  1.00 22.26 1.00 -  |   497.8    341.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.47s  --------    0  Y   Y  1.00 22.36 1.00 -  |   497.9    340.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.37s  --------    0  Y   Y  1.00 22.47 1.00 -  |   498.0    339.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.27s  --------    0  Y   Y  1.00 22.57 1.00 -  |   498.1    338.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.16s  --------    0  Y   Y  1.00 22.68 1.00 -  |   498.2    338.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.06s  --------    0  Y   Y  1.00 22.78 1.00 -  |   498.3    337.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.95s  --------    0  Y   Y  1.00 22.89 1.00 -  |   498.4    336.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.85s  --------    0  Y   Y  1.00 22.99 1.00 -  |   498.5    335.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.74s  --------    0  Y   Y  1.00 23.10 1.00 -  |   498.6    335.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.64s  --------    0  Y   Y  1.00 23.20 1.00 -  |   498.7    334.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.53s  --------    0  Y   Y  1.00 23.31 1.00 -  |   498.8    333.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.42s  --------    0  Y   Y  1.00 23.42 1.00 -  |   498.9    332.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.32s  --------    0  Y   Y  1.00 23.52 1.00 -  |   499.0    332.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.21s  --------    0  Y   Y  1.00 23.63 1.00 -  |   499.1    331.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.10s  --------    0  Y   Y  1.00 23.74 1.00 -  |   499.2    330.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.00s  --------    0  Y   Y  1.00 23.84 1.00 -  |   499.3    330.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.90s  --------    0  Y   Y  1.00 23.94 1.00 -  |   499.4    329.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.80s  --------    0  Y   Y  1.00 24.04 1.00 -  |   499.5    328.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.69s  --------    0  Y   Y  1.00 24.15 1.00 -  |   499.6    327.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.58s  --------    0  Y   Y  1.00 24.25 1.00 -  |   499.7    327.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.48s  --------    0  Y   Y  1.00 24.36 1.00 -  |   499.8    326.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.37s  --------    0  Y   Y  1.00 24.46 1.00 -  |   499.9    325.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.27s  --------    0  Y   Y  1.00 24.57 1.00 -  |   500.0    324.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.16s  --------    0  Y   Y  1.00 24.68 1.00 -  |   500.1    324.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.05s  --------    0  Y   Y  1.00 24.79 1.00 -  |   500.2    323.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.94s  --------    0  Y   Y  1.00 24.90 1.00 -  |   500.3    322.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.83s  --------    0  Y   Y  1.00 25.00 1.00 -  |   500.4    321.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.72s  --------    0  Y   Y  1.00 25.11 1.00 -  |   500.5    321.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.62s  --------    0  Y   Y  1.00 25.22 1.00 -  |   500.6    320.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.52s  --------    0  Y   Y  1.00 25.32 1.00 -  |   500.7    319.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.41s  --------    0  Y   Y  1.00 25.43 1.00 -  |   500.8    318.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.30s  --------    0  Y   Y  1.00 25.53 1.00 -  |   500.9    318.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.20s  --------    0  Y   Y  1.00 25.64 1.00 -  |   501.0    317.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.10s  --------    0  Y   Y  1.00 25.74 1.00 -  |   501.1    316.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.00s  --------    0  Y   Y  1.00 25.84 1.00 -  |   501.2    316.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.90s  --------    0  Y   Y  1.00 25.95 1.00 -  |   501.3    315.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.78s  --------    0  Y   Y  1.00 26.06 1.00 -  |   501.4    314.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.67s  --------    0  Y   Y  1.00 26.16 1.00 -  |   501.5    313.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.57s  --------    0  Y   Y  1.00 26.27 1.00 -  |   501.6    313.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.47s  --------    0  Y   Y  1.00 26.37 1.00 -  |   501.7    312.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.36s  --------    0  Y   Y  1.00 26.48 1.00 -  |   501.8    311.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.26s  --------    0  Y   Y  1.00 26.58 1.00 -  |   501.9    310.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.15s  --------    0  Y   Y  1.00 26.69 1.00 -  |   502.0    310.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.04s  --------    0  Y   Y  1.00 26.80 1.00 -  |   502.1    309.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[  1969   32.830 x1.00] LOG  🐾 4-LEG JUMP #0
+[  1969   32.830 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  1999   33.275 x1.00] LOG  🐾 4-LEG JUMP #1
+[  1999   33.275 x1.00] LOG  🐾 Jump 2 VFX spawned!
+[  2049   34.024 x1.00] LOG  💨 Landing VFX spawned!
+[  2049   34.024 x1.00] LOG  ✅ LANDED! (was jump #2)
+[  2051   34.056 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.41s
+  Time   : 30.863s   Frame: 2051   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=30.844 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(497.58, -0.02, 300.59)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=1.00 V=0.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.28s  --------    0  Y   Y  1.00 24.57 1.00 -  |   500.0    324.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.17s  --------    0  Y   Y  1.00 24.68 1.00 -  |   500.1    324.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.05s  --------    0  Y   Y  1.00 24.79 1.00 -  |   500.2    323.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.95s  --------    0  Y   Y  1.00 24.90 1.00 -  |   500.3    322.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.84s  --------    0  Y   Y  1.00 25.00 1.00 -  |   500.4    321.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.73s  --------    0  Y   Y  1.00 25.11 1.00 -  |   500.5    321.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.63s  --------    0  Y   Y  1.00 25.22 1.00 -  |   500.6    320.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.52s  --------    0  Y   Y  1.00 25.32 1.00 -  |   500.7    319.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.42s  --------    0  Y   Y  1.00 25.43 1.00 -  |   500.8    318.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.31s  --------    0  Y   Y  1.00 25.53 1.00 -  |   500.9    318.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.21s  --------    0  Y   Y  1.00 25.64 1.00 -  |   501.0    317.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.10s  --------    0  Y   Y  1.00 25.74 1.00 -  |   501.1    316.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.00s  --------    0  Y   Y  1.00 25.84 1.00 -  |   501.2    316.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.90s  --------    0  Y   Y  1.00 25.95 1.00 -  |   501.3    315.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.79s  --------    0  Y   Y  1.00 26.06 1.00 -  |   501.4    314.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.68s  --------    0  Y   Y  1.00 26.16 1.00 -  |   501.5    313.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.58s  --------    0  Y   Y  1.00 26.27 1.00 -  |   501.6    313.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.47s  --------    0  Y   Y  1.00 26.37 1.00 -  |   501.7    312.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.37s  --------    0  Y   Y  1.00 26.48 1.00 -  |   501.8    311.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.26s  --------    0  Y   Y  1.00 26.58 1.00 -  |   501.9    310.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.16s  --------    0  Y   Y  1.00 26.69 1.00 -  |   502.0    310.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.05s  --------    0  Y   Y  1.00 26.80 1.00 -  |   502.1    309.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.95s  --------    0  Y   Y  1.00 26.90 1.00 -  |   502.2    308.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.84s  --------    0  Y   Y  1.00 27.00 1.00 -  |   502.3    308.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.74s  --------    0  Y   Y  1.00 27.11 1.00 -  |   502.4    307.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.63s  --------    0  Y   Y  1.00 27.21 1.00 -  |   502.4    306.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.53s  --------    0  Y   Y  1.00 27.32 1.00 -  |   502.3    305.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.42s  --------    0  Y   Y  1.00 27.42 1.00 -  |   502.1    305.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.32s  --------    0  Y   Y  1.00 27.53 1.00 -  |   501.9    304.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.21s  --------    0  Y   Y  1.00 27.63 1.00 -  |   501.6    303.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.11s  --------    0  Y   Y  1.00 27.74 1.00 -  |   501.3    303.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.00s  --------    0  Y   Y  1.00 27.85 1.00 -  |   500.9    302.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.90s  --------    0  Y   Y  1.00 27.95 1.00 -  |   500.4    302.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.80s  --------    0  Y   Y  1.00 28.05 1.00 -  |   500.0    301.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.69s  --------    0  Y   Y  1.00 28.16 1.00 -  |   499.5    301.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.59s  --------    0  Y   Y  1.00 28.26 1.00 -  |   499.0    301.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.48s  --------    0  Y   Y  1.00 28.36 1.00 -  |   498.4    300.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.38s  --------    0  Y   Y  1.00 28.47 1.00 -  |   498.0    300.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.27s  --------    0  Y   Y  1.00 28.58 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.17s  --------    0  Y   Y  1.00 28.68 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.06s  --------    0  Y   Y  1.00 28.78 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.96s  --------    0  Y   Y  1.00 28.89 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.86s  --------    0  Y   Y  1.00 28.99 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.75s  --------    0  Y   Y  1.00 29.10 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.65s  --------    0  Y   Y  1.00 29.20 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.54s  --------    0  Y   Y  1.00 29.31 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.44s  --------    0  Y   Y  1.00 29.41 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.33s  --------    0  Y   Y  1.00 29.51 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.23s  --------    0  Y   Y  1.00 29.62 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 1.12s  --------    0  n   Y  1.00 29.72 1.00 -  |   497.6    300.6  2.11 |  0.0  1.0 0   0   0  1  1  0
+  - 1.02s  --------    0  n   Y  1.00 29.83 1.00 -  |   497.5    300.7  1.58 |  0.0  1.0 0   0   0  0  1  0
+  - 0.92s  --------    0  n   Y  1.00 29.93 1.00 -  |   497.5    300.8  1.04 |  0.0  1.0 0   0   0  0  1  0
+  - 0.81s  --------    0  n   Y  1.00 30.04 1.00 -  |   497.6    300.8  0.51 |  0.0  1.0 0   0   0  0  1  0
+  - 0.71s  --------    0  n   Y  1.00 30.14 1.00 -  |   497.6    300.9  2.06 |  0.0  1.0 0   0   0  1  1  0
+  - 0.60s  --------    0  n   Y  1.00 30.25 1.00 -  |   497.6    301.0  1.42 |  0.0  1.0 0   0   0  0  1  0
+  - 0.50s  --------    0  n   Y  1.00 30.35 1.00 -  |   497.6    301.1  0.89 |  0.0  1.0 0   0   0  0  1  0
+  - 0.39s  --------    0  n   Y  1.00 30.45 1.00 -  |   497.6    301.1  0.36 |  0.0  1.0 0   0   0  0  1  0
+  - 0.29s  --------    0  n   Y  1.00 30.56 1.00 -  |   497.7    301.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.18s  --------    0  n   Y  1.00 30.67 1.00 -  |   497.7    301.0  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 0.08s  --------    0  n   Y  1.00 30.77 1.00 -  |   497.7    300.9  0.00 |  0.0  0.0 0   0   0  0  1  0
+=========================================================== END
+
+[  2169   35.832 x1.00] LOG  🐾 4-LEG JUMP #0
+[  2169   35.832 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  2207   36.395 x1.00] LOG  💨 Landing VFX spawned!
+[  2207   36.395 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  2335   38.341 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.41s
+  Time   : 35.147s   Frame: 2335   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=35.132 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(491.53, -0.02, 297.56)  vel=(0.00, -0.03, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.24s  --------    0  Y   Y  1.00 28.89 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.14s  --------    0  Y   Y  1.00 28.99 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.04s  --------    0  Y   Y  1.00 29.10 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.93s  --------    0  Y   Y  1.00 29.20 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.83s  --------    0  Y   Y  1.00 29.31 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.72s  --------    0  Y   Y  1.00 29.41 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.62s  --------    0  Y   Y  1.00 29.51 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.51s  --------    0  Y   Y  1.00 29.62 1.00 -  |   497.6    300.4  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 5.41s  --------    0  n   Y  1.00 29.72 1.00 -  |   497.6    300.6  2.11 |  0.0  1.0 0   0   0  1  1  0
+  - 5.31s  --------    0  n   Y  1.00 29.83 1.00 -  |   497.5    300.7  1.58 |  0.0  1.0 0   0   0  0  1  0
+  - 5.20s  --------    0  n   Y  1.00 29.93 1.00 -  |   497.5    300.8  1.04 |  0.0  1.0 0   0   0  0  1  0
+  - 5.10s  --------    0  n   Y  1.00 30.04 1.00 -  |   497.6    300.8  0.51 |  0.0  1.0 0   0   0  0  1  0
+  - 4.99s  --------    0  n   Y  1.00 30.14 1.00 -  |   497.6    300.9  2.06 |  0.0  1.0 0   0   0  1  1  0
+  - 4.88s  --------    0  n   Y  1.00 30.25 1.00 -  |   497.6    301.0  1.42 |  0.0  1.0 0   0   0  0  1  0
+  - 4.78s  --------    0  n   Y  1.00 30.35 1.00 -  |   497.6    301.1  0.89 |  0.0  1.0 0   0   0  0  1  0
+  - 4.68s  --------    0  n   Y  1.00 30.45 1.00 -  |   497.6    301.1  0.36 |  0.0  1.0 0   0   0  0  1  0
+  - 4.57s  --------    0  n   Y  1.00 30.56 1.00 -  |   497.7    301.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.47s  --------    0  n   Y  1.00 30.67 1.00 -  |   497.7    301.0  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 4.36s  --------    0  n   Y  1.00 30.77 1.00 -  |   497.7    300.9  0.00 |  0.0  0.0 0   0   0  0  1  0
+  - 4.26s  --------    0  Y   Y  1.00 30.88 1.00 -  |   497.5    300.5  0.00 |  1.0  0.0 0   0   0  0  1  0
+  - 4.15s  --------    0  Y   Y  1.00 30.98 1.00 -  |   496.9    300.2  0.00 |  1.0  0.0 0   0   0  0  1  0
+  - 4.05s  --------    0  Y   Y  1.00 31.09 1.00 -  |   496.1    299.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.94s  --------    0  Y   Y  1.00 31.19 1.00 -  |   495.6    299.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.83s  --------    0  Y   Y  1.00 31.30 1.00 -  |   495.3    299.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.73s  --------    0  Y   Y  1.00 31.40 1.00 -  |   495.2    298.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.63s  --------    0  Y   Y  1.00 31.50 1.00 -  |   495.0    298.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.52s  --------    0  Y   Y  1.00 31.61 1.00 -  |   494.7    298.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.41s  --------    0  Y   Y  1.00 31.72 1.00 -  |   494.6    298.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.31s  --------    0  Y   Y  1.00 31.82 1.00 -  |   494.6    298.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.20s  --------    0  Y   Y  1.00 31.93 1.00 -  |   494.6    298.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.10s  --------    0  Y   Y  1.00 32.04 1.00 -  |   494.6    298.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.98s  --------    0  Y   Y  1.00 32.14 1.00 -  |   494.6    298.3  0.00 |  1.0  1.0 0   0   0  0  1  0
+  - 2.88s  --------    0  Y   Y  1.00 32.25 1.00 -  |   494.5    298.2  0.00 |  1.0  1.0 0   0   0  0  1  0
+  - 2.78s  --------    0  Y   Y  1.00 32.35 1.00 -  |   494.4    298.1  0.00 |  1.0  1.0 0   0   0  0  1  0
+  - 2.67s  --------    0  Y   Y  1.00 32.45 1.00 -  |   494.3    298.1  0.00 |  1.0  1.0 0   0   0  0  1  0
+  - 2.57s  --------    0  Y   Y  1.00 32.56 1.00 -  |   494.3    298.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.46s  --------    0  n   Y  1.00 32.67 1.00 -  |   494.1    298.1  3.26 |  0.0  1.0 0   0   0  1  1  0
+  - 2.36s  --------    0  n   Y  1.00 32.78 1.00 -  |   493.9    298.1  2.54 |  0.0  1.0 0   0   0  0  1  0
+  - 2.25s  --------    0  n   Y  1.00 32.88 1.00 -  |   493.8    298.1  1.83 |  0.0  1.0 0   0   0  0  1  0
+  - 2.14s  --------    0  n   Y  1.00 32.99 1.00 -  |   493.8    298.1  0.97 |  0.0  1.0 0   0   0  0  1  0
+  - 2.04s  --------    0  n   Y  1.00 33.10 1.00 -  |   494.0    298.1  0.26 |  0.0  1.0 0   0   0  0  1  0
+  - 1.93s  --------    0  Y   Y  1.00 33.20 1.00 -  |   494.1    298.1  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 1.82s  --------    0  Y   Y  1.00 33.30 1.00 -  |   494.4    298.2  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 1.72s  --------    0  Y   Y  1.00 33.41 1.00 -  |   494.6    298.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.62s  --------    0  Y   Y  1.00 33.52 1.00 -  |   494.8    298.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.51s  --------    0  Y   Y  1.00 33.62 1.00 -  |   494.9    298.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.41s  --------    0  Y   Y  1.00 33.73 1.00 -  |   494.9    298.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.31s  --------    0  Y   Y  1.00 33.83 1.00 -  |   494.9    298.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.21s  --------    0  Y   Y  1.00 33.93 1.00 -  |   494.9    298.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.10s  --------    0  Y   Y  1.00 34.04 1.00 -  |   494.8    298.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.99s  --------    0  Y   Y  1.00 34.14 1.00 -  |   494.6    298.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.88s  --------    0  Y   Y  1.00 34.25 1.00 -  |   494.4    298.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.78s  --------    0  Y   Y  1.00 34.35 1.00 -  |   494.0    297.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.67s  --------    0  Y   Y  1.00 34.46 1.00 -  |   493.4    297.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.57s  --------    0  Y   Y  1.00 34.56 1.00 -  |   492.7    297.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.46s  --------    0  Y   Y  1.00 34.67 1.00 -  |   492.1    296.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.36s  --------    0  Y   Y  1.00 34.78 1.00 -  |   491.8    296.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.25s  --------    0  Y   Y  1.00 34.88 1.00 -  |   491.8    296.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.13s  --------    0  Y   Y  1.00 35.00 1.00 -  |   491.7    296.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.03s  --------    0  Y   Y  1.00 35.10 1.00 -  |   491.6    297.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[  2580   42.399 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
+  Time   : 39.205s   Frame: 2580   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=39.188 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(477.05, -0.02, 320.04)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.41s  --------    0  n   Y  1.00 32.78 1.00 -  |   493.9    298.1  2.54 |  0.0  1.0 0   0   0  0  1  0
+  - 6.31s  --------    0  n   Y  1.00 32.88 1.00 -  |   493.8    298.1  1.83 |  0.0  1.0 0   0   0  0  1  0
+  - 6.20s  --------    0  n   Y  1.00 32.99 1.00 -  |   493.8    298.1  0.97 |  0.0  1.0 0   0   0  0  1  0
+  - 6.09s  --------    0  n   Y  1.00 33.10 1.00 -  |   494.0    298.1  0.26 |  0.0  1.0 0   0   0  0  1  0
+  - 5.99s  --------    0  Y   Y  1.00 33.20 1.00 -  |   494.1    298.1  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 5.88s  --------    0  Y   Y  1.00 33.30 1.00 -  |   494.4    298.2  0.00 |  0.0  1.0 0   0   0  1  1  0
+  - 5.78s  --------    0  Y   Y  1.00 33.41 1.00 -  |   494.6    298.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.67s  --------    0  Y   Y  1.00 33.52 1.00 -  |   494.8    298.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.57s  --------    0  Y   Y  1.00 33.62 1.00 -  |   494.9    298.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.46s  --------    0  Y   Y  1.00 33.73 1.00 -  |   494.9    298.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.36s  --------    0  Y   Y  1.00 33.83 1.00 -  |   494.9    298.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.26s  --------    0  Y   Y  1.00 33.93 1.00 -  |   494.9    298.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.15s  --------    0  Y   Y  1.00 34.04 1.00 -  |   494.8    298.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.05s  --------    0  Y   Y  1.00 34.14 1.00 -  |   494.6    298.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.94s  --------    0  Y   Y  1.00 34.25 1.00 -  |   494.4    298.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.84s  --------    0  Y   Y  1.00 34.35 1.00 -  |   494.0    297.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.73s  --------    0  Y   Y  1.00 34.46 1.00 -  |   493.4    297.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.62s  --------    0  Y   Y  1.00 34.56 1.00 -  |   492.7    297.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.52s  --------    0  Y   Y  1.00 34.67 1.00 -  |   492.1    296.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.41s  --------    0  Y   Y  1.00 34.78 1.00 -  |   491.8    296.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.31s  --------    0  Y   Y  1.00 34.88 1.00 -  |   491.8    296.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.19s  --------    0  Y   Y  1.00 35.00 1.00 -  |   491.7    296.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.09s  --------    0  Y   Y  1.00 35.10 1.00 -  |   491.6    297.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.98s  --------    0  Y   Y  1.00 35.21 1.00 -  |   491.3    298.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.86s  --------    0  Y   Y  1.00 35.33 1.00 -  |   490.9    298.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.75s  --------    0  Y   Y  1.00 35.43 1.00 -  |   490.7    299.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.65s  --------    0  Y   Y  1.00 35.54 1.00 -  |   490.6    300.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.54s  --------    0  Y   Y  1.00 35.64 1.00 -  |   490.4    301.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.44s  --------    0  Y   Y  1.00 35.75 1.00 -  |   490.3    301.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.33s  --------    0  Y   Y  1.00 35.86 1.00 -  |   490.2    302.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.21s  --------    0  Y   Y  1.00 35.97 1.00 -  |   490.0    303.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.10s  --------    0  Y   Y  1.00 36.09 1.00 -  |   490.0    304.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.98s  --------    0  Y   Y  1.00 36.20 1.00 -  |   489.8    304.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.88s  --------    0  Y   Y  1.00 36.31 1.00 -  |   489.7    305.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.76s  --------    0  Y   Y  1.00 36.42 1.00 -  |   489.6    306.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.66s  --------    0  Y   Y  1.00 36.52 1.00 -  |   489.5    307.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.55s  --------    0  Y   Y  1.00 36.64 1.00 -  |   489.3    307.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.44s  --------    0  Y   Y  1.00 36.74 1.00 -  |   488.9    308.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.33s  --------    0  Y   Y  1.00 36.86 1.00 -  |   488.4    309.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.22s  --------    0  Y   Y  1.00 36.97 1.00 -  |   487.8    309.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.10s  --------    0  Y   Y  1.00 37.09 1.00 -  |   487.2    310.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.99s  --------    0  Y   Y  1.00 37.20 1.00 -  |   486.7    310.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.87s  --------    0  Y   Y  1.00 37.31 1.00 -  |   486.2    311.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.77s  --------    0  Y   Y  1.00 37.41 1.00 -  |   485.8    311.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.67s  --------    0  Y   Y  1.00 37.52 1.00 -  |   485.5    312.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.56s  --------    0  Y   Y  1.00 37.62 1.00 -  |   485.1    313.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.45s  --------    0  Y   Y  1.00 37.74 1.00 -  |   484.9    313.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.35s  --------    0  Y   Y  1.00 37.84 1.00 -  |   484.7    314.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.23s  --------    0  Y   Y  1.00 37.96 1.00 -  |   484.3    315.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.13s  --------    0  Y   Y  1.00 38.06 1.00 -  |   483.8    315.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.02s  --------    0  Y   Y  1.00 38.17 1.00 -  |   483.2    316.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.91s  --------    0  Y   Y  1.00 38.28 1.00 -  |   482.6    316.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.80s  --------    0  Y   Y  1.00 38.39 1.00 -  |   481.9    317.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.69s  --------    0  Y   Y  1.00 38.50 1.00 -  |   481.3    317.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.59s  --------    0  Y   Y  1.00 38.59 1.00 -  |   480.7    318.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.48s  --------    0  Y   Y  1.00 38.71 1.00 -  |   480.0    318.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.37s  --------    0  Y   Y  1.00 38.82 1.00 -  |   479.4    318.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.27s  --------    0  Y   Y  1.00 38.92 1.00 -  |   478.8    319.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.16s  --------    0  Y   Y  1.00 39.03 1.00 -  |   478.1    319.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.05s  --------    0  Y   Y  1.00 39.14 1.00 -  |   477.4    319.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[  2830   46.479 x1.00] LOG  [StormWeather] ⚡ strike at (490.70, 45.00, 454.61)
+[  2831   46.498 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.41s
+  Time   : 43.304s   Frame: 2831   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=43.285 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(467.45, -0.02, 334.93)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.43s  --------    0  Y   Y  1.00 36.86 1.00 -  |   488.4    309.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.32s  --------    0  Y   Y  1.00 36.97 1.00 -  |   487.8    309.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.20s  --------    0  Y   Y  1.00 37.09 1.00 -  |   487.2    310.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.09s  --------    0  Y   Y  1.00 37.20 1.00 -  |   486.7    310.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.97s  --------    0  Y   Y  1.00 37.31 1.00 -  |   486.2    311.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.87s  --------    0  Y   Y  1.00 37.41 1.00 -  |   485.8    311.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.77s  --------    0  Y   Y  1.00 37.52 1.00 -  |   485.5    312.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.66s  --------    0  Y   Y  1.00 37.62 1.00 -  |   485.1    313.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.55s  --------    0  Y   Y  1.00 37.74 1.00 -  |   484.9    313.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.45s  --------    0  Y   Y  1.00 37.84 1.00 -  |   484.7    314.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.33s  --------    0  Y   Y  1.00 37.96 1.00 -  |   484.3    315.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.23s  --------    0  Y   Y  1.00 38.06 1.00 -  |   483.8    315.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.12s  --------    0  Y   Y  1.00 38.17 1.00 -  |   483.2    316.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.01s  --------    0  Y   Y  1.00 38.28 1.00 -  |   482.6    316.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.90s  --------    0  Y   Y  1.00 38.39 1.00 -  |   481.9    317.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.79s  --------    0  Y   Y  1.00 38.50 1.00 -  |   481.3    317.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.69s  --------    0  Y   Y  1.00 38.59 1.00 -  |   480.7    318.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.58s  --------    0  Y   Y  1.00 38.71 1.00 -  |   480.0    318.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.47s  --------    0  Y   Y  1.00 38.82 1.00 -  |   479.4    318.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.37s  --------    0  Y   Y  1.00 38.92 1.00 -  |   478.8    319.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.26s  --------    0  Y   Y  1.00 39.03 1.00 -  |   478.1    319.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.15s  --------    0  Y   Y  1.00 39.14 1.00 -  |   477.4    319.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.04s  --------    0  Y   Y  1.00 39.25 1.00 -  |   476.7    320.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.93s  --------    0  Y   Y  1.00 39.36 1.00 -  |   476.0    320.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.82s  --------    0  Y   Y  1.00 39.47 1.00 -  |   475.2    320.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.72s  --------    0  Y   Y  1.00 39.56 1.00 -  |   474.6    320.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.61s  --------    0  Y   Y  1.00 39.67 1.00 -  |   473.9    321.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.50s  --------    0  Y   Y  1.00 39.79 1.00 -  |   473.1    321.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.39s  --------    0  Y   Y  1.00 39.90 1.00 -  |   472.4    321.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.28s  --------    0  Y   Y  1.00 40.01 1.00 -  |   471.6    322.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.17s  --------    0  Y   Y  1.00 40.12 1.00 -  |   471.0    322.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.06s  --------    0  Y   Y  1.00 40.23 1.00 -  |   470.2    322.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.95s  --------    0  Y   Y  1.00 40.34 1.00 -  |   469.5    322.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.84s  --------    0  Y   Y  1.00 40.45 1.00 -  |   469.0    323.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.73s  --------    0  Y   Y  1.00 40.55 1.00 -  |   468.9    324.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.63s  --------    0  Y   Y  1.00 40.66 1.00 -  |   469.1    324.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.53s  --------    0  Y   Y  1.00 40.76 1.00 -  |   469.3    325.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.42s  --------    0  Y   Y  1.00 40.87 1.00 -  |   469.7    326.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.31s  --------    0  Y   Y  1.00 40.97 1.00 -  |   470.0    326.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.21s  --------    0  Y   Y  1.00 41.08 1.00 -  |   470.3    327.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.11s  --------    0  Y   Y  1.00 41.18 1.00 -  |   470.6    328.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.00s  --------    0  Y   Y  1.00 41.29 1.00 -  |   471.0    328.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.88s  --------    0  Y   Y  1.00 41.40 1.00 -  |   471.3    329.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.78s  --------    0  Y   Y  1.00 41.51 1.00 -  |   471.6    330.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.68s  --------    0  Y   Y  1.00 41.61 1.00 -  |   472.0    330.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.57s  --------    0  Y   Y  1.00 41.71 1.00 -  |   472.3    331.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.46s  --------    0  Y   Y  1.00 41.83 1.00 -  |   472.6    332.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.35s  --------    0  Y   Y  1.00 41.94 1.00 -  |   472.9    332.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.23s  --------    0  Y   Y  1.00 42.05 1.00 -  |   473.3    333.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.13s  --------    0  Y   Y  1.00 42.16 1.00 -  |   473.6    334.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.02s  --------    0  Y   Y  1.00 42.27 1.00 -  |   473.9    335.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.91s  --------    0  Y   Y  1.00 42.37 1.00 -  |   473.7    335.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.80s  --------    0  Y   Y  1.00 42.49 1.00 -  |   473.0    335.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.70s  --------    0  Y   Y  1.00 42.59 1.00 -  |   472.3    335.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.58s  --------    0  Y   Y  1.00 42.70 1.00 -  |   471.4    335.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.47s  --------    0  Y   Y  1.00 42.82 1.00 -  |   470.8    335.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.36s  --------    0  Y   Y  1.00 42.93 1.00 -  |   469.9    335.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.25s  --------    0  Y   Y  1.00 43.04 1.00 -  |   469.2    335.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.15s  --------    0  Y   Y  1.00 43.14 1.00 -  |   468.6    335.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.03s  --------    0  Y   Y  1.00 43.25 1.00 -  |   467.7    334.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[  3070   50.595 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.42s
+  Time   : 47.401s   Frame: 3070   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=47.384 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(456.31, -0.02, 355.53)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.41s  --------    0  Y   Y  1.00 40.97 1.00 -  |   470.0    326.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.31s  --------    0  Y   Y  1.00 41.08 1.00 -  |   470.3    327.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.20s  --------    0  Y   Y  1.00 41.18 1.00 -  |   470.6    328.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.10s  --------    0  Y   Y  1.00 41.29 1.00 -  |   471.0    328.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.98s  --------    0  Y   Y  1.00 41.40 1.00 -  |   471.3    329.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.88s  --------    0  Y   Y  1.00 41.51 1.00 -  |   471.6    330.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.78s  --------    0  Y   Y  1.00 41.61 1.00 -  |   472.0    330.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.67s  --------    0  Y   Y  1.00 41.71 1.00 -  |   472.3    331.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.56s  --------    0  Y   Y  1.00 41.83 1.00 -  |   472.6    332.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.44s  --------    0  Y   Y  1.00 41.94 1.00 -  |   472.9    332.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.33s  --------    0  Y   Y  1.00 42.05 1.00 -  |   473.3    333.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.23s  --------    0  Y   Y  1.00 42.16 1.00 -  |   473.6    334.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.12s  --------    0  Y   Y  1.00 42.27 1.00 -  |   473.9    335.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.01s  --------    0  Y   Y  1.00 42.37 1.00 -  |   473.7    335.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.90s  --------    0  Y   Y  1.00 42.49 1.00 -  |   473.0    335.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.79s  --------    0  Y   Y  1.00 42.59 1.00 -  |   472.3    335.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.68s  --------    0  Y   Y  1.00 42.70 1.00 -  |   471.4    335.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.57s  --------    0  Y   Y  1.00 42.82 1.00 -  |   470.8    335.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.46s  --------    0  Y   Y  1.00 42.93 1.00 -  |   469.9    335.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.35s  --------    0  Y   Y  1.00 43.04 1.00 -  |   469.2    335.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.24s  --------    0  Y   Y  1.00 43.14 1.00 -  |   468.6    335.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.13s  --------    0  Y   Y  1.00 43.25 1.00 -  |   467.7    334.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.03s  --------    0  Y   Y  1.00 43.36 1.00 -  |   467.0    335.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.91s  --------    0  Y   Y  1.00 43.47 1.00 -  |   466.3    335.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.80s  --------    0  Y   Y  1.00 43.58 1.00 -  |   465.7    335.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.69s  --------    0  Y   Y  1.00 43.69 1.00 -  |   465.0    336.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.59s  --------    0  Y   Y  1.00 43.80 1.00 -  |   464.4    336.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.49s  --------    0  Y   Y  1.00 43.90 1.00 -  |   463.8    337.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.38s  --------    0  Y   Y  1.00 44.00 1.00 -  |   463.2    337.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.28s  --------    0  Y   Y  1.00 44.10 1.00 -  |   462.5    337.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.17s  --------    0  Y   Y  1.00 44.22 1.00 -  |   461.9    338.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.05s  --------    0  Y   Y  1.00 44.33 1.00 -  |   461.2    338.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.95s  --------    0  Y   Y  1.00 44.43 1.00 -  |   460.7    339.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.84s  --------    0  Y   Y  1.00 44.55 1.00 -  |   460.0    339.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.73s  --------    0  Y   Y  1.00 44.65 1.00 -  |   459.4    339.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.62s  --------    0  Y   Y  1.00 44.77 1.00 -  |   458.7    340.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.51s  --------    0  Y   Y  1.00 44.87 1.00 -  |   458.2    340.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.40s  --------    0  Y   Y  1.00 44.99 1.00 -  |   457.8    341.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.28s  --------    0  Y   Y  1.00 45.10 1.00 -  |   457.9    342.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.18s  --------    0  Y   Y  1.00 45.20 1.00 -  |   458.0    343.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.07s  --------    0  Y   Y  1.00 45.31 1.00 -  |   458.2    343.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.97s  --------    0  Y   Y  1.00 45.42 1.00 -  |   458.5    344.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.86s  --------    0  Y   Y  1.00 45.53 1.00 -  |   458.7    345.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.74s  --------    0  Y   Y  1.00 45.64 1.00 -  |   459.0    346.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.63s  --------    0  Y   Y  1.00 45.75 1.00 -  |   459.2    346.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.53s  --------    0  Y   Y  1.00 45.85 1.00 -  |   459.4    347.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.43s  --------    0  Y   Y  1.00 45.95 1.00 -  |   459.6    348.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.32s  --------    0  Y   Y  1.00 46.07 1.00 -  |   459.8    348.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.21s  --------    0  Y   Y  1.00 46.17 1.00 -  |   460.0    349.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.10s  --------    0  Y   Y  1.00 46.28 1.00 -  |   460.1    350.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.98s  --------    0  Y   Y  1.00 46.40 1.00 -  |   460.2    351.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.88s  --------    0  Y   Y  1.00 46.51 1.00 -  |   460.3    351.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.78s  --------    0  Y   Y  1.00 46.61 1.00 -  |   460.2    352.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.68s  --------    0  Y   Y  1.00 46.71 1.00 -  |   460.1    353.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.57s  --------    0  Y   Y  1.00 46.81 1.00 -  |   459.8    354.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.47s  --------    0  Y   Y  1.00 46.92 1.00 -  |   459.5    354.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.35s  --------    0  Y   Y  1.00 47.03 1.00 -  |   458.8    355.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.24s  --------    0  Y   Y  1.00 47.15 1.00 -  |   458.0    355.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.13s  --------    0  Y   Y  1.00 47.26 1.00 -  |   457.3    355.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.02s  --------    0  Y   Y  1.00 47.37 1.00 -  |   456.4    355.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[  3309   54.695 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
+  Time   : 51.501s   Frame: 3309   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=51.485 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(428.84, -0.02, 351.71)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.39s  --------    0  Y   Y  1.00 45.10 1.00 -  |   457.9    342.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.28s  --------    0  Y   Y  1.00 45.20 1.00 -  |   458.0    343.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.17s  --------    0  Y   Y  1.00 45.31 1.00 -  |   458.2    343.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.07s  --------    0  Y   Y  1.00 45.42 1.00 -  |   458.5    344.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.96s  --------    0  Y   Y  1.00 45.53 1.00 -  |   458.7    345.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.84s  --------    0  Y   Y  1.00 45.64 1.00 -  |   459.0    346.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.73s  --------    0  Y   Y  1.00 45.75 1.00 -  |   459.2    346.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.63s  --------    0  Y   Y  1.00 45.85 1.00 -  |   459.4    347.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.53s  --------    0  Y   Y  1.00 45.95 1.00 -  |   459.6    348.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.42s  --------    0  Y   Y  1.00 46.07 1.00 -  |   459.8    348.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.31s  --------    0  Y   Y  1.00 46.17 1.00 -  |   460.0    349.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.20s  --------    0  Y   Y  1.00 46.28 1.00 -  |   460.1    350.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.08s  --------    0  Y   Y  1.00 46.40 1.00 -  |   460.2    351.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.98s  --------    0  Y   Y  1.00 46.51 1.00 -  |   460.3    351.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.88s  --------    0  Y   Y  1.00 46.61 1.00 -  |   460.2    352.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.78s  --------    0  Y   Y  1.00 46.71 1.00 -  |   460.1    353.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.67s  --------    0  Y   Y  1.00 46.81 1.00 -  |   459.8    354.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.57s  --------    0  Y   Y  1.00 46.92 1.00 -  |   459.5    354.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.45s  --------    0  Y   Y  1.00 47.03 1.00 -  |   458.8    355.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.34s  --------    0  Y   Y  1.00 47.15 1.00 -  |   458.0    355.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.23s  --------    0  Y   Y  1.00 47.26 1.00 -  |   457.3    355.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.12s  --------    0  Y   Y  1.00 47.37 1.00 -  |   456.4    355.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.00s  --------    0  Y   Y  1.00 47.48 1.00 -  |   455.8    355.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.89s  --------    0  Y   Y  1.00 47.59 1.00 -  |   454.9    355.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.79s  --------    0  Y   Y  1.00 47.69 1.00 -  |   454.2    355.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.69s  --------    0  Y   Y  1.00 47.79 1.00 -  |   453.6    356.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.59s  --------    0  Y   Y  1.00 47.90 1.00 -  |   452.9    356.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.47s  --------    0  Y   Y  1.00 48.01 1.00 -  |   452.0    356.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.36s  --------    0  Y   Y  1.00 48.13 1.00 -  |   451.2    356.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.24s  --------    0  Y   Y  1.00 48.25 1.00 -  |   450.4    356.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.13s  --------    0  Y   Y  1.00 48.35 1.00 -  |   449.7    356.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.02s  --------    0  Y   Y  1.00 48.47 1.00 -  |   448.9    356.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.91s  --------    0  Y   Y  1.00 48.58 1.00 -  |   448.2    357.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.80s  --------    0  Y   Y  1.00 48.68 1.00 -  |   447.5    357.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.69s  --------    0  Y   Y  1.00 48.79 1.00 -  |   446.7    357.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.59s  --------    0  Y   Y  1.00 48.89 1.00 -  |   446.0    357.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.48s  --------    0  Y   Y  1.00 49.01 1.00 -  |   445.2    357.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.38s  --------    0  Y   Y  1.00 49.11 1.00 -  |   444.5    357.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.27s  --------    0  Y   Y  1.00 49.21 1.00 -  |   443.8    357.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.17s  --------    0  Y   Y  1.00 49.32 1.00 -  |   443.1    357.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.07s  --------    0  Y   Y  1.00 49.42 1.00 -  |   442.5    356.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.95s  --------    0  Y   Y  1.00 49.53 1.00 -  |   441.7    356.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.85s  --------    0  Y   Y  1.00 49.63 1.00 -  |   441.0    356.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.73s  --------    0  Y   Y  1.00 49.75 1.00 -  |   440.2    356.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.63s  --------    0  Y   Y  1.00 49.86 1.00 -  |   439.6    355.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.51s  --------    0  Y   Y  1.00 49.97 1.00 -  |   438.8    355.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.40s  --------    0  Y   Y  1.00 50.09 1.00 -  |   438.0    355.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.30s  --------    0  Y   Y  1.00 50.19 1.00 -  |   437.4    354.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.19s  --------    0  Y   Y  1.00 50.29 1.00 -  |   436.7    354.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.09s  --------    0  Y   Y  1.00 50.40 1.00 -  |   436.0    354.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.97s  --------    0  Y   Y  1.00 50.51 1.00 -  |   435.3    354.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.87s  --------    0  Y   Y  1.00 50.62 1.00 -  |   434.6    353.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.77s  --------    0  Y   Y  1.00 50.72 1.00 -  |   433.9    353.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.66s  --------    0  Y   Y  1.00 50.82 1.00 -  |   433.2    353.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.56s  --------    0  Y   Y  1.00 50.93 1.00 -  |   432.5    353.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.45s  --------    0  Y   Y  1.00 51.03 1.00 -  |   431.9    352.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.34s  --------    0  Y   Y  1.00 51.15 1.00 -  |   431.1    352.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.23s  --------    0  Y   Y  1.00 51.25 1.00 -  |   430.4    352.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.13s  --------    0  Y   Y  1.00 51.36 1.00 -  |   429.8    352.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.02s  --------    0  Y   Y  1.00 51.47 1.00 -  |   429.0    351.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[  3532   58.801 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
+  Time   : 55.607s   Frame: 3532   Snaps: 60
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=55.589 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(411.25, -0.02, 362.80)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=True
+  Input: H=0.00 V=1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+         WASD pressed in last 0.5s: True (last 0.00s ago)
+
+--- FLIGHT RECORDER (60 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 6.48s  --------    0  Y   Y  1.00 49.11 1.00 -  |   444.5    357.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.38s  --------    0  Y   Y  1.00 49.21 1.00 -  |   443.8    357.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.28s  --------    0  Y   Y  1.00 49.32 1.00 -  |   443.1    357.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.17s  --------    0  Y   Y  1.00 49.42 1.00 -  |   442.5    356.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 6.06s  --------    0  Y   Y  1.00 49.53 1.00 -  |   441.7    356.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.96s  --------    0  Y   Y  1.00 49.63 1.00 -  |   441.0    356.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.83s  --------    0  Y   Y  1.00 49.75 1.00 -  |   440.2    356.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.73s  --------    0  Y   Y  1.00 49.86 1.00 -  |   439.6    355.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.61s  --------    0  Y   Y  1.00 49.97 1.00 -  |   438.8    355.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.51s  --------    0  Y   Y  1.00 50.09 1.00 -  |   438.0    355.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.40s  --------    0  Y   Y  1.00 50.19 1.00 -  |   437.4    354.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.30s  --------    0  Y   Y  1.00 50.29 1.00 -  |   436.7    354.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.20s  --------    0  Y   Y  1.00 50.40 1.00 -  |   436.0    354.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 5.08s  --------    0  Y   Y  1.00 50.51 1.00 -  |   435.3    354.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.98s  --------    0  Y   Y  1.00 50.62 1.00 -  |   434.6    353.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.87s  --------    0  Y   Y  1.00 50.72 1.00 -  |   433.9    353.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.77s  --------    0  Y   Y  1.00 50.82 1.00 -  |   433.2    353.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.67s  --------    0  Y   Y  1.00 50.93 1.00 -  |   432.5    353.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.56s  --------    0  Y   Y  1.00 51.03 1.00 -  |   431.9    352.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.44s  --------    0  Y   Y  1.00 51.15 1.00 -  |   431.1    352.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.34s  --------    0  Y   Y  1.00 51.25 1.00 -  |   430.4    352.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.24s  --------    0  Y   Y  1.00 51.36 1.00 -  |   429.8    352.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.12s  --------    0  Y   Y  1.00 51.47 1.00 -  |   429.0    351.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 4.02s  --------    0  Y   Y  1.00 51.57 1.00 -  |   428.3    351.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.91s  --------    0  Y   Y  1.00 51.69 1.00 -  |   427.5    351.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.81s  --------    0  Y   Y  1.00 51.78 1.00 -  |   426.8    351.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.70s  --------    0  Y   Y  1.00 51.89 1.00 -  |   426.1    351.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.60s  --------    0  Y   Y  1.00 51.99 1.00 -  |   425.4    350.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.49s  --------    0  Y   Y  1.00 52.10 1.00 -  |   424.8    350.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.38s  --------    0  Y   Y  1.00 52.21 1.00 -  |   424.0    350.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.28s  --------    0  Y   Y  1.00 52.31 1.00 -  |   423.3    350.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.18s  --------    0  Y   Y  1.00 52.41 1.00 -  |   422.6    350.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 3.06s  --------    0  Y   Y  1.00 52.53 1.00 -  |   421.8    350.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.96s  --------    0  Y   Y  1.00 52.64 1.00 -  |   421.1    349.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.85s  --------    0  Y   Y  1.00 52.74 1.00 -  |   420.4    349.6  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.74s  --------    0  Y   Y  1.00 52.85 1.00 -  |   419.6    349.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.64s  --------    0  Y   Y  1.00 52.96 1.00 -  |   418.9    349.3  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.53s  --------    0  Y   Y  1.00 53.07 1.00 -  |   418.1    349.1  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.42s  --------    0  Y   Y  1.00 53.17 1.00 -  |   417.4    348.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.31s  --------    0  Y   Y  1.00 53.29 1.00 -  |   416.6    348.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.19s  --------    0  Y   Y  1.00 53.40 1.00 -  |   415.9    348.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 2.08s  --------    0  Y   Y  1.00 53.51 1.00 -  |   415.1    349.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.98s  --------    0  Y   Y  1.00 53.62 1.00 -  |   414.6    349.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.86s  --------    0  Y   Y  1.00 53.73 1.00 -  |   414.1    350.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.76s  --------    0  Y   Y  1.00 53.83 1.00 -  |   413.8    350.8  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.65s  --------    0  Y   Y  1.00 53.94 1.00 -  |   413.4    351.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.53s  --------    0  Y   Y  1.00 54.06 1.00 -  |   413.1    352.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.43s  --------    0  Y   Y  1.00 54.16 1.00 -  |   413.0    352.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.31s  --------    0  Y   Y  1.00 54.28 1.00 -  |   412.8    353.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.19s  --------    0  Y   Y  1.00 54.40 1.00 -  |   412.6    354.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 1.09s  --------    0  Y   Y  1.00 54.50 1.00 -  |   412.5    355.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.97s  --------    0  Y   Y  1.00 54.62 1.00 -  |   412.3    356.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.85s  --------    0  Y   Y  1.00 54.74 1.00 -  |   412.2    356.9  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.75s  --------    0  Y   Y  1.00 54.84 1.00 -  |   412.1    357.5  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.63s  --------    0  Y   Y  1.00 54.96 1.00 -  |   411.9    358.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.52s  --------    0  Y   Y  1.00 55.07 1.00 -  |   411.8    359.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.40s  --------    0  Y   Y  1.00 55.19 1.00 -  |   411.7    360.0  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.30s  --------    0  Y   Y  1.00 55.29 1.00 -  |   411.6    360.7  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.20s  --------    0  Y   Y  1.00 55.39 1.00 -  |   411.5    361.4  0.00 |  0.0  1.0 0   0   0  0  1  0
+  - 0.08s  --------    0  Y   Y  1.00 55.51 1.00 -  |   411.3    362.2  0.00 |  0.0  1.0 0   0   0  0  1  0
+=========================================================== END
+
+[  3781   63.846 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 90 lines
