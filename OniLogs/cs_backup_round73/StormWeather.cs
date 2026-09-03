@@ -6,11 +6,6 @@ using DistantLands.Cozy.Data;
 /// <summary>
 /// The Oni arena's weather profile.
 ///
-/// ROUND 73: before the fight there is NO weather. COZY snaps to the pre-fight
-/// profile (Clear) at scene start; the floor is dry and there is no lightning.
-/// The storm arrives the instant the Oni engages (Alert/Chase/Telegraph/Attack,
-/// the same rule OniBoss uses to start the boss music).
-///
 /// Phase 1: steady rain, floor slowly accumulates dampness (darkens + turns
 /// reflective). Phase 2 (polled from EnemyCombat.IsPhase2 - it has no events):
 /// rain doubles, fog thickens, the floor soaks to fully wet, and lightning
@@ -82,14 +77,12 @@ public class StormWeather : MonoBehaviour
     [SerializeField] private Color flashColor = new Color(0.8f, 0.88f, 1f);
 
     [Header("COZY bridge - round 63 (Hazel's weather arc)")]
-    [Tooltip("ROUND 63 - drive the COZY weather system through the fight: pre-fight = your open-sky profile from scene start (round 73), phase 1 = your storm profile the instant he engages, and from the lightning beat on = your storm-chaos profile. NEEDS the COZY rig in THIS scene (like DemoScene_Day has); without it, this does nothing and the cave behaves exactly as before. When COZY runs, the old Rain_Cave particles are retired - COZY owns the rain (Hazel's pick). Untick to go back to the pre-COZY cave.")]
+    [Tooltip("ROUND 63 - drive the COZY weather system through the fight: phase 1 = your dark-cloudy profile from scene start, and from the lightning beat on = your storm-chaos profile. NEEDS the COZY rig in THIS scene (like DemoScene_Day has); without it, this does nothing and the cave behaves exactly as before. When COZY runs, the old Rain_Cave particles are retired - COZY owns the rain (Hazel's pick). Untick to go back to the pre-COZY cave.")]
     [SerializeField] private bool driveCozy = true;
     [Tooltip("YOUR pick - the phase-1 mood. Try 'Imminent Storm', 'Approaching Storm' or 'Overcast' from the COZY package's Weather Profiles folder.")]
     [SerializeField] private WeatherProfile phase1Weather;
     [Tooltip("YOUR pick - from the lightning beat to the end of the fight. Try 'Thunder Storm' (or 'Storm Eye' / 'Electric Fog' for weirder chaos).")]
     [SerializeField] private WeatherProfile phase2Weather;
-    [Tooltip("ROUND 73 - YOUR pick - the sky BEFORE the fight. COZY snaps to it instantly at scene start, no blend. Use 'Clear' for an open night sky. Leave empty to keep whatever weather the scene already has.")]
-    [SerializeField] private WeatherProfile preFightWeather;
 
     [SerializeField] private bool debugLog = true;
 
@@ -97,7 +90,6 @@ public class StormWeather : MonoBehaviour
     private float wetness;                 // 0..1 accumulated
     private float storm;                   // 0 calm, 1 full storm
     private bool  phase2;
-    private bool  fightStarted;            // ROUND 73 - set the moment the Oni engages
     private Light flashLight;
 
     private ParticleSystem[] rainSystems;
@@ -128,14 +120,14 @@ public class StormWeather : MonoBehaviour
         MakeFlashLight();
 
         StartCoroutine(WetnessLoop());
-        // ROUND 73 - LightningLoop no longer starts here; it starts the moment the fight starts (OnFightStarted).
+        StartCoroutine(LightningLoop());
         StartCoroutine(CozyBootstrap());   // ROUND 63 — no-op if no COZY rig in the scene
 
-        if (debugLog) Debug.Log("[StormWeather] Ready. Open sky, dry floor. Waiting for the fight.");
+        if (debugLog) Debug.Log("[StormWeather] Ready. Rain on, floor drying... wait, soaking.");
     }
 
     // ---- ROUND 63: the COZY bridge — Hazel's weather arc -------------------------------------
-    // ROUND 73: pre-fight = open sky (her profile, snapped once COZY is up). Phase 1 storm = the moment he engages (Update).
+    // Phase 1: dark clouds gather (her profile, set once COZY is up).
     // The lightning beat / phase 2: storm chaos (set in Update's phase-2 block below).
     // COZY owns the rain: the old Rain_Cave is retired while the bridge runs. Everything is
     // null-safe — a cave without the COZY rig behaves exactly as before this round.
@@ -159,37 +151,16 @@ public class StormWeather : MonoBehaviour
             if (debugLog) Debug.Log("[StormWeather] COZY bridge: Rain_Cave retired — COZY owns the rain now.");
         }
 
-        // ROUND 73 - open sky until the fight. Snap to it (0 s), no 15 s blend from the scene's default weather.
-        SetCozyWeather(preFightWeather, "pre-fight - open sky", 0f);
+        SetCozyWeather(phase1Weather, "phase 1 — dark clouds gather");
     }
 
     private void SetCozyWeather(WeatherProfile profile, string why)
     {
-        SetCozyWeather(profile, why, -1f);
-    }
-
-    // ROUND 73 - transitionTime: negative = COZY's own default blend (weatherTransitionTime, 15 s in this scene),
-    // 0 = instant snap. Same null-safety as before.
-    private void SetCozyWeather(WeatherProfile profile, string why, float transitionTime)
-    {
         if (cozy == null || profile == null) return;
         var eco = cozy.weatherModule != null ? cozy.weatherModule.ecosystem : null;
         if (eco == null) return;
-        if (transitionTime < 0f) eco.SetWeather(profile);
-        else                     eco.SetWeather(profile, transitionTime);
-        if (debugLog) Debug.Log($"[StormWeather] COZY → '{profile.name}' ({why}"
-                              + (transitionTime < 0f ? "" : $", {transitionTime:F0} s") + ")");
-    }
-
-    // ROUND 73 - the moment the fight starts: storm on (instant), lightning loop on, floor may start to soak.
-    // Called from Update on engage, and as a safety from the phase-2 block so the storm can never be skipped.
-    private void OnFightStarted(string why)
-    {
-        if (fightStarted) return;
-        fightStarted = true;
-        if (!phase2) SetCozyWeather(phase1Weather, "fight engaged - storm rolls in", 0f);
-        StartCoroutine(LightningLoop());
-        if (debugLog) Debug.Log($"[StormWeather] FIGHT STARTED ({why}) - storm on, floor starts to soak.");
+        eco.SetWeather(profile);
+        if (debugLog) Debug.Log($"[StormWeather] COZY → '{profile.name}' ({why})");
     }
 
     // ROUND 58 (Oni cinematic): while held, the storm does NOT break even though phase 2 is on —
@@ -207,24 +178,11 @@ public class StormWeather : MonoBehaviour
 
     private void Update()
     {
-        if (oniCombat == null) return;
-
-        // ROUND 73 - the storm arrives the moment the fight starts. Same rule OniBoss uses to start the
-        // boss music (Alert / Chase / Telegraph / Attack), so sky and music turn together. Instant, Hazel's pick.
-        if (!fightStarted && !phase2)
-        {
-            var s = oniCombat.GetCurrentState();
-            if (s == EnemyCombat.EnemyState.Alert || s == EnemyCombat.EnemyState.Chase
-             || s == EnemyCombat.EnemyState.Telegraph || s == EnemyCombat.EnemyState.Attack)
-                OnFightStarted("he engaged");
-        }
-
-        if (phase2) return;
+        if (phase2 || oniCombat == null) return;
         if (breakHold) return;   // ROUND 58: the cinematic decides the moment
         if (oniCombat.IsPhase2())
         {
             phase2 = true;
-            OnFightStarted("phase 2 reached");   // ROUND 73 - no-op if the fight already started
             StartCoroutine(RampStorm());
             Strike();
             SetCozyWeather(phase2Weather, "the sky answers — storm chaos");   // ROUND 63
@@ -239,7 +197,7 @@ public class StormWeather : MonoBehaviour
         var wait = new WaitForSeconds(0.2f);   // 5 Hz is plenty for a soak
         while (true)
         {
-            float target = !fightStarted ? 0f : (phase2 ? 1f : calmMaxWetness);   // ROUND 73 - dry until the fight
+            float target = phase2 ? 1f : calmMaxWetness;
             float time   = phase2 ? stormSoakTime : calmSoakTime;
             wetness = Mathf.MoveTowards(wetness, target, 0.2f / Mathf.Max(1f, time));
             ApplyWetness(wetness);
