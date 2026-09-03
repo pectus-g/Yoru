@@ -20,9 +20,9 @@ RenderSettings:
   m_FogDensity: 0.008
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.83992064, g: 0.6981991, b: 0.6559388, a: 1.2375}
-  m_AmbientEquatorColor: {r: 0.6069142, g: 0.50769013, b: 0.45688248, a: 1.11375}
-  m_AmbientGroundColor: {r: 0.3034571, g: 0.25384507, b: 0.22844124, a: 1.11375}
+  m_AmbientSkyColor: {r: 0.6682184, g: 0.45184892, b: 0.4124385, a: 1.2375}
+  m_AmbientEquatorColor: {r: 0.44341165, g: 0.28717208, b: 0.25972706, a: 1.11375}
+  m_AmbientGroundColor: {r: 0.22170582, g: 0.14358604, b: 0.12986353, a: 1.11375}
   m_AmbientIntensity: 1.21
   m_AmbientMode: 1
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
@@ -93,7 +93,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 0}
+  m_LightingDataAsset: {fileID: 112000000, guid: 01fa5b61257684bf1acdbf8bb05312c0, type: 2}
   m_LightingSettings: {fileID: 0}
 --- !u!196 &4
 NavMeshSettings:
@@ -119,52 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!28 &17008893
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!1 &32854792
 GameObject:
   m_ObjectHideFlags: 0
@@ -506,52 +460,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1702349465687029602, guid: 5fa4b133af4e749dfb212eb6dafd6e93, type: 3}
   m_PrefabInstance: {fileID: 3714792184531341}
   m_PrefabAsset: {fileID: 0}
---- !u!28 &138815768
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!28 &144442295
 Texture2D:
   m_ObjectHideFlags: 0
@@ -626,6 +534,10 @@ PrefabInstance:
     - target: {fileID: 597372541004734996, guid: e5d0baff6169e459fb6eed25f70a72f9, type: 3}
       propertyPath: m_LocalScale.z
       value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2109623350418315986, guid: e5d0baff6169e459fb6eed25f70a72f9, type: 3}
+      propertyPath: m_Lightmapping
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 4429442308678667246, guid: e5d0baff6169e459fb6eed25f70a72f9, type: 3}
       propertyPath: m_LocalScale.x
@@ -1190,11 +1102,103 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 427645251}
   m_Mesh: {fileID: 6790167597821219003, guid: cb48793c92c926345b8d99ad85dd75d1, type: 3}
+--- !u!28 &504057595
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!4 &554887977 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7074274892573713130, guid: 5fa4b133af4e749dfb212eb6dafd6e93, type: 3}
   m_PrefabInstance: {fileID: 3714792184531341}
   m_PrefabAsset: {fileID: 0}
+--- !u!28 &555017971
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1 &565403796
 GameObject:
   m_ObjectHideFlags: 0
@@ -1553,40 +1557,40 @@ MonoBehaviour:
   usePhysicalSunHeight: 1
   sunDirection: 120
   sunPitch: 0
-  moonDirection: {x: 0.28520387, y: -0.641527, z: -0.7121109}
-  skyZenithColor: {r: 0.052430343, g: 0.1226946, b: 0.21917021, a: 1}
-  skyHorizonColor: {r: 0.20876287, g: 0.47479555, b: 0.6393868, a: 1}
-  cloudColor: {r: 0.80348986, g: 0.6384272, b: 0.60921764, a: 1}
-  cloudHighlightColor: {r: 8.594614, g: 3.389248, b: 1.7004591, a: 1}
-  highAltitudeCloudColor: {r: 0.97102684, g: 1.5347723, b: 1.62951, a: 1}
-  sunlightColor: {r: 0.9418124, g: 0.94428235, b: 0.85451865, a: 1}
-  starColor: {r: 2.4543748, g: 2.4543748, b: 2.4543748, a: 1}
-  ambientLightHorizonColor: {r: 0.5449286, g: 0.45583853, b: 0.41021997, a: 1}
-  ambientLightZenithColor: {r: 0.67872375, g: 0.5642013, b: 0.5300516, a: 1}
+  moonDirection: {x: -0.5211928, y: -0.3309059, z: 0.78667635}
+  skyZenithColor: {r: 0, g: 0.045963235, b: 0.08899265, a: 1}
+  skyHorizonColor: {r: 0.024109649, g: 0.19191627, b: 0.32452777, a: 1}
+  cloudColor: {r: 0.39864698, g: 0.24476075, b: 0.2248649, a: 1}
+  cloudHighlightColor: {r: 6.3128138, g: 1.4533365, b: 0.0992663, a: 1}
+  highAltitudeCloudColor: {r: 0.929056, g: 1.7524693, b: 1.9753746, a: 1}
+  sunlightColor: {r: 0.28850117, g: 0.3041427, b: 0.30658022, a: 1}
+  starColor: {r: 3.877512, g: 3.877512, b: 3.877512, a: 1}
+  ambientLightHorizonColor: {r: 0.39812496, g: 0.2578425, b: 0.23320052, a: 1}
+  ambientLightZenithColor: {r: 0.53997445, g: 0.36513045, b: 0.33328366, a: 1}
   ambientLightMultiplier: 1.2375
-  galaxyIntensity: 0
+  galaxyIntensity: 0.39908054
   fogColor1: {r: 0, g: 0, b: 0, a: 0.007843138}
-  fogColor2: {r: 0.019676017, g: 0.15453018, b: 0.2514384, a: 0.13725491}
-  fogColor3: {r: 0.085886516, g: 0.35473946, b: 0.5758022, a: 0.5019608}
-  fogColor4: {r: 0.09461146, g: 0.3162896, b: 0.5458096, a: 0.75686276}
-  fogColor5: {r: 0.45156032, g: 0.80981207, b: 1.0360173, a: 1}
-  fogFlareColor: {r: 1.2236239, g: 1.1120952, b: 1.0531389, a: 1}
-  fogMoonFlareColor: {r: 2.4052079, g: 0.26311985, b: 0.36084434, a: 1}
+  fogColor2: {r: 0.006719586, g: 0.04353005, b: 0.07295023, a: 0.13725491}
+  fogColor3: {r: 0.05438803, g: 0.21162254, b: 0.34628683, a: 0.5019608}
+  fogColor4: {r: 0.09173432, g: 0.18417862, b: 0.29702318, a: 0.75686276}
+  fogColor5: {r: 0.26913708, g: 0.508462, b: 0.67860556, a: 1}
+  fogFlareColor: {r: 0.9457049, g: 0.73202837, b: 1.1897118, a: 1}
+  fogMoonFlareColor: {r: 2.6700253, g: 0.8097985, b: 1.4616543, a: 1}
   fogShadowColor: {r: 0, g: 0, b: 0, a: 0}
   fogLitColor: {r: 0, g: 0, b: 0, a: 0}
   gradientExponent: 0.549
   sunSize: 1
   sunColor: {r: 19.183893, g: 9.987043, b: 7.117231, a: 1}
-  moonColor: {r: 2, g: 2, b: 2, a: 0.24705403}
+  moonColor: {r: 1.3665513, g: 1.4556723, b: 2.2629898, a: 1}
   sunFalloff: 0.68056685
-  sunFlareColor: {r: 1.7792462, g: 1.5499259, b: 1.052613, a: 1}
+  sunFlareColor: {r: 0.59643316, g: 0.3487087, b: 0.14405093, a: 1}
   moonFalloff: 0.8631376
-  moonlightColor: {r: 0.525, g: 0.525, b: 0.525, a: 1}
+  moonlightColor: {r: 0.7963621, g: 0.85311425, b: 0.96415097, a: 1}
   moonFlareColor: {r: 0.33075783, g: 0.30137095, b: 0.32015932, a: 1}
   galaxy1Color: {r: 0.052156866, g: 0.109901965, b: 0.31852943, a: 1}
   galaxy2Color: {r: 0.44333336, g: 0.4247059, b: 0.95000005, a: 1}
   galaxy3Color: {r: 0.16804247, g: 0.32472363, b: 0.47500002, a: 1}
-  lightScatteringColor: {r: 0, g: 0, b: 0, a: 0}
+  lightScatteringColor: {r: 0.007579369, g: 0.011568511, b: 0.021940278, a: 0.24550606}
   lightScatteringPosition: -0.144
   lightScatteringHeight: 1
   constellationIntensity: 0.226
@@ -1601,9 +1605,9 @@ MonoBehaviour:
   fogStart4: 50
   fogHeight: 1
   fogDensityMultiplier: 1
-  fogLightFlareIntensity: 1
-  fogLightFlareFalloff: 55.18489
-  fogLightFlareSquish: 1
+  fogLightFlareIntensity: 0.9476756
+  fogLightFlareFalloff: 16.653461
+  fogLightFlareSquish: 4.5914326
   fogSmoothness: 1
   fogVariationAmount: 0.78
   fogVariationDirection: {x: 6, y: 0, z: 0}
@@ -1616,7 +1620,7 @@ MonoBehaviour:
   heightFogTransition: 52
   heightFogDistance: 5000
   heightFogColor: {r: 0.5425863, g: 0.6662698, b: 0.8396226, a: 0.2901961}
-  cloudMoonColor: {r: 0, g: 0, b: 0, a: 1}
+  cloudMoonColor: {r: 0.02456168, g: 0.034105226, b: 0.06273586, a: 1}
   cloudSunHighlightFalloff: 36.8
   cloudMoonHighlightFalloff: 18.4
   cloudWindSpeed: 2.66
@@ -1693,9 +1697,9 @@ MonoBehaviour:
   atmosphereModule: {fileID: 0}
   windModule: {fileID: 675103841}
   events:
-    timeToCheckFor: 0.5416667
-    currentMinute: 725
-    currentHour: 12
+    timeToCheckFor: 0.875
+    currentMinute: 1130
+    currentHour: 18
   cozyTriggerTag: Player
   cozyTriggers:
   - {fileID: 0}
@@ -1730,7 +1734,7 @@ Transform:
   m_GameObject: {fileID: 579351699}
   serializedVersion: 2
   m_LocalRotation: {x: 0.0000000037252899, y: -0, z: -0.0000000074505797, w: 1}
-  m_LocalPosition: {x: 372.0982, y: 0.5633187, z: 404.4579}
+  m_LocalPosition: {x: 496.16135, y: 3.3882458, z: 437.40585}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3472,13 +3476,13 @@ MonoBehaviour:
   transit: {fileID: 675103836}
   perennialProfile: {fileID: 11400000, guid: 8ce0d8458b4495b4593c1e03027a0ce5, type: 2}
   overrideDate: {fileID: 0}
-  yearPercentage: 0.010502812
+  yearPercentage: 0.016359871
   transitioningTime: 0
   currentTime:
-    hours: 12
-    minutes: 5
-    seconds: 57
-    milliseconds: 265
+    hours: 18
+    minutes: 50
+    seconds: 47
+    milliseconds: 655
     timeAsPercentage: 0
   currentDay: 0
   currentYear: 0
@@ -3558,8 +3562,8 @@ MonoBehaviour:
   controlMethod: 1
   localTemperatureFilter: 0
   localPrecipitationFilter: 0
-  currentTemperature: 6.300155
-  currentPrecipitation: 48.773823
+  currentTemperature: 6.2434793
+  currentPrecipitation: 51.42825
   snowAmount: 0
   snowMeltSpeed: 0.35
   groundwaterAmount: 0
@@ -3886,7 +3890,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 0.80348986, g: 0.6384272, b: 0.60921764, a: 1}
+      maxColor: {r: 0.39864698, g: 0.24476075, b: 0.2248649, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -7691,7 +7695,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 0.80348986, g: 0.6384272, b: 0.60921764, a: 1}
+      maxColor: {r: 0.39864698, g: 0.24476075, b: 0.2248649, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -9241,7 +9245,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 2.4543748, g: 2.4543748, b: 2.4543748, a: 1}
+      maxColor: {r: 3.877512, g: 3.877512, b: 3.877512, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -14118,52 +14122,6 @@ Material:
     - _XFurVFX2Color: {r: 0.85, g: 0.95, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!28 &959048600
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!28 &959498629
 Texture2D:
   m_ObjectHideFlags: 0
@@ -14652,6 +14610,52 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!28 &1064693670
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1 &1087109116
 GameObject:
   m_ObjectHideFlags: 0
@@ -15457,7 +15461,7 @@ ParticleSystem:
       serializedVersion: 2
       minMaxState: 0
       minColor: {r: 1, g: 1, b: 1, a: 1}
-      maxColor: {r: 2.4543748, g: 2.4543748, b: 2.4543748, a: 1}
+      maxColor: {r: 3.877512, g: 3.877512, b: 3.877512, a: 1}
       maxGradient:
         serializedVersion: 2
         key0: {r: 1, g: 1, b: 1, a: 1}
@@ -20302,7 +20306,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 93.92213, y: 93.92213, z: 93.92213}
+  m_LocalScale: {x: 11.452601, y: 11.452601, z: 11.452601}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 700040834}
@@ -21293,7 +21297,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1729642447}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.33507597, y: -0.17795688, z: -0.06460533, w: 0.92297435}
+  m_LocalRotation: {x: -0.048404753, y: 0.9439254, z: 0.1607019, w: 0.28431815}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -23890,7 +23894,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1856026318}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.71907, y: 0, z: 0, w: 0.69493765}
+  m_LocalRotation: {x: 0.9711385, y: 0, z: 0, w: -0.23851639}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -23907,7 +23911,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 11
   m_Type: 1
-  m_Color: {r: 0.9418124, g: 0.94428235, b: 0.85451865, a: 0}
+  m_Color: {r: 0.28850117, g: 0.3041427, b: 0.30658022, a: 0}
   m_Intensity: 2
   m_Range: 10
   m_SpotAngle: 30
@@ -23953,7 +23957,7 @@ Light:
   m_BounceIntensity: 1
   m_ColorTemperature: 6570
   m_UseColorTemperature: 0
-  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_BoundingSphereOverride: {x: 4.120653e+30, y: 7.271585e+31, z: 2.7483352e+20, w: 0.00092466775}
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ForceVisible: 0
