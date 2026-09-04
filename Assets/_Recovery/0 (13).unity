@@ -703,52 +703,6 @@ Texture2D:
     offset: 0
     size: 0
     path: 
---- !u!28 &381152316
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!1001 &426297674
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1311,7 +1265,7 @@ MonoBehaviour:
   highAltitudeCloudColor: {r: 0.77737314, g: 1.7808185, b: 2.055653, a: 1}
   sunlightColor: {r: 0.28850117, g: 0.3041427, b: 0.30658022, a: 1}
   starColor: {r: 3.877512, g: 3.877512, b: 3.877512, a: 1}
-  ambientLightHorizonColor: {r: 0.388269, g: 0.26622424, b: 0.18135992, a: 1}
+  ambientLightHorizonColor: {r: 0.388269, g: 0.26622424, b: 0.1813599, a: 1}
   ambientLightZenithColor: {r: 0.55658686, g: 0.3686216, b: 0.37888506, a: 1}
   ambientLightMultiplier: 1.475
   galaxyIntensity: 0.47500002
@@ -1480,7 +1434,7 @@ Transform:
   m_GameObject: {fileID: 579351699}
   serializedVersion: 2
   m_LocalRotation: {x: 0.0000000037252899, y: -0, z: -0.0000000074505797, w: 1}
-  m_LocalPosition: {x: 306.77698, y: 12.891016, z: 506.755}
+  m_LocalPosition: {x: 462.7847, y: 2.6441386, z: 419.47092}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3250,7 +3204,7 @@ MonoBehaviour:
   biomes: []
   weight: 1
   totalSystemWeight: 0
-  cumulus: 0.2
+  cumulus: 0
   cirrus: 0
   altocumulus: 0
   cirrostratus: 0
@@ -8591,6 +8545,41 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 554cf4a925e7826408e1c46fe6a8a815, type: 3}
+--- !u!1 &711489755 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 31310041931713369, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+  m_PrefabInstance: {fileID: 1493258374}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &711489758
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 711489755}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5aa856393fba34c62b6e145dc7ed0a03, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TorchLight
+  jitterAmount: 0.1
+  jitterSpeed: 11
+  swellAmount: 0.16
+  swellSpeed: 1.4
+  gulpDepth: 0.3
+  gulpFlare: 0.22
+  gulpDuration: 0.45
+  gulpInterval: {x: 0.7, y: 2.6}
+  colorShift: 0.6
+  minBrightness: 0.35
+  maxBrightness: 1.7
+  swayRadius: 0.06
+  swaySpeed: 2.2
+  cullByDistance: 1
+  cullDistance: 45
+  fadeDistance: 12
+  checkInterval: 0.15
+  ignoreSlowMotion: 0
 --- !u!1 &718012447
 GameObject:
   m_ObjectHideFlags: 0
@@ -13582,6 +13571,52 @@ Texture2D:
     offset: 0
     size: 0
     path: 
+--- !u!28 &740208781
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!4 &755579239 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7563645540556143940, guid: 5fa4b133af4e749dfb212eb6dafd6e93, type: 3}
@@ -13758,63 +13793,6 @@ Texture2D:
     offset: 0
     size: 0
     path: 
---- !u!1001 &841033228
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 247.37396
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 1.15
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 498.9649
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5220206951903420952, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_Name
-      value: JapeneseLantern (2)
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
 --- !u!4 &909090901 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7425869164093674633, guid: 670a72d83120a40b08b1e68dcb9b96be, type: 3}
@@ -13926,52 +13904,6 @@ Material:
     - _XFurVFX2Color: {r: 0.85, g: 0.95, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!28 &948117758
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!28 &959498629
 Texture2D:
   m_ObjectHideFlags: 0
@@ -14363,6 +14295,52 @@ Material:
     - _XFurVFX2Color: {r: 0.85, g: 0.95, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
+--- !u!28 &1080860019
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1 &1087109116
 GameObject:
   m_ObjectHideFlags: 0
@@ -20013,7 +19991,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 52.317974, y: 52.317974, z: 52.317974}
+  m_LocalScale: {x: 3.9213583, y: 3.9213583, z: 3.9213583}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 700040834}
@@ -20327,6 +20305,78 @@ Texture2D:
     offset: 0
     size: 0
     path: 
+--- !u!1001 &1493258374
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 466.74274
+      objectReference: {fileID: 0}
+    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 418.25903
+      objectReference: {fileID: 0}
+    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5220206951903420952, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_Name
+      value: JapeneseLantern
+      objectReference: {fileID: 0}
+    - target: {fileID: 5414397551047413198, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 5414397551047413198, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 5414397551047413198, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.8
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 31310041931713369, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 711489758}
+  m_SourcePrefab: {fileID: 100100000, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
 --- !u!1 &1529937998
 GameObject:
   m_ObjectHideFlags: 0
@@ -21076,63 +21126,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1313720486062921053, guid: 89e1f81bcabb0d449a8ed67074556c66, type: 3}
   m_PrefabInstance: {fileID: 1680182975}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &1716628722
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 276.24426
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 1.15
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 445.04376
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5220206951903420952, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_Name
-      value: JapeneseLantern
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
 --- !u!1 &1729642447
 GameObject:
   m_ObjectHideFlags: 0
@@ -21382,63 +21375,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
---- !u!1001 &1740158747
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 247.68631
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 1.15
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 458.0635
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5220206951903420952, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
-      propertyPath: m_Name
-      value: JapeneseLantern (1)
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
 --- !u!1 &1765026170 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: b8507e9b9d78e4fa182b7480109e24ca, type: 3}
@@ -23790,6 +23726,52 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 1765026179}
   m_SourcePrefab: {fileID: 100100000, guid: b8507e9b9d78e4fa182b7480109e24ca, type: 3}
+--- !u!28 &1839205225
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1 &1856026318
 GameObject:
   m_ObjectHideFlags: 0
@@ -24263,52 +24245,6 @@ Transform:
   m_Father: {fileID: 1765026172}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!28 &2028035222
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
---- !u!28 &2062667713
 Texture2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -59869,6 +59805,4 @@ SceneRoots:
   - {fileID: 1151835489}
   - {fileID: 884667313217956347}
   - {fileID: 152239241}
-  - {fileID: 1716628722}
-  - {fileID: 1740158747}
-  - {fileID: 841033228}
+  - {fileID: 1493258374}
