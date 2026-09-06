@@ -14,9 +14,9 @@ Cold from above, neutral from the side, warm from below and from fire. The moon 
 | Role | Light | Count | Where | Target values | Shadows | Render Mode | Slot | Owner |
 |---|---|---|---|---|---|---|---|---|
 | Key, the moon | `Directional Light` | 1 | rotation 65 / 180 / 0 | Intensity 1.0 pre-fight, colour 176 224 246, cookie MoonCloudCookie_Soft size 40, Strength 0.6 | soft | Auto | 1 | Hazel |
-| Floor fill, moon pools | `MoonPool_1..3` (Point) | 3 | (478, 9, 433) (468, 9, 440) (488, 9, 426) | 170 200 255, Intensity 0.6, Range 22 | none | Not Important | 0 | Hazel |
-| Aurora spill | `AuroraSpill` (Point) | 1 | (481, 16, 447), under the opening | 120 190 230, Intensity 0.5, Range 28 | none | Not Important | 0 | Hazel |
-| Warm accents, north | `Brazier`, `Brazier (1)` | 2 | flank the stairs: (477, floor, 460) and (487, floor, 460) | their light: Range 9, Intensity 1.8, TorchLight on | none | Auto | 1 each when near | Hazel |
+| Floor fill, moon pools | `MoonPool_1..3` (Point) | 3 | (478, 14, 433) (468, 14, 440) (488, 14, 426) | 170 200 255, Intensity 1.0, Range 34 (her choice, 6 Sep) | none | Not Important (still Auto, open) | 0 | Hazel |
+| Aurora spill | `AuroraSpill` (Point) | 1 | (481, 16, 447), under the opening | 120 190 230, Intensity 0.8, Range 34 (her choice, 6 Sep) | none | Not Important (still Auto, open) | 0 | Hazel |
+| Warm accents, north | `Brazier` (only one left, `Brazier (1)` was deleted on 6 Sep, ask before re-adding) | 1 | now at (477, 0.12, 447); plan was a pair flanking the stairs at Z 460 | their light: Range 9, Intensity 1.8, TorchLight on | none | Auto | 1 each when near | Hazel |
 | Yoru rim | `YoruRim` | 1 | child of Yoru, behind and above (0, 2.5, -2.5) | 180 210 255, Intensity 1.6, Range 7 | none | Auto | 1 | Hazel |
 | Oni key + rim | `ONI_KEY`, `ColdLight_Rim` | 2 | children of the Oni | keep as they are | none | keep | 2 | Hazel |
 | Lightning | flash light (created by StormWeather) | 1 | above the opening | peak 2.5, in code | none | - | during strikes | Claude |
@@ -30,10 +30,10 @@ Cold from above, neutral from the side, warm from below and from fire. The moon 
 | | Pre-fight | Phase 1 (he engages) | Phase 2 (lightning beat) | Owner |
 |---|---|---|---|---|
 | COZY weather | Clear, aurora visible | Imminent Storm | Thunder Storm | code, done (round 73) |
-| Moon intensity | 1.0 | 0.6 | 0.35 | code, round 78 |
-| Aurora spill | 0.5 | fades to 0 | 0 | code, round 78 |
+| Moon intensity | 1.0 | 0.8 | 0.6 (revised up on 6 Sep: phase 2 read near black) | code, round 78 |
+| Aurora spill | 0.8 | fades to 0 | 0 | code, round 78 |
 | Ambient (the 3 colours) | as set by hand | x0.85 | x0.65 and bluer | code, round 78 |
-| Kronnect fog density | 0.45 | 0.45 | 0.7 over 2.5 s | code, done |
+| Kronnect fog density | 0.35 (scene value) | 0.35 | 0.45 to 0.7 over 2.5 s (target: 0.5, `Storm Fog Density` on StormWeather) | code, done |
 | Floor wetness | dry | soaks to 0.35 | fully wet | code, done |
 | Lightning | none | every 14 to 26 s | every 3 to 8 s, flash light + screen flash | code, done |
 | Post grade | Cave_Oni_Profile | + Cave_Oni_Storm at 0.4 | + Cave_Oni_Storm at 1.0 | code, done (round 77) |
@@ -49,11 +49,13 @@ One scene volume (`PostProcess_`, global, priority 0) with one profile, `Assets/
 
 Base profile intent: Tint 0 and Hue Shift 0 (no purple), Lift W +0.04 (blacks not crushed), Contrast 15, Post Exposure 1.1 EV, Bloom intensity 2 threshold 0.9 diffusion 8.5 neutral colour (only fires, moon, aurora and eyes bloom), AO 0.3 radius 0.45 blue, Motion Blur 60 / 6.
 
-**If the scene reads too dark:** untick Auto Exposure first. It reads the fires and the moon as the scene's brightness and pulls everything else down. Either leave it off or set Type Fixed, Exposure Compensation 1.15.
+**Auto Exposure, how it really works** (read from `AutoExposure.compute`): exposure = Exposure Compensation / clamp(average luminance, 2^Minimum, 2^Maximum). Minimum (EV) is the cap on how much it may brighten: lift = Compensation / 2^Minimum (with 1.1: Minimum -0.5 gives 1.56x, -1.0 gives 2.2x, -1.5 gives 3.1x). Maximum (EV) is the cap on how much it may darken: with Maximum +0.2 it can only go down to 0.96x, so it never crushes a bright frame. Filtering 40 / 85 drops the darkest 40 percent and the brightest 15 percent of pixels (the fires) from the average. Her 6 Sep values (Minimum +0.2, Maximum +0.6) are inverted: that setup can only darken (0.73x to 0.96x). Target: Filtering 40 / 85, Minimum -1.0, Maximum +0.2, Compensation 1.1, Type Progressive, Speed Up 1.5, Speed Down 0.6.
+
+**Phase 2 storm profile target** (`Cave_Oni_Storm`, Color Grading): Post Exposure 1.05 (not 0.95), Contrast 18 (not 22), Color Filter 225 235 255 (not 214 227 255). The storm comes from cold desaturation, vignette, grain, rain and lightning contrast, never from lowering exposure.
 
 ## 5. FOG (Kronnect Volumetric Fog on mainCamera (1))
 
-Sun slot: `Directional Light`. Albedo 30 42 62. Compute Depth on, scope Tree Billboards And Transparent Objects, layer Default (so fur is not painted over). Sun Shadows on, strength 0.5 (the shaft through the opening). Deep Obscurance 0.5. Dithering on 0.4. COZY sky, fog and scene lighting are all off. Kronnect owns fog, the Lighting window owns ambient, the skybox is the aurora cubemap.
+Sun slot: `Directional Light`. **How the colour works** (read from `VolumetricFog.cs` and the shader): the rendered fog colour is Albedo times the sun slot's light colour (Copy Sun Color on) times the sun slot's intensity plus Light Intensity, and Deep Obscurance darkens it toward the floor. With Albedo 30 42 61 the fog is dark navy paint over everything past Start Distance (20 m), darkest where the fight is. Targets: Albedo 60 80 115, Deep Obscurance 0.4, Density 0.35 pre-fight, Start Distance 20. Compute Depth on, scope Tree Billboards And Transparent Objects, layer Default (so fur is not painted over). Sun Shadows on, strength 0.5 (the shaft through the opening). Dithering on 0.4. COZY sky, fog and scene lighting are all off. Kronnect owns fog, the Lighting window owns ambient, the skybox is the aurora cubemap.
 
 ## 6. PLACEMENT STEPS FOR THIS ROUND (Hazel)
 
@@ -71,9 +73,10 @@ Sun slot: `Directional Light`. Albedo 30 42 62. Compute Depth on, scope Tree Bil
 - 74: lantern FBX import fixed, mesh moved to its own child, Pixel Light Count 6.
 - 75/76: TorchLight rewritten, layered flicker with the gulp, colour rides brightness.
 - 77: post processing, base profile regraded, storm profile, runtime crossfade and strike screen flash.
-- 78 (next): moon, aurora spill and ambient change with the phases.
+- 6 Sep, her pass: fills raised (pools 1.0 / 34, spill 0.8 / 34), moon rotation 55 / 20 / 0, cookie size 60, `Environment (BackUp)` removed, rocks re-placed, `Brazier (1)` and the arena lantern removed, `BossHealthBar` deleted by accident (rebuild: Hierarchy, UI, Canvas, rename, Add Component Boss Health Bar UI).
+- 78 (next): moon, aurora spill and ambient change with the phases, phase 1 profile, beat pulse, COZY FX pre-init. Details in `Handoff/ONI_HANDOFF_COMBAT_9.md` section 6.
 
-## 8. CURRENT STATE (generated from the scene file, 2026-09-06 19:51 UTC)
+## 8. CURRENT STATE (generated from the scene file, 2026-09-06 21:39 UTC)
 
 Regenerated by Claude after each step. If this disagrees with the plan above, the plan is the target and this is reality. Positions are WORLD positions. Fight centre is (478, 433).
 
@@ -84,13 +87,13 @@ Ambient (Lighting window, Trilight): Sky 61 73 110 / Equator 92 100 121 / Ground
 | `AuroraSpill` | scene root | Point | on | 0.8 | 34 | 120 190 230 | none | Auto | 481, 16.0, 447 |
 | `ColdLight_Rim` | OniBoss | Point | on | 2.06 | 14 | 102 115 255 | none | Auto | 468, 8.0, 433 |
 | `Directional Light` | scene root | Directional | on | 1 | - | 176 224 246 | soft | Auto | 56, 26.3, 27 |
-| `Moon Light` | Sky < Cozy Weather Sphere | Directional | on | 0 | - | 203 217 245 | soft | Auto | 461, 120.9, 429 |
+| `Moon Light` | Sky < Cozy Weather Sphere | Directional | on | 0 | - | 203 217 245 | soft | Auto | 267, 339.4, 573 |
 | `MoonPool_1` | scene root | Point | on | 1 | 34 | 170 200 255 | none | Auto | 478, 14.0, 433 |
 | `MoonPool_2` | scene root | Point | on | 1 | 34 | 170 200 255 | none | Auto | 468, 14.0, 440 |
 | `MoonPool_3` | scene root | Point | on | 1 | 34 | 170 200 255 | none | Auto | 488, 14.0, 426 |
 | `ONI_KEY` | OniBoss | Point | on | 1.6 | 14 | 255 201 138 | none | Important | 470, 7.0, 442 |
-| `Point Light` | Yoru_Dim_light < PlayerYoru_1.1 | Point | on | 20 | 10 | 230 244 255 | none | Important | 474, 5.0, 426 |
-| `Sun Light` | Sun Offset < Sky < Cozy Weather Sphere | Directional | OFF | 2 | - | 73 77 78 | none | Auto | 461, 120.9, 429 |
+| `Point Light` | Yoru_Dim_light < PlayerYoru_1.1 | Point | OFF (parent inactive) | 20 | 10 | 230 244 255 | none | Important | 474, 5.0, 426 |
+| `Sun Light` | Sun Offset < Sky < Cozy Weather Sphere | Directional | OFF | 2 | - | 73 77 78 | none | Auto | 267, 339.4, 573 |
 | `YoruRim` | PlayerYoru_1.1 | Point | on | 1.6 | 7 | 180 209 255 | none | Auto | 474, 4.2, 427 |
 
 | Light-carrying prop | World position (x, y, z) | From fight centre |
