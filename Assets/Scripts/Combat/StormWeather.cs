@@ -1,10 +1,16 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;   // ROUND 77 - storm grade + strike flash
 using DistantLands.Cozy;        // ROUND 63 — the COZY bridge (package installed; same usings as YoruCozyIntegration)
 using DistantLands.Cozy.Data;
 
 /// <summary>
 /// The Oni arena's weather profile.
+///
+/// ROUND 77: post processing rides the same arc. The scene volume keeps the magical night
+/// base. A second global volume (priority 10, created at runtime, weight 0) carries the
+/// storm grade and fades in at fight start and fully at phase 2, and a third (priority 11)
+/// flashes the screen with every lightning strike. Same pattern as CombatPostProcessPulse.
 ///
 /// ROUND 73: before the fight there is NO weather. COZY snaps to the pre-fight
 /// profile (Clear) at scene start; the floor is dry and there is no lightning.
@@ -91,6 +97,20 @@ public class StormWeather : MonoBehaviour
     [Tooltip("ROUND 73 - YOUR pick - the sky BEFORE the fight. COZY snaps to it instantly at scene start, no blend. Use 'Clear' for an open night sky. Leave empty to keep whatever weather the scene already has.")]
     [SerializeField] private WeatherProfile preFightWeather;
 
+    [Header("Post processing - round 77 (magical base, storm on top)")]
+    [Tooltip("ROUND 77 - drag Cave_Oni_Storm here. A global volume at priority 10 is created at runtime and its weight is faded: 0 before the fight, Phase 1 Post Weight when he engages, 1 at phase 2. Your normal scene volume (priority 0) is never touched. The hit and hallucination pulses (priority 100 and 101) still sit on top of everything.")]
+    [SerializeField] private PostProcessProfile stormProfile;
+    [Tooltip("How much of the storm grade shows during phase 1. 0.3 to 0.5 keeps the arena readable and saves the full look for phase 2.")]
+    [SerializeField, Range(0f, 1f)] private float phase1PostWeight = 0.4f;
+    [Tooltip("Seconds the storm grade takes to fade in at fight start. Phase 2 uses Transition Duration above.")]
+    [SerializeField] private float postFadeSeconds = 0.8f;
+    [Tooltip("Every lightning strike also flashes the screen: exposure jumps by about this many EV and decays with the same double flicker as the flash light. 0 turns the screen flash off.")]
+    [SerializeField, Range(0f, 2f)] private float strikeFlashExposure = 0.5f;
+    [Tooltip("Chromatic aberration at the peak of a strike flash.")]
+    [SerializeField, Range(0f, 1f)] private float strikeFlashChromatic = 0.2f;
+    [Tooltip("Seconds a strike flash lasts on screen. Shorter than the light flash reads sharper.")]
+    [SerializeField] private float strikeFlashSeconds = 0.12f;
+
     [SerializeField] private bool debugLog = true;
 
     // ---- runtime ----
@@ -99,6 +119,15 @@ public class StormWeather : MonoBehaviour
     private bool  phase2;
     private bool  fightStarted;            // ROUND 73 - set the moment the Oni engages
     private Light flashLight;
+
+    // ROUND 77 - post processing
+    private PostProcessVolume stormVolume;
+    private PostProcessVolume flashVolume;
+    private ColorGrading flashGrading;
+    private ChromaticAberration flashChromatic;
+    private Coroutine postFade;
+    private Coroutine postFlash;
+    private const float FlashExposureCeiling = 3f;   // the flash volume's exposure; weight does the dimming
 
     private ParticleSystem[] rainSystems;
     private float[] rainBaseRates;
@@ -126,6 +155,7 @@ public class StormWeather : MonoBehaviour
         CacheRain();
         CacheTerrain();
         MakeFlashLight();
+        MakePostVolumes();   // ROUND 77
 
         StartCoroutine(WetnessLoop());
         // ROUND 73 - LightningLoop no longer starts here; it starts the moment the fight starts (OnFightStarted).
@@ -189,6 +219,7 @@ public class StormWeather : MonoBehaviour
         fightStarted = true;
         if (!phase2) SetCozyWeather(phase1Weather, "fight engaged - storm rolls in", 0f);
         StartCoroutine(LightningLoop());
+        FadePostTo(phase1PostWeight, postFadeSeconds);   // ROUND 77
         if (debugLog) Debug.Log($"[StormWeather] FIGHT STARTED ({why}) - storm on, floor starts to soak.");
     }
 
@@ -226,6 +257,7 @@ public class StormWeather : MonoBehaviour
             phase2 = true;
             OnFightStarted("phase 2 reached");   // ROUND 73 - no-op if the fight already started
             StartCoroutine(RampStorm());
+            FadePostTo(1f, transitionDuration);   // ROUND 77
             Strike();
             SetCozyWeather(phase2Weather, "the sky answers — storm chaos");   // ROUND 63
             if (debugLog) Debug.Log("[StormWeather] PHASE 2 - storm breaking.");
@@ -338,6 +370,11 @@ public class StormWeather : MonoBehaviour
         }
 
         if (flashLight != null) StartCoroutine(Flash());
+        if (flashVolume != null && strikeFlashExposure > 0f)   // ROUND 77
+        {
+            if (postFlash != null) StopCoroutine(postFlash);
+            postFlash = StartCoroutine(PostFlash());
+        }
         if (debugLog) Debug.Log($"[StormWeather] ⚡ strike at {pos}"
                               + (Mathf.Approximately(scale, 1f) ? "" : $" x{scale:F1}"));
     }
@@ -380,6 +417,100 @@ public class StormWeather : MonoBehaviour
             yield return null;
         }
         flashLight.intensity = 0f;
+    }
+
+    // ---- ROUND 77: post processing, storm grade + strike flash ----
+    // Same pattern as CombatPostProcessPulse: separate global volumes created at runtime, weight 0 until
+    // needed, so the base profile on the scene volume is never modified. Storm sits at priority 10, the
+    // strike flash at 11, both under the hit pulse (100) and hallucination (101) volumes.
+
+    private void MakePostVolumes()
+    {
+        // The PostProcessLayer on the camera only listens to some layers. Put the volumes on the first one it wants.
+        PostProcessLayer ppLayer = Object.FindFirstObjectByType<PostProcessLayer>();
+        int layer = gameObject.layer;
+        if (ppLayer != null && ppLayer.volumeLayer.value != 0)
+        {
+            for (int i = 0; i < 32; i++)
+                if ((ppLayer.volumeLayer.value & (1 << i)) != 0) { layer = i; break; }
+        }
+        else if (debugLog) Debug.Log("[StormWeather] no PostProcessLayer found - post volumes use this object's layer and may be ignored.");
+
+        if (stormProfile != null)
+        {
+            GameObject go = new GameObject("StormPost (runtime)");
+            go.transform.SetParent(transform, false);
+            go.layer = layer;
+            stormVolume = go.AddComponent<PostProcessVolume>();
+            stormVolume.isGlobal = true;
+            stormVolume.priority = 10f;
+            stormVolume.weight = 0f;
+            stormVolume.sharedProfile = stormProfile;
+        }
+        else if (debugLog) Debug.Log("[StormWeather] Storm Profile slot is empty - no storm grade, only the strike flash.");
+
+        GameObject fgo = new GameObject("StormFlash (runtime)");
+        fgo.transform.SetParent(transform, false);
+        fgo.layer = layer;
+        flashVolume = fgo.AddComponent<PostProcessVolume>();
+        flashVolume.isGlobal = true;
+        flashVolume.priority = 11f;
+        flashVolume.weight = 0f;
+        PostProcessProfile p = ScriptableObject.CreateInstance<PostProcessProfile>();
+        flashGrading = ScriptableObject.CreateInstance<ColorGrading>();
+        flashGrading.enabled.Override(true);
+        flashGrading.postExposure.Override(FlashExposureCeiling);
+        p.AddSettings(flashGrading);
+        flashChromatic = ScriptableObject.CreateInstance<ChromaticAberration>();
+        flashChromatic.enabled.Override(true);
+        flashChromatic.intensity.Override(0f);
+        p.AddSettings(flashChromatic);
+        flashVolume.profile = p;
+
+        if (debugLog) Debug.Log("[StormWeather] post volumes ready on layer " + layer + " (storm " + (stormVolume != null ? "priority 10" : "none") + ", flash priority 11).");
+    }
+
+    private void FadePostTo(float target, float seconds)
+    {
+        if (stormVolume == null) return;
+        if (postFade != null) StopCoroutine(postFade);
+        postFade = StartCoroutine(FadePost(target, seconds));
+    }
+
+    private IEnumerator FadePost(float target, float seconds)
+    {
+        float start = stormVolume.weight;
+        float t = 0f;
+        seconds = Mathf.Max(0.01f, seconds);
+        while (t < seconds)
+        {
+            t += Time.deltaTime;
+            stormVolume.weight = Mathf.Lerp(start, target, Mathf.SmoothStep(0f, 1f, t / seconds));
+            yield return null;
+        }
+        stormVolume.weight = target;
+        postFade = null;
+        if (debugLog) Debug.Log($"[StormWeather] storm post weight -> {target:F2}");
+    }
+
+    /// Screen flash for a strike. The flash volume holds exposure at FlashExposureCeiling and the WEIGHT
+    /// does the work, so the result rides on whatever the base and storm grades are doing underneath.
+    /// Weight w lifts exposure by about w x (ceiling - 1) EV. Same double flicker shape as Flash().
+    private IEnumerator PostFlash()
+    {
+        float peak = Mathf.Clamp01(strikeFlashExposure / (FlashExposureCeiling - 1f));
+        flashChromatic.intensity.Override(Mathf.Clamp01(strikeFlashChromatic / Mathf.Max(0.05f, peak)));
+        float t = 1f;
+        float rate = 1f / Mathf.Max(0.01f, strikeFlashSeconds);
+        while (t > 0f)
+        {
+            t -= Time.deltaTime * rate;
+            float shaped = Mathf.Max(0f, t) * (0.6f + 0.4f * Mathf.Abs(Mathf.Sin(t * 28f)));
+            flashVolume.weight = peak * shaped;
+            yield return null;
+        }
+        flashVolume.weight = 0f;
+        postFlash = null;
     }
 
     // ---- caching / cleanup ----
@@ -441,8 +572,19 @@ public class StormWeather : MonoBehaviour
             fogDensity = kronnectFog.GetType().GetProperty("density");
     }
 
-    private void OnDisable()  { RestoreTerrain(); if (flashLight) flashLight.intensity = 0f; }
+    private void OnDisable()
+    {
+        RestoreTerrain();
+        if (flashLight) flashLight.intensity = 0f;
+        if (stormVolume) stormVolume.weight = 0f;   // ROUND 77
+        if (flashVolume) flashVolume.weight = 0f;
+    }
     private void OnApplicationQuit() { RestoreTerrain(); }
+    private void OnDestroy()   // ROUND 77 - the flash profile and its settings are runtime objects, free them
+    {
+        if (flashVolume != null && flashVolume.profile != null)
+            RuntimeUtilities.DestroyProfile(flashVolume.profile, true);
+    }
 
     private void RestoreTerrain()
     {
@@ -467,6 +609,7 @@ public class StormWeather : MonoBehaviour
         if (!Application.isPlaying) { Debug.Log("Enter Play mode first."); return; }
         if (phase2) return;
         phase2 = true; StartCoroutine(RampStorm()); Strike();
+        OnFightStarted("test"); FadePostTo(1f, transitionDuration);   // ROUND 77
         Debug.Log("[StormWeather] PHASE 2 forced.");
     }
 

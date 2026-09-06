@@ -1,8 +1,8 @@
-# Oni combat log — 2026-09-04 13:59:18
+# Oni combat log — 2026-09-06 14:50:31
 # Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
 # columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
 #
-[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-04_13-59-18.log
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-06_14-50-31.log
 [     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
   arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
   aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
@@ -22,6 +22,7 @@
 [     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailVFX
 [     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
 [     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
+[     1    0.000 x1.00] LOG  [StormWeather] post volumes ready on layer 9 (storm priority 10, flash priority 11).
 [     1    0.000 x1.00] LOG  [StormWeather] COZY bridge: Rain_Cave retired — COZY owns the rain now.
 [     1    0.000 x1.00] LOG  [StormWeather] COZY → 'Clear' (pre-fight - open sky, 0 s)
 [     1    0.000 x1.00] LOG  [StormWeather] Ready. Open sky, dry floor. Waiting for the fight.
@@ -57,46 +58,9 @@
 [     1    0.000 x1.00] LOG  [VolumetricFogController] Initialized with Neutral preset (height=60, baselineHeight=0)
 [     1    0.000 x1.00] WARN [VolumetricFogController] WorldStateManager not found!
 [     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
-[     1    2.310 x1.00] LOG  [OniBoss] Playing animation: Idle
-[     1    2.310 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
-[    31    3.326 x1.00] LOG  💨 Landing VFX spawned!
-[    31    3.326 x1.00] LOG  ✅ LANDED! (was jump #0)
-[   124    4.482 x1.00] LOG  
-==================== [FREEZE-DEBUG v3] ====================
-  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
-  Time   : 1.581s   Frame: 124   Snaps: 15
-===========================================================
-
---- CURRENT STATE ---
-  Flags: atk=False hvy=False dod=False dsh=False
-         grd=False hit=False aerial=False lockPos=False
-         comboStep=0
-  Anim : speed=1.00  combatLayer hash=-792875657 normT=1.569 weight=1.00 inTransition=False
-  CC   : grounded=True  enabled=True  pos=(474.45, -0.02, 426.47)  vel=(0.00, 0.00, 0.00)
-  Move : IsRunning=False
-  Input: H=-1.00 V=0.00  LMB=False MMB=False Q=False Sp=False Sh=False C=False
-         WASD pressed in last 0.5s: True (last 0.00s ago)
-
---- FLIGHT RECORDER (15 snapshots, oldest first, dt=0.10s) ---
-  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
-  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
-  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
-  - 1.58s  --------    0  n   Y  1.00  0.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.48s  --------    0  n   Y  1.00  0.09 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.38s  --------    0  n   Y  1.00  0.19 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.27s  --------    0  n   Y  1.00  0.30 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.17s  --------    0  n   Y  1.00  0.40 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.05s  --------    0  Y   Y  1.00  0.51 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.94s  --------    0  Y   Y  1.00  0.62 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.83s  --------    0  Y   Y  1.00  0.74 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.72s  --------    0  Y   Y  1.00  0.85 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.62s  --------    0  Y   Y  1.00  0.95 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.52s  --------    0  Y   Y  1.00  1.05 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.41s  --------    0  Y   Y  1.00  1.15 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.31s  --------    0  Y   Y  1.00  1.26 1.00 -  |   474.5    427.1  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.21s  --------    0  Y   Y  1.00  1.36 1.00 -  |   474.5    426.9  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.09s  --------    0  Y   Y  1.00  1.47 1.00 -  |   474.5    426.7  0.00 | -1.0 -1.0 0   0   0  0  0  0
-=========================================================== END
-
-[   373    7.498 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+[     1    2.303 x1.00] LOG  [OniBoss] Playing animation: Idle
+[     1    2.303 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
+[    26    3.260 x1.00] LOG  💨 Landing VFX spawned!
+[    26    3.260 x1.00] LOG  ✅ LANDED! (was jump #0)
+[  1118   19.608 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
 # end — 56 lines
