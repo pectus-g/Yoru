@@ -74,7 +74,7 @@ Sun slot: `Directional Light`. **How the colour works** (read from `VolumetricFo
 - 75/76: TorchLight rewritten, layered flicker with the gulp, colour rides brightness.
 - 77: post processing, base profile regraded, storm profile, runtime crossfade and strike screen flash.
 - 6 Sep, her pass: fills raised (pools 1.0 / 34, spill 0.8 / 34), moon rotation 55 / 20 / 0, cookie size 60, `Environment (BackUp)` removed, rocks re-placed, `Brazier (1)` and the arena lantern removed, `BossHealthBar` deleted by accident (rebuild: Hierarchy, UI, Canvas, rename, Add Component Boss Health Bar UI).
-- 78 (next): moon, aurora spill and ambient change with the phases, phase 1 profile, beat pulse, COZY FX pre-init. Details in `Handoff/ONI_HANDOFF_COMBAT_9.md` section 6.
+- 78 (next): moon, aurora spill and ambient change with the phases, phase 1 profile, beat pulse, COZY FX pre-init. Details in the COMBAT 9 handoff document (Hazel keeps it outside the project).
 
 ## 8. CURRENT STATE (generated from the scene file, 2026-09-06 21:39 UTC)
 

@@ -1,0 +1,244 @@
+# Oni combat log — 2026-09-06 17:50:57
+# Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
+# columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
+#
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-06_17-50-57.log
+[     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
+[     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
+  aim VFX right: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/Glow_4Leg_R
+[     1    0.000 x1.00] LOG  [TailAirShot] Ready. drawState=RightTail_Fast castParam=TailCastSpeed (found)
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/vfx_Muzzle_Fireball01Blue
+[     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
+[     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized — Phase 3C v27
+[     1    0.000 x1.00] LOG  [RingMesh] VFX Status:
+[     1    0.000 x1.00] LOG    Left: Prefab=✓, Spawn=Tail6_L_end_end_end
+[     1    0.000 x1.00] LOG    Right: Prefab=✓, Spawn=Tail6_R_end_end_end
+[     1    0.000 x1.00] LOG  === VFX MANAGER INITIALIZED ===
+[     1    0.000 x1.00] LOG  Auto-detect animations: False
+[     1    0.000 x1.00] LOG  Parent effects to tail: True
+[     1    0.000 x1.00] LOG  Prefabs: Jump=True, Land=True, LTail=True, RTail=True
+[     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailVFX
+[     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
+[     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
+[     1    0.000 x1.00] LOG  [StormWeather] post volumes ready on layer 9 (storm priority 10, flash priority 11).
+[     1    0.000 x1.00] LOG  [StormWeather] COZY bridge: Rain_Cave retired — COZY owns the rain now.
+[     1    0.000 x1.00] LOG  [StormWeather] COZY → 'Clear' (pre-fight - open sky, 0 s)
+[     1    0.000 x1.00] LOG  [StormWeather] Ready. Open sky, dry floor. Waiting for the fight.
+[     1    0.000 x1.00] LOG  [FreezeDebug v3] Armed. Manual=L. Auto=True. Buffer=60 snaps @ 0.1s = 6.0s history.
+[     1    0.000 x1.00] LOG  OniBoss initialized with 500 HP
+[     1    0.000 x1.00] LOG  [OniBoss] ANIMATOR SETUP: cullingMode=CullUpdateTransforms updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [OniBoss] Initialized
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] facing: minFlat 1m, snapOnAttack off, trackInHitReact off
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch model ON: launches ALL THE WAY to an enemy within 4.7m of its surface at 10m/s (stop gap 0.00m, NO minimum distance), else steps 0.90m forward. Targeting cone left exactly as her prefab has it.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch ROUND 9: airborne attacks launch too (ON), edge probe now runs on its OWN layer mask (Everything) instead of the line-of-sight mask - the Ground-only mask found no floor in this cave and was cancelling 100% of launches at 0.00m travelled.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] animator speed x1.35 — his 1.13s swing now plays in 0.84s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] chase speed pushed: phase1 4.5, phase2 5.5 (Yoru runs at 7).
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] ground wave ON (round 38): half the club's damage on TOUCH, 12m/s x 6.0m from 1.6m in front at 0.35m height — a club hit cancels that swing's wave, jumping clears it. Per-attack effects come from the Swing Wave VFX By Attack rows. PlayerHealth found, PlayerMovement found.
+[     1    0.000 x1.00] LOG  [StormWeather] storm break HELD (waiting for the lightning beat)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] storm break HELD — it releases at the lightning-on-the-club beat.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] club tracking ON — tip 'Kanabo3' (depth 4), shaft root 'kanabo'.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] skinned meshes: 46 renderer(s), updateWhenOffscreen ON, body renderer 'Body' rootBone 'Hips'
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge travel bone: 'Hips' at depth 1 under 'OniBoss', rest local (0.00, 3.24, -0.24)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] anti-kite ON: thrown swing after 4s of failed chase (within 7.6m), charge after 6s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge drive ON (windup to 0.40 at x1.3, rush 14m/s stops at 2.6m, steers 0.35s then commits, strike section from 0.58, strike moment 0.76, trail VFX off)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] attack armor ON (his swings are not interrupted by light/medium hits; heavy hits and rapid-hit bursts still stop him)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] strike moments overridden: Club_Swing=0.42 ClubSwing2=0.32 ClubSlam=0.85 KanaboSweep=0.48
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] club TOUCH hits ON (radius 0.70m, min tip speed 50m/s, armed from 0.20 of the clip): Club_Swing ClubSwing2 ClubSlam KanaboSweep. First touch wins — club full damage, wave half, one hit per swing.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] combo damage ramp ON: mid x1.25, finisher x1.50 — finisher wave carries FULL damage at x2.0 size, x2.0 travel.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge follow-up ON: 90 % of solo charges chain into a random melee finisher.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] hold-ground ON (backstep 1.5m @ 1.6m/s after own attacks, watch 'Watch', attack facing LOCKED)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] OniBoss layer ready (reactions, wake-on-hit, watch stance, boss bar). player=found
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge clip 'Oni Charge.fbx' imports with Root Motion Node = None (in place) — good.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] clips importing with Root Transform Position (Y) NOT baked into pose (12): Oni_Alert(Oni Alert), Club_Slam(Oni Club Slam), Club_Swing(Oni Club Swing), Club_swing2(Oni Club Swing 2), Death(Oni Death Kneel), Hit_react_light(Oni Hit react lighter light), KanaboSweep(Oni Kanabo sweep), Phase_Transition(Oni Phase transition), run(Oni Run), Walk(Oni Walk), Watch(Oni Watch), Idle(Oni Idle) — their hips' up/down motion is stripped (see round notes; optional).
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Found VolumetricFog component on mainCamera (1)
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Reflection init: density=True, height=True, baselineHeight=True, alpha=True, noiseStrength=True, lightScatteringExposure=True
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Initialized with Neutral preset (height=60, baselineHeight=0)
+[     1    0.000 x1.00] WARN [VolumetricFogController] WorldStateManager not found!
+[     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
+[     1    2.399 x1.00] LOG  [OniBoss] Playing animation: Idle
+[     1    2.399 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
+[    77    3.186 x1.00] LOG  💨 Landing VFX spawned!
+[    77    3.186 x1.00] LOG  ✅ LANDED! (was jump #0)
+[   294    4.246 x1.00] LOG  🚶 2-LEG JUMP
+[   294    4.246 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   363    4.593 x1.00] LOG  [TailAirShot4Leg] entry refused: this airtime is not a 4 leg jump | y=1.70 ts=1.00 fdt=0.0200
+[   363    4.593 x0.10] LOG  [TailAirShot] ENTER, slow on, waiting for RMB, drawState=RightTail_Fast | y=1.70 ts=0.10 fdt=0.0020
+[   363    4.593 x0.10] LOG  [AirPosePin] engaged, holding body at 1.836m above the transform
+[   399    4.754 x0.10] LOG  [TailAirShot] DRAW started | y=1.75 ts=0.10 fdt=0.0020
+[   421    4.850 x0.10] LOG  [TailAirShot] READY, frozen on frame 4 | y=1.78 ts=0.10 fdt=0.0020
+[   782    6.587 x1.00] LOG  [TailAirShot] CANCEL (R released on ready pose), no arrow | y=1.91 ts=1.00 fdt=0.0200
+[   782    6.587 x1.00] LOG  [AirPosePin] released, peak correction was 1.181m
+[   857    6.966 x1.00] LOG  💨 Landing VFX spawned!
+[   857    6.966 x1.00] LOG  ✅ LANDED! (was jump #1)
+[   870    7.043 x1.00] LOG  
+==================== [FREEZE-DEBUG v3] ====================
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
+  Time   : 2.485s   Frame: 870   Snaps: 25
+===========================================================
+
+--- CURRENT STATE ---
+  Flags: atk=False hvy=False dod=False dsh=False
+         grd=False hit=False aerial=False lockPos=False
+         comboStep=0
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=0.449 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(474.06, -0.02, 428.21)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=False
+  Input: H=0.00 V=0.00  LMB=False MMB=False Q=False Sp=False Sh=False C=False
+         WASD pressed in last 0.5s: True (last 0.14s ago)
+
+--- FLIGHT RECORDER (25 snapshots, oldest first, dt=0.10s) ---
+  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
+  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
+  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
+  - 2.48s  --------    0  n   Y  1.00  0.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.38s  --------    0  n   Y  1.00  0.10 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.28s  --------    0  n   Y  1.00  0.20 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.17s  --------    0  n   Y  1.00  0.31 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 2.07s  --------    0  n   Y  1.00  0.41 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.97s  --------    0  Y   Y  1.00  0.51 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.86s  --------    0  Y   Y  1.00  0.62 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.76s  --------    0  Y   Y  1.00  0.72 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.66s  --------    0  Y   Y  1.00  0.82 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.55s  --------    0  Y   Y  1.00  0.92 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.45s  --------    0  Y   Y  1.00  1.03 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.35s  --------    0  Y   Y  1.00  1.13 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.25s  --------    0  Y   Y  1.00  1.23 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.14s  --------    0  Y   Y  1.00  1.34 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 1.04s  --------    0  Y   Y  1.00  1.44 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.94s  --------    0  n   Y  1.00  1.54 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  1  0  0
+  - 0.84s  --------    0  n   Y  1.00  1.64 1.00 -  |   474.5    427.3  0.00 |  0.0  0.0 0   0   0  1  0  0
+  - 0.73s  --------    0  n   Y  1.00  1.75 1.00 -  |   474.5    427.3  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.63s  --------    0  n   Y  1.00  1.85 1.00 T  |   474.5    427.4  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.53s  --------    0  n   Y  1.00  0.10 1.00 -  |   474.5    427.4  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.43s  --------    0  n   Y  1.00  0.12 1.00 T  |   474.5    427.4  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.33s  --------    0  n   Y  1.00  0.22 1.00 T  |   474.5    427.5  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 0.23s  --------    0  n   Y  1.00  0.23 1.00 -  |   474.4    427.7  0.00 |  0.0  1.0 0   0   0  0  0  0
+  - 0.12s  --------    0  n   Y  1.00  0.33 1.00 -  |   474.2    427.9  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.02s  --------    0  Y   Y  1.00  0.44 1.00 -  |   474.1    428.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+=========================================================== END
+
+[   902    7.206 x1.00] LOG  🚶 2-LEG JUMP
+[   902    7.206 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   978    7.549 x1.00] LOG  [TailAirShot4Leg] entry refused: this airtime is not a 4 leg jump | y=1.74 ts=1.00 fdt=0.0200
+[   978    7.549 x0.10] LOG  [TailAirShot] ENTER, slow on, waiting for RMB, drawState=RightTail_Fast | y=1.74 ts=0.10 fdt=0.0020
+[   978    7.549 x0.10] LOG  [AirPosePin] engaged, holding body at 1.815m above the transform
+[   995    7.638 x0.10] LOG  [TailAirShot] DRAW started | y=1.77 ts=0.10 fdt=0.0020
+[  1016    7.735 x0.10] LOG  [TailAirShot] READY, frozen on frame 4 | y=1.79 ts=0.10 fdt=0.0020
+[  1094    8.110 x0.10] LOG  [TailAirShot] SHOT released (released from ready pose) | y=1.85 ts=0.10 fdt=0.0020
+[  1108    8.177 x1.00] LOG  [TailAirShot] FINISHER (R released mid motion), motion completes and fires | y=1.86 ts=1.00 fdt=0.0200
+[  1133    8.297 x1.00] LOG  [TailAirShot] FIRE, arrow away, dir=(-0.55, -0.31, 0.78) | y=1.90 ts=1.00 fdt=0.0200
+[  1209    8.678 x1.00] LOG  💨 Landing VFX spawned!
+[  1209    8.678 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  1209    8.678 x1.00] LOG  [AirPosePin] released, peak correction was 1.203m
+[  1251    8.891 x1.00] LOG  OniBoss took 20 damage. HP: 480/500
+[  1251    8.891 x1.00] LOG  [OniBoss] 🤕 Hit during LostSoul — flash only
+[  1251    8.891 x1.00] LOG  [OniBoss] LostSoul → Alert
+[  1251    8.891 x1.00] LOG  [OniBoss] Playing animation: Oni_Alert
+[  1251    8.891 x1.00] LOG  [OniBoss] Became HOSTILE
+[  1251    8.891 x1.00] LOG  [OniBoss:Layer] woken by damage (20) — back attacks count.
+[  1252    8.897 x1.00] LOG  [StormWeather] COZY → 'Receeding Storm' (fight engaged - storm rolls in, 0 s)
+[  1252    8.897 x1.00] LOG  [StormWeather] FIGHT STARTED (he engaged) - storm on, floor starts to soak.
+[  1252    8.897 x1.00] LOG  [BossBar] Showing bar for: Oni (480/500)
+[  1252    8.897 x1.00] LOG  [OniBoss:Layer] boss bar shown
+[  1263    8.953 x1.00] LOG  [TailAirShot] finisher done, fully idle | y=-0.02 ts=1.00 fdt=0.0200
+[  1347    9.393 x1.00] LOG  [OniBoss] Alert → Chase
+[  1348    9.397 x1.00] LOG  [OniBoss] Playing animation: run
+[  1413    9.699 x1.00] LOG  [StormWeather] storm post weight -> 0.40
+[  1643   10.827 x1.00] LOG  [OniBoss] Pull-band decision: RUN-IN (dist 9.0m, pullRange 0m, chance 0.50)
+[  1878   12.048 x1.00] LOG  [OniBoss] Playing animation: Idle
+[  1878   12.048 x1.00] LOG  [OniBoss] Chase → Attack
+[  1878   12.048 x1.00] LOG  [OniBoss] Attack: ClubSlam (20 dmg)
+[  1878   12.048 x1.00] LOG  [OniBoss:Trail] ClubSlam trail START at clip 1.00 (transition done).
+[  1879   12.055 x1.00] LOG  🚶 2-LEG JUMP
+[  1879   12.055 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  1898   12.154 x1.00] LOG  [OniBoss:Layer] step-in: 'ClubSlam' closed 0.50m, Yoru now 3.0m away (range 3.5)
+[  1899   12.158 x1.00] LOG  [OniBoss:Layer] step-in: 'ClubSlam' closed 0.51m, Yoru now 3.0m away (range 3.5)
+[  1903   12.179 x1.00] LOG  [OniBoss:Layer] step-in: 'ClubSlam' closed 0.51m, Yoru now 3.0m away (range 3.5)
+[  1906   12.198 x1.00] LOG  [OniBoss:Layer] step-in: 'ClubSlam' closed 0.51m, Yoru now 3.0m away (range 3.5)
+[  1910   12.218 x1.00] LOG  [OniBoss:Layer] step-in: 'ClubSlam' closed 0.52m, Yoru now 3.0m away (range 3.5)
+[  1914   12.239 x1.00] LOG  [OniBoss:Layer] step-in: 'ClubSlam' closed 0.52m, Yoru now 3.0m away (range 3.5)
+[  1918   12.258 x1.00] LOG  [OniBoss:Layer] step-in: 'ClubSlam' closed 0.52m, Yoru now 3.0m away (range 3.5)
+[  1922   12.278 x1.00] LOG  [OniBoss:Layer] step-in: 'ClubSlam' closed 0.52m, Yoru now 3.0m away (range 3.5)
+[  1926   12.298 x1.00] LOG  [OniBoss:Layer] step-in: 'ClubSlam' closed 0.53m, Yoru now 3.0m away (range 3.5)
+[  1930   12.318 x1.00] LOG  [OniBoss:Layer] step-in: 'ClubSlam' closed 0.53m, Yoru now 3.0m away (range 3.5)
+[  1950   12.419 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 1.6m dist=1.62m in 0.16s [AIRBORNE]
+[  1950   12.419 x1.00] LOG  [Combat] Aerial spin — 25 dmg
+[  1950   12.419 x1.00] LOG  [AirPosePin] engaged, holding body at 1.785m above the transform
+[  1954   12.436 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.400s
+[  1954   12.436 x1.00] LOG  [Combat] Hit react: HitReact_Heavy_2Leg (0.9s)
+[  1954   12.436 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.60 duration=0.200s
+[  1954   12.436 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-3.0°)
+[  1954   12.436 x1.00] LOG  [OniBoss] Hit player for 20 (ClubSlam)
+[  1954   12.436 x1.00] LOG  [OniBoss:Touch] ClubSlam: club TOUCHED Yoru at clip 0.42 — shaft 0.53m from her body line, tip speed 121m/s, ONE FRAME EARLY (predicted). Full club hit delivered this frame.
+[  1960   12.462 x1.00] LOG  [HitReactTrace] asked for 'HitReact_Heavy_2Leg' (0.90s) — blend resolved after 26 ms, now playing a clip 1.21s long at speed 1.00, layer weight 1.00, animator.speed 1.00.
+[  2032   12.848 x1.00] LOG  [OniBoss:ClubPos] ClubSlam at strike: club tip 0.72m up, 2.84m in front, -0.54m to his right (2.89m out from his centre). Club faces -4deg from his forward, pitch -0.21. (the ground wave is born 1.6m in front of him at 0.35m.)
+[  2032   12.848 x1.00] LOG  [OniBoss:Layer] ClubSlam: club already hit — ground wave released as VISUAL only (0 damage).
+[  2052   12.974 x1.00] LOG  [OniBoss] Attack → Recovery
+[  2052   12.974 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  2052   12.974 x1.00] LOG  [OniBoss:Trail] trail END at clip 0.99, fading over 0.40s.
+[  2052   12.974 x1.00] LOG  [OniBoss:Strike] ClubSlam: club tip closest to Yoru at 0.96m, clip position 0.94 | damage fires at 0.85 | clip 0.93s => damage fires 82 ms BEFORE the club is closest
+[  2053   12.978 x1.00] LOG  💨 Landing VFX spawned!
+[  2053   12.978 x1.00] LOG  [AirPosePin] released, peak correction was 1.209m
+[  2079   13.124 x1.00] LOG  [OniBoss] Recovery → Chase
+[  2080   13.128 x1.00] LOG  [OniBoss] hold-ground: BACKSTEP 1.5m (player 2.7m)
+[  2121   13.337 x1.00] LOG  ✅ LANDED! (was jump #0)
+[  2155   13.509 x1.00] LOG  🚶 2-LEG JUMP
+[  2155   13.509 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  2234   13.918 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 2.4m dist=2.38m in 0.24s [AIRBORNE]
+[  2234   13.918 x1.00] LOG  [Combat] Aerial spin — 25 dmg
+[  2234   13.918 x1.00] LOG  [AirPosePin] engaged, holding body at 2.008m above the transform
+[  2262   14.068 x1.00] LOG  [OniBoss] hold-ground: backstep done (1.50m), WATCH (player 2.6m, cooldown 0.9s)
+[  2262   14.068 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  2263   14.075 x1.00] LOG  OniBoss took 10 damage. HP: 470/500
+[  2263   14.075 x1.00] LOG  [OniBoss] Chase → HitReact
+[  2263   14.075 x1.00] LOG  [OniBoss:Layer] react tier: LIGHT (10 dmg) → 'Hit_react_light'
+[  2263   14.075 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.200s
+[  2263   14.075 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  2278   14.159 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=2.38m actually moved=2.04m — completed
+[  2290   14.225 x1.00] LOG  OniBoss took 10 damage. HP: 460/500
+[  2290   14.225 x1.00] LOG  [OniBoss:Layer] burst: 2 hits / 20 dmg → flinch upgraded to 'HitReact_medium'
+[  2290   14.225 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.18 duration=0.200s
+[  2318   14.378 x1.00] LOG  OniBoss took 10 damage. HP: 450/500
+[  2318   14.378 x1.00] LOG  [OniBoss] HitReact → Stagger
+[  2318   14.378 x1.00] LOG  [OniBoss] Playing animation: Stagger
+[  2318   14.378 x1.00] LOG  [OniBoss] STAGGERED for 2.5s
+[  2318   14.378 x1.00] LOG  [OniBoss:Layer] heavy knock-back react (swirl burst, 3 hits / 30 dmg) → 'HitReact_Heavy', down for 1.80s
+[  2318   14.378 x1.00] LOG  [OniBoss:Layer] burst: 3 hits / 30 dmg inside 0.8s → knock-back + 0.90m push
+[  2318   14.378 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.18 duration=0.200s
+[  2330   14.437 x1.00] LOG  💨 Landing VFX spawned!
+[  2330   14.437 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  2330   14.437 x1.00] LOG  [AirPosePin] released, peak correction was 1.224m
+[  2353   14.565 x1.00] LOG  🚶 2-LEG JUMP
+[  2353   14.565 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  2356   14.578 x1.00] LOG  [AirPosePin] engaged, holding body at 0.760m above the transform
+[  2377   14.678 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.76s
+[  2378   14.684 x1.00] LOG  [AirPosePin] released, peak correction was 0.074m
+[  2536   15.497 x1.00] LOG  💨 Landing VFX spawned!
+[  2536   15.497 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  2667   16.185 x1.00] LOG  [OniBoss] Stagger → Chase
+[  2668   16.188 x1.00] LOG  [OniBoss] Playing animation: Idle
+[  2668   16.188 x1.00] LOG  [OniBoss] Combo started: swing1-2 (2 steps remaining)
+[  2668   16.188 x1.00] LOG  [OniBoss] Chase → Attack
+[  2668   16.188 x1.00] LOG  [OniBoss] Attack: Club_Swing (16 dmg)
+[  2668   16.188 x1.00] LOG  [OniBoss:Trail] Club_Swing trail START at clip 1.00 (transition done).
+[  2731   16.506 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.20 duration=0.250s
+[  2731   16.506 x1.00] LOG  [Combat] Hit react: HitReact_Light_2Leg (0.5s)
+[  2731   16.506 x1.00] LOG  [HitReactTrace] asked for 'HitReact_Light_2Leg' (0.50s) — blend resolved after 0 ms, now playing a clip 1.00s long at speed 1.00, layer weight 1.00, animator.speed 1.00.
+[  2731   16.506 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.30 duration=0.200s
+[  2731   16.506 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-2.0°)
+[  2731   16.506 x1.00] LOG  [OniBoss] Hit player for 16 (Club_Swing)
+[  2731   16.506 x1.00] LOG  [OniBoss:Touch] Club_Swing: club TOUCHED Yoru at clip 0.38 — shaft 0.40m from her body line, tip speed 171m/s, ONE FRAME EARLY (predicted). Full club hit delivered this frame.
+[  2740   16.549 x1.00] LOG  [OniBoss:ClubPos] Club_Swing at strike: club tip 3.03m up, 2.12m in front, -3.12m to his right (3.77m out from his centre). Club faces -90deg from his forward, pitch 0.41. (the ground wave is born 1.6m in front of him at 0.35m.)
+[  2740   16.549 x1.00] LOG  [OniBoss:Layer] Club_Swing: club already hit — ground wave released as VISUAL only (0 damage).
+[  2829   17.025 x1.00] LOG  [OniBoss] Attack → Recovery
+[  2829   17.025 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  2829   17.025 x1.00] LOG  [OniBoss:Trail] trail END at clip 0.99, fading over 0.40s.
+[  2829   17.025 x1.00] LOG  [OniBoss:Strike] Club_Swing: club tip closest to Yoru at 0.91m, clip position 0.92 | damage fires at 0.42 | clip 0.84s => damage fires 418 ms BEFORE the club is closest
+[  2857   17.175 x1.00] LOG  [OniBoss] Recovery → Attack
+[  2857   17.175 x1.00] LOG  [OniBoss] Attack: ClubSwing2 (16 dmg)
+[  2857   17.175 x1.00] LOG  [OniBoss:Trail] ClubSwing2 trail START at clip 1.00 (transition still blending).
+[  2863   17.212 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 188 lines
