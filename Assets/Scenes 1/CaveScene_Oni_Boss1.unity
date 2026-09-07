@@ -20,9 +20,9 @@ RenderSettings:
   m_FogDensity: 0.008
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.23921569, g: 0.28627452, b: 0.43137255, a: 1}
-  m_AmbientEquatorColor: {r: 0.36078432, g: 0.39215687, b: 0.47843137, a: 1}
-  m_AmbientGroundColor: {r: 0.25882354, g: 0.18039216, b: 0.13333334, a: 1}
+  m_AmbientSkyColor: {r: 0.16862746, g: 0.2, b: 0.3019608, a: 1}
+  m_AmbientEquatorColor: {r: 0.2509804, g: 0.27450982, b: 0.33333334, a: 1}
+  m_AmbientGroundColor: {r: 0.18039216, g: 0.1254902, b: 0.09411765, a: 1}
   m_AmbientIntensity: 1.21
   m_AmbientMode: 1
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
@@ -35,7 +35,7 @@ RenderSettings:
   m_DefaultReflectionMode: 0
   m_DefaultReflectionResolution: 512
   m_ReflectionBounces: 1
-  m_ReflectionIntensity: 1
+  m_ReflectionIntensity: 0.8
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 283845564}
   m_UseRadianceAmbientProbe: 0
@@ -1340,6 +1340,7 @@ GameObject:
   m_Component:
   - component: {fileID: 283845565}
   - component: {fileID: 283845564}
+  - component: {fileID: 283845566}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -1367,7 +1368,7 @@ Light:
     m_Type: 2
     m_Resolution: -1
     m_CustomResolution: -1
-    m_Strength: 0.6
+    m_Strength: 0.85
     m_Bias: 0.05
     m_NormalBias: 0.4
     m_NearPlane: 0.2
@@ -1427,6 +1428,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 55, y: 20, z: 0}
+--- !u!114 &283845566
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 283845563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a93e646d90e44214b7668c0f8091dca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VolumetricFogAndMist.ShadowMapCopy
 --- !u!28 &287423699
 Texture2D:
   m_ObjectHideFlags: 0
@@ -2481,6 +2494,80 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
   m_PrefabInstance: {fileID: 494524764}
   m_PrefabAsset: {fileID: 0}
+--- !u!21 &495709754
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: InternalXFurMat
+  m_Shader: {fileID: 4800000, guid: 4eb864ebefca78e4abb60eb2eb2971b7, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _XFurEmissionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurNormalmap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurParamData:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurPhysics:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurProfilesSplat:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurSelfColorVariation:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurSelfStrandsPattern:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurVFXMask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Cull: 0
+    - _XFurHasGroomData: 0
+    - _XFurSelfOverColorMod: 0.5
+    - _XFurSelfRimPower: 2
+    - _XFurSelfUnderColorMod: 0.25
+    - _XFurUVTiling: 2
+    m_Colors:
+    - _XFurRimColor: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurSelfColor: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurSelfColorA: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurSelfColorB: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurSelfColorC: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurSelfColorD: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurVFX1Color: {r: 0.75, g: 0.049999982, b: 0.049999982, a: 1}
+    - _XFurVFX2Color: {r: 0.85, g: 0.95, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &511418097
 GameObject:
   m_ObjectHideFlags: 0
@@ -2894,7 +2981,7 @@ Transform:
   m_GameObject: {fileID: 579351699}
   serializedVersion: 2
   m_LocalRotation: {x: 0.0000000037252899, y: -0, z: -0.0000000074505797, w: 1}
-  m_LocalPosition: {x: 308.42728, y: 27.234695, z: 368.21625}
+  m_LocalPosition: {x: 480.98486, y: 82.141495, z: 420.81192}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2932,7 +3019,7 @@ Light:
   m_Type: 2
   m_Color: {r: 0.6666667, g: 0.78431374, b: 1, a: 1}
   m_Intensity: 1
-  m_Range: 34
+  m_Range: 16
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
@@ -2994,7 +3081,7 @@ Transform:
   m_GameObject: {fileID: 583326288}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 488, y: 14, z: 426}
+  m_LocalPosition: {x: 484, y: 14, z: 402}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -15914,15 +16001,15 @@ MonoBehaviour:
   stormFogDensity: 0.45
   transitionDuration: 2.5
   calmStrikeInterval: {x: 14, y: 26}
-  stormStrikeInterval: {x: 3, y: 8}
+  stormStrikeInterval: {x: 1.5, y: 4}
   strikeOrigin: {x: 481, y: 45, z: 447}
   strikeSpread: 10
   flashPeakIntensity: 2.5
   flashDuration: 0.22
   flashColor: {r: 0.8, g: 0.88, b: 1, a: 1}
   driveCozy: 1
-  phase1Weather: {fileID: 11400000, guid: 5f1173877e77b3b40af72776ce4ae64a, type: 2}
-  phase2Weather: {fileID: 11400000, guid: 3daad8702a5ccbf418a5370bac12e4c0, type: 2}
+  phase1Weather: {fileID: 11400000, guid: 7f3a82b967194102954db32760771d47, type: 2}
+  phase2Weather: {fileID: 11400000, guid: fa1bce6aa83a464784f0d798d9a2d2b7, type: 2}
   preFightWeather: {fileID: 11400000, guid: 48908a08bbd076e4182bc3ca961b9c34, type: 2}
   stormProfile: {fileID: 11400000, guid: 6599bf70161d4065960e884087553b62, type: 2}
   phase1PostWeight: 0.4
@@ -16348,8 +16435,8 @@ Light:
   serializedVersion: 11
   m_Type: 2
   m_Color: {r: 0.47058824, g: 0.74509805, b: 0.9019608, a: 1}
-  m_Intensity: 0.8
-  m_Range: 34
+  m_Intensity: 1.2
+  m_Range: 20
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
@@ -16936,7 +17023,7 @@ Light:
   m_Type: 2
   m_Color: {r: 0.6666667, g: 0.78431374, b: 1, a: 1}
   m_Intensity: 1
-  m_Range: 34
+  m_Range: 16
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
@@ -16969,7 +17056,7 @@ Light:
   m_Cookie: {fileID: 0}
   m_DrawHalo: 0
   m_Flare: {fileID: 0}
-  m_RenderMode: 2
+  m_RenderMode: 1
   m_CullingMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -16998,7 +17085,7 @@ Transform:
   m_GameObject: {fileID: 1013202816}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 468, y: 14, z: 440}
+  m_LocalPosition: {x: 468, y: 14, z: 430}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -17513,6 +17600,80 @@ Material:
     m_Ints: []
     m_Floats:
     - _Cull: 0
+    - _XFurHasGroomData: 0
+    - _XFurSelfOverColorMod: 0.5
+    - _XFurSelfRimPower: 2
+    - _XFurSelfUnderColorMod: 0.25
+    - _XFurUVTiling: 2
+    m_Colors:
+    - _XFurRimColor: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurSelfColor: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurSelfColorA: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurSelfColorB: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurSelfColorC: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurSelfColorD: {r: 1, g: 1, b: 1, a: 1}
+    - _XFurVFX1Color: {r: 0.75, g: 0.049999982, b: 0.049999982, a: 1}
+    - _XFurVFX2Color: {r: 0.85, g: 0.95, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
+--- !u!21 &1099100746
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: InternalXFurMat
+  m_Shader: {fileID: 4800000, guid: 4eb864ebefca78e4abb60eb2eb2971b7, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _XFurEmissionMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurNormalmap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurParamData:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurPhysics:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurProfilesSplat:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurSelfColorVariation:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurSelfStrandsPattern:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _XFurVFXMask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Cull: 2
     - _XFurHasGroomData: 0
     - _XFurSelfOverColorMod: 0.5
     - _XFurSelfRimPower: 2
@@ -23569,7 +23730,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 146.90039, y: 146.90039, z: 146.90039}
+  m_LocalScale: {x: 68.14149, y: 68.14149, z: 68.14149}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 700040834}
@@ -28990,7 +29151,7 @@ Light:
   m_Type: 2
   m_Color: {r: 0.6666667, g: 0.78431374, b: 1, a: 1}
   m_Intensity: 1
-  m_Range: 34
+  m_Range: 16
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
@@ -29052,7 +29213,7 @@ Transform:
   m_GameObject: {fileID: 1885163751}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 478, y: 14, z: 433}
+  m_LocalPosition: {x: 501, y: 14, z: 430}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -115910,8 +116071,8 @@ MonoBehaviour:
     legacyShellsFurShader: {fileID: 4800000, guid: 4eb864ebefca78e4abb60eb2eb2971b7, type: 3}
     urpShellsFurShader: {fileID: 0}
     hdrpShellsFurShader: {fileID: 0}
-    internalFurMaterial: {fileID: 0}
-    internalFurMaterialDoubleSided: {fileID: 0}
+    internalFurMaterial: {fileID: 1099100746}
+    internalFurMaterialDoubleSided: {fileID: 495709754}
     emptyNormalmap: {fileID: 340259155}
     xfurPaintShader: {fileID: 4800000, guid: 9e0a3f463c12314439beee31c82d3179, type: 3}
     xfurUnwrapShader: {fileID: 4800000, guid: 8cdce5fb7cfce0c41933abbbd29e1989, type: 3}
@@ -231668,18 +231829,18 @@ MonoBehaviour:
   _lightScatteringTint: {r: 1, g: 1, b: 1, a: 0}
   _lightScatteringSamples: 16
   _lightScatteringWeight: 1.2
-  _lightScatteringIllumination: 18
+  _lightScatteringIllumination: 5
   _lightScatteringDecay: 0.986
-  _lightScatteringExposure: 0.03
+  _lightScatteringExposure: 0.06
   _lightScatteringJittering: 0.5
   _lightScatteringBlurDownscale: 1
   _fogBlur: 0
   _fogBlurDepth: 0.05
-  _sunShadows: 0
+  _sunShadows: 1
   _sunShadowsLayerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  _sunShadowsStrength: 0.5
+  _sunShadowsStrength: 0.7
   _sunShadowsBias: 0.1
   _sunShadowsJitterStrength: 0.1
   _sunShadowsResolution: 2
