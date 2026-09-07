@@ -21,10 +21,10 @@ MonoBehaviour:
     value: 1
   intensity:
     overrideState: 1
-    value: 0.55
+    value: 0.15
   color:
     overrideState: 1
-    value: {r: 0.059, g: 0.047, b: 0.157, a: 1}
+    value: {r: 0.09803922, g: 0.09803922, b: 0.4392157, a: 1}
   ambientOnly:
     overrideState: 0
     value: 1
@@ -48,7 +48,7 @@ MonoBehaviour:
     value: 0
   radius:
     overrideState: 1
-    value: 0.45
+    value: 0.8
   quality:
     overrideState: 1
     value: 0
@@ -64,7 +64,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3f6f3f7c722b4544b97e3c75840aa33, type: 3}
   m_Name: AutoExposure
   m_EditorClassIdentifier: Unity.Postprocessing.Runtime::UnityEngine.Rendering.PostProcessing.AutoExposure
-  active: 1
+  active: 0
   enabled:
     overrideState: 1
     value: 1
@@ -116,7 +116,7 @@ MonoBehaviour:
     value: {x: 0.5, y: 0.5}
   intensity:
     overrideState: 1
-    value: 0.32
+    value: 0.35
   smoothness:
     overrideState: 1
     value: 0.4
@@ -151,25 +151,25 @@ MonoBehaviour:
     value: 1
   intensity:
     overrideState: 1
-    value: 1.4
+    value: 1
   threshold:
     overrideState: 1
-    value: 1.15
+    value: 0.7
   softKnee:
     overrideState: 1
-    value: 0.7
+    value: 0.5
   clamp:
     overrideState: 1
     value: 65472
   diffusion:
     overrideState: 1
-    value: 6
+    value: 7
   anamorphicRatio:
     overrideState: 1
-    value: 0
+    value: -1
   color:
     overrideState: 1
-    value: {r: 1, g: 0.92, b: 0.84, a: 1}
+    value: {r: 0.22745098, g: 0.4745098, b: 1, a: 1}
   fastMode:
     overrideState: 0
     value: 0
@@ -282,28 +282,28 @@ MonoBehaviour:
     value: 1
   temperature:
     overrideState: 1
-    value: -8
+    value: -5
   tint:
     overrideState: 1
-    value: 0
+    value: 10
   colorFilter:
     overrideState: 0
     value: {r: 1, g: 1, b: 1, a: 1}
   hueShift:
     overrideState: 1
-    value: 0
+    value: 10
   saturation:
     overrideState: 1
-    value: 12
+    value: 20
   brightness:
     overrideState: 0
     value: 0
   postExposure:
     overrideState: 1
-    value: 1.1
+    value: 0.7
   contrast:
     overrideState: 1
-    value: 25
+    value: 8
   mixerRedOutRedIn:
     overrideState: 0
     value: 0
@@ -333,13 +333,13 @@ MonoBehaviour:
     value: 0
   lift:
     overrideState: 1
-    value: {x: 0.9411765, y: 0.9313725, z: 1, w: 0}
+    value: {x: 0.96169573, y: 0.9130171, z: 1, w: -0.40103498}
   gamma:
     overrideState: 1
-    value: {x: 1, y: 1, z: 1, w: 0}
+    value: {x: 0.903043, y: 0.8798927, z: 1, w: 0.16817607}
   gain:
     overrideState: 1
-    value: {x: 1, y: 1, z: 1, w: 0.1}
+    value: {x: 0.8626251, y: 0.97918695, z: 1, w: 0.6080208}
   masterCurve:
     overrideState: 0
     value:
@@ -1562,7 +1562,7 @@ MonoBehaviour:
     defaultState: 1
   intensity:
     overrideState: 1
-    value: 0.04
+    value: 0.05
   fastMode:
     overrideState: 0
     value: 0
@@ -1584,7 +1584,7 @@ MonoBehaviour:
     value: 1
   shutterAngle:
     overrideState: 1
-    value: 60
+    value: 90
   sampleCount:
     overrideState: 1
-    value: 6
+    value: 8
