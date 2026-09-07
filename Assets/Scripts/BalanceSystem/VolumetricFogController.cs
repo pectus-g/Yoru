@@ -84,6 +84,10 @@ public class VolumetricFogController : MonoBehaviour
     
     #region Serialized Fields
     
+    [Header("=== SCENE OWNERSHIP ===")]
+    [Tooltip("Untick this in any scene where the fog is hand-tuned on the Volumetric Fog component itself (the Oni cave). When unticked this controller never touches the fog, so the inspector values you set are exactly what you see in Play. Ticked is the normal karma-driven behaviour.")]
+    [SerializeField] private bool applyPresets = true;
+
     [Header("=== VOLUMETRIC FOG REFERENCE ===")]
     [Tooltip("Reference to the VolumetricFog component. Will auto-find if null.")]
     [SerializeField] private MonoBehaviour volumetricFog;
@@ -662,6 +666,14 @@ public class VolumetricFogController : MonoBehaviour
     
     void Start()
     {
+        if (!applyPresets)
+        {
+            Debug.Log("[VolumetricFogController] applyPresets is OFF in this scene. "
+                    + "The Volumetric Fog component keeps its hand-set inspector values.");
+            enabled = false;
+            return;
+        }
+
         FindVolumetricFog();
         InitializeReflection();
         InitializeState();
@@ -670,6 +682,8 @@ public class VolumetricFogController : MonoBehaviour
     
     void Update()
     {
+        if (!applyPresets) return;
+
         if (isTransitioning)
         {
             transitionProgress += Time.deltaTime / transitionDuration;
@@ -802,6 +816,8 @@ public class VolumetricFogController : MonoBehaviour
     
     void OnRingsChanged(int leftRings, int rightRings)
     {
+        if (!applyPresets) return;
+
         debugLeftRings = leftRings;
         debugRightRings = rightRings;
         
