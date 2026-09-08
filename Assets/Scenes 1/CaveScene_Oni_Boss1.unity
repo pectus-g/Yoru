@@ -1531,6 +1531,13 @@ MonoBehaviour:
   furKeyDirection: {fileID: 0}
   sheenBoost: 1
   transmission: 0.35
+  wetDarken: 0.75
+  wetTint: {r: 1, g: 0.94, b: 0.84, a: 1}
+  wetMetallic: 0.3
+  wetRim: 0.4
+  wetSag: 0.12
+  wetClump: 0.85
+  wetClumpScale: 24
 --- !u!114 &283845567
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -213655,12 +213662,12 @@ MonoBehaviour:
     baseUVTiling: {x: 1, y: 1, z: 0, w: 0}
     furStrandsAsset: {fileID: 11400000, guid: a07368ed4fb7b9049bee52eb18964c4e, type: 2}
     furStrandsTexture: {fileID: 0}
-    furStrandsTiling: 20
-    doubleSided: 0
+    furStrandsTiling: 13
+    doubleSided: 1
     furLength: 0.4
-    furThickness: 0.6
+    furThickness: 0.2
     furThicknessCurve: 0.3
-    useCurlyFur: 0
+    useCurlyFur: 1
     curlyFurParameters: {x: 0.4, y: 0.4, z: 0.02, w: 0.02}
     emissiveFur: 0
     emissiveTint: {r: 0, g: 0, b: 0, a: 1}
@@ -213672,8 +213679,8 @@ MonoBehaviour:
     noiseShadingTint1: {r: 0.8627451, g: 0.88235295, b: 0.9411765, a: 1}
     noiseShadingTint2: {r: 1, g: 1, b: 1, a: 1}
     noiseShadingTint3: {r: 1, g: 1, b: 1, a: 1}
-    mainFurStrandBoost: 1
-    secondaryFurStrandBoost: 1
+    mainFurStrandBoost: 1.8
+    secondaryFurStrandBoost: 1.8
     useVertexData: 1
     furDataMap: {fileID: 2800000, guid: eea77ec077e6284449680eecc2fddf8a, type: 3}
     furGroomingMap: {fileID: 2800000, guid: 5ee3ead991e23d54b8cbd2e7621ce07d, type: 3}
@@ -214016,16 +214023,16 @@ MonoBehaviour:
     physicsMat: {fileID: 0}
   _vfxModule:
     pidiSkin2: {fileID: 0}
-    _quality: 0
+    _quality: 3
     _internalName: VFX & Weather
     _version: {x: 4, y: 0, z: 0}
-    _enabled: 0
+    _enabled: 1
     _xfurInstance: {fileID: 7307030194180161927}
     executeInEditor: 0
     VFXProgressiveShader: {fileID: 4800000, guid: 0893e27954320b1458f25f08244b2472, type: 3}
     _vfxMat: {fileID: 0}
     disableOnLOD: 0
-    _updateTime: 0.05
+    _updateTime: 0.1
     Snow:
       name: SnowFX
       color: {r: 0.85, g: 0.95, b: 1, a: 1}
@@ -214043,13 +214050,13 @@ MonoBehaviour:
       name: RainFX
       color: {r: 1, g: 1, b: 1, a: 1}
       specular: {r: 0.45, g: 0.5, b: 0.6, a: 1}
-      penetration: 0.75
-      smoothness: 0.75
+      penetration: 0.5
+      smoothness: 0.6
       intensity: 1.25
-      fadeoutTime: 4
-      normalFalloff: 0.75
-      vfxMask: {fileID: 0}
-      vfxTiling: 2
+      fadeoutTime: 12
+      normalFalloff: 0.2
+      vfxMask: {fileID: 2800000, guid: 3e1661329892b974baa611e245c0b5d5, type: 3}
+      vfxTiling: 4
       updated: 0
       ignoreWeatherComponent: 0
     Blood:
@@ -219143,12 +219150,12 @@ MonoBehaviour:
     baseUVTiling: {x: 1, y: 1, z: 0, w: 0}
     furStrandsAsset: {fileID: 11400000, guid: a07368ed4fb7b9049bee52eb18964c4e, type: 2}
     furStrandsTexture: {fileID: 0}
-    furStrandsTiling: 20
-    doubleSided: 0
+    furStrandsTiling: 13
+    doubleSided: 1
     furLength: 0.4
-    furThickness: 0.6
+    furThickness: 0.2
     furThicknessCurve: 0.3
-    useCurlyFur: 0
+    useCurlyFur: 1
     curlyFurParameters: {x: 0.4, y: 0.4, z: 0.02, w: 0.02}
     emissiveFur: 0
     emissiveTint: {r: 0, g: 0, b: 0, a: 1}
@@ -219160,8 +219167,8 @@ MonoBehaviour:
     noiseShadingTint1: {r: 0.8627451, g: 0.88235295, b: 0.9411765, a: 1}
     noiseShadingTint2: {r: 1, g: 1, b: 1, a: 1}
     noiseShadingTint3: {r: 1, g: 1, b: 1, a: 1}
-    mainFurStrandBoost: 1
-    secondaryFurStrandBoost: 1
+    mainFurStrandBoost: 1.8
+    secondaryFurStrandBoost: 1.8
     useVertexData: 1
     furDataMap: {fileID: 2800000, guid: eea77ec077e6284449680eecc2fddf8a, type: 3}
     furGroomingMap: {fileID: 2800000, guid: 5ee3ead991e23d54b8cbd2e7621ce07d, type: 3}
@@ -219228,16 +219235,16 @@ MonoBehaviour:
     physicsMat: {fileID: 0}
   _vfxModule:
     pidiSkin2: {fileID: 0}
-    _quality: 0
+    _quality: 3
     _internalName: VFX & Weather
     _version: {x: 4, y: 0, z: 0}
-    _enabled: 0
+    _enabled: 1
     _xfurInstance: {fileID: 7354217105118967234}
     executeInEditor: 0
     VFXProgressiveShader: {fileID: 4800000, guid: 0893e27954320b1458f25f08244b2472, type: 3}
     _vfxMat: {fileID: 0}
     disableOnLOD: 0
-    _updateTime: 0.05
+    _updateTime: 0.1
     Snow:
       name: SnowFX
       color: {r: 0.85, g: 0.95, b: 1, a: 1}
@@ -219255,13 +219262,13 @@ MonoBehaviour:
       name: RainFX
       color: {r: 1, g: 1, b: 1, a: 1}
       specular: {r: 0.45, g: 0.5, b: 0.6, a: 1}
-      penetration: 0.75
-      smoothness: 0.75
+      penetration: 0.5
+      smoothness: 0.6
       intensity: 1.25
-      fadeoutTime: 4
-      normalFalloff: 0.75
-      vfxMask: {fileID: 0}
-      vfxTiling: 2
+      fadeoutTime: 12
+      normalFalloff: 0.2
+      vfxMask: {fileID: 2800000, guid: 3e1661329892b974baa611e245c0b5d5, type: 3}
+      vfxTiling: 4
       updated: 0
       ignoreWeatherComponent: 0
     Blood:
@@ -241050,12 +241057,12 @@ MonoBehaviour:
     baseUVTiling: {x: 1, y: 1, z: 0, w: 0}
     furStrandsAsset: {fileID: 11400000, guid: a07368ed4fb7b9049bee52eb18964c4e, type: 2}
     furStrandsTexture: {fileID: 0}
-    furStrandsTiling: 20
-    doubleSided: 0
+    furStrandsTiling: 13
+    doubleSided: 1
     furLength: 0.4
-    furThickness: 0.6
+    furThickness: 0.2
     furThicknessCurve: 0.3
-    useCurlyFur: 0
+    useCurlyFur: 1
     curlyFurParameters: {x: 0.4, y: 0.4, z: 0.02, w: 0.02}
     emissiveFur: 0
     emissiveTint: {r: 0, g: 0, b: 0, a: 1}
@@ -241067,8 +241074,8 @@ MonoBehaviour:
     noiseShadingTint1: {r: 0.8627451, g: 0.88235295, b: 0.9411765, a: 1}
     noiseShadingTint2: {r: 1, g: 1, b: 1, a: 1}
     noiseShadingTint3: {r: 1, g: 1, b: 1, a: 1}
-    mainFurStrandBoost: 1
-    secondaryFurStrandBoost: 1
+    mainFurStrandBoost: 1.8
+    secondaryFurStrandBoost: 1.8
     useVertexData: 1
     furDataMap: {fileID: 2800000, guid: eea77ec077e6284449680eecc2fddf8a, type: 3}
     furGroomingMap: {fileID: 2800000, guid: 5ee3ead991e23d54b8cbd2e7621ce07d, type: 3}
@@ -241135,16 +241142,16 @@ MonoBehaviour:
     physicsMat: {fileID: 0}
   _vfxModule:
     pidiSkin2: {fileID: 0}
-    _quality: 0
+    _quality: 3
     _internalName: VFX & Weather
     _version: {x: 4, y: 0, z: 0}
-    _enabled: 0
+    _enabled: 1
     _xfurInstance: {fileID: 8440904054670211876}
     executeInEditor: 0
     VFXProgressiveShader: {fileID: 4800000, guid: 0893e27954320b1458f25f08244b2472, type: 3}
     _vfxMat: {fileID: 0}
     disableOnLOD: 0
-    _updateTime: 0.05
+    _updateTime: 0.1
     Snow:
       name: SnowFX
       color: {r: 0.85, g: 0.95, b: 1, a: 1}
@@ -241162,13 +241169,13 @@ MonoBehaviour:
       name: RainFX
       color: {r: 1, g: 1, b: 1, a: 1}
       specular: {r: 0.45, g: 0.5, b: 0.6, a: 1}
-      penetration: 0.75
-      smoothness: 0.75
+      penetration: 0.5
+      smoothness: 0.6
       intensity: 1.25
-      fadeoutTime: 4
-      normalFalloff: 0.75
-      vfxMask: {fileID: 0}
-      vfxTiling: 2
+      fadeoutTime: 12
+      normalFalloff: 0.2
+      vfxMask: {fileID: 2800000, guid: 3e1661329892b974baa611e245c0b5d5, type: 3}
+      vfxTiling: 4
       updated: 0
       ignoreWeatherComponent: 0
     Blood:
@@ -252280,6 +252287,62 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!1 &8791002026854113401
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8791002026854113402}
+  - component: {fileID: 8791002026854113403}
+  m_Layer: 0
+  m_Name: Weather Zone
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8791002026854113402
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8791002026854113401}
+  serializedVersion: 2
+  m_LocalRotation: {x: 5.33675e-18, y: 0.9961947, z: -0.08715574, w: 6.099933e-17}
+  m_LocalPosition: {x: 481, y: 12, z: 440}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 10, y: 180, z: 0}
+--- !u!114 &8791002026854113403
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8791002026854113401}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e12c7afcf95c1ef46a25b7eab6a70d3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: XFurStudio4::XFurStudio.Utilities.XFurWeatherManager
+  WindFrequency: 2.5
+  WindStrength: 0
+  SnowIntensity: 0
+  RainIntensity: 0
+  SnowWindInfluence: 0.3
+  RainWindInfluence: 0.3
+  SnowDirection: {x: 0, y: -1, z: 0}
+  RainDirection: {x: 0, y: -1, z: 0}
+  SnowAbsDirection: {x: 0, y: -1, z: 0}
+  RainAbsDirection: {x: 0, y: -1, z: 0}
+  snowGizmos: 0
+  rainGizmos: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -252307,3 +252370,4 @@ SceneRoots:
   - {fileID: 511418099}
   - {fileID: 935069770}
   - {fileID: 997864748}
+  - {fileID: 8791002026854113402}

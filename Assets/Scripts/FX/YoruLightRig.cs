@@ -278,5 +278,21 @@ public class YoruLightRig : MonoBehaviour
         rimSide = value;
     }
 
+    /// <summary>
+    /// ROUND 80 - read by StormWeather so it can boost the fill for the storm and restore it after.
+    /// </summary>
+    public float FillIntensity
+    {
+        get { return fillIntensity; }
+    }
+
+    /// <summary>
+    /// ROUND 80 - the rim light the rig drives, read by StormWeather for the storm rim boost.
+    /// </summary>
+    public Light RimLight
+    {
+        get { return rimLight; }
+    }
+
     #endregion
 }

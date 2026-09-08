@@ -1,5 +1,17 @@
 ﻿#include "XFurStudio_Core.cginc"
 
+// Yoru wet look. Set by YoruFurLighting.cs. With _YoruWetOverride at 0 (the default for an
+// unset global) every line below reproduces XFur's original constants exactly.
+half _YoruWetOverride;
+half _YoruWetDarken;
+half4 _YoruWetTint;
+half _YoruWetMetallic;
+half _YoruWetRim;
+half _YoruWetSag;
+half _YoruWetClump;
+half _YoruWetClumpScale;
+half _YoruWetAll;   // base soak for the whole coat; XFur's rain pass only wets surfaces facing the sky
+
 // Upgrade NOTE: excluded shader from OpenGL ES 2.0 because it uses non-square matrices
 #pragma exclude_renderers gles
 
@@ -166,12 +178,13 @@ void XFShellVert(inout appdata_full v, out Input o) {
 	windSim *= _XFurSelfWindStrength * _XFurWindStrength * pow((totalLength / _XFurTotalPasses) * (1 + fPass), 1.5);
 
 	half4 vfxMask = tex2Dlod(_XFurVFXMask, float4(v.texcoord.xy, 0, 1));
+	vfxMask.b = max(vfxMask.b, _YoruWetAll * _YoruWetOverride);
 
 	half3 furDir = lerp(0, tangentNormal(groomData.xyz, float4( v.tangent.xyz, 1 ), v.normal.xyz, mul(unity_ObjectToWorld, float4( v.vertex.xyz, 1 ) ).xyz ), _XFurHasGroomData);
 
 	float4 physicsForce = tex2Dlod(_XFurPhysics, float4(v.texcoord.xy, 0, 0));
 
-	float3 physDir = physicsForce.xyz + float3(0, -0.35 * vfxMask.b, 0);
+	float3 physDir = physicsForce.xyz + float3(0, -lerp(0.35, _YoruWetSag, _YoruWetOverride) * vfxMask.b, 0);
 
 
 	//furDir = mul(unity_WorldToObject, furDir);
@@ -288,6 +301,7 @@ void XFShellSurfacePass(Input IN, inout SurfaceOutputStandard o)
 	half furClip = lerp(fur.r, fur.g, underOver);
 
 	half4 vfxMap = tex2D(_XFurVFXMask, IN.xfurUVs.xy);
+	vfxMap.b = max(vfxMap.b, _YoruWetAll * _YoruWetOverride);
 
 
 	half totalThickness = _XFurSelfThickness * furData.a * (1 + 0.15 * vfxMap.g * (1 - vfxMap.r));
@@ -296,6 +310,12 @@ void XFShellSurfacePass(Input IN, inout SurfaceOutputStandard o)
 
 
 	furClip = furData.r * thicknessCurve - lerp(0.05, 0.025, underOver) * _XFurSelfLength * (fPass / _XFurTotalPasses);
+
+	// Yoru: wet fur groups into pointed clumps. Where a low frequency noise is low, strands
+	// thin out toward the tips and vanish; where it is high they survive as clumps.
+	float wetClumpNoise = 0;
+	XFurGradientNoise(IN.xfurUVs.xy, _YoruWetClumpScale, wetClumpNoise);
+	furClip -= _YoruWetOverride * _YoruWetClump * vfxMap.b * (fPass / _XFurTotalPasses) * saturate(1 - wetClumpNoise);
 
 	int mod = ceil(_XFurTotalPasses / _XFurLODStrength);
 
@@ -361,7 +381,7 @@ void XFShellSurfacePass(Input IN, inout SurfaceOutputStandard o)
 
 		half4 fxColor = blood + snow;
 
-		o.Metallic = max(blood * 0.25, vfxMap.b * 0.5);
+		o.Metallic = max(blood * 0.25, vfxMap.b * lerp(0.5, _YoruWetMetallic, _YoruWetOverride));
 
 		float smoothness = 0;
 
@@ -369,7 +389,8 @@ void XFShellSurfacePass(Input IN, inout SurfaceOutputStandard o)
 
 		o.Smoothness = saturate( smoothness * max( fur.r, fur.g ) * 4 + saturate( smoothness - 0.35 ) + pow (max(fur.r, fur.g),4) * smoothness * 16 ) * lerp( pow((fPass / _XFurTotalPasses), 12 * occlusionCurve), 1, 0.65 );//
 
-		fColor *= lerp(1, 0.55, vfxMap.b * saturate(lerp(1, (pow((fPass / _XFurTotalPasses), 2 * _XFurVFX3Penetration)), 1) * 4));
+		half wetDepth = vfxMap.b * saturate(lerp(1, (pow((fPass / _XFurTotalPasses), 2 * _XFurVFX3Penetration)), 1) * 4);
+		fColor.rgb *= lerp(half3(1, 1, 1), lerp(half3(0.55, 0.55, 0.55), _YoruWetTint.rgb * _YoruWetDarken, _YoruWetOverride), wetDepth);
 
 		o.Albedo = lerp(fColor, fxColor, saturate(vfxMap.r + vfxMap.g ));
 
@@ -404,7 +425,7 @@ void XFShellSurfacePass(Input IN, inout SurfaceOutputStandard o)
 #endif
 
 		half rim = 1.0 - saturate(dot(normalize(IN.viewDir), o.Normal));
-		half3 rimColor = lerp(_XFurSelfRimColor * saturate(lerp(fColor * 2, saturate(occlusion * 2), saturate(_XFurSelfRimBoost - 1) * 0.65)), saturate(o.Albedo * 2), 0.25) * _XFurSelfRimBoost * pow(rim, _XFurSelfRimPower) * (1 - length(vfxMap));
+		half3 rimColor = lerp(_XFurSelfRimColor * saturate(lerp(fColor * 2, saturate(occlusion * 2), saturate(_XFurSelfRimBoost - 1) * 0.65)), saturate(o.Albedo * 2), 0.25) * _XFurSelfRimBoost * pow(rim, _XFurSelfRimPower) * (1 - lerp(length(vfxMap), saturate(length(vfxMap.rga) + vfxMap.b * (1 - _YoruWetRim)), _YoruWetOverride));
 		o.Albedo += rimColor;
 		o.Albedo = saturate(o.Albedo);
 

@@ -31,6 +31,17 @@ using UnityEngine;
 ///
 /// The values are also drivable from script, so the fight phases can push the sheen and
 /// the backlight harder as the music gets faster.
+///
+/// ROUND 81 - WET LOOK. XFur's wet fur (the VFX module's rain, vfxMap.b in the shader) is
+/// four constants baked into XFurStudio_StandardPasses.cginc: wet shells colour x0.55,
+/// metallic 0.5, rim light x0, shells pulled down by 0.35. Together they read as a short,
+/// burnt, chrome coat. Those constants are now behind a switch, _YoruWetOverride, and the
+/// sliders below replace them while this component is enabled. With the component off or
+/// absent the global reads 0 and XFur renders exactly as shipped, in this scene and in
+/// every other one. A fifth term is new: strands thin out toward the tips inside a low
+/// frequency noise so wet fur groups into pointed clumps instead of a smooth sheet.
+/// Rain Roughness, Penetration, the mask and Fade Time stay on the XFur Studio Instance,
+/// VFX and Weather module, Rain FX.
 /// </summary>
 [ExecuteAlways]
 [DisallowMultipleComponent]
@@ -71,9 +82,63 @@ public class YoruFurLighting : MonoBehaviour
     [Range(0f, 4f)]
     [SerializeField] private float transmission = 1.2f;
 
+    [Header("=== WET LOOK (rain on the fur, round 81) ===")]
+    [Tooltip("How much of the colour a soaked shell keeps. XFur's fixed value is 0.55, " +
+             "which is the burnt look. 0.75 is a wet cat: clearly darker, not dirty. " +
+             "Only the outer shells darken (Penetration on the Rain FX decides how deep), " +
+             "so the roots stay light and the depth survives.")]
+    [Range(0.3f, 1f)]
+    [SerializeField] private float wetDarken = 0.75f;
+
+    [Tooltip("Colour the wet darkening is tinted with. White is a neutral darkening. A " +
+             "slightly warm grey pulls the moonlit blue-white coat toward the dirty " +
+             "yellowish white of a real wet cat.")]
+    [SerializeField] private Color wetTint = new Color(1f, 0.94f, 0.84f, 1f);
+
+    [Tooltip("Metallic of a soaked shell. XFur's fixed value is 0.5, which halves the " +
+             "diffuse light and turns the sheen into chrome. 0.3 keeps a wet gloss along " +
+             "the strands, 0.1 is nearly matte. Highlight tightness lives on the Rain FX as " +
+             "Roughness: lower Roughness, tighter and more directional highlights.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float wetMetallic = 0.3f;
+
+    [Tooltip("How much of the rim light a soaked shell keeps. XFur kills it completely " +
+             "(0), which is why the wet silhouette went flat. 0.4 keeps her readable " +
+             "against the rock while wet still reads darker than dry.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float wetRim = 0.4f;
+
+    [Tooltip("Downward pull on soaked shells. XFur's fixed value is 0.35. 0 keeps the " +
+             "dry length, 0.6 flattens the coat to the skin. 0.12 bends the tips down " +
+             "and slims the silhouette while the clumps still stand out as spikes.")]
+    [Range(0f, 0.6f)]
+    [SerializeField] private float wetSag = 0.12f;
+
+    [Tooltip("Clumping. Wet strands thin out toward the tips wherever a low frequency " +
+             "noise is low, so the coat separates into pointed groups. 0 is XFur's " +
+             "smooth sheet, 0.4 is barely visible at gameplay distance, 0.85 reads as a " +
+             "wet cat with bald valleys between the clumps.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float wetClump = 0.85f;
+
+    [Tooltip("Size of the clumps, as a tiling of the noise over the UV space. Lower is " +
+             "bigger clumps. The tails have a coarser UV layout than the body, so at the " +
+             "same value their clumps come out about three times larger; judge on the body.")]
+    [Range(4f, 128f)]
+    [SerializeField] private float wetClumpScale = 24f;
+
     private static readonly int DirId = Shader.PropertyToID("_XFurMainStandardLightDir");
     private static readonly int ColId = Shader.PropertyToID("_XFurMainStandardLightColor");
     private static readonly int TransId = Shader.PropertyToID("_XFurSelfTransmission");
+
+    private static readonly int WetOverrideId = Shader.PropertyToID("_YoruWetOverride");
+    private static readonly int WetDarkenId = Shader.PropertyToID("_YoruWetDarken");
+    private static readonly int WetTintId = Shader.PropertyToID("_YoruWetTint");
+    private static readonly int WetMetallicId = Shader.PropertyToID("_YoruWetMetallic");
+    private static readonly int WetRimId = Shader.PropertyToID("_YoruWetRim");
+    private static readonly int WetSagId = Shader.PropertyToID("_YoruWetSag");
+    private static readonly int WetClumpId = Shader.PropertyToID("_YoruWetClump");
+    private static readonly int WetClumpScaleId = Shader.PropertyToID("_YoruWetClumpScale");
 
     private Light Key
     {
@@ -92,6 +157,8 @@ public class YoruFurLighting : MonoBehaviour
 
     private void Apply()
     {
+        ApplyWetLook();
+
         Light key = Key;
 
         // A missing or switched off key light means no sheen and no backlight, the same
@@ -120,11 +187,31 @@ public class YoruFurLighting : MonoBehaviour
         Shader.SetGlobalFloat(TransId, transmission);
     }
 
+    /// <summary>
+    /// Pushes the wet look sliders into the shell shader and switches the override on.
+    /// Runs every frame (edit mode too, the class is ExecuteAlways) so the sliders are
+    /// live while tuning in Play.
+    /// </summary>
+    private void ApplyWetLook()
+    {
+        Shader.SetGlobalFloat(WetOverrideId, 1f);
+        Shader.SetGlobalFloat(WetDarkenId, wetDarken);
+        Shader.SetGlobalColor(WetTintId, wetTint);
+        Shader.SetGlobalFloat(WetMetallicId, wetMetallic);
+        Shader.SetGlobalFloat(WetRimId, wetRim);
+        Shader.SetGlobalFloat(WetSagId, wetSag);
+        Shader.SetGlobalFloat(WetClumpId, wetClump);
+        Shader.SetGlobalFloat(WetClumpScaleId, wetClumpScale);
+    }
+
     private void OnDisable()
     {
         // Leave the direction and colour alone so anything else reading them is not
         // surprised, but drop the backlight, since nothing else in the project sets it.
         Shader.SetGlobalFloat(TransId, 0f);
+
+        // Back to XFur's shipped wet constants when this component is not running.
+        Shader.SetGlobalFloat(WetOverrideId, 0f);
     }
 
     /// <summary>
