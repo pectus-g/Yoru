@@ -42,6 +42,9 @@ using UnityEngine;
 /// frequency noise so wet fur groups into pointed clumps instead of a smooth sheet.
 /// Rain Roughness, Penetration, the mask and Fade Time stay on the XFur Studio Instance,
 /// VFX and Weather module, Rain FX.
+///
+/// ROUND 82 adds Wet Preview: an editor-only soak slider, so the wet look can be judged and
+/// tuned in the Scene view with no Play mode and no storm running.
 /// </summary>
 [ExecuteAlways]
 [DisallowMultipleComponent]
@@ -127,6 +130,16 @@ public class YoruFurLighting : MonoBehaviour
     [Range(4f, 128f)]
     [SerializeField] private float wetClumpScale = 24f;
 
+    [Header("=== WET PREVIEW (edit mode only, round 82) ===")]
+    [Tooltip("Soaks the whole coat right here in the Scene view, with no Play mode and no " +
+             "storm, so the seven sliders above can be judged live. 0 is dry, 1 is fully " +
+             "soaked. Drag this to 1, then drag the wet sliders and watch her, then set " +
+             "this back to 0 when you are done. It is ignored while the game is playing, " +
+             "where StormWeather owns the wetness (right-click StormWeather, Test: Fur " +
+             "soaked now); nothing is saved into the fur by it either way.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float wetPreview = 0f;
+
     private static readonly int DirId = Shader.PropertyToID("_XFurMainStandardLightDir");
     private static readonly int ColId = Shader.PropertyToID("_XFurMainStandardLightColor");
     private static readonly int TransId = Shader.PropertyToID("_XFurSelfTransmission");
@@ -139,6 +152,7 @@ public class YoruFurLighting : MonoBehaviour
     private static readonly int WetSagId = Shader.PropertyToID("_YoruWetSag");
     private static readonly int WetClumpId = Shader.PropertyToID("_YoruWetClump");
     private static readonly int WetClumpScaleId = Shader.PropertyToID("_YoruWetClumpScale");
+    private static readonly int WetAllId = Shader.PropertyToID("_YoruWetAll");
 
     private Light Key
     {
@@ -202,6 +216,16 @@ public class YoruFurLighting : MonoBehaviour
         Shader.SetGlobalFloat(WetSagId, wetSag);
         Shader.SetGlobalFloat(WetClumpId, wetClump);
         Shader.SetGlobalFloat(WetClumpScaleId, wetClumpScale);
+
+        // Edit mode only. _YoruWetAll is the whole-coat soak the shell shader reads, and in
+        // Play it belongs to StormWeather, which writes it every LateUpdate from the fight's
+        // wetness. Writing it here as well would make the two fight over the same global and
+        // flicker, so the preview is limited to the editor, which is where the tuning happens
+        // anyway: no Play, no boss, instant feedback in the Scene view.
+        if (!Application.isPlaying)
+        {
+            Shader.SetGlobalFloat(WetAllId, wetPreview);
+        }
     }
 
     private void OnDisable()
@@ -212,6 +236,12 @@ public class YoruFurLighting : MonoBehaviour
 
         // Back to XFur's shipped wet constants when this component is not running.
         Shader.SetGlobalFloat(WetOverrideId, 0f);
+
+        // Never leave the editor preview soak behind on a disabled component.
+        if (!Application.isPlaying)
+        {
+            Shader.SetGlobalFloat(WetAllId, 0f);
+        }
     }
 
     /// <summary>

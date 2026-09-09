@@ -1,13 +1,14 @@
-# Oni combat log — 2026-09-07 21:53:55
+# Oni combat log — 2026-09-08 19:35:09
 # Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
 # columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
 #
-[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-07_21-53-55.log
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-08_19-35-09.log
 [     0    0.000 x1.00] LOG  [RingMesh] Auto-found 11/11 left, 11/11 right meshes
 [     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
 [     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
 [     1    0.000 x1.00] LOG  [StormWeather] post volumes ready on layer 9 (storm priority 10, flash priority 11).
-[     1    0.000 x1.00] LOG  [StormWeather] COZY bridge: Rain_Cave retired — COZY owns the rain now.
+[     1    0.000 x1.00] LOG  [StormWeather] ROUND 80: fur weather ready on 'Weather Zone'. Rain 0, wind 0.50 in the open, sky check 30 m from 'PlayerYoru_1.1'.
+[     1    0.000 x1.00] LOG  [StormWeather] COZY bridge: Rain_Cave retired, COZY owns the rain now.
 [     1    0.000 x1.00] LOG  [StormWeather] COZY → 'Clear' (pre-fight - open sky, 0 s)
 [     1    0.000 x1.00] LOG  [StormWeather] Ready. Open sky, dry floor. Waiting for the fight.
 [     1    0.000 x1.00] LOG  [FreezeDebug v3] Armed. Manual=L. Auto=True. Buffer=60 snaps @ 0.1s = 6.0s history.
@@ -56,52 +57,40 @@
 [     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
 [     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized — Phase 3C v27
 [     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
-[     1    2.274 x1.00] LOG  [OniBoss] Playing animation: Idle
-[     1    2.274 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
-[    57    3.106 x1.00] LOG  💨 Landing VFX spawned!
-[    57    3.106 x1.00] LOG  ✅ LANDED! (was jump #0)
-[   304    4.680 x1.00] LOG  
+[     1    2.389 x1.00] LOG  [OniBoss] Playing animation: Idle
+[     1    2.389 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
+[    71    3.237 x1.00] LOG  💨 Landing VFX spawned!
+[    71    3.237 x1.00] LOG  ✅ LANDED! (was jump #0)
+[   150    3.617 x1.00] LOG  
 ==================== [FREEZE-DEBUG v3] ====================
-  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.41s
-  Time   : 2.000s   Frame: 304   Snaps: 20
+  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
+  Time   : 0.802s   Frame: 150   Snaps: 8
 ===========================================================
 
 --- CURRENT STATE ---
   Flags: atk=False hvy=False dod=False dsh=False
          grd=False hit=False aerial=False lockPos=False
          comboStep=0
-  Anim : speed=1.00  combatLayer hash=-792875657 normT=1.994 weight=1.00 inTransition=False
-  CC   : grounded=True  enabled=True  pos=(474.50, -0.02, 425.77)  vel=(0.00, 0.00, 0.00)
-  Move : IsRunning=True
-  Input: H=0.00 V=-1.00  LMB=False MMB=False Q=False Sp=False Sh=True C=False
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=0.797 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(474.50, -0.02, 426.47)  vel=(0.00, 0.00, 0.00)
+  Move : IsRunning=False
+  Input: H=0.00 V=-1.00  LMB=False MMB=False Q=False Sp=False Sh=False C=False
          WASD pressed in last 0.5s: True (last 0.00s ago)
 
---- FLIGHT RECORDER (20 snapshots, oldest first, dt=0.10s) ---
+--- FLIGHT RECORDER (8 snapshots, oldest first, dt=0.10s) ---
   Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
   t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
   ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
-  - 2.00s  --------    0  n   Y  1.00  0.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.89s  --------    0  n   Y  1.00  0.09 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.79s  --------    0  n   Y  1.00  0.20 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.69s  --------    0  n   Y  1.00  0.31 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.58s  --------    0  n   Y  1.00  0.41 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.48s  --------    0  Y   Y  1.00  0.52 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.38s  --------    0  Y   Y  1.00  0.62 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.27s  --------    0  Y   Y  1.00  0.72 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.17s  --------    0  Y   Y  1.00  0.82 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 1.07s  --------    0  Y   Y  1.00  0.93 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.97s  --------    0  Y   Y  1.00  1.03 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.87s  --------    0  Y   Y  1.00  1.13 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.76s  --------    0  Y   Y  1.00  1.23 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.66s  --------    0  Y   Y  1.00  1.33 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.56s  --------    0  Y   Y  1.00  1.43 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.46s  --------    0  Y   Y  1.00  1.54 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.36s  --------    0  Y   Y  1.00  1.64 1.00 -  |   474.5    427.2  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.25s  --------    0  Y   Y  1.00  1.74 1.00 -  |   474.5    427.0  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.15s  --------    0  Y   Y  1.00  1.84 1.00 -  |   474.5    426.8  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.05s  --------    0  Y   Y  1.00  1.95 1.00 -  |   474.5    426.2  0.00 |  0.0 -1.0 0   0   0  0  1  0
+  - 0.80s  --------    0  n   Y  1.00  0.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.70s  --------    0  n   Y  1.00  0.10 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.60s  --------    0  n   Y  1.00  0.20 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.50s  --------    0  n   Y  1.00  0.30 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.39s  --------    0  n   Y  1.00  0.40 1.00 -  |   474.5    427.2  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 0.29s  --------    0  Y   Y  1.00  0.51 1.00 -  |   474.5    427.1  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 0.19s  --------    0  Y   Y  1.00  0.61 1.00 -  |   474.5    426.9  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 0.08s  --------    0  Y   Y  1.00  0.71 1.00 -  |   474.5    426.7  0.00 |  0.0 -1.0 0   0   0  0  0  0
 =========================================================== END
 
-[   408    5.342 x1.00] LOG  [OniBoss:Layer] watch stance OFF, back to Idle (player 16.5m)
-[  6314   40.070 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
-# end — 56 lines
+[   492    5.320 x1.00] LOG  [OniBoss:Layer] watch stance OFF, back to Idle (player 16.5m)
+[ 14307   78.524 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 57 lines

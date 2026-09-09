@@ -1538,6 +1538,7 @@ MonoBehaviour:
   wetSag: 0.12
   wetClump: 0.85
   wetClumpScale: 24
+  wetPreview: 1
 --- !u!114 &283845567
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1983,6 +1984,52 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 340321533}
   m_Mesh: {fileID: 4764359798038084437, guid: cb48793c92c926345b8d99ad85dd75d1, type: 3}
+--- !u!28 &381568912
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1 &390675644
 GameObject:
   m_ObjectHideFlags: 0
@@ -2759,6 +2806,66 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7074274892573713130, guid: 5fa4b133af4e749dfb212eb6dafd6e93, type: 3}
   m_PrefabInstance: {fileID: 3714792184531341}
   m_PrefabAsset: {fileID: 0}
+--- !u!21 &564547736
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Hidden/XFur Studio/Modules/VFX Pass
+  m_Shader: {fileID: 4800000, guid: 0893e27954320b1458f25f08244b2472, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _InputMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask3:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _VFXTiling0: 2
+    - _VFXTiling1: 2
+    - _VFXTiling2: 2
+    - _VFXTiling3: 2
+    - _XFurVFX1GlobalAdd: 1
+    - _XFurVFX2GlobalAdd: 1
+    - _XFurVFX3GlobalAdd: 1
+    m_Colors:
+    - _XFurVFX0Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFX1Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFX2Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFX3Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFXGlobalMask: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1001 &574674559
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2884,7 +2991,7 @@ MonoBehaviour:
   usePhysicalSunHeight: 1
   sunDirection: 120
   sunPitch: 0
-  moonDirection: {x: 0.1625286, y: -0.94145423, z: -0.29537842}
+  moonDirection: {x: -0.42427233, y: 0.3185166, z: 0.8476676}
   skyZenithColor: {r: 0, g: 0.045963235, b: 0.08899265, a: 1}
   skyHorizonColor: {r: 0.013701539, g: 0.19307761, b: 0.29925093, a: 1}
   cloudColor: {r: 0.39864698, g: 0.24476075, b: 0.2248649, a: 1}
@@ -3315,52 +3422,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 621515757}
   m_Mesh: {fileID: -5348557364243794703, guid: 6eb673388bd88a34f89bd0027a526fe2, type: 3}
---- !u!28 &644894448
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!1001 &650935267
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3423,6 +3484,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4844243980592494754, guid: cfe6d1eb037404236ae2edf51fe44410, type: 3}
   m_PrefabInstance: {fileID: 650935267}
   m_PrefabAsset: {fileID: 0}
+--- !u!28 &666086372
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1 &667984209
 GameObject:
   m_ObjectHideFlags: 0
@@ -5275,6 +5382,66 @@ MonoBehaviour:
   dryingSpeed: 0.5
   snowSpeed: 0
   rainSpeed: 0
+--- !u!21 &681469228
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Hidden/XFur Studio/Modules/VFX Pass
+  m_Shader: {fileID: 4800000, guid: 0893e27954320b1458f25f08244b2472, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _InputMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask3:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _VFXTiling0: 2
+    - _VFXTiling1: 2
+    - _VFXTiling2: 2
+    - _VFXTiling3: 2
+    - _XFurVFX1GlobalAdd: 1
+    - _XFurVFX2GlobalAdd: 1
+    - _XFurVFX3GlobalAdd: 1
+    m_Colors:
+    - _XFurVFX0Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFX1Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFX2Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFX3Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFXGlobalMask: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &687015176
 GameObject:
   m_ObjectHideFlags: 0
@@ -16150,6 +16317,23 @@ MonoBehaviour:
   strikeFlashExposure: 0.5
   strikeFlashChromatic: 0.2
   strikeFlashSeconds: 0.12
+  furWeather: {fileID: 0}
+  furWindTarget: {fileID: 0}
+  furRainScale: 0.5
+  furSoakAll: 0.6
+  furSoakSeconds: 12
+  calmWind: 0.5
+  stormWind: 1.4
+  calmWindFrequency: 2.5
+  stormWindFrequency: 7
+  skyCheckMask:
+    serializedVersion: 2
+    m_Bits: 4294961617
+  skyCheckHeight: 30
+  skyCheckOrigin: 2.6
+  coverBlendSeconds: 1
+  stormFillBoost: 0.25
+  stormRimMultiplier: 1.3
   debugLog: 1
 --- !u!4 &808080804 stripped
 Transform:
@@ -26278,52 +26462,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1313720486062921053, guid: 89e1f81bcabb0d449a8ed67074556c66, type: 3}
   m_PrefabInstance: {fileID: 1680182975}
   m_PrefabAsset: {fileID: 0}
---- !u!28 &1707171473
-Texture2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
 --- !u!1 &1717207673
 GameObject:
   m_ObjectHideFlags: 0
@@ -26461,7 +26599,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1729642447}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.55758595, y: -0.20349129, z: -0.14327416, w: 0.79193544}
+  m_LocalRotation: {x: 0.037108485, y: 0.9604461, z: -0.15704878, w: 0.22694038}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -26478,7 +26616,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 11
   m_Type: 1
-  m_Color: {r: 0, g: 0, b: 0, a: 0}
+  m_Color: {r: 0.7963621, g: 0.85311425, b: 0.96415097, a: 0}
   m_Intensity: 0
   m_Range: 10
   m_SpotAngle: 30
@@ -30325,6 +30463,52 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1765026172}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!28 &1999890451
+Texture2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_IsAlphaChannelOptional: 0
+  serializedVersion: 4
+  m_Width: 1
+  m_Height: 1
+  m_CompleteImageSize: 4
+  m_MipsStripped: 0
+  m_TextureFormat: 5
+  m_MipCount: 1
+  m_IsReadable: 1
+  m_IsPreProcessed: 0
+  m_IgnoreMipmapLimit: 1
+  m_MipmapLimitGroupName: 
+  m_StreamingMipmaps: 0
+  m_StreamingMipmapsPriority: 0
+  m_VTOnly: 0
+  m_AlphaIsTransparency: 0
+  m_ImageCount: 1
+  m_TextureDimension: 2
+  m_TextureSettings:
+    serializedVersion: 2
+    m_FilterMode: 1
+    m_Aniso: 1
+    m_MipBias: 0
+    m_WrapU: 0
+    m_WrapV: 0
+    m_WrapW: 0
+  m_LightmapFormat: 0
+  m_ColorSpace: 0
+  m_PlatformBlob: 
+  image data: 4
+  _typelessdata: 80ff80ff
+  m_StreamData:
+    serializedVersion: 2
+    offset: 0
+    size: 0
+    path: 
 --- !u!1 &2004888434
 GameObject:
   m_ObjectHideFlags: 0
@@ -30483,52 +30667,66 @@ Texture2D:
     offset: 0
     size: 0
     path: 
---- !u!28 &2035453622
-Texture2D:
+--- !u!21 &2040605740
+Material:
+  serializedVersion: 8
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_IsAlphaChannelOptional: 0
-  serializedVersion: 4
-  m_Width: 1
-  m_Height: 1
-  m_CompleteImageSize: 4
-  m_MipsStripped: 0
-  m_TextureFormat: 5
-  m_MipCount: 1
-  m_IsReadable: 1
-  m_IsPreProcessed: 0
-  m_IgnoreMipmapLimit: 1
-  m_MipmapLimitGroupName: 
-  m_StreamingMipmaps: 0
-  m_StreamingMipmapsPriority: 0
-  m_VTOnly: 0
-  m_AlphaIsTransparency: 0
-  m_ImageCount: 1
-  m_TextureDimension: 2
-  m_TextureSettings:
-    serializedVersion: 2
-    m_FilterMode: 1
-    m_Aniso: 1
-    m_MipBias: 0
-    m_WrapU: 0
-    m_WrapV: 0
-    m_WrapW: 0
-  m_LightmapFormat: 0
-  m_ColorSpace: 0
-  m_PlatformBlob: 
-  image data: 4
-  _typelessdata: 80ff80ff
-  m_StreamData:
-    serializedVersion: 2
-    offset: 0
-    size: 0
-    path: 
+  m_Name: Hidden/XFur Studio/Modules/VFX Pass
+  m_Shader: {fileID: 4800000, guid: 0893e27954320b1458f25f08244b2472, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _InputMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _VFXMask3:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _VFXTiling0: 2
+    - _VFXTiling1: 2
+    - _VFXTiling2: 2
+    - _VFXTiling3: 2
+    - _XFurVFX1GlobalAdd: 1
+    - _XFurVFX2GlobalAdd: 1
+    - _XFurVFX3GlobalAdd: 1
+    m_Colors:
+    - _XFurVFX0Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFX1Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFX2Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFX3Direction: {r: 0, g: -1, b: 0, a: 1}
+    - _XFurVFXGlobalMask: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &2056665887
 GameObject:
   m_ObjectHideFlags: 0
@@ -213644,7 +213842,7 @@ MonoBehaviour:
     hdrpShellsFurShader: {fileID: 0}
     internalFurMaterial: {fileID: 669912919}
     internalFurMaterialDoubleSided: {fileID: 1091656911}
-    emptyNormalmap: {fileID: 644894448}
+    emptyNormalmap: {fileID: 666086372}
     xfurPaintShader: {fileID: 4800000, guid: 9e0a3f463c12314439beee31c82d3179, type: 3}
     xfurUnwrapShader: {fileID: 4800000, guid: 8cdce5fb7cfce0c41933abbbd29e1989, type: 3}
     xfurFillerShader: {fileID: 4800000, guid: 8b2d50329d7544d47b978dc1acc4ef23, type: 3}
@@ -213688,7 +213886,7 @@ MonoBehaviour:
     windStrengthMultiplier: 1
     physicsStrengthMultiplier: 1
     normalMap: {fileID: 0}
-    selfOcclusionStrength: 0.45
+    selfOcclusionStrength: 0.25
     selfOcclusionCurve: 0.3
     selfOcclusionTint: {r: 0.23529412, g: 0.21568628, b: 0.27450982, a: 1}
     roughness: 0.65
@@ -214030,7 +214228,7 @@ MonoBehaviour:
     _xfurInstance: {fileID: 7307030194180161927}
     executeInEditor: 0
     VFXProgressiveShader: {fileID: 4800000, guid: 0893e27954320b1458f25f08244b2472, type: 3}
-    _vfxMat: {fileID: 0}
+    _vfxMat: {fileID: 564547736}
     disableOnLOD: 0
     _updateTime: 0.1
     Snow:
@@ -219132,7 +219330,7 @@ MonoBehaviour:
     hdrpShellsFurShader: {fileID: 0}
     internalFurMaterial: {fileID: 915115321}
     internalFurMaterialDoubleSided: {fileID: 2100777332}
-    emptyNormalmap: {fileID: 1707171473}
+    emptyNormalmap: {fileID: 1999890451}
     xfurPaintShader: {fileID: 4800000, guid: 9e0a3f463c12314439beee31c82d3179, type: 3}
     xfurUnwrapShader: {fileID: 4800000, guid: 8cdce5fb7cfce0c41933abbbd29e1989, type: 3}
     xfurFillerShader: {fileID: 4800000, guid: 8b2d50329d7544d47b978dc1acc4ef23, type: 3}
@@ -219152,7 +219350,7 @@ MonoBehaviour:
     furStrandsTexture: {fileID: 0}
     furStrandsTiling: 13
     doubleSided: 1
-    furLength: 0.4
+    furLength: 0.25
     furThickness: 0.2
     furThicknessCurve: 0.3
     useCurlyFur: 1
@@ -219176,7 +219374,7 @@ MonoBehaviour:
     windStrengthMultiplier: 1
     physicsStrengthMultiplier: 1
     normalMap: {fileID: 0}
-    selfOcclusionStrength: 0.45
+    selfOcclusionStrength: 0.25
     selfOcclusionCurve: 0.3
     selfOcclusionTint: {r: 0.23529412, g: 0.21568628, b: 0.27450982, a: 1}
     roughness: 0.65
@@ -219242,7 +219440,7 @@ MonoBehaviour:
     _xfurInstance: {fileID: 7354217105118967234}
     executeInEditor: 0
     VFXProgressiveShader: {fileID: 4800000, guid: 0893e27954320b1458f25f08244b2472, type: 3}
-    _vfxMat: {fileID: 0}
+    _vfxMat: {fileID: 681469228}
     disableOnLOD: 0
     _updateTime: 0.1
     Snow:
@@ -241039,7 +241237,7 @@ MonoBehaviour:
     hdrpShellsFurShader: {fileID: 0}
     internalFurMaterial: {fileID: 2117209144}
     internalFurMaterialDoubleSided: {fileID: 1034114157}
-    emptyNormalmap: {fileID: 2035453622}
+    emptyNormalmap: {fileID: 381568912}
     xfurPaintShader: {fileID: 4800000, guid: 9e0a3f463c12314439beee31c82d3179, type: 3}
     xfurUnwrapShader: {fileID: 4800000, guid: 8cdce5fb7cfce0c41933abbbd29e1989, type: 3}
     xfurFillerShader: {fileID: 4800000, guid: 8b2d50329d7544d47b978dc1acc4ef23, type: 3}
@@ -241059,7 +241257,7 @@ MonoBehaviour:
     furStrandsTexture: {fileID: 0}
     furStrandsTiling: 13
     doubleSided: 1
-    furLength: 0.4
+    furLength: 0.25
     furThickness: 0.2
     furThicknessCurve: 0.3
     useCurlyFur: 1
@@ -241083,7 +241281,7 @@ MonoBehaviour:
     windStrengthMultiplier: 1
     physicsStrengthMultiplier: 1
     normalMap: {fileID: 0}
-    selfOcclusionStrength: 0.45
+    selfOcclusionStrength: 0.25
     selfOcclusionCurve: 0.3
     selfOcclusionTint: {r: 0.23529412, g: 0.21568628, b: 0.27450982, a: 1}
     roughness: 0.65
@@ -241149,7 +241347,7 @@ MonoBehaviour:
     _xfurInstance: {fileID: 8440904054670211876}
     executeInEditor: 0
     VFXProgressiveShader: {fileID: 4800000, guid: 0893e27954320b1458f25f08244b2472, type: 3}
-    _vfxMat: {fileID: 0}
+    _vfxMat: {fileID: 2040605740}
     disableOnLOD: 0
     _updateTime: 0.1
     Snow:
@@ -243490,6 +243688,62 @@ MonoBehaviour:
   characterLayers:
     serializedVersion: 2
     m_Bits: 8
+--- !u!1 &8791002026854113401
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8791002026854113402}
+  - component: {fileID: 8791002026854113403}
+  m_Layer: 0
+  m_Name: Weather Zone
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8791002026854113402
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8791002026854113401}
+  serializedVersion: 2
+  m_LocalRotation: {x: 5.33675e-18, y: 0.9961947, z: -0.08715574, w: 6.099933e-17}
+  m_LocalPosition: {x: 481, y: 12, z: 440}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 10, y: 180, z: 0}
+--- !u!114 &8791002026854113403
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8791002026854113401}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e12c7afcf95c1ef46a25b7eab6a70d3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: XFurStudio4::XFurStudio.Utilities.XFurWeatherManager
+  WindFrequency: 2.5
+  WindStrength: 0
+  SnowIntensity: 0
+  RainIntensity: 0
+  SnowWindInfluence: 0.3
+  RainWindInfluence: 0.3
+  SnowDirection: {x: 0, y: -1, z: 0}
+  RainDirection: {x: 0, y: -1, z: 0}
+  SnowAbsDirection: {x: 0, y: -1, z: 0}
+  RainAbsDirection: {x: 0, y: -1, z: 0}
+  snowGizmos: 0
+  rainGizmos: 0
 --- !u!1 &8797899171041365023
 GameObject:
   m_ObjectHideFlags: 0
@@ -252287,62 +252541,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!1 &8791002026854113401
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 8791002026854113402}
-  - component: {fileID: 8791002026854113403}
-  m_Layer: 0
-  m_Name: Weather Zone
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &8791002026854113402
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8791002026854113401}
-  serializedVersion: 2
-  m_LocalRotation: {x: 5.33675e-18, y: 0.9961947, z: -0.08715574, w: 6.099933e-17}
-  m_LocalPosition: {x: 481, y: 12, z: 440}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 10, y: 180, z: 0}
---- !u!114 &8791002026854113403
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8791002026854113401}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e12c7afcf95c1ef46a25b7eab6a70d3d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: XFurStudio4::XFurStudio.Utilities.XFurWeatherManager
-  WindFrequency: 2.5
-  WindStrength: 0
-  SnowIntensity: 0
-  RainIntensity: 0
-  SnowWindInfluence: 0.3
-  RainWindInfluence: 0.3
-  SnowDirection: {x: 0, y: -1, z: 0}
-  RainDirection: {x: 0, y: -1, z: 0}
-  SnowAbsDirection: {x: 0, y: -1, z: 0}
-  RainAbsDirection: {x: 0, y: -1, z: 0}
-  snowGizmos: 0
-  rainGizmos: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
