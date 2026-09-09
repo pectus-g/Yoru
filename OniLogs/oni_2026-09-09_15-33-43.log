@@ -1,8 +1,8 @@
-# Oni combat log — 2026-09-09 13:23:08
+# Oni combat log — 2026-09-09 15:33:43
 # Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
 # columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
 #
-[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-09_13-23-08.log
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-09_15-33-43.log
 [     0    0.000 x1.00] LOG  [RingMesh] Auto-found 11/11 left, 11/11 right meshes
 [     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
 [     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
@@ -11,7 +11,6 @@
 [     1    0.000 x1.00] LOG  [StormWeather] COZY bridge: Rain_Cave retired, COZY owns the rain now.
 [     1    0.000 x1.00] LOG  [StormWeather] COZY → 'Clear' (pre-fight - open sky, 0 s)
 [     1    0.000 x1.00] LOG  [StormWeather] Ready. Open sky, dry floor. Waiting for the fight.
-[     1    0.000 x1.00] LOG  [FreezeDebug v3] Armed. Manual=L. Auto=True. Buffer=60 snaps @ 0.1s = 6.0s history.
 [     1    0.000 x1.00] LOG  OniBoss initialized with 500 HP
 [     1    0.000 x1.00] LOG  [OniBoss] ANIMATOR SETUP: cullingMode=CullUpdateTransforms updateMode=Normal applyRootMotion=False speed=1
 [     1    0.000 x1.00] LOG  [OniBoss] Initialized
@@ -57,38 +56,16 @@
 [     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
 [     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized — Phase 3C v27
 [     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
-[     1    2.589 x1.00] LOG  [OniBoss] Playing animation: Idle
-[     1    2.589 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
-[    64    3.481 x1.00] LOG  💨 Landing VFX spawned!
-[    64    3.481 x1.00] LOG  ✅ LANDED! (was jump #0)
-[   105    3.698 x1.00] LOG  
-==================== [FREEZE-DEBUG v3] ====================
-  Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
-  Time   : 0.641s   Frame: 105   Snaps: 7
-===========================================================
-
---- CURRENT STATE ---
-  Flags: atk=False hvy=False dod=False dsh=False
-         grd=False hit=False aerial=False lockPos=False
-         comboStep=0
-  Anim : speed=1.00  combatLayer hash=-792875657 normT=0.636 weight=1.00 inTransition=False
-  CC   : grounded=True  enabled=True  pos=(474.50, -0.02, 426.46)  vel=(0.00, 0.00, 0.00)
-  Move : IsRunning=False
-  Input: H=0.00 V=-1.00  LMB=False MMB=False Q=False Sp=False Sh=False C=False
-         WASD pressed in last 0.5s: True (last 0.00s ago)
-
---- FLIGHT RECORDER (7 snapshots, oldest first, dt=0.10s) ---
-  Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
-  t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
-  ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
-  - 0.64s  --------    0  n   Y  1.00  0.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.54s  --------    0  n   Y  1.00  0.10 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.43s  --------    0  n   Y  1.00  0.20 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.33s  --------    0  n   Y  1.00  0.30 1.00 -  |   474.5    427.2  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.23s  --------    0  n   Y  1.00  0.41 1.00 -  |   474.5    427.0  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.12s  --------    0  Y   Y  1.00  0.51 1.00 -  |   474.5    426.7  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.02s  --------    0  Y   Y  1.00  0.62 1.00 -  |   474.5    426.5  0.00 |  0.0 -1.0 0   0   0  0  0  0
-=========================================================== END
-
-[  2793   17.068 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
-# end — 56 lines
+[     1    2.760 x1.00] LOG  [OniBoss] Playing animation: Idle
+[     1    2.760 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
+[    59    3.660 x1.00] LOG  💨 Landing VFX spawned!
+[    59    3.660 x1.00] LOG  ✅ LANDED! (was jump #0)
+[   258    4.742 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[   258    4.742 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target=none: no collider on enemyLayer within 8m
+[   258    4.742 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s
+[   283    4.872 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.90m — completed
+[   410    5.513 x1.00] LOG  🐾 VFX_AttackPaw triggered!
+[   464    5.787 x1.00] LOG  [ComboTrace] END step=1 clipProgress=0.85 clipLen=1.23s queued=0 elapsed=1.04s
+[   932    8.138 x1.00] LOG  [OniBoss:Layer] watch stance OFF, back to Idle (player 16.5m)
+[  6444   38.693 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 61 lines
