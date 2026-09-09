@@ -43,10 +43,13 @@ using UnityEngine;
 /// Rain Roughness, Penetration, the mask and Fade Time stay on the XFur Studio Instance,
 /// VFX and Weather module, Rain FX.
 ///
-/// ROUND 82 adds Wet Preview: an editor-only soak slider, so the wet look can be judged and
-/// tuned in the Scene view with no Play mode and no storm running.
+/// ROUND 82 adds Wet Preview: a soak slider that works in the Scene view AND in Play, so the
+/// wet look can be dragged and judged live the same way a post processing volume is tuned.
+/// In Play it acts as a floor under StormWeather's own wetness, and the execution order below
+/// puts this component after StormWeather so the floor is applied last and never flickers.
 /// </summary>
 [ExecuteAlways]
+[DefaultExecutionOrder(1000)]
 [DisallowMultipleComponent]
 public class YoruFurLighting : MonoBehaviour
 {
@@ -130,13 +133,15 @@ public class YoruFurLighting : MonoBehaviour
     [Range(4f, 128f)]
     [SerializeField] private float wetClumpScale = 24f;
 
-    [Header("=== WET PREVIEW (edit mode only, round 82) ===")]
-    [Tooltip("Soaks the whole coat right here in the Scene view, with no Play mode and no " +
-             "storm, so the seven sliders above can be judged live. 0 is dry, 1 is fully " +
-             "soaked. Drag this to 1, then drag the wet sliders and watch her, then set " +
-             "this back to 0 when you are done. It is ignored while the game is playing, " +
-             "where StormWeather owns the wetness (right-click StormWeather, Test: Fur " +
-             "soaked now); nothing is saved into the fur by it either way.")]
+    [Header("=== WET PREVIEW (round 82) ===")]
+    [Tooltip("Soaks the whole coat on demand so the sliders above can be judged live. 0 is " +
+             "dry, 1 is fully soaked. It works in the Scene view with the game stopped, and " +
+             "it works in Play, where it is a floor under the storm's own wetness: at 0 the " +
+             "fight owns the coat as usual, at 1 she is soaked no matter what the weather " +
+             "is doing. Tune it in Play like a post processing volume, then copy the values " +
+             "out before you stop, since Play mode edits are discarded: right-click the " +
+             "YoruFurLighting header, Copy Component, stop Play, right-click again, Paste " +
+             "Component Values. Set this back to 0 when you are finished.")]
     [Range(0f, 1f)]
     [SerializeField] private float wetPreview = 0f;
 
@@ -217,14 +222,31 @@ public class YoruFurLighting : MonoBehaviour
         Shader.SetGlobalFloat(WetClumpId, wetClump);
         Shader.SetGlobalFloat(WetClumpScaleId, wetClumpScale);
 
-        // Edit mode only. _YoruWetAll is the whole-coat soak the shell shader reads, and in
-        // Play it belongs to StormWeather, which writes it every LateUpdate from the fight's
-        // wetness. Writing it here as well would make the two fight over the same global and
-        // flicker, so the preview is limited to the editor, which is where the tuning happens
-        // anyway: no Play, no boss, instant feedback in the Scene view.
+        // With the game stopped nothing else writes the whole-coat soak, so the preview owns
+        // it outright and dropping the slider back to 0 dries her again. In Play it belongs to
+        // StormWeather, and LateUpdate below layers the preview on top of whatever it wrote.
         if (!Application.isPlaying)
         {
             Shader.SetGlobalFloat(WetAllId, wetPreview);
+        }
+    }
+
+    /// <summary>
+    /// Play mode only. StormWeather writes _YoruWetAll from the fight's wetness in its own
+    /// LateUpdate; this runs afterwards (DefaultExecutionOrder 1000) and raises the value to
+    /// the preview slider if the slider is higher. At 0 the fight is untouched, at 1 she is
+    /// soaked whatever the weather is doing, so the wet look can be tuned during gameplay.
+    /// </summary>
+    private void LateUpdate()
+    {
+        if (!Application.isPlaying)
+        {
+            return;
+        }
+
+        if (wetPreview > 0f)
+        {
+            Shader.SetGlobalFloat(WetAllId, Mathf.Max(Shader.GetGlobalFloat(WetAllId), wetPreview));
         }
     }
 
