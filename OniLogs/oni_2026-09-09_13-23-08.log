@@ -1,8 +1,8 @@
-# Oni combat log — 2026-09-09 12:07:08
+# Oni combat log — 2026-09-09 13:23:08
 # Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
 # columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
 #
-[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-09_12-07-08.log
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-09_13-23-08.log
 [     0    0.000 x1.00] LOG  [RingMesh] Auto-found 11/11 left, 11/11 right meshes
 [     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
 [     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
@@ -57,38 +57,38 @@
 [     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
 [     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized — Phase 3C v27
 [     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
-[     1    2.526 x1.00] LOG  [OniBoss] Playing animation: Idle
-[     1    2.526 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
-[    67    3.382 x1.00] LOG  💨 Landing VFX spawned!
-[    67    3.382 x1.00] LOG  ✅ LANDED! (was jump #0)
-[    95    3.527 x1.00] LOG  
+[     1    2.589 x1.00] LOG  [OniBoss] Playing animation: Idle
+[     1    2.589 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
+[    64    3.481 x1.00] LOG  💨 Landing VFX spawned!
+[    64    3.481 x1.00] LOG  ✅ LANDED! (was jump #0)
+[   105    3.698 x1.00] LOG  
 ==================== [FREEZE-DEBUG v3] ====================
   Reason : WASD-NOMOVE: WASD recent + speed 0.00m/s for 0.40s
-  Time   : 0.569s   Frame: 95   Snaps: 6
+  Time   : 0.641s   Frame: 105   Snaps: 7
 ===========================================================
 
 --- CURRENT STATE ---
   Flags: atk=False hvy=False dod=False dsh=False
          grd=False hit=False aerial=False lockPos=False
          comboStep=0
-  Anim : speed=1.00  combatLayer hash=-792875657 normT=0.563 weight=1.00 inTransition=False
-  CC   : grounded=True  enabled=True  pos=(474.50, -0.02, 426.44)  vel=(0.00, 0.00, 0.00)
+  Anim : speed=1.00  combatLayer hash=-792875657 normT=0.636 weight=1.00 inTransition=False
+  CC   : grounded=True  enabled=True  pos=(474.50, -0.02, 426.46)  vel=(0.00, 0.00, 0.00)
   Move : IsRunning=False
   Input: H=0.00 V=-1.00  LMB=False MMB=False Q=False Sp=False Sh=False C=False
          WASD pressed in last 0.5s: True (last 0.00s ago)
 
---- FLIGHT RECORDER (6 snapshots, oldest first, dt=0.10s) ---
+--- FLIGHT RECORDER (7 snapshots, oldest first, dt=0.10s) ---
   Legend: flags = A(tk) H(vy) D(od) S(sh) G(rd) R(eact) Y(aerial) L(ock)   gnd/cc: Y/n
   t-now    flags     step gnd cc anSp normT layW tr | posX     posZ     spd   | H    V    LMB MMB Q  Sp Sh C
   ------   --------  ---- --- -- ---- ----- ---- -- | -----    -----    ----  | ---- ---- --- --- -- -- -- -
-  - 0.57s  --------    0  n   Y  1.00  0.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.46s  --------    0  n   Y  1.00  0.10 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
-  - 0.36s  --------    0  n   Y  1.00  0.20 1.00 -  |   474.5    427.2  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.26s  --------    0  n   Y  1.00  0.31 1.00 -  |   474.5    427.1  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.15s  --------    0  n   Y  1.00  0.41 1.00 -  |   474.5    426.8  0.00 |  0.0 -1.0 0   0   0  0  0  0
-  - 0.05s  --------    0  Y   Y  1.00  0.51 1.00 -  |   474.5    426.6  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 0.64s  --------    0  n   Y  1.00  0.00 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.54s  --------    0  n   Y  1.00  0.10 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.43s  --------    0  n   Y  1.00  0.20 1.00 -  |   474.5    427.2  0.00 |  0.0  0.0 0   0   0  0  0  0
+  - 0.33s  --------    0  n   Y  1.00  0.30 1.00 -  |   474.5    427.2  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 0.23s  --------    0  n   Y  1.00  0.41 1.00 -  |   474.5    427.0  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 0.12s  --------    0  Y   Y  1.00  0.51 1.00 -  |   474.5    426.7  0.00 |  0.0 -1.0 0   0   0  0  0  0
+  - 0.02s  --------    0  Y   Y  1.00  0.62 1.00 -  |   474.5    426.5  0.00 |  0.0 -1.0 0   0   0  0  0  0
 =========================================================== END
 
-[   194    4.101 x1.00] LOG  [OniBoss:Layer] watch stance OFF, back to Idle (player 16.6m)
-[  2247   13.594 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
-# end — 57 lines
+[  2793   17.068 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 56 lines
