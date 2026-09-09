@@ -24,6 +24,12 @@ using DistantLands.Cozy.Data;
 ///   sky, so this writes _YoruWetAll = wetness * furSoakAll * openSky (blended over
 ///   furSoakSeconds) and the shader takes max(rain wetness, soak) per shell. Chest, legs and
 ///   tail undersides get damp instead of staying fluffy next to a soaked back.
+///   ROUND 83: the wind is now layered instead of switched. Her own movement always moves the
+///   coat, whatever the weather, from her speed and heading. On top of that the weather wind
+///   steps up: a breeze before the fight, more in phase 1, a storm in phase 2, and back to the
+///   breeze once he is down. The two are added as vectors and written straight to XFur's wind
+///   globals in LateUpdate, after the Weather Manager's own Update, so the rain direction it
+///   drives stays exactly as authored and only the fur feels her running.
 ///   Wind: strength = lerp(calm, storm, storm) * openSky. Open sky is a raycast straight up
 ///   from her head against the cave colliders, 5 Hz, blended over Cover Blend Seconds, so wind
 ///   lives in the open floor and dies under rock. XFur's wind enters the shader squared:
@@ -154,14 +160,35 @@ public class StormWeather : MonoBehaviour
     [Tooltip("XFur wind strength before the storm, in the open. The shader squares it: 0.4 invisible, 0.5 ripple, 1.0 real wind.")]
     [SerializeField, Range(0f, 2f)] private float calmWind = 0.5f;
 
+    [Tooltip("ROUND 83 - XFur wind strength during phase 1, once he engages. Sits between the pre-fight breeze and the storm so the fight has three wind steps instead of two.")]
+    [SerializeField, Range(0f, 2f)] private float phase1Wind = 0.9f;
+
     [Tooltip("XFur wind strength at full storm. 1.4 is violent, 2 is the slider maximum.")]
     [SerializeField, Range(0f, 2f)] private float stormWind = 1.4f;
 
     [Tooltip("Gust speed before the storm. 2 to 3 breathes.")]
     [SerializeField, Range(0f, 32f)] private float calmWindFrequency = 2.5f;
 
+    [Tooltip("ROUND 83 - gust speed during phase 1.")]
+    [SerializeField, Range(0f, 32f)] private float phase1WindFrequency = 4f;
+
     [Tooltip("Gust speed at full storm. 6 to 8 flutters.")]
     [SerializeField, Range(0f, 32f)] private float stormWindFrequency = 7f;
+
+    [Tooltip("ROUND 83 - how much wind her own movement makes, on top of the weather. This is always on, in every phase and under cover too, because she makes this air herself by moving through it. 0 is off, 0.8 reads as a run, 1.5 is a sprint through a gale.")]
+    [SerializeField, Range(0f, 2f)] private float moveWindMax = 0.8f;
+
+    [Tooltip("ROUND 83 - the speed in metres per second at which her movement wind reaches the maximum above. Set it near her run speed. Below this it scales down smoothly, so a walk moves the coat a little and a run moves it fully.")]
+    [SerializeField] private float moveWindFullSpeed = 6f;
+
+    [Tooltip("ROUND 83 - seconds for the movement wind to catch up when she starts, stops or turns. Small values snap, large values lag. 0.25 reads like real air.")]
+    [SerializeField] private float moveWindResponse = 0.25f;
+
+    [Tooltip("ROUND 83 - extra gust speed added at a full run, so the coat flutters faster while she moves rather than only leaning.")]
+    [SerializeField, Range(0f, 16f)] private float moveWindFrequencyBoost = 3f;
+
+    [Tooltip("ROUND 83 - seconds for the weather wind to rise or fall when the fight changes phase. The storm rolls in rather than snapping on.")]
+    [SerializeField] private float weatherWindResponse = 2f;
 
     [Tooltip("Layers that count as a roof for the sky check. Default: everything except TransparentFX, Ignore Raycast, Player, UI, Post_Processing, Enemy and CameraIgnore.")]
     [SerializeField] private LayerMask skyCheckMask = ~((1 << 1) | (1 << 2) | (1 << 3) | (1 << 5) | (1 << 9) | (1 << 10) | (1 << 12));
@@ -223,6 +250,19 @@ public class StormWeather : MonoBehaviour
     private bool furWasCovered;
     private float furSoak;                  // ROUND 81, current whole-coat soak 0..1, written to _YoruWetAll
     private static readonly int WetAllId = Shader.PropertyToID("_YoruWetAll");
+
+    // ROUND 83, layered wind runtime.
+    private static readonly int WindDirFreqId = Shader.PropertyToID("_XFurWindDirectionFreq");
+    private static readonly int WindStrengthId = Shader.PropertyToID("_XFurWindStrength");
+    private Vector3 weatherWindDir = Vector3.forward;   // the Weather Zone's authored heading, read once
+    private Vector3 furTargetLastPos;
+    private bool furTargetPosValid;
+    private Vector3 furMoveVelocity;                    // smoothed, metres per second
+    private float weatherWindNow;                       // smoothed weather wind, without her movement
+    private float weatherFreqNow;
+    private bool fightOver;                             // he is down, the sky goes back to normal
+    private Coroutine lightningRoutine;
+    private Coroutine stormRoutine;
 
     private void Start()
     {
@@ -301,7 +341,7 @@ public class StormWeather : MonoBehaviour
         if (fightStarted) return;
         fightStarted = true;
         if (!phase2) SetCozyWeather(phase1Weather, "fight engaged - storm rolls in", 0f);
-        StartCoroutine(LightningLoop());
+        lightningRoutine = StartCoroutine(LightningLoop());
         FadePostTo(phase1PostWeight, postFadeSeconds);   // ROUND 77
         if (debugLog) Debug.Log($"[StormWeather] FIGHT STARTED ({why}) - storm on, floor starts to soak.");
     }
@@ -322,6 +362,16 @@ public class StormWeather : MonoBehaviour
     private void Update()
     {
         if (oniCombat == null) return;
+        if (fightOver) return;   // ROUND 83 - he is down, the sky is on its way back to normal
+
+        // ROUND 83 - the fight ends when he dies. Everything the storm turned on is turned back off
+        // and the weather returns to the pre-fight breeze. Her movement wind keeps running, it never
+        // depended on the fight.
+        if (fightStarted && oniCombat.GetCurrentState() == EnemyCombat.EnemyState.Dead)
+        {
+            EndFight("he is down");
+            return;
+        }
 
         // ROUND 73 - the storm arrives the moment the fight starts. Same rule OniBoss uses to start the
         // boss music (Alert / Chase / Telegraph / Attack), so sky and music turn together. Instant, Hazel's pick.
@@ -339,7 +389,7 @@ public class StormWeather : MonoBehaviour
         {
             phase2 = true;
             OnFightStarted("phase 2 reached");   // ROUND 73 - no-op if the fight already started
-            StartCoroutine(RampStorm());
+            stormRoutine = StartCoroutine(RampStorm());
             FadePostTo(1f, transitionDuration);   // ROUND 77
             Strike();
             SetCozyWeather(phase2Weather, "the sky answers, storm chaos");   // ROUND 63
@@ -395,6 +445,17 @@ public class StormWeather : MonoBehaviour
             XFurStudio.Core.XFurStudioInstance.WeatherManager = furWeather;
         }
 
+        // ROUND 83 - remember the heading the Weather Zone was authored with. Nothing about that
+        // object is changed, rotation included, so the rain and snow directions it computes stay
+        // exactly as set. The fur's own wind direction is built from this heading plus her movement
+        // and written straight to the shader globals below.
+        weatherWindDir = furWeather.transform.forward;
+        if (weatherWindDir.sqrMagnitude < 0.0001f) weatherWindDir = Vector3.forward;
+        weatherWindDir.Normalize();
+        weatherWindNow = calmWind;
+        weatherFreqNow = calmWindFrequency;
+        furTargetPosValid = false;
+
         furWeather.RainIntensity = 0f;
         furWeather.SnowIntensity = 0f;
         furWeather.WindStrength = calmWind;
@@ -423,8 +484,73 @@ public class StormWeather : MonoBehaviour
         float blend = coverBlendSeconds <= 0f ? 1f : Time.deltaTime / coverBlendSeconds;
         openSky = Mathf.MoveTowards(openSky, openSkyTarget, blend);
 
-        furWeather.WindStrength = Mathf.Lerp(calmWind, stormWind, storm) * openSky;
-        furWeather.WindFrequency = Mathf.Lerp(calmWindFrequency, stormWindFrequency, storm);
+        // ---- ROUND 83, layered wind ----------------------------------------------------------
+        // Two winds are added as vectors, the way two real airflows would be.
+        //
+        //   weather wind: three steps, breeze before the fight, more in phase 1, storm in phase 2,
+        //   and back to the breeze once he is down. Gated by open sky, so it dies under rock.
+        //
+        //   movement wind: always on, in every phase and under rock too, because she makes this air
+        //   herself. Its heading is the opposite of where she is going, so the coat streams behind
+        //   her, and it covers every move she has, walking, running, jumping and climbing, because
+        //   it is read from her actual velocity rather than from any animation state.
+
+        float weatherTarget;
+        float freqTarget;
+        if (!fightStarted)
+        {
+            weatherTarget = calmWind;
+            freqTarget = calmWindFrequency;
+        }
+        else if (phase2)
+        {
+            weatherTarget = Mathf.Lerp(phase1Wind, stormWind, storm);
+            freqTarget = Mathf.Lerp(phase1WindFrequency, stormWindFrequency, storm);
+        }
+        else
+        {
+            weatherTarget = phase1Wind;
+            freqTarget = phase1WindFrequency;
+        }
+
+        float windBlend = weatherWindResponse <= 0f ? 999f : Time.deltaTime * 2f / weatherWindResponse;
+        weatherWindNow = Mathf.MoveTowards(weatherWindNow, weatherTarget, windBlend);
+        weatherFreqNow = Mathf.MoveTowards(weatherFreqNow, freqTarget, windBlend * 16f);
+
+        // Her velocity, straight from the transform, so nothing here depends on PlayerMovement.
+        Vector3 rawVelocity = Vector3.zero;
+        if (furWindTarget != null)
+        {
+            Vector3 here = furWindTarget.position;
+            if (furTargetPosValid && Time.deltaTime > 0.0001f)
+                rawVelocity = (here - furTargetLastPos) / Time.deltaTime;
+            // A teleport or a respawn would read as a huge one frame velocity, so anything faster
+            // than she can possibly run is treated as a jump in position, not as movement.
+            if (rawVelocity.sqrMagnitude > 2500f) rawVelocity = Vector3.zero;
+            furTargetLastPos = here;
+            furTargetPosValid = true;
+        }
+        float moveBlend = moveWindResponse <= 0f ? 1f : Mathf.Clamp01(Time.deltaTime / moveWindResponse);
+        furMoveVelocity = Vector3.Lerp(furMoveVelocity, rawVelocity, moveBlend);
+
+        float speed = furMoveVelocity.magnitude;
+        float move01 = moveWindFullSpeed <= 0f ? 0f : Mathf.Clamp01(speed / moveWindFullSpeed);
+        Vector3 moveWind = speed > 0.05f ? -(furMoveVelocity / speed) * (moveWindMax * move01) : Vector3.zero;
+
+        Vector3 totalWind = weatherWindDir * (weatherWindNow * openSky) + moveWind;
+        float totalStrength = totalWind.magnitude;
+        Vector3 totalDir = totalStrength > 0.0001f ? totalWind / totalStrength : weatherWindDir;
+        totalStrength = Mathf.Clamp(totalStrength, 0f, 2f);
+        float totalFreq = Mathf.Clamp(weatherFreqNow + moveWindFrequencyBoost * move01, 0f, 32f);
+
+        // The Weather Manager writes these same two globals in its own Update. This runs in
+        // LateUpdate, so this wins for the frame, and the manager's WindStrength below still drives
+        // its rain and snow directions from the authored heading only.
+        Shader.SetGlobalVector(WindDirFreqId, new Vector4(totalDir.x, totalDir.y, totalDir.z, totalFreq));
+        Shader.SetGlobalFloat(WindStrengthId, totalStrength);
+
+        furWeather.WindStrength = weatherWindNow * openSky;
+        furWeather.WindFrequency = weatherFreqNow;
 
         // Rain follows the floor: dry before the fight, wet back in phase 1, drenched in phase 2.
         // Gated by the same sky check as the wind, so under rock she dries out over the module's fade time.
@@ -444,6 +570,58 @@ public class StormWeather : MonoBehaviour
         float soakStep = furSoakSeconds <= 0f ? 1f : Time.deltaTime / furSoakSeconds;
         furSoak = Mathf.MoveTowards(furSoak, soakTarget, soakStep);
         Shader.SetGlobalFloat(WetAllId, furSoak);
+    }
+
+    /// <summary>
+    /// ROUND 83 - the fight is over. Everything the storm switched on is switched back off and the
+    /// arena returns to how it looked before he engaged: pre-fight sky, no lightning, no storm grade,
+    /// the floor drying out on its own through WetnessLoop, and the fur back to the pre-fight breeze.
+    /// Her movement wind is untouched, it never belonged to the fight.
+    /// </summary>
+    private void EndFight(string why)
+    {
+        if (fightOver) return;
+        fightOver = true;
+
+        if (lightningRoutine != null) { StopCoroutine(lightningRoutine); lightningRoutine = null; }
+        if (stormRoutine != null) { StopCoroutine(stormRoutine); stormRoutine = null; }
+        if (postFade != null) { StopCoroutine(postFade); postFade = null; }
+
+        // WetnessLoop reads fightStarted and phase2 every tick, so clearing them is what makes the
+        // floor and the coat dry out again, at the same rate they soaked.
+        bool wasPhase2 = phase2;
+        fightStarted = false;
+        phase2 = false;
+
+        if (wasPhase2) BoostFurLights(false);
+        StartCoroutine(CalmDown());
+
+        SetCozyWeather(preFightWeather, "fight over, sky clears", transitionDuration);   // ROUND 63
+        FadePostTo(0f, transitionDuration);                                              // ROUND 77
+
+        if (debugLog) Debug.Log($"[StormWeather] FIGHT OVER ({why}) - storm winding down, weather back to pre-fight.");
+    }
+
+    /// <summary>
+    /// ROUND 83 - unwinds the storm value, the rain emission and the fog over the same seconds the
+    /// storm took to arrive, so the sky calms instead of snapping.
+    /// </summary>
+    private IEnumerator CalmDown()
+    {
+        float from = storm;
+        float t = 0f;
+        float dur = Mathf.Max(0.01f, transitionDuration);
+        while (t < dur)
+        {
+            t += Time.deltaTime;
+            storm = Mathf.Lerp(from, 0f, Mathf.SmoothStep(0f, 1f, t / dur));
+            ApplyRain(Mathf.Lerp(1f, stormRainMultiplier, storm));
+            ApplyFog(Mathf.Lerp(calmFogDensity, stormFogDensity, storm));
+            yield return null;
+        }
+        storm = 0f;
+        ApplyRain(1f);
+        ApplyFog(calmFogDensity);
     }
 
     private void BoostFurLights(bool on)
@@ -776,6 +954,7 @@ public class StormWeather : MonoBehaviour
         }
         furSoak = 0f;
         Shader.SetGlobalFloat(WetAllId, 0f);   // ROUND 81 - the coat is dry when this is not running
+        Shader.SetGlobalFloat(WindStrengthId, 0f);   // ROUND 83 - stop driving the wind, the manager takes it back
         if (phase2) BoostFurLights(false);
     }
     private void OnApplicationQuit() { RestoreTerrain(); }
@@ -811,6 +990,13 @@ public class StormWeather : MonoBehaviour
         OnFightStarted("test"); FadePostTo(1f, transitionDuration);   // ROUND 77
         BoostFurLights(true);   // ROUND 80
         Debug.Log("[StormWeather] PHASE 2 forced.");
+    }
+
+    [ContextMenu("Test: Fight over")]
+    private void TestFightOver()
+    {
+        if (!Application.isPlaying) { Debug.Log("Enter Play mode first."); return; }
+        EndFight("test");
     }
 
     [ContextMenu("Test: Fur soaked now")]
