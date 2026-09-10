@@ -169,6 +169,15 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("ROUND 42/44. How fast Yoru must actually be moving (m/s, from the CharacterController) for the running reaction above to be chosen. Her run speed is ~7. ROUND 44: lowered to 1.5 ('moving at all') because at 3 the reaction never triggered in two full test sessions, she slows the instant the hit lands.")]
     [SerializeField] private float runningReactMinSpeed = 1.5f;
 
+    [Tooltip("ROUND 85, Hazel's rule: a hit taken WHILE RUNNING must never stop her. ON = the running reaction plays without setting the hit-reaction flag, so PlayerMovement keeps moving her and keeps driving the run on the base layer, and the reaction melts back into the run over Running React Blend Out. OFF = the running reaction behaves like every other reaction and stops her (the old behavior). Only this reaction is affected; the medium (4-leg light) and heavy reactions still stop her exactly as before.")]
+    [SerializeField] private bool runningReactKeepsMoving = true;
+    [Tooltip("ROUND 85. Seconds the running flinch is held before it blends back into the run. Measured from the clip: it is 0.63s long and peaks at 0.37s, so with the 0.10s start offset, 0.45 shows the impact and the start of the recovery and leaves the tail to the blend.")]
+    [SerializeField] private float runningReactDuration = 0.45f;
+    [Tooltip("ROUND 85. Seconds blending INTO the running flinch. Longer than the other reactions' 0.02 on purpose: she is mid-stride, so a hard cut pops her legs. Raise if the entry snaps, lower if the flinch feels soft.")]
+    [SerializeField] private float runningReactBlendIn = 0.08f;
+    [Tooltip("ROUND 85. Seconds blending back out of the running flinch into the run. This IS the smooth return: the run never stopped underneath, so this fades the flinch off over a live run pose instead of the usual 0.1s snap to combat idle.")]
+    [SerializeField] private float runningReactBlendOut = 0.25f;
+
     private Vector3 lastPlanarPos;        // ROUND 49: transform-based speed sampling (see Update)
     private bool planarPosInit;
     private float measuredPlanarSpeed;    // ROUND 49: robust even when locomotion bypasses the CharacterController
@@ -521,6 +530,8 @@ public class PlayerCombat : MonoBehaviour
     // Hit reaction
     private bool isInHitReaction;
     private float hitReactionEndTime;
+    private Coroutine runningReactCoroutine;  // ROUND 85: the in-stride flinch, see RunningHitReaction
+    private bool runningReactActive;          // ROUND 85: deliberately NOT isInHitReaction, so movement is never blocked
     private Coroutine hitReactSafetyCoroutine; // Backup force-clear (independent of UpdateHitReaction)
     private Coroutine hitReactHoldCoroutine; // Holds the hit reaction state visible for its duration
 
@@ -2070,6 +2081,7 @@ public class PlayerCombat : MonoBehaviour
     /// </summary>
     private void EndActiveCombatActions()
     {
+        CancelRunningHitReaction();
         isAttacking = false;
         isChargingHeavy = false;
         chargeHoldStarted = false;
@@ -2190,11 +2202,25 @@ public class PlayerCombat : MonoBehaviour
             float planarSpd = Mathf.Max(playerMovement != null ? playerMovement.CurrentPlanarSpeed : 0f, measuredPlanarSpeed);
             bool running4 = is4Leg && planarSpd >= runningReactMinSpeed
                             && !string.IsNullOrEmpty(runningLightReactState);
+            if (logHitReactTiming && is4Leg)
+                Debug.Log($"[HitReactTrace] 4-leg LIGHT hit at {planarSpd:F2} m/s (running threshold {runningReactMinSpeed:F2}) => {(running4 ? "RUNNING" : "standing (medium)")} reaction.");
+
+            // ROUND 85, Hazel's rule: hit while running, she never stops. Everything below this
+            // point (the flag, the hold, the safety timer, the blend to idle) is what stops her,
+            // so the running reaction takes its own short path and returns before any of it.
+            // Nothing about the medium or heavy reactions changes.
+            if (running4 && runningReactKeepsMoving)
+            {
+                if (vfxManager != null) vfxManager.PlayHitReactVFX(false);
+                if (CombatFeedbackManager.Instance != null) CombatFeedbackManager.Instance.PlayPlayerHitFeedback(false);
+                if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayPlayerHit(false);
+                StartRunningHitReaction();
+                return;
+            }
+
             animState = is4Leg ? (running4 ? runningLightReactState : hitReactLight4Leg) : hitReactLight2Leg;
             startOffset = is4Leg ? (running4 ? hitReactOffsetRunning4Leg : hitReactOffsetLight4Leg) : hitReactOffsetLight2Leg;
             duration = lightHitReactDuration;
-            if (logHitReactTiming && is4Leg)
-                Debug.Log($"[HitReactTrace] 4-leg LIGHT hit at {planarSpd:F2} m/s (running threshold {runningReactMinSpeed:F2}) → {(running4 ? "RUNNING" : "standing")} reaction.");
 
             // Mushroom strike readability: a 0.3s light reaction is lost under the hallucination
             // screen distortion (and the 4-leg light clip reads like normal running at that length).
@@ -2239,6 +2265,100 @@ public class PlayerCombat : MonoBehaviour
         if (hitReactSafetyCoroutine != null) StopCoroutine(hitReactSafetyCoroutine);
         hitReactSafetyCoroutine = StartCoroutine(HitReactSafetyTimer(duration + 0.1f));
     }
+
+    #region Running Hit Reaction (round 85)
+    /// <summary>ROUND 85. Drops a running flinch that is still playing, so a medium or heavy
+    /// reaction, a grab or a combat reset owns the combat layer cleanly.</summary>
+    private void CancelRunningHitReaction()
+    {
+        if (runningReactCoroutine != null)
+        {
+            StopCoroutine(runningReactCoroutine);
+            runningReactCoroutine = null;
+        }
+        runningReactActive = false;
+    }
+
+    private void StartRunningHitReaction()
+    {
+        CancelRunningHitReaction();
+        runningReactCoroutine = StartCoroutine(RunningHitReaction());
+        DebugLog($"Running hit react: {runningLightReactState} ({runningReactDuration:F2}s then a {runningReactBlendOut:F2}s blend back into the run, clip starts at {hitReactOffsetRunning4Leg:F2}s, movement NOT blocked)");
+    }
+
+    /// <summary>
+    /// ROUND 85, Hazel's rule: Yoru is hit while running and she does not stop.
+    ///
+    /// The one thing that stops her on every other reaction is isInHitReaction: PlayerMovement
+    /// blocks movement while it is true and stops driving the locomotion animator, so the run
+    /// dies with it. This path never sets it. The flinch is crossfaded onto the combat layer the
+    /// same way every other reaction is, held for runningReactDuration, then blended back out
+    /// over runningReactBlendOut. Because the run never stopped underneath, that blend lands on a
+    /// live run pose instead of the usual hard 0.1s cut to combat idle, which is the smooth
+    /// return into the run.
+    ///
+    /// Any real combat action (attack, heavy charge, dodge, dash, guard) or a medium/heavy
+    /// reaction taking over ends the flinch immediately and leaves the combat layer to it.
+    /// </summary>
+    private IEnumerator RunningHitReaction()
+    {
+        string state = runningLightReactState;
+        int hash = Animator.StringToHash(state);
+        runningReactActive = true;
+
+        animator.SetLayerWeight(combatLayerIndex, 1f);
+        animator.CrossFadeInFixedTime(state, Mathf.Max(0f, runningReactBlendIn), combatLayerIndex, Mathf.Max(0f, hitReactOffsetRunning4Leg));
+        lastCombatCrossFadeTime = Time.time;
+
+        float startedAt = Time.time;
+        int frames = 0;
+        bool settled = false;
+        float elapsed = 0f;
+        bool takenOver = false;
+
+        while (elapsed < runningReactDuration)
+        {
+            if (!runningReactActive || isAttacking || isChargingHeavy || isDodging || isDashing || isGuarding || isInHitReaction)
+            {
+                takenOver = true;
+                break;
+            }
+
+            // One honest settle line per running hit: whether the flinch really reached the screen
+            // and how many frames it took. The club's hit arrives from the Oni's LateUpdate, so it
+            // lands one animator update later than a ground wave's; this reports the real number.
+            if (!settled && !animator.IsInTransition(combatLayerIndex)
+                && animator.GetCurrentAnimatorStateInfo(combatLayerIndex).shortNameHash == hash)
+            {
+                settled = true;
+                if (logHitReactTiming)
+                    Debug.Log($"[HitReactTrace] running flinch '{state}' on screen {frames} frame(s) / {(Time.time - startedAt) * 1000f:F0} ms after the hit, run still moving.");
+            }
+
+            elapsed += Time.deltaTime;
+            frames++;
+            yield return null;
+        }
+
+        // Only a flinch that ran its full length and still never appeared is a real problem;
+        // one cut short by an attack or a bigger reaction simply never got the chance.
+        if (!settled && !takenOver && logHitReactTiming)
+            Debug.LogWarning($"[Combat] running flinch '{state}' never reached the combat layer in {frames} frames. Check that a state with that exact name exists on combat layer {combatLayerIndex}, and the Running Light React State field on PlayerCombat.");
+
+        if (!takenOver)
+        {
+            animator.CrossFadeInFixedTime(combatIdleStateName, Mathf.Max(0f, runningReactBlendOut), combatLayerIndex);
+            lastCombatCrossFadeTime = Time.time;
+        }
+
+        runningReactActive = false;
+        runningReactCoroutine = null;
+    }
+
+    /// <summary>ROUND 85. True while the in-stride flinch is playing. Movement is NOT blocked by it,
+    /// unlike IsInHitReaction, so nothing should gate locomotion on this.</summary>
+    public bool IsInRunningHitReaction() => runningReactActive;
+    #endregion
 
     #region Grab Reaction
     /// <summary>
@@ -3701,6 +3821,7 @@ public class PlayerCombat : MonoBehaviour
         hasUsedAerialAttack = false;
         storedHeavyChargePercent = 0f;
         isInHitReaction = false;
+        CancelRunningHitReaction();
         dodgeEndTime = 0f;
         guardStuckTimer = 0f;
         heavyStuckTimer = 0f;
