@@ -2,9 +2,9 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat System — Phase 3C v27
-/// v20: EndDash/EndDodge StopCoroutine fix (insufficient — coroutines silently crash)
-/// v21: ACTUAL FIX — time-based flag clearing that doesn't depend on coroutines:
+/// YORU Combat System, Phase 3C v27
+/// v20: EndDash/EndDodge StopCoroutine fix (insufficient, coroutines silently crash)
+/// v21: ACTUAL FIX, time-based flag clearing that doesn't depend on coroutines:
 ///   - Dodge/dash timeouts tightened: +0.3s grace (was +1.0s) plus 2s absolute hard cap
 ///   - Movement-stuck safety: 0.5s WASD held + any flag stuck → force reset (was 1.5s + required no combat keys)
 ///   - These catch ALL orphan scenarios regardless of how the coroutine dies
@@ -17,11 +17,11 @@ using System.Collections;
 ///     Q-released stuck check (lines ~342), animator-orphan detection (lines ~365),
 ///     and PlayerMovement's guard-routing in FixedUpdate. No protection is lost.
 ///   - Also caught up the init-log version string (was stuck at "v17").
-/// v23: Parry animation restructure — separate Parry_Start clip from Parry idle loop.
-///   - New parryStartState SerializeField (default "Parry_Start") — plays once when Q is pressed.
+/// v23: Parry animation restructure, separate Parry_Start clip from Parry idle loop.
+///   - New parryStartState SerializeField (default "Parry_Start"), plays once when Q is pressed.
 ///   - parryIdleState is now a clean loop (no baked intro).
 ///   - parryIntroLength field repurposed: was "intro length within combined clip", now means
-///     "duration of Parry_Start clip in seconds". Same field — Inspector value preserved.
+///     "duration of Parry_Start clip in seconds". Same field, Inspector value preserved.
 ///   - parryIntroComplete now genuinely flips false→true when start clip finishes
 ///     (previously only ever set to false in StartGuard, never used).
 ///   - UpdateGuardAnimation gains a Phase 1 / Phase 2 split:
@@ -33,7 +33,7 @@ using System.Collections;
 ///     (start clip ends in parry pose, idle/walk begin in parry pose, so the blend is tight).
 ///   - Inspector action required: verify parryStartState matches your Animator state name,
 ///     and update parryIntroLength to match the actual duration of your Parry_Start clip.
-/// v24: Q-release grace window — fixes parry breaking when pressing A/D while Q is held.
+/// v24: Q-release grace window, fixes parry breaking when pressing A/D while Q is held.
 ///   - Root cause: keyboard ghosting / N-key rollover. On many keyboards, pressing Q + A
 ///     or Q + D simultaneously causes the hardware to drop Q for 1+ frames. Unity sees
 ///     this as Input.GetKeyUp(Q) firing and ends guard, even though Q is still held.
@@ -45,7 +45,7 @@ using System.Collections;
 ///   - 80ms is below human key-tap perception (~100ms) so guard doesn't feel sticky.
 ///     Above any keyboard ghost blip (typically 17-50ms at 60fps).
 ///   - The 0.5s guardStuckTimer safety net is unchanged and still catches true stuck cases.
-/// v25: Parry guard offset smooth ramp on BOTH directions — fixes visible level snap on
+/// v25: Parry guard offset smooth ramp on BOTH directions, fixes visible level snap on
 ///      idle->walk and the abrupt body drop on guard exit.
 ///   - Root cause: v22 used instant snap-up plus a 10-units-per-second descent. With any
 ///     non-trivial guardModelYOffset value, the body Y change happens in a single frame
@@ -71,7 +71,7 @@ using System.Collections;
 ///       4. Watch the idle->walk and guard-end transitions: body and paws should look like
 ///          one continuous motion, not a body pop with a separate paw shift.
 ///   - Nothing else in v22, v23 or v24 logic is touched. Single-block edit in LateUpdate.
-/// v26: Parry guard offset gating fix — apply the lift across the ENTIRE guard envelope,
+/// v26: Parry guard offset gating fix, apply the lift across the ENTIRE guard envelope,
 ///      not just during walk states. Fixes the visible body rise at idle->walk transition.
 ///   - Root cause: v22 (carried into v25) gated guardModelYOffset on the walk states only
 ///     (parryWalkForwardState / parryWalkBackwardState). That gating was correct for the OLD
@@ -82,7 +82,7 @@ using System.Collections;
 ///     When walking started, body lifted to original Y + 0.10-0.15. The lift was correct
 ///     for walk but wrong for idle, so the player saw idle-clip paws clipping through
 ///     terrain followed by a body rise the moment WASD was pressed. That body rise was
-///     the "getting up too early" symptom — body was anticipating the walk a fraction
+///     the "getting up too early" symptom, body was anticipating the walk a fraction
 ///     ahead of the pose blend.
 ///   - Fix: gate guardModelYOffset on isGuarding (the whole guard envelope) instead of
 ///     on isGuardWalking (walks only). Body now sits at the lifted Y from Q-press through
@@ -104,7 +104,7 @@ using System.Collections;
 ///     tips visibly clear the terrain in idle, walk, and Parry_Start.
 ///   - Nothing else in v22, v23, v24, or v25 logic is touched. Single-block edit in
 ///     LateUpdate plus a tooltip update on guardModelYOffset.
-/// v27: Configurable guard exit blend time — fixes the abrupt parry-to-standing pose
+/// v27: Configurable guard exit blend time, fixes the abrupt parry-to-standing pose
 ///      snap when releasing Q.
 ///   - Root cause: ReturnToIdle() (line 1648) crossfades to combatIdleStateName with a
 ///     hardcoded 0.1s blend. EndGuard() called ReturnToIdle() on Q release. 0.1s = 6
@@ -143,30 +143,30 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private Transform attackPoint;
 
-    [Header("Animation State Names — Combo")]
+    [Header("Animation State Names: Combo")]
     [SerializeField] private string combo1StateName = "Combo1";
     [SerializeField] private string combo2StateName = "Combo2";
     [SerializeField] private string combo3StateName = "Combo3";
     [SerializeField] private string combatIdleStateName = "Combat_Idle";
 
-    [Header("Animation State Names — Heavy Charge")]
+    [Header("Animation State Names: Heavy Charge")]
     [Tooltip("Pull-back animation. Plays once when LMB hold passes the 0.3s gate.")]
     [SerializeField] private string heavyChargeWindUpState = "HeavyCharge_WindUp";
-    [Tooltip("Held tension idle. Code crossfades into this once chargePercent reaches 1.0 — same pattern as parryIntroComplete.")]
+    [Tooltip("Held tension idle. Code crossfades into this once chargePercent reaches 1.0, same pattern as parryIntroComplete.")]
     [SerializeField] private string heavyChargeHoldState = "HeavyCharge_Hold";
     [Tooltip("Release/strike animation. Plays when LMB is released at any charge level.")]
     [SerializeField] private string heavyReleaseState = "HeavyCharge_Release";
 
-    [Header("Animation State Names — Hit Reaction")]
+    [Header("Animation State Names: Hit Reaction")]
     [SerializeField] private string hitReactLight2Leg = "HitReact_Light_2Leg";
     [SerializeField] private string hitReactLight4Leg = "HitReact_Running_4Leg";
     [SerializeField] private string hitReactHeavy2Leg = "HitReact_Heavy_2Leg";
-    [Tooltip("ROUND 41. Heavy hit reaction while on 4 legs. RENAMED from hitReactHeavy4Leg: the player prefab had 'HitReact_Running_4Leg' (the RUN state!) saved in the old field, so every heavy hit in 4-leg form played running for up to 2.5s instead of a reaction — the saved value silently overrode the code. The rename drops that stale value; this default is the real reaction clip (the same one the 4-leg grab already uses).")]
+    [Tooltip("ROUND 41. Heavy hit reaction while on 4 legs. RENAMED from hitReactHeavy4Leg: the player prefab had 'HitReact_Running_4Leg' (the RUN state!) saved in the old field, so every heavy hit in 4-leg form played running for up to 2.5s instead of a reaction, the saved value silently overrode the code. The rename drops that stale value; this default is the real reaction clip (the same one the 4-leg grab already uses).")]
     [SerializeField] private string heavy4LegReactState = "Bhit_run_reaction_4";
 
-    [Tooltip("ROUND 42 — Hazel's rule: a LIGHT hit while Yoru is on 4 legs AND truly moving (faster than Running React Min Speed) plays THIS reaction, so she reacts in stride instead of stopping. Standing-ish on 4 legs keeps the normal 4-leg light reaction above.")]
+    [Tooltip("ROUND 42, Hazel's rule: a LIGHT hit while Yoru is on 4 legs AND truly moving (faster than Running React Min Speed) plays THIS reaction, so she reacts in stride instead of stopping. Standing-ish on 4 legs keeps the normal 4-leg light reaction above.")]
     [SerializeField] private string runningLightReactState = "HitReact_Running_4Leg";
-    [Tooltip("ROUND 42/44. How fast Yoru must actually be moving (m/s, from the CharacterController) for the running reaction above to be chosen. Her run speed is ~7. ROUND 44: lowered to 1.5 ('moving at all') because at 3 the reaction never triggered in two full test sessions — she slows the instant the hit lands.")]
+    [Tooltip("ROUND 42/44. How fast Yoru must actually be moving (m/s, from the CharacterController) for the running reaction above to be chosen. Her run speed is ~7. ROUND 44: lowered to 1.5 ('moving at all') because at 3 the reaction never triggered in two full test sessions, she slows the instant the hit lands.")]
     [SerializeField] private float runningReactMinSpeed = 1.5f;
 
     private Vector3 lastPlanarPos;        // ROUND 49: transform-based speed sampling (see Update)
@@ -192,15 +192,15 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Safety: if the grab never signals release, the hold lets go after this many seconds.")]
     [SerializeField] private float grabReactMaxHold = 5f;
 
-    [Header("Animation State Names — Dodge (frontflip)")]
+    [Header("Animation State Names: Dodge (frontflip)")]
     [SerializeField] private string dodge2LegState = "Dodge_2Leg";
     [SerializeField] private string dodge4LegState = "Dodge_4Leg";
 
-    [Header("Animation State Names — Dash (rush)")]
+    [Header("Animation State Names: Dash (rush)")]
     [SerializeField] private string dash2LegState = "DodgeDash_2Leg";
     [SerializeField] private string dash4LegState = "DodgeDash_4Leg";
 
-    [Header("Animation State Names — Guard/Parry")]
+    [Header("Animation State Names: Guard/Parry")]
     [SerializeField] private string parryStartState = "Parry_Start";
     [SerializeField] private string parryIdleState = "Parry";
     [SerializeField] private string parryWalkForwardState = "Parry_WalkForward";
@@ -209,8 +209,16 @@ public class PlayerCombat : MonoBehaviour
     [Header("Hit Reaction Timing")]
     [SerializeField] private float lightHitReactDuration = 0.3f;
     [SerializeField] private float heavyHitReactDuration = 0.5f;
-    [Tooltip("ROUND 41. Seconds skipped at the START of every hit-reaction clip, so the visible flinch pose shows the same frame the hit lands instead of after the clip's wind-up frames. ~0.10 skips the anticipation of the ~1s reaction clips. 0 = play from frame 0 (old behavior). Measured fact: the reaction always fires 0ms after the hit — any remaining 'late' feel was these first frames.")]
-    [SerializeField] private float hitReactStartOffset = 0.10f;
+    [Tooltip("ROUND 84. Seconds skipped at the START of the 2-leg LIGHT reaction clip (HitReact_Light_2Leg), so the clip opens on its impact pose instead of its anticipation. Measured from the FBX curves: head, pelvis and body position do not move until 0.40 to 0.47s into the clip, the peak pose is at 0.58s. Starting at 0.40 puts a readable flinch 2 to 3 frames after contact and lets the 0.5s hold cover the peak AND the recovery. 0 = play from frame 0.")]
+    [SerializeField] private float hitReactOffsetLight2Leg = 0.40f;
+    [Tooltip("ROUND 84. Start offset for the 2-leg HEAVY reaction clip (HitReact_Heavy_2Leg). Measured: it is the same animation as the light clip for its first 0.43s, so it needs the same skip.")]
+    [SerializeField] private float hitReactOffsetHeavy2Leg = 0.40f;
+    [Tooltip("ROUND 84. Start offset for the 4-leg STANDING light reaction (HitReact_Light_4Leg, the file named Combat_HitReact_Light_4Leg_nouse). Measured: nothing moves for 0.27s, then a head turn only. 0.28 starts on the head turn. The clip itself needs replacing by the animator; this only hides its dead frames.")]
+    [SerializeField] private float hitReactOffsetLight4Leg = 0.28f;
+    [Tooltip("ROUND 84. Start offset for the 4-leg RUNNING light reaction (HitReact_Running_4Leg). Measured: the body is already moving at 0.08 to 0.10s, so only the first frames are skipped.")]
+    [SerializeField] private float hitReactOffsetRunning4Leg = 0.10f;
+    [Tooltip("ROUND 84. Start offset for the 4-leg HEAVY reaction (Bhit_run_reaction_4). Measured: moving from 0.07s. Keep it small. The Cut Frame and the grab freeze frames count from the clip's frame 0 and are not shifted by this.")]
+    [SerializeField] private float hitReactOffsetHeavy4Leg = 0.10f;
     [Tooltip("Cut the 4-leg heavy hit reaction (Bhit_run_reaction_4) at this frame and blend back to idle, so the clips run-cycle tail does not read as Yoru jogging in place. 0 = play the full duration with no cut.")]
     [SerializeField] private int heavy4LegHitCutFrame = 60;
     [Tooltip("Total frame count of the 4-leg heavy reaction clip, used to convert the cut frame into a normalized time.")]
@@ -220,7 +228,7 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Reaction duration for light hits that land while the magic-mushroom hallucination is active (the Mushroom strike itself). The default 0.3s light reaction is unreadable under the screen distortion, so these hits hold the light reaction clip this long instead. The clip still blends out early if it finishes before this time.")]
     [SerializeField] private float hallucinationHitReactDuration = 0.7f;
 
-    // ROUND 36. The hit-reaction pull and the hit-reaction auto-facing are GONE — deleted, not
+    // ROUND 36. The hit-reaction pull and the hit-reaction auto-facing are GONE, deleted, not
     // switched off. A switch was tried first and it did nothing, because Unity keeps a serialized
     // value in the open editor's memory across a recompile: the field had been born `true`, so it
     // stayed `true` no matter what the code default said. Deleting the fields is the only change
@@ -228,9 +236,9 @@ public class PlayerCombat : MonoBehaviour
     // What she used to do on every hit, from every enemy:
     //   • slide 0.5m along (attackerPos - herPos), i.e. straight INTO whatever hit her
     //   • snap instantly to face the attacker, whipping 180 degrees if he was behind her
-    // She still feels the hit — reaction animation, flinch, VFX and the wave's impact are untouched.
+    // She still feels the hit, reaction animation, flinch, VFX and the wave's impact are untouched.
 
-    [Tooltip("ROUND 36. Logs which hit-reaction clip played, its real length, and how long the blend into it takes. Diagnostic only — turn off once the reaction timing is settled.")]
+    [Tooltip("ROUND 36. Logs which hit-reaction clip played, its real length, and how long the blend into it takes. Diagnostic only, turn off once the reaction timing is settled.")]
     [SerializeField] private bool logHitReactTiming = true;
 
     [Header("Layer Settings")]
@@ -252,39 +260,39 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float heavyReleaseClipLength = 0.8f;
     [SerializeField] private int aerialSpinDamage = 25;
 
-    [Header("Dodge — Distances (frontflip)")]
+    [Header("Dodge: Distances (frontflip)")]
     [Tooltip("Forward distance for 2-leg frontflip")]
     [SerializeField] private float dodge2LegDistance = 3.0f;
     [Tooltip("Forward distance for 4-leg frontflip")]
     [SerializeField] private float dodge4LegDistance = 2.5f;
 
-    [Header("Dodge — Arc")]
+    [Header("Dodge: Arc")]
     [Tooltip("Height of the frontflip arc. 0 = flat, 1.5 = noticeable hop, 3 = big leap")]
     [SerializeField] private float dodgeHeight = 1.5f;
 
-    [Header("Dodge — Timing")]
+    [Header("Dodge: Timing")]
     [SerializeField] private float dodgeFallbackDuration = 0.87f;
     [SerializeField] private float iFrameStart = 0.08f;
     [SerializeField] private float iFrameEnd = 0.35f;
     [SerializeField] private float dodgeEarlyExitThreshold = 0.75f;
 
-    [Header("Dash — Distances (RMB rush)")]
+    [Header("Dash: Distances (RMB rush)")]
     [Tooltip("Forward distance for 2-leg dash")]
     [SerializeField] private float dash2LegDistance = 4.0f;
     [Tooltip("Forward distance for 4-leg dash")]
     [SerializeField] private float dash4LegDistance = 5.0f;
 
-    [Header("Dash — Damage")]
+    [Header("Dash: Damage")]
     [SerializeField] private int dashDamage = 20;
     [SerializeField] private float dashHitRange = 1.8f;
 
-    [Header("Dash — Timing")]
+    [Header("Dash: Timing")]
     [SerializeField] private float dashFallbackDuration = 0.5f;
-    [Tooltip("ROUND 13. Seconds the dash TRAVEL takes, set directly. Above 0 this wins outright and the animator is not consulted for timing. Measured across two sessions the dash always took exactly 1.000s no matter what Dash Fallback Duration said, because the code sampled the animator one frame after the crossfade began — while the state being reported was still the one she was LEAVING, not the dash. Reading a clip length that was never the dash clip is why setting the dash state's Speed changed nothing. 0.4 is snappy; lower is snappier. Set to 0 to go back to deriving it from the clip.")]
+    [Tooltip("ROUND 13. Seconds the dash TRAVEL takes, set directly. Above 0 this wins outright and the animator is not consulted for timing. Measured across two sessions the dash always took exactly 1.000s no matter what Dash Fallback Duration said, because the code sampled the animator one frame after the crossfade began, while the state being reported was still the one she was LEAVING, not the dash. Reading a clip length that was never the dash clip is why setting the dash state's Speed changed nothing. 0.4 is snappy; lower is snappier. Set to 0 to go back to deriving it from the clip.")]
     [SerializeField] private float dashMoveDuration = 0.4f;
-    [Tooltip("ROUND 17. ON = the flip and the dash begin at full speed and settle at the end (ease-out). OFF = the old smoothstep curve, which is mathematically ZERO speed at both ends — the move started from a standstill and coasted to a standstill, which is the little pause you feel before an airborne flip and again after it. The animation is not the cause; the movement curve is. The launch has always used the ease-out curve, which is why it feels snappy by comparison.")]
+    [Tooltip("ROUND 17. ON = the flip and the dash begin at full speed and settle at the end (ease-out). OFF = the old smoothstep curve, which is mathematically ZERO speed at both ends, the move started from a standstill and coasted to a standstill, which is the little pause you feel before an airborne flip and again after it. The animation is not the cause; the movement curve is. The launch has always used the ease-out curve, which is why it feels snappy by comparison.")]
     [SerializeField] private bool snappyDodgeDashStart = true;
-    [Tooltip("ROUND 19. Shape of the 2-LEG flip's travel. 1 = constant speed the whole way. 2 = the old ease-out, which covers 75% of the distance in the first half and then barely moves — that flat tail is exactly the 'waits in the air at the end' on the 2-leg. 1.15 keeps a little snap off the mark while still travelling at the finish.")]
+    [Tooltip("ROUND 19. Shape of the 2-LEG flip's travel. 1 = constant speed the whole way. 2 = the old ease-out, which covers 75% of the distance in the first half and then barely moves, that flat tail is exactly the 'waits in the air at the end' on the 2-leg. 1.15 keeps a little snap off the mark while still travelling at the finish.")]
     [Range(1f, 3f)]
     [SerializeField] private float dodge2LegCurvePower = 1.15f;
     [Tooltip("ROUND 19. The same, for the 4-LEG flip. Its ending already reads well, so it keeps the snappier 2.")]
@@ -310,9 +318,9 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float parryCounterRange = 5f;
     [Tooltip("Duration of Parry_Start clip in seconds. After this elapses, idle/walk anims take over based on current input. Set this to match the actual length of your Parry_Start animation clip.")]
     [SerializeField] private float parryIntroLength = 1.26f;
-    [Tooltip("CrossFade duration in seconds when guard ends (Q release) and Yoru transitions from parry pose back to combatIdleStateName. v27 default 0.3s. The previous behavior used the shared ReturnToIdle() with its hardcoded 0.1s blend, which was visibly too fast for a quadruped rising out of a low defensive stance. Range 0.25-0.4s typically reads as smooth and cat-like; lower values feel snappy/abrupt; higher values feel lazy. Does NOT block input — Yoru can attack/dodge mid-blend and the new action will override the in-progress crossfade, so this is a purely visual setting with no gameplay-feel cost.")]
+    [Tooltip("CrossFade duration in seconds when guard ends (Q release) and Yoru transitions from parry pose back to combatIdleStateName. v27 default 0.3s. The previous behavior used the shared ReturnToIdle() with its hardcoded 0.1s blend, which was visibly too fast for a quadruped rising out of a low defensive stance. Range 0.25-0.4s typically reads as smooth and cat-like; lower values feel snappy/abrupt; higher values feel lazy. Does NOT block input, Yoru can attack/dodge mid-blend and the new action will override the in-progress crossfade, so this is a purely visual setting with no gameplay-feel cost.")]
     [SerializeField] private float guardExitBlendTime = 0.3f;
-    [Tooltip("Grace window for Q-release detection. If Q reports as released but is pressed back down within this time, treat as continuous hold. Mitigates keyboard ghosting (Q dropped for 1+ frames when pressing A/D simultaneously). 0.08s default — below human key-tap perception (~0.1s) so guard doesn't feel sticky, above any keyboard ghost blip (~0.02-0.05s). Bump to 0.12 if interruptions still occur.")]
+    [Tooltip("Grace window for Q-release detection. If Q reports as released but is pressed back down within this time, treat as continuous hold. Mitigates keyboard ghosting (Q dropped for 1+ frames when pressing A/D simultaneously). 0.08s default, below human key-tap perception (~0.1s) so guard doesn't feel sticky, above any keyboard ghost blip (~0.02-0.05s). Bump to 0.12 if interruptions still occur.")]
     [SerializeField] private float qReleaseGraceTime = 0.08f;
     [Tooltip("Y offset applied to bodyYoru during the ENTIRE guard envelope (Parry_Start + Parry Idle + parry walks) to lift paw tips off the ground. The v23 parry clips bake paw tips slightly below the body root in all three states at the same depth, so this single value covers all of them. Set this to the actual depth the clips bake the paws below the body root. Likely range 0.10-0.15. Set to 0 to disable. Pair with guardOffsetRampDuration so body and animation pose move together on guard entry and exit. v26: was previously gated on walk states only, which produced a visible body rise at idle->walk.")]
     [SerializeField] private float guardModelYOffset = 0.15f;
@@ -357,7 +365,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float maxAttackDuration = 2f;
 
     [Header("Combo Chaining")]
-    [Tooltip("ON = when the next combo step is already bought (a click was queued), it starts in the SAME frame the previous clip's OnAttackEnd event fires. OFF = old behavior, which crossfades to Combat_Idle first and lets Update pick the queued click up a frame later — that inserted blend toward idle is the visible 'the second punch plays halfway and snaps back to idle' pop.")]
+    [Tooltip("ON = when the next combo step is already bought (a click was queued), it starts in the SAME frame the previous clip's OnAttackEnd event fires. OFF = old behavior, which crossfades to Combat_Idle first and lets Update pick the queued click up a frame later, that inserted blend toward idle is the visible 'the second punch plays halfway and snaps back to idle' pop.")]
     [SerializeField] private bool chainCombosWithoutIdle = true;
     [Tooltip("Prints one line per combo event (click, queue, drop, clip start, clip end + how far through the clip the end event fired). Turn on for one test if a combo link still looks cut: the clipProgress number on the OnAttackEnd line says whether the animation event is placed too early in that clip, which is an animation-authoring fix, not a code one.")]
     [SerializeField] private bool logComboTrace = true;
@@ -366,7 +374,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float comboCancelMinProgress = 0.6f;
 
     [Header("Damage Flash (Zelda-style)")]
-    [Tooltip("Tint Yoru red for a moment when she takes damage, the way Link flashes on being hit. Pure feedback — no ability, timing or hitbox is touched.")]
+    [Tooltip("Tint Yoru red for a moment when she takes damage, the way Link flashes on being hit. Pure feedback, no ability, timing or hitbox is touched.")]
     [SerializeField] private bool damageFlashEnabled = true;
     [Tooltip("Colour Yoru is tinted on being hit.")]
     [SerializeField] private Color damageFlashColor = new Color(1f, 0.25f, 0.25f);
@@ -403,7 +411,7 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("With NO enemy in range, attacks 1 and 2 stay planted (zero slide). Only the 3-hit combo finisher slides forward by this small amount, to give it weight without flying into empty space. The ledge check still applies, so this never carries Yoru off a cliff. Set 0 to keep the finisher planted too.")]
     [SerializeField] private float noTargetFinisherNudge = 0.5f;
 
-    [Header("Launch (Zelda / Spider-Man snap) — round 6")]
+    [Header("Launch (Zelda / Spider-Man snap): round 6")]
     [Tooltip("ON = the attack slide is speed-based and may cover up to Launch Max Distance, so Yoru launches at the enemy on every ground hit and re-launches for the next one. The enemy is measured to its collider SURFACE (big bodies work) and line of sight is checked to its body centre (a bumpy floor between Yoru and the enemy's feet no longer blocks it). OFF = the old hop: at most Lunge Max Distance in Lunge Duration, line of sight to the enemy root.")]
     [SerializeField] private bool launchEnabled = true;
     [Tooltip("How far a single hit may launch her (metres). Enemies farther than Targeting Range are never targeted at all.")]
@@ -412,17 +420,17 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float launchSpeed = 20f;
     [Tooltip("Longest a launch may take (seconds) so it always finishes before the strike frame; the distance is capped to fit.")]
     [SerializeField] private float launchMaxDuration = 0.32f;
-    [Tooltip("Grounded within this many seconds still counts as grounded for the launch — the CharacterController's isGrounded flickers on uneven floors, which silently killed the slide.")]
+    [Tooltip("Grounded within this many seconds still counts as grounded for the launch, the CharacterController's isGrounded flickers on uneven floors, which silently killed the slide.")]
     [SerializeField] private float launchGroundedGrace = 0.15f;
-    [Tooltip("Every ground attack moves her forward AT LEAST this far, even when she is already touching the enemy, so a swing always steps into the target instead of being thrown from standing. A body she is already against simply blocks it — the CharacterController stops her, so this can never push her through anything.")]
+    [Tooltip("Every ground attack moves her forward AT LEAST this far, even when she is already touching the enemy, so a swing always steps into the target instead of being thrown from standing. A body she is already against simply blocks it, the CharacterController stops her, so this can never push her through anything.")]
     [SerializeField] private float launchMinDistance = 0.8f;
-    [Tooltip("Shortest a launch may take, seconds. The old 0.06s slide was over before the eye could see it — this is what made the snap invisible even when it was working. 0.12-0.16 reads as a pounce without delaying the punch.")]
+    [Tooltip("Shortest a launch may take, seconds. The old 0.06s slide was over before the eye could see it, this is what made the snap invisible even when it was working. 0.12-0.16 reads as a pounce without delaying the punch.")]
     [SerializeField] private float launchMinDuration = 0.13f;
 
-    [Header("Launch model — round 8")]
+    [Header("Launch model: round 8")]
     [Tooltip("ON = the agreed three-case model. (A) No enemy at all: EVERY attack and every combo step still steps forward by Launch No Target Distance. (B) Enemy inside Launch Engage Distance: launch to its collider surface, as now. (C) Enemy beyond Launch Engage Distance: step forward only, never a part-way slide toward it. OFF = the old behaviour, where hits 1 and 2 stay planted with no enemy and a far enemy produces a clamped 6m slide that lands short. Default OFF because this script is shared by every fight; the Oni switches it on for his scene.")]
     [SerializeField] private bool launchWithNoTarget = false;
-    [Tooltip("The step forward when there is nothing to launch at, metres — cases A and C. 0.9 is derived from Breath of the Wild's CutAddSpeedMax 0.15 / CutAddSpeedDec 0.012, which works out to about 0.94m of slide per swing. Applies to every attack and every combo step, so a 3-hit air combo carries her about 2.7m.")]
+    [Tooltip("The step forward when there is nothing to launch at, metres, cases A and C. 0.9 is derived from Breath of the Wild's CutAddSpeedMax 0.15 / CutAddSpeedDec 0.012, which works out to about 0.94m of slide per swing. Applies to every attack and every combo step, so a 3-hit air combo carries her about 2.7m.")]
     [SerializeField] private float launchNoTargetDistance = 0.9f;
     [Tooltip("How close the enemy's COLLIDER SURFACE must be before an attack launches at it, metres. Inside this she launches; outside she steps forward instead. 4.5 is THE FINALS' shipped melee lunge distance (Season 11 raised it from ~3m). Measured to the surface, not the centre, so a 1.4m-radius boss is engaged from 5.9m of centre distance.")]
     [SerializeField] private float launchEngageDistance = 4.5f;
@@ -433,7 +441,7 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("ROUND 9, opt-in. ON = airborne attacks launch and step forward too, exactly like grounded ones. The launch is horizontal only - PlayerMovement keeps full ownership of the fall, so this cannot produce the height drop the old airborne path had. OFF = the old behaviour, where StartLunge returns early in the air and an air attack never moves her.")]
     [SerializeField] private bool launchInAir = false;
 
-    [Header("Air Dodge / Air Dash — round 11")]
+    [Header("Air Dodge / Air Dash: round 11")]
     [Tooltip("ROUND 12. Fraction of normal gravity applied during an AIRBORNE front flip. Yoru's gravity is heavy (-15 x 1.5 fall multiplier = -22.5 m/s2), so a full-strength fall across a 0.69s flip is metres of drop and reads as a slam, not a flip. 0.25 gives roughly 1.3m of descent over a full 4-leg flip: clearly falling, never plummeting. 1 = her normal fall speed. 0 = holds height like the air dash. Ground flips are unaffected.")]
     [SerializeField] private float airDodgeFallMultiplier = 0.45f;
     [Tooltip("ROUND 12. How much of the downward speed she ALREADY had is carried into an airborne front flip. 0 = the flip cancels her fall and starts from a clean hover, which is what every action game's air dodge does and what stops a flip taken late in a fall from turning into a dive. 1 = she keeps every bit of it. This is what made 4-leg flips worst: those are the multi-jump cases, so she was already dropping fast when the flip started.")]
@@ -501,7 +509,7 @@ public class PlayerCombat : MonoBehaviour
     // Safety
     private float attackStartTime;
 
-    // Combat engagement — see engagedInCombatDuration serialized field above
+    // Combat engagement, see engagedInCombatDuration serialized field above
     private float engagedInCombatUntil;
 
     // Position lock
@@ -521,7 +529,7 @@ public class PlayerCombat : MonoBehaviour
     private bool grabReleaseRequested;
     private Coroutine grabReactionCoroutine;
 
-    // Dodge (frontflip — C)
+    // Dodge (frontflip, C)
     private bool isDodging;
     private float dodgeStartTime;
     private float currentDodgeDuration;
@@ -530,7 +538,7 @@ public class PlayerCombat : MonoBehaviour
     private bool hasUsedAirDodge;
     private float dodgeEndTime;
 
-    // Dash (rush — MMB)
+    // Dash (rush, MMB)
     private bool isDashing;
     private float dashStartTime;
     private float currentDashDuration;
@@ -541,7 +549,7 @@ public class PlayerCombat : MonoBehaviour
     // Guard/Parry (Q)
     private bool isGuarding;
     private float guardStartTime;
-    private float guardEndTime;       // cooldown — prevents rapid Q tap from corrupting Animator
+    private float guardEndTime;       // cooldown, prevents rapid Q tap from corrupting Animator
     private string currentGuardAnim;
     private float lastCombatCrossFadeTime; // tracks last CrossFade on combat layer for health check
     private bool parryIntroComplete;       // true once Parry anim has played past the intro frames
@@ -610,11 +618,11 @@ public class PlayerCombat : MonoBehaviour
         formController = GetComponent<FormController>();
         playerHealth = GetComponent<PlayerHealth>();
 
-        // Phase 2 diagnostic — print ONCE so we can verify the gate is connected.
+        // Phase 2 diagnostic, print ONCE so we can verify the gate is connected.
         if (formController != null)
             Debug.Log("[PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).");
         else
-            Debug.LogError("[PlayerCombat] Phase 2 form gate NOT CONNECTED — FormController is NULL on this GameObject. Combat input WILL fire in Granny form. Check that FormController is on the same GameObject as PlayerCombat.");
+            Debug.LogError("[PlayerCombat] Phase 2 form gate NOT CONNECTED, FormController is NULL on this GameObject. Combat input WILL fire in Granny form. Check that FormController is on the same GameObject as PlayerCombat.");
 
         if (attackPoint == null)
         {
@@ -659,7 +667,7 @@ public class PlayerCombat : MonoBehaviour
                 + "' not found. Assign Pose Height Bone on PlayerCombat, or the mid air body"
                 + " snap cannot be cancelled.");
 
-        DebugLog("PlayerCombat initialized — Phase 3C v27");
+        DebugLog("PlayerCombat initialized, Phase 3C v27");
     }
 
     private void Update()
@@ -667,7 +675,7 @@ public class PlayerCombat : MonoBehaviour
         if (characterController != null && characterController.isGrounded) lastGroundedTime = Time.time;
 
         // ROUND 49: measure her ACTUAL planar speed from the transform. The running hit reaction
-        // never fired in three test sessions — if 4-leg locomotion moves the body outside the
+        // never fired in three test sessions, if 4-leg locomotion moves the body outside the
         // CharacterController, controller.velocity reads ~0 and a velocity check can never pass.
         // This measure works no matter what moves her.
         Vector3 planarNow = transform.position;
@@ -720,7 +728,7 @@ public class PlayerCombat : MonoBehaviour
             ForceResetCombat();
         }
 
-        // Dodge timeout — tightened from +1.0s to +0.3s, plus 2s absolute hard cap
+        // Dodge timeout, tightened from +1.0s to +0.3s, plus 2s absolute hard cap
         if (isDodging)
         {
             float dodgeElapsed = Time.time - dodgeStartTime;
@@ -731,7 +739,7 @@ public class PlayerCombat : MonoBehaviour
             }
         }
 
-        // Dash timeout — same tightening
+        // Dash timeout, same tightening
         if (isDashing)
         {
             float dashElapsed = Time.time - dashStartTime;
@@ -742,7 +750,7 @@ public class PlayerCombat : MonoBehaviour
             }
         }
 
-        // Guard safety — if Q not held but isGuarding stuck, Q release was missed (rapid input)
+        // Guard safety, if Q not held but isGuarding stuck, Q release was missed (rapid input)
         // Uses accumulator instead of timestamp: only counts continuous frames where Q is up
         if (isGuarding)
         {
@@ -751,7 +759,7 @@ public class PlayerCombat : MonoBehaviour
                 guardStuckTimer += Time.deltaTime;
                 if (guardStuckTimer > 0.5f)
                 {
-                    DebugLog("Safety: guard stuck (Q released but isGuarding true) — forcing EndGuard");
+                    DebugLog("Safety: guard stuck (Q released but isGuarding true), forcing EndGuard");
                     EndGuard();
                     guardStuckTimer = 0f;
                 }
@@ -766,13 +774,13 @@ public class PlayerCombat : MonoBehaviour
             guardStuckTimer = 0f;
         }
 
-        // Heavy charge safety — if LMB not held but isChargingHeavy stuck
+        // Heavy charge safety, if LMB not held but isChargingHeavy stuck
         if (isChargingHeavy)
         {
             // Animation transition: WindUp clip end → Hold loop.
             // Detected via animator state info (normalizedTime >= 1.0 on the WindUp state)
             // so the held pose plays for the entire wait regardless of heavyChargeTimeMax.
-            // Decoupled from chargePercent — same single-fire pattern as parryIntroComplete.
+            // Decoupled from chargePercent, same single-fire pattern as parryIntroComplete.
             if (!chargeHoldStarted)
             {
                 AnimatorStateInfo currentState = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
@@ -780,11 +788,11 @@ public class PlayerCombat : MonoBehaviour
                 {
                     chargeHoldStarted = true;
                     PlayCombatAnimation(heavyChargeHoldState);
-                    DebugLog("WindUp clip ended — crossfaded to Hold");
+                    DebugLog("WindUp clip ended, crossfaded to Hold");
                 }
             }
 
-            // UI / audio cue: charge ready at 100%. Separate from animation transition above —
+            // UI / audio cue: charge ready at 100%. Separate from animation transition above,
             // this fires whenever the percent crosses 1.0, regardless of animation state.
             if (!chargeReadyAnnounced && GetHeavyChargePercent() >= 1f)
             {
@@ -799,7 +807,7 @@ public class PlayerCombat : MonoBehaviour
                 heavyStuckTimer += Time.deltaTime;
                 if (heavyStuckTimer > 0.5f)
                 {
-                    DebugLog("Safety: heavy charge stuck (LMB released but isChargingHeavy true) — resetting");
+                    DebugLog("Safety: heavy charge stuck (LMB released but isChargingHeavy true), resetting");
                     CancelHeavyCharge();
                     ReturnToIdle();
                     heavyStuckTimer = 0f;
@@ -835,7 +843,7 @@ public class PlayerCombat : MonoBehaviour
 
             if (combatIdleSettledTimer > 0.3f && anyFlagStuck)
             {
-                DebugLog($"Safety: Animator idle but flags stuck (atk={isAttacking} dod={isDodging} dsh={isDashing} grd={isGuarding} hvy={isChargingHeavy} hit={isInHitReaction}) — forcing reset");
+                DebugLog($"Safety: Animator idle but flags stuck (atk={isAttacking} dod={isDodging} dsh={isDashing} grd={isGuarding} hvy={isChargingHeavy} hit={isInHitReaction}), forcing reset");
                 ForceResetCombat();
                 combatIdleSettledTimer = 0f;
             }
@@ -861,7 +869,7 @@ public class PlayerCombat : MonoBehaviour
                 movementStuckTimer += Time.deltaTime;
                 if (movementStuckTimer > 1.0f)
                 {
-                    DebugLog($"Safety: movement stuck 1.0s (atk={isAttacking} dod={isDodging} dsh={isDashing} hvy={isChargingHeavy} hit={isInHitReaction} animSpeed={animator?.speed}) — forcing reset");
+                    DebugLog($"Safety: movement stuck 1.0s (atk={isAttacking} dod={isDodging} dsh={isDashing} hvy={isChargingHeavy} hit={isInHitReaction} animSpeed={animator?.speed}), forcing reset");
                     if (animator != null) animator.speed = 1f;
                     ForceResetCombat();
                     movementStuckTimer = 0f;
@@ -882,9 +890,9 @@ public class PlayerCombat : MonoBehaviour
         if (isDashing)
             cachedTransform.rotation = dashLockedRotation;
 
-        // Per-frame model Y offset — prevents paw tips from clipping underground.
+        // Per-frame model Y offset, prevents paw tips from clipping underground.
         // Runs in LateUpdate so it applies AFTER animation poses are set.
-        // Guard: offset applied for the entire isGuarding window (v26 — was walk-only in v22-v25).
+        // Guard: offset applied for the entire isGuarding window (v26, was walk-only in v22-v25).
         // Dash: offset applied for the isDashing window.
         // Both use the smooth ramp introduced in v25 (single MoveTowards on entry and exit).
         if (visualModelRoot != null)
@@ -1087,12 +1095,12 @@ public class PlayerCombat : MonoBehaviour
         if (MenuGuard.IsAnyMenuOpen) return;
 
         // Phase 2 lockout: in Tomoe (human) form, all combat input is disabled.
-        // Per GDD Doc 04 §4b and Doc 09 §8c. Tomoe is the persuasion form — no attacks,
+        // Per GDD Doc 04 §4b and Doc 09 §8c. Tomoe is the persuasion form, no attacks,
         // no dodge, no dash, no guard, no tail abilities. Only walking, running, and
         // form transform (T, handled by FormController separately) respond.
         if (formController != null && formController.IsHuman)
         {
-            // Diagnostic — log ONLY on actual input frames, not every Update tick.
+            // Diagnostic, log ONLY on actual input frames, not every Update tick.
             // If you press C/MMB/LMB in Granny form and see THIS log, the gate is working
             // and any VFX you see is leftover particles from a prior Yoru action (not a new attack).
             // If you press these keys in Granny form and DON'T see this log, the gate is broken.
@@ -1146,7 +1154,7 @@ public class PlayerCombat : MonoBehaviour
         }
 
         // During guard: Q overrides ALL combat actions. Only release Q ends guard.
-        // Same as Sekiro — hold block = hold block, nothing interrupts it.
+        // Same as Sekiro, hold block = hold block, nothing interrupts it.
         //
         // v24: Q-release uses grace-period polling instead of GetKeyUp.
         // Reason: keyboard ghosting / N-key rollover on many keyboards drops Q for 1+
@@ -1166,7 +1174,7 @@ public class PlayerCombat : MonoBehaviour
             {
                 if (qReleaseStartTime < 0f)
                 {
-                    qReleaseStartTime = Time.time; // first frame Q reported released — start grace
+                    qReleaseStartTime = Time.time; // first frame Q reported released, start grace
                 }
                 else if (Time.time - qReleaseStartTime >= qReleaseGraceTime)
                 {
@@ -1175,7 +1183,7 @@ public class PlayerCombat : MonoBehaviour
                     return;
                 }
             }
-            return; // Q held (or pending release within grace) — guard overrides everything
+            return; // Q held (or pending release within grace), guard overrides everything
         }
 
         // Dodge input (C key)
@@ -1220,7 +1228,7 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
 
-    #region Guard/Parry System (Q — Sekiro-style)
+    #region Guard/Parry System (Q, Sekiro-style)
     private void StartGuard()
     {
         combatIdleSettledTimer = 0f; // prevent orphan detection from killing this action
@@ -1298,19 +1306,19 @@ public class PlayerCombat : MonoBehaviour
     private void UpdateGuardAnimation()
     {
         // === Phase 1: Start animation ===
-        // While Parry_Start is still playing, leave it alone — don't override with idle/walk.
+        // While Parry_Start is still playing, leave it alone, don't override with idle/walk.
         // Once start clip completes, parryIntroComplete flips true and Phase 2 takes over.
         // Time-based detection: simpler than animator state polling, matches existing parryIntroLength field.
         // Note: hitstop (animator.speed=0) pauses animation playback but Time.time keeps ticking,
         // so a perfect-parry triggered during the start phase may slightly truncate the start clip.
-        // That's an acceptable tradeoff — perfect parry is a dramatic moment, the start phase has
+        // That's an acceptable tradeoff, perfect parry is a dramatic moment, the start phase has
         // already played partially, and gameplay flow matters more than animation purity.
         if (!parryIntroComplete)
         {
             if (Time.time - guardStartTime >= parryIntroLength)
             {
                 parryIntroComplete = true;
-                // Fall through to Phase 2 — pick idle/walk based on current input
+                // Fall through to Phase 2, pick idle/walk based on current input
             }
             else
             {
@@ -1319,7 +1327,7 @@ public class PlayerCombat : MonoBehaviour
         }
 
         // === Phase 2: Idle / walk selection ===
-        // Projection onto locked guard direction — same threshold (0.3) as GuardMovementController
+        // Projection onto locked guard direction, same threshold (0.3) as GuardMovementController
         // so animation and movement always agree. Below 0.3 = no movement AND no anim switch.
         float projection = 0f;
         if (guardMovement != null)
@@ -1343,7 +1351,7 @@ public class PlayerCombat : MonoBehaviour
         else if (anyDirectionHeld)
         {
             // Keys held but perpendicular to guard axis (projection between -0.3 and 0.3).
-            // Keep whatever anim is currently playing — don't disrupt.
+            // Keep whatever anim is currently playing, don't disrupt.
             // If still on parryStartState (just finished this frame), default to idle.
             targetAnim = currentGuardAnim;
             if (targetAnim == "" || targetAnim == parryStartState) targetAnim = parryIdleState;
@@ -1392,7 +1400,7 @@ public class PlayerCombat : MonoBehaviour
             currentGuardAnim = targetAnim;
             if (animator != null)
             {
-                // Plain CrossFade — no normalizedTimeOffset needed since the new parryIdleState
+                // Plain CrossFade, no normalizedTimeOffset needed since the new parryIdleState
                 // is a clean loop (no baked intro to skip past).
                 animator.CrossFadeInFixedTime(targetAnim, blendTime, combatLayerIndex);
                 lastCombatCrossFadeTime = Time.time;
@@ -1439,7 +1447,7 @@ public class PlayerCombat : MonoBehaviour
             }
         }
 
-        // Feedback — pass both animators for hitstop
+        // Feedback, pass both animators for hitstop
         if (CombatFeedbackManager.Instance != null)
         {
             Animator enemyAnimator = closestEnemy != null ? closestEnemy.GetComponent<Animator>() : null;
@@ -1487,7 +1495,7 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
 
-    #region Dodge System (C — evasive frontflip with arc)
+    #region Dodge System (C, evasive frontflip with arc)
     private bool TryDodge()
     {
         if (characterController == null) return false;
@@ -1564,7 +1572,7 @@ public class PlayerCombat : MonoBehaviour
 
         // ROUND 23: no clip offset. Starting the clip part-way in makes the animator blend from
         // her standing pose into a pose that is already mid-flip, and that pose jump is a visible
-        // stutter — worse than the wind-up it was meant to skip. A slow flip start has to be fixed
+        // stutter, worse than the wind-up it was meant to skip. A slow flip start has to be fixed
         // in the clip or the state's Speed, not by jumping into the middle of it from code.
         animator.CrossFadeInFixedTime(animState, 0.12f, combatLayerIndex);
         lastCombatCrossFadeTime = Time.time;
@@ -1601,7 +1609,7 @@ public class PlayerCombat : MonoBehaviour
 
         // ROUND 12: an airborne flip starts from a CLEAN HOVER by default. Round 11 inherited her
         // full existing fall speed and then piled her real -22.5 m/s2 on top, so flipping while
-        // already dropping at 10 m/s cost about 12m of altitude — worse than the bug it replaced.
+        // already dropping at 10 m/s cost about 12m of altitude, worse than the bug it replaced.
         // Cancelling the inherited fall is what makes an air dodge read as a dodge instead of a
         // dive; Air Dodge Keep Entry Fall brings it back if any of it is wanted. Clamped to <= 0,
         // so a flip can never gain height.
@@ -1657,10 +1665,10 @@ public class PlayerCombat : MonoBehaviour
             }
 
             // ROUND 17: ease-out (fast off the mark, settles) instead of smoothstep, whose
-            // derivative is 0 at BOTH ends — that standstill start is the pause before the flip.
+            // derivative is 0 at BOTH ends, that standstill start is the pause before the flip.
             // ROUND 18: measure the travel from the END of the wind-up, not from frame zero.
             // Round 17 swapped smoothstep for ease-out, which killed the standstill start but then
-            // spent 27% of the distance during the wind-up frames — the body dashing forward
+            // spent 27% of the distance during the wind-up frames, the body dashing forward
             // before the flip. Remapping here means nothing moves until the flip proper begins and
             // the whole distance is covered across the part of the clip that actually flips.
             float power = Mathf.Max(1f, is4Leg ? dodge4LegCurvePower : dodge2LegCurvePower);
@@ -1673,7 +1681,7 @@ public class PlayerCombat : MonoBehaviour
                 ? 1f - Mathf.Pow(1f - moveT, power)
                 : moveT * moveT * (3f - 2f * moveT);
             // ROUND 21: never negative. Early in a dodge the progress source switches from the
-            // fallback timer to the animator's own normalized time, and those two do not agree —
+            // fallback timer to the animator's own normalized time, and those two do not agree,
             // the fallback uses Dodge Fallback Duration (0.67s) while the 4-leg clip is really
             // 0.80s. On the switching frame the remapped progress can go DOWN, which moved her
             // backwards for a frame. Clamping here removes that jitter at the source.
@@ -1696,7 +1704,7 @@ public class PlayerCombat : MonoBehaviour
                 }
                 else if (!characterController.isGrounded)
                 {
-                    // ROUND 11 — the "flip slams her into the floor" bug. This line used to be
+                    // ROUND 11, the "flip slams her into the floor" bug. This line used to be
                     //     move.y = Physics.gravity.y * Time.deltaTime;
                     // which takes gravity's SPEED (-9.81 m/s) and spends it as a DISTANCE every
                     // frame: a flat 9.81 m/s plunge from frame one with no acceleration ramp,
@@ -1748,7 +1756,7 @@ public class PlayerCombat : MonoBehaviour
                 ? $"travel finished at {travelDoneAt:F2}s, leaving {Mathf.Max(0f, elapsed - travelDoneAt):F2}s of clip with nothing moving"
                 : "travel never completed (cut short)";
             Debug.Log($"[DodgeTrace] {(is4Leg ? "4leg" : "2leg")} flip: clip {duration:F2}s, ran {elapsed:F2}s, "
-                    + $"{distance:F1}m — {tail}.");
+                    + $"{distance:F1}m, {tail}.");
         }
 
         EndDodge();
@@ -1780,7 +1788,7 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
 
-    #region Dash System (MMB — aggressive flat rush with damage)
+    #region Dash System (MMB, aggressive flat rush with damage)
     private bool TryDash()
     {
         if (characterController == null) return false;
@@ -1803,7 +1811,7 @@ public class PlayerCombat : MonoBehaviour
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
 
-        // ROUND 13: with NO direction held, dash the way YORU is facing — not the way the camera
+        // ROUND 13: with NO direction held, dash the way YORU is facing, not the way the camera
         // is. GetInputDirectionCameraRelative returns camForward for zero input, so a no-input
         // dash used to fly wherever the camera happened to point while her body faced somewhere
         // else. The frontflip has had this fallback all along; the dash never got it.
@@ -1872,8 +1880,8 @@ public class PlayerCombat : MonoBehaviour
     /// <summary>
     /// ROUND 12. Real seconds a state takes to play, accounting for the Speed field set on it in
     /// the Animator (and any Speed Multiplier parameter). AnimatorStateInfo.length reports the
-    /// clip's length at speed 1, so reading it raw is why the dash always took 1.000s — measured
-    /// eleven times in the 14:46 log — while Dash Fallback Duration said 0.5. Setting a dash state
+    /// clip's length at speed 1, so reading it raw is why the dash always took 1.000s, measured
+    /// eleven times in the 14:46 log, while Dash Fallback Duration said 0.5. Setting a dash state
     /// to Speed 2 now halves the travel time to match, and any later retune follows automatically
     /// instead of leaving her sliding after the animation has finished.
     /// </summary>
@@ -1887,7 +1895,7 @@ public class PlayerCombat : MonoBehaviour
     private IEnumerator DashMovement(Vector3 direction, float distance)
     {
         // ROUND 13: an explicit travel time wins. The animator path below is kept for anyone who
-        // sets Dash Move Duration to 0, but it is no longer the default — it was reading the
+        // sets Dash Move Duration to 0, but it is no longer the default, it was reading the
         // outgoing state's clip, which pinned every dash to exactly 1.000s.
         float duration;
         bool needsClipUpdate = false;
@@ -1935,7 +1943,7 @@ public class PlayerCombat : MonoBehaviour
 
             float t = Mathf.Clamp01(elapsed / duration);
             // ROUND 17: ease-out (fast off the mark, settles) instead of smoothstep, whose
-            // derivative is 0 at BOTH ends — that standstill start is the pause before the flip.
+            // derivative is 0 at BOTH ends, that standstill start is the pause before the flip.
             float eased = snappyDodgeDashStart
                 ? 1f - (1f - t) * (1f - t)
                 : t * t * (3f - 2f * t);
@@ -1947,7 +1955,7 @@ public class PlayerCombat : MonoBehaviour
                 Vector3 move = direction * (distance * frameDelta);
                 if (!characterController.isGrounded)
                 {
-                    // ROUND 11: an airborne dash HOLDS her altitude — Hazel's call. move.y stays
+                    // ROUND 11: an airborne dash HOLDS her altitude, Hazel's call. move.y stays
                     // 0, so she shoots sideways through the air and resumes falling from a
                     // standstill when the dash ends (PlayerMovement zeroes velocity.y on exit).
                     // The old line spent gravity's speed as a per-frame distance and drove her
@@ -2022,7 +2030,7 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
 
-    #region Shared — Camera Direction
+    #region Shared, Camera Direction
     private Vector3 GetInputDirectionCameraRelative(float h, float v)
     {
         if (mainCamera == null)
@@ -2156,11 +2164,13 @@ public class PlayerCombat : MonoBehaviour
 
         string animState;
         float duration;
+        float startOffset;
 
         if (isHeavy)
         {
             animState = is4Leg ? heavy4LegReactState : hitReactHeavy2Leg;
             duration = heavyHitReactDuration;
+            startOffset = is4Leg ? hitReactOffsetHeavy4Leg : hitReactOffsetHeavy2Leg;
 
             // Clip-driven 4-leg heavy reaction: when a cut frame is configured, the reaction must
             // stay alive long enough for Bhit_run_reaction_4 to actually reach that frame (almost
@@ -2172,15 +2182,16 @@ public class PlayerCombat : MonoBehaviour
         }
         else
         {
-            // ROUND 42/49 — hit while truly RUNNING on 4 legs reacts in stride (running reaction)
+            // ROUND 42/49, hit while truly RUNNING on 4 legs reacts in stride (running reaction)
             // instead of stopping; standing-ish on 4 legs keeps the normal light reaction.
             // ROUND 49: speed = the MAX of the controller's velocity and the transform-measured
-            // speed, so it works whichever system actually moves her — and every 4-leg hit LOGS
+            // speed, so it works whichever system actually moves her, and every 4-leg hit LOGS
             // the measured number, so the threshold gets tuned from data instead of guesses.
             float planarSpd = Mathf.Max(playerMovement != null ? playerMovement.CurrentPlanarSpeed : 0f, measuredPlanarSpeed);
             bool running4 = is4Leg && planarSpd >= runningReactMinSpeed
                             && !string.IsNullOrEmpty(runningLightReactState);
             animState = is4Leg ? (running4 ? runningLightReactState : hitReactLight4Leg) : hitReactLight2Leg;
+            startOffset = is4Leg ? (running4 ? hitReactOffsetRunning4Leg : hitReactOffsetLight4Leg) : hitReactOffsetLight2Leg;
             duration = lightHitReactDuration;
             if (logHitReactTiming && is4Leg)
                 Debug.Log($"[HitReactTrace] 4-leg LIGHT hit at {planarSpd:F2} m/s (running threshold {runningReactMinSpeed:F2}) → {(running4 ? "RUNNING" : "standing")} reaction.");
@@ -2200,15 +2211,16 @@ public class PlayerCombat : MonoBehaviour
             // and actively hold the reaction state for its duration so a single crossfade cannot be
             // silently lost. The hold yields once UpdateHitReaction clears the flag and runs ReturnToIdle.
             if (hitReactHoldCoroutine != null) StopCoroutine(hitReactHoldCoroutine);
-            hitReactHoldCoroutine = StartCoroutine(HoldHitReaction(animState, duration));
+            hitReactHoldCoroutine = StartCoroutine(HoldHitReaction(animState, duration, startOffset));
             lastCombatCrossFadeTime = Time.time;
-            DebugLog($"Hit react: {animState} ({duration}s)");
+            DebugLog($"Hit react: {animState} ({duration}s, clip starts at {startOffset:F2}s)");
 
-            // ROUND 36: the reaction fires at 0ms — measured 21 times out of 21 — so if it still
-            // reads late, the delay is inside the ANIMATION. This reports the clip that was chosen,
-            // how long it is, and how much of it is spent blending in, so a slow wind-in shows up
-            // as a number instead of a feeling.
-            if (logHitReactTiming) StartCoroutine(TraceHitReactClip(animState, duration));
+            // ROUND 36/84: the reaction request itself fires the same frame as the hit (the touch
+            // line and this line share a frame number in every log). The late feel was inside the
+            // clips: the 2-leg reactions hold their anticipation for the first 0.40s, which the
+            // per-clip start offsets above now skip. The trace below reports what the animator is
+            // really playing once the blend has been applied.
+            if (logHitReactTiming) StartCoroutine(TraceHitReactClip(animState, duration, startOffset));
         }
 
         if (CombatFeedbackManager.Instance != null)
@@ -2219,7 +2231,7 @@ public class PlayerCombat : MonoBehaviour
         isInHitReaction = true;
         hitReactionEndTime = Time.time + duration;
 
-        // Backup force-clear coroutine — independent of UpdateHitReaction's Time.time check.
+        // Backup force-clear coroutine, independent of UpdateHitReaction's Time.time check.
         // Mirrors the aerial-spin "force-ending on landing" pattern: when the primary clear
         // mechanism is unreliable (animation events for aerial; observed stuck-flag for hit
         // react in May 2026 logs), a second independent timer guarantees the flag clears.
@@ -2359,24 +2371,29 @@ public class PlayerCombat : MonoBehaviour
     #endregion
 
     /// <summary>
-    /// ROUND 36. Waits for the crossfade to resolve, then reports what the animator actually
-    /// ended up playing for this hit reaction: the clip, its length, and the blend time spent
-    /// before it. If the reaction is firing instantly but still reading late, the answer is in
-    /// these numbers — a clip whose first frames do not look like an impact will always feel
-    /// delayed no matter how fast the code is, and that is an FBX fix rather than a code one.
+    /// ROUND 36/84. Reports what the animator is really playing for this hit reaction once the
+    /// blend has been applied. ROUND 84 fix: a crossfade requested in this frame is only applied on
+    /// the NEXT animator update, so reading the animator immediately reports the state Yoru was in
+    /// BEFORE the hit (the old trace logged Combo1, Combo3 and Combat_Empty as "the reaction clip"
+    /// and always said 0 ms). One frame of wait first, then wait out the blend, then read.
     /// </summary>
-    private IEnumerator TraceHitReactClip(string requested, float requestedDuration)
+    private IEnumerator TraceHitReactClip(string requested, float requestedDuration, float startOffset)
     {
         float t0 = Time.time;
+        int requestedHash = Animator.StringToHash(requested);
+        yield return null;
+
         int guard = 0;
         while (animator != null && animator.IsInTransition(combatLayerIndex) && guard++ < 120)
             yield return null;
 
         if (animator == null) yield break;
         var st = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
-        Debug.Log($"[HitReactTrace] asked for '{requested}' ({requestedDuration:F2}s) — "
-                + $"blend resolved after {(Time.time - t0) * 1000f:F0} ms, "
-                + $"now playing a clip {st.length:F2}s long at speed {st.speed:F2}, "
+        bool playingIt = st.shortNameHash == requestedHash;
+        Debug.Log($"[HitReactTrace] asked for '{requested}' ({requestedDuration:F2}s, clip start {startOffset:F2}s): "
+                + (playingIt ? "playing it" : "NOT playing it, another state took the combat layer")
+                + $", blend resolved after {(Time.time - t0) * 1000f:F0} ms, "
+                + $"state {st.length:F2}s long at speed {st.speed:F2}, now at {st.normalizedTime * st.length:F2}s, "
                 + $"layer weight {animator.GetLayerWeight(combatLayerIndex):F2}, "
                 + $"animator.speed {animator.speed:F2}.");
     }
@@ -2416,7 +2433,7 @@ public class PlayerCombat : MonoBehaviour
     /// Renderers and materials are cached once: calling .material every hit instantiates a fresh
     /// material copy each time, which on a fur-shaded ten-tailed cat is not free. Restoring from a
     /// snapshot taken on the FIRST hit (rather than on every hit) is what stops two fast hits from
-    /// leaving her permanently red — the same stacking bug the hitstop system already guards against.
+    /// leaving her permanently red, the same stacking bug the hitstop system already guards against.
     /// </summary>
     private void FlashDamage()
     {
@@ -2464,7 +2481,7 @@ public class PlayerCombat : MonoBehaviour
                 if (flashMaterials[i] != null)
                     flashMaterials[i].color = damageFlashColor;
 
-            // Real time throughout — the flash must read at normal speed even while Yoru's own
+            // Real time throughout, the flash must read at normal speed even while Yoru's own
             // tail-aim slow-motion has the world clock at a tenth speed.
             yield return new WaitForSecondsRealtime(half);
 
@@ -2508,11 +2525,12 @@ public class PlayerCombat : MonoBehaviour
     // can overwrite the one-shot crossfade before it is seen. Lets the clip play through (no freeze).
     // Exits the moment the duration elapses or UpdateHitReaction clears the flag and runs ReturnToIdle,
     // so it never fights the blend back to idle.
-    private IEnumerator HoldHitReaction(string state, float duration)
+    private IEnumerator HoldHitReaction(string state, float duration, float startOffset)
     {
         int hash = Animator.StringToHash(state);
+        float offset = Mathf.Max(0f, startOffset);   // ROUND 84: per-clip, measured from the clips (see the Hit Reaction Timing fields)
         animator.SetLayerWeight(combatLayerIndex, 1f);
-        animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, Mathf.Max(0f, hitReactStartOffset));   // ROUND 41: skip the clip's wind-up so the flinch is visible the frame the hit lands
+        animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, offset);   // open on the impact pose, past the clip's anticipation frames
         yield return null;
 
         // Optional early cut: the 4-leg heavy clip (Bhit_run_reaction_4) runs into a locomotion cycle
@@ -2538,7 +2556,7 @@ public class PlayerCombat : MonoBehaviour
             {
                 // Lost the reaction state (something overwrote the one-shot crossfade): re-assert it.
                 if (!animator.IsInTransition(combatLayerIndex))
-                    animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, Mathf.Max(0f, hitReactStartOffset));   // ROUND 41: skip the clip's wind-up so the flinch is visible the frame the hit lands
+                    animator.CrossFadeInFixedTime(state, 0.02f, combatLayerIndex, offset);
 
                 // If the state has never been reached after repeated re-asserts, the state name
                 // almost certainly does not exist on the combat layer (CrossFade to a missing
@@ -2625,7 +2643,7 @@ public class PlayerCombat : MonoBehaviour
         {
             lastTargetTrace = best != null
                 ? $"'{best.name}' at {bestScore:F1}m"
-                : $"none: {nearby.Length} collider(s) in range, rejected dead={rejDead} angle={rejAngle} lineOfSight={rejLos} (LOS is a Linecast to the enemy ROOT + 0.6m against environmentMask — uneven ground between Yoru and a big enemy's feet blocks it)";
+                : $"none: {nearby.Length} collider(s) in range, rejected dead={rejDead} angle={rejAngle} lineOfSight={rejLos} (LOS is a Linecast to the enemy ROOT + 0.6m against environmentMask, uneven ground between Yoru and a big enemy's feet blocks it)";
         }
         return best;
     }
@@ -2633,7 +2651,7 @@ public class PlayerCombat : MonoBehaviour
     /// <summary>
     /// True when nothing in environmentMask blocks the straight line from Yoru to the target. With
     /// Launch on, the line is aimed at the collider's body centre (a 6 m boss has his root at his
-    /// feet — aiming there let every bump of a cave floor "hide" him); off, the old root + 0.6 m.
+    /// feet, aiming there let every bump of a cave floor "hide" him); off, the old root + 0.6 m.
     /// </summary>
     private bool HasLineOfSight(Collider col)
     {
@@ -2744,7 +2762,7 @@ public class PlayerCombat : MonoBehaviour
             targetGap = gap;
             dir = gap > 0.01f ? toTarget.normalized : cachedTransform.forward;
 
-            // ROUND 8, CASE C — the enemy is real but too far to be worth sliding at, so step
+            // ROUND 8, CASE C, the enemy is real but too far to be worth sliding at, so step
             // forward instead of committing. Every shipped implementation we compared against does
             // exactly this rather than clamping: HL2's npc_assassin returns TOO_FAR past 1.5x the
             // animation's own travel, NOLF2's lunge goal does not fire outside 300-500 units, and
@@ -2756,7 +2774,7 @@ public class PlayerCombat : MonoBehaviour
             }
             else
             {
-                // ROUND 8, CASE B — launch AT him. gap is to his collider SURFACE, so with Launch
+                // ROUND 8, CASE B, launch AT him. gap is to his collider SURFACE, so with Launch
                 // Stop Gap at 0 she travels the whole way and her own capsule stops on his body.
                 // That is what "launch to the enemy" means. No floor, no minimum: if the real gap
                 // is 0.3 m she moves 0.3 m, if it is 2 m she moves 2 m.
@@ -2767,7 +2785,7 @@ public class PlayerCombat : MonoBehaviour
         }
         else
         {
-            // ROUND 8, CASE A — nothing to aim at. With the launch model on, EVERY attack and every
+            // ROUND 8, CASE A, nothing to aim at. With the launch model on, EVERY attack and every
             // combo step still steps forward. With it off, the old behaviour: hits 1 and 2 planted,
             // only the finisher nudged.
             dir = cachedTransform.forward;
@@ -2777,7 +2795,7 @@ public class PlayerCombat : MonoBehaviour
 
         if (nudgeOnly)
         {
-            // A step is always straight forward — she is not sliding at anything. The edge probe in
+            // A step is always straight forward, she is not sliding at anything. The edge probe in
             // LungeRoutine still runs, so this can never carry her off a ledge.
             dir = cachedTransform.forward;
             distance = Mathf.Max(0f, launchNoTargetDistance);
@@ -2909,7 +2927,7 @@ public class PlayerCombat : MonoBehaviour
         {
             Vector3 moved = cachedTransform.position - lungeStartPos;
             moved.y = 0f;
-            Debug.Log($"[ComboTrace] LAUNCH RESULT wanted={distance:F2}m actually moved={moved.magnitude:F2}m — {lungeEndReason}");
+            Debug.Log($"[ComboTrace] LAUNCH RESULT wanted={distance:F2}m actually moved={moved.magnitude:F2}m, {lungeEndReason}");
         }
         lungeCoroutine = null;
     }
@@ -3030,7 +3048,7 @@ public class PlayerCombat : MonoBehaviour
 
             // Single enemy: one strike and done. Spin a brief beat so it reads, then stop.
             //
-            // The beat used to be a flat beybladeSingleWindDown (0.3s) — which, against a lone boss,
+            // The beat used to be a flat beybladeSingleWindDown (0.3s), which, against a lone boss,
             // ended the swirl at ~40% of its 0.79s clip and crossfaded to idle. That is the "swirl
             // plays halfway then snaps back to idle" complaint, and it only ever happened when the
             // finisher HIT (a whiff already let the clip finish). Now: wait at least the wind-down,
@@ -3136,7 +3154,7 @@ public class PlayerCombat : MonoBehaviour
             Debug.Log($"[ComboTrace] START step={currentComboStep} state='{GetComboStateName(currentComboStep)}' queued={queuedClicks} target={lastTargetTrace}");
 
         // Lunge toward the target, re-found every hit. With no target, hits 1-2 stay planted and
-        // only the finisher (combo step 3) nudges forward — see StartLunge. No position freeze.
+        // only the finisher (combo step 3) nudges forward, see StartLunge. No position freeze.
         StartLunge(currentLungeTarget, currentComboStep == 3);
 
         PlayCombatAnimation(GetComboStateName(currentComboStep));
@@ -3272,7 +3290,7 @@ public class PlayerCombat : MonoBehaviour
         hasUsedAerialAttack = true;
         isAerialAttack = true;
         currentComboStep = 3;
-        DebugLog($"Aerial spin — {aerialSpinDamage} dmg");
+        DebugLog($"Aerial spin, {aerialSpinDamage} dmg");
         UnlockPosition();
         PlayCombatAnimation(combo3StateName);
         animator.SetInteger(HashComboStep, 3);
@@ -3381,7 +3399,7 @@ public class PlayerCombat : MonoBehaviour
 
     /// <summary>
     /// Release the held charge as a strike. Damage = combo1Damage + Mathf.RoundToInt(chargePercent × heavyChargeBonusMax).
-    /// Uncharged release does combo1Damage (10) — same as a regular punch, by design.
+    /// Uncharged release does combo1Damage (10), same as a regular punch, by design.
     /// Fully charged release does combo1Damage + heavyChargeBonusMax (110 at defaults).
     /// </summary>
     private void ReleaseHeavyAttack()
@@ -3419,7 +3437,7 @@ public class PlayerCombat : MonoBehaviour
         // Self-healing return-to-idle: schedule OnAttackEnd at clip length - 0.1s buffer
         // (small buffer lets the return-to-idle CrossFade start before the clip hits its last
         // frame). Works whether or not the OnAttackEnd animation event is set on the Release
-        // clip — the event will fire OnAttackEnd directly if present, and the Invoke fires it
+        // clip, the event will fire OnAttackEnd directly if present, and the Invoke fires it
         // as a fallback. OnAttackEnd's "if (!isAttacking) return" guard prevents double-fire.
         float invokeDelay = Mathf.Max(0.1f, heavyReleaseClipLength - 0.1f);
         Invoke(nameof(OnAttackEnd), invokeDelay);
@@ -3428,7 +3446,7 @@ public class PlayerCombat : MonoBehaviour
     /// <summary>
     /// Cancel an in-progress charge without firing the strike. Used by guard, dodge, dash,
     /// and the LMB-released-but-flag-stuck safety. Resets all charge state and stops audio.
-    /// Caller is responsible for any animation crossfade (e.g. ReturnToIdle) if needed —
+    /// Caller is responsible for any animation crossfade (e.g. ReturnToIdle) if needed,
     /// guard/dodge/dash play their own next-state animation immediately after.
     /// </summary>
     private void CancelHeavyCharge()
@@ -3525,7 +3543,7 @@ public class PlayerCombat : MonoBehaviour
                 enemyHealth.TakeDamage(damage, isHeavy);
                 DebugLog($"Hit {enemy.name} for {damage}{(isHeavy ? " (heavy)" : "")}");
 
-                // Mark combat engaged — Yoru-to-enemy half of "hit exchanged either way"
+                // Mark combat engaged, Yoru-to-enemy half of "hit exchanged either way"
                 // per GDD Doc 04 §4a. Locks form transform for engagedInCombatDuration seconds.
                 engagedInCombatUntil = Time.time + engagedInCombatDuration;
 
@@ -3590,7 +3608,7 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
 
-    #region Animation Events — Combat Flow
+    #region Animation Events, Combat Flow
     public void OnCanQueueNextAttack()
     {
         if (isBeyblading) return; // no combo chaining during the finisher spin
@@ -3598,7 +3616,7 @@ public class PlayerCombat : MonoBehaviour
         if (queuedClicks <= 0) return;
 
         // THIS is where a combo link gets cut short. OnCanQueueNextAttack is an animation EVENT
-        // inside each combo clip, and it used to start the next step the instant it fired — so the
+        // inside each combo clip, and it used to start the next step the instant it fired, so the
         // current clip is chopped off at whatever frame that event happens to sit on. If the event
         // is early in Combo2, Combo2 visibly plays about half way and is replaced. That is the
         // "second animation gets interrupted and snaps" complaint, and no amount of blending hides it.
@@ -3816,7 +3834,7 @@ public class PlayerCombat : MonoBehaviour
     /// <summary>
     /// True if a hit has been exchanged (Yoru→enemy or enemy→Yoru) within engagedInCombatDuration
     /// seconds (default 5s). Used by FormController to block form transform during active combat
-    /// per GDD Doc 04 §4a. Independent of action-flag state (isAttacking etc) — does not get
+    /// per GDD Doc 04 §4a. Independent of action-flag state (isAttacking etc), does not get
     /// masked by accessor self-heal logic. Also the intended foundation for the deferred
     /// "enemies remember combat for 5-10s" anti-exploit rule.
     /// </summary>
