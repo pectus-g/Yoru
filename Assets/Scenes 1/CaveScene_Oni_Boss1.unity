@@ -2656,6 +2656,7 @@ GameObject:
   - component: {fileID: 511418099}
   - component: {fileID: 511418098}
   - component: {fileID: 511418100}
+  - component: {fileID: 990983513}
   m_Layer: 0
   m_Name: bossHealthBar
   m_TagString: Untagged
@@ -2675,43 +2676,69 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f9d4129b5c3f45c0bb4d8975425f4c8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossHealthBarUI
-  barWidth: 620
-  barHeight: 30
-  topMargin: 60
-  titleFontSize: 36
-  titleFont: {fileID: 0}
-  titleColor: {r: 0.92, g: 0.95, b: 1, a: 1}
-  titleGlowColor: {r: 0.3, g: 0.55, b: 1, a: 0.55}
-  trailSpeed: 1.5
-  healthColorP1: {r: 0.22, g: 0.52, b: 1, a: 1}
-  glowColorP1: {r: 0.25, g: 0.55, b: 1, a: 1}
-  trailColorP1: {r: 0.95, g: 0.3, b: 0.2, a: 0.95}
-  healthColorP2: {r: 0.95, g: 0.18, b: 0.22, a: 1}
-  glowColorP2: {r: 1, g: 0.25, b: 0.2, a: 1}
-  trailColorP2: {r: 1, g: 0.85, b: 0.35, a: 0.95}
-  phase2PulseSpeed: 4.5
-  phase2ShimmerSpeed: 11
-  phase2ShimmerAmount: 0.1
-  phaseFlashColor: {r: 1, g: 1, b: 1, a: 0.9}
-  phaseFlashDuration: 0.45
-  glowPadding: 30
-  glowBaseAlpha: 0.6
-  glowPulseSpeed: 2
-  glowPulseAmount: 0.08
-  glowLowHealthBoost: 0.18
-  fadeInDuration: 0.3
+  barWidth: 760
+  barHeight: 13
+  anchorToBottom: 0
+  screenMargin: 62
+  nameFont: {fileID: 11400000, guid: aa67fc9827b3543efa34b05b5b6c400b, type: 2}
+  nameFontSize: 18
+  nameLetterSpacing: 18
+  forceUppercase: 1
+  nameColor: {r: 0.98, g: 0.96, b: 0.92, a: 1}
+  nameGlowP1: {r: 1, g: 0.88, b: 0.62, a: 0.38}
+  nameGlowP2: {r: 1, g: 0.86, b: 0.55, a: 1}
+  nameGlowRadiusP1: 2.5
+  nameGlowRadiusP2: 4.5
+  nameGlowFalloff: 0.45
+  nameHeartbeat: 1
+  heartbeatPeriodFull: 1
+  heartbeatPeriodLow: 0.45
+  heartbeatMin: 0.7
+  heartbeatMax: 1.5
+  sealSprite: {fileID: 21300000, guid: 431df659059a4d5286b5de57ff0bbda8, type: 3}
+  sealGlowSprite: {fileID: 21300000, guid: 270d6918cd3a4b82aed713670dd6e440, type: 3}
+  sealSize: 50
+  sealOffsetX: 32
+  sealOffsetY: 0
+  sealGlowScale: 2.1
+  sealColorP1: {r: 0.78, g: 0.33, b: 0.18, a: 0.85}
+  sealColorP2: {r: 1, g: 0.3, b: 0.16, a: 1}
+  sealGlowColorP1: {r: 0.95, g: 0.4, b: 0.18, a: 0.3}
+  sealGlowColorP2: {r: 1, g: 0.18, b: 0.1, a: 0.65}
+  trackColor: {r: 0.055, g: 0.045, b: 0.04, a: 0.92}
+  edgeColor: {r: 0.34, g: 0.27, b: 0.22, a: 0.45}
+  grainStrength: 0.34
+  brushEndWidth: 32
+  inkSeed: 7
+  underGlowP1: 0.22
+  underGlowP2: 0.42
+  underGlowSpread: 5
+  fillColorP1: {r: 0.66, g: 0.19, b: 0.1, a: 1}
+  breathPeriodP1: 3.2
+  fillColorP2: {r: 0.86, g: 0.1, b: 0.07, a: 1}
+  breathPeriodP2: 1.1
+  breathAmount: 0.1
+  twoStageFill: 1
+  phaseSplit: 0.5
+  refillDuration: 0.9
+  phaseCount: 2
+  phaseMarkSize: 9
+  phaseMarkSpacing: 15
+  phaseMarkLive: {r: 0.92, g: 0.38, b: 0.18, a: 0.9}
+  phaseMarkSpent: {r: 0.3, g: 0.24, b: 0.2, a: 0.55}
+  sweepColor: {r: 1, g: 0.78, b: 0.45, a: 0.85}
+  sweepDuration: 0.55
+  sweepWidth: 0.22
+  trailColor: {r: 0.84, g: 0.76, b: 0.64, a: 0.8}
+  trailHoldTime: 0.35
+  trailSpeed: 0.9
+  edgeMarkColor: {r: 1, g: 0.62, b: 0.28, a: 1}
+  edgeMarkWidth: 18
+  damageFlashDuration: 0.5
+  edgeMarkRestAlpha: 0.35
+  fadeInDuration: 0.35
   fadeOutDuration: 1.5
   deathFadeDelay: 2
-  backgroundColor: {r: 0.05, g: 0.07, b: 0.16, a: 0.9}
-  borderColor: {r: 0.55, g: 0.72, b: 1, a: 0.7}
-  cornerRadius: 9
-  borderThickness: 2.5
-  sheenStrength: 0.3
-  damageGlowColor: {r: 1, g: 0.35, b: 0.2, a: 1}
-  damageFlashDuration: 0.6
-  redFlashOnDeath: 1
-  deathFlashColor: {r: 0.9, g: 0.12, b: 0.1, a: 0.9}
-  deathFlashSpeed: 8
   showDebugLogs: 1
 --- !u!224 &511418099
 RectTransform:
@@ -2755,6 +2782,29 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
+--- !u!114 &990983513
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 511418097}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.CanvasScaler
+  m_UiScaleMode: 1
+  m_ReferencePixelsPerUnit: 100
+  m_ScaleFactor: 1
+  m_ReferenceResolution: {x: 1920, y: 1080}
+  m_ScreenMatchMode: 0
+  m_MatchWidthOrHeight: 0.5
+  m_PhysicalUnit: 3
+  m_FallbackScreenDPI: 96
+  m_DefaultSpriteDPI: 96
+  m_DynamicPixelsPerUnit: 1
+  m_PresetInfoIsWorld: 0
 --- !u!4 &554887977 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7074274892573713130, guid: 5fa4b133af4e749dfb212eb6dafd6e93, type: 3}
@@ -47756,8 +47806,8 @@ MonoBehaviour:
   heavyAttackPrefab: {fileID: 165672, guid: 146d2ff25be0f824fa285b16b2915ff3, type: 3}
   heavyChargeBuildupPrefab: {fileID: 147226, guid: 4d496338295339f4ab150256f9d9f4b7, type: 3}
   spinVFX: {fileID: 198810402891263512, guid: 11ce829c7ac25d04faf119e825f822e3, type: 3}
-  lightHitSparkPrefab: {fileID: 0}
-  heavyHitSparkPrefab: {fileID: 0}
+  lightHitSparkPrefab: {fileID: 1090678147105552, guid: bac6010fd61d72b419fb265a96000090, type: 3}
+  heavyHitSparkPrefab: {fileID: 155692, guid: 77d6e8e3fa15a0b419d018e3e16931f6, type: 3}
   hitSparkLifetime: 1.5
   dodgeTrailPrefab: {fileID: 138082, guid: 8d1f09bd475197049bac8b1bf6912082, type: 3}
   dodgeDashTrailPrefab: {fileID: 138082, guid: 8d1f09bd475197049bac8b1bf6912082, type: 3}
