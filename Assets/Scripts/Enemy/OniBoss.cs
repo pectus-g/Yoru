@@ -25,6 +25,75 @@ using UnityEngine;
 [RequireComponent(typeof(EnemyHealth))]
 public class OniBoss : MonoBehaviour
 {
+    // =========================================================================
+    //  ONI VFX. Every effect slot he has, in one place.
+    //  Gathered 12 Sep 2026. Unity serialises by field NAME, so moving these
+    //  declarations changed where they DRAW in the Inspector, nothing else.
+    //  No values lost, no logic touched.
+    //  Empty on 12 Sep 2026: Swing Trail VFX, Hit Land VFX, Cine Sky Fill VFX.
+    //  All three are fallbacks and all three are covered, so empty is fine.
+    //  Two more Oni VFX slots live on OTHER components of the same object:
+    //  Enemy Health > Death Particle Prefab, and Enemy FX > Entries. Both empty.
+    // =========================================================================
+
+    [Header("ONI VFX 1/5   SWINGS. One row per attack: wave + club trail + hit on Yoru")]
+    [Tooltip("ROUND 24. One row per attack, so each swing can have its own effect. Give Club_Swing and ClubSwing2 the same prefab and they read as one move; give ClubSlam its own and it reads as a different one. Placement is per row too, because a slam wants its effect low and in front while a swing wants it at chest height. A row with no prefab falls back to Swing Wave VFX (Fallback) below. Match is by attack NAME or attack ANIMATION, whichever the row's text matches.")]
+    [SerializeField] private SwingVFXBinding[] swingWaveVFXByAttack =
+    {
+        new SwingVFXBinding("Club_Swing"),
+        new SwingVFXBinding("ClubSwing2"),
+        new SwingVFXBinding("ClubSlam"),
+        new SwingVFXBinding("KanaboSweep"),
+    };
+
+    [Header("ONI VFX 2/5   SWING FALLBACKS. Used only when a row above leaves that slot empty")]
+    [Tooltip("ROUND 28. Trail used for any attack whose row has no Trail Vfx of its own. Empty = that attack has no trail.")]
+    [SerializeField] private GameObject swingTrailVFX;
+    [Tooltip("ROUND 28. Seconds the trail is left to fade after the swing ends. It is unparented first, so it stops following him and dies where it was rather than snapping out of existence mid-arc.")]
+    [SerializeField] private float trailFadeOut = 0.4f;
+    [Tooltip("ROUND 25. Used for any attack whose row has no Hit VFX of its own. Spawned at the point where the club actually meets Yoru's body, only on swings that connect.")]
+    [SerializeField] private GameObject hitLandVFX;
+    [Tooltip("Seconds before a hit effect is destroyed.")]
+    [SerializeField] private float hitLandVFXLifetime = 2f;
+    [Tooltip("Nudge the hit effect this far back along the line from Yoru toward the club, metres. A small positive value keeps a flat effect from being buried inside her body.")]
+    [SerializeField] private float hitLandVFXOffset = 0.1f;
+    [Tooltip("ROUND 33. Playback speed of the wave's effect. 1 = as authored. 0.5 plays it at half speed so it takes TWICE as long to play out — this is the only real way to make a short burst last longer, because deleting it later does nothing for an effect that has already finished. 0.35-0.6 is the useful range if your prefabs are over too quickly.")]
+    [SerializeField] private float swingWaveVisualPlaybackSpeed = 1f;
+
+    [Header("ONI VFX 3/5   CHARGE. The fire rush and the hit that ends it")]
+    [Tooltip("The code-built arcs that trailed the rush last round — the 'linear strips' you saw. OFF by default now: they are stretched primitives standing in for real VFX and they read as junk. Turn on only if you want them back until a proper wave effect is authored and wired into EnemyFX.")]
+    [SerializeField] private bool chargeTrailVFX = false;
+    [Tooltip("Seconds between wave puffs while the charge clip plays.")]
+    [SerializeField] private float chargeWaveInterval = 0.09f;
+    [Tooltip("Width of each wave arc in metres. Scale to the Oni's size.")]
+    [SerializeField] private float chargeWaveScale = 2.6f;
+    [Tooltip("ROUND 43 — YOUR fire for the charge. Drag a fire VFX prefab here: while the rush travels, one puff spawns at his feet every Charge Wave Interval seconds and lives Charge Trail Lifetime seconds — a burning line follows him along the ground. Empty = no fire trail. (This replaces the gray placeholder arcs; the old toggle below only matters when this slot is empty.)")]
+    [SerializeField] private GameObject chargeGroundTrailVFX;
+    [Tooltip("ROUND 47. Seconds the fire keeps burning/fading where the rush ended, after the charge is over.")]
+    [SerializeField] private float chargeTrailLifetime = 1.5f;
+    [Tooltip("ROUND 51. Height above the floor the fire rides at during the rush. Hazel: it must sit ON the ground — keep this near 0.")]
+    [SerializeField] private float chargeTrailHeight = 0.03f;
+    [Tooltip("ROUND 43. Effect spawned ON Yoru at the exact moment the charge's damage connects. Empty = the shared Hit Land VFX is used.")]
+    [SerializeField] private GameObject chargeHitVFX;
+    // ROUND 50: the round-49 "second standing-fire slot" was a misunderstanding and is deleted —
+    // there is ONE fire (the trail prefab above). How long its line stays on the ground and how
+    // gradually it fades are the PREFAB's own Trail Renderer settings: Time and the Color
+    // gradient's end alpha. The code's only duty is never to cut it short (see ReleaseChargeTrail).
+
+    [Header("ONI VFX 4/5   GROUND POUND. The phase-2 slam impact")]
+    [Tooltip("YOUR explosion/impact prefab, spawned at the landing point. Empty = only the code-built ring is drawn.")]
+    [SerializeField] private GameObject poundImpactVFX;
+    [Tooltip("Seconds before the impact effect is destroyed.")]
+    [SerializeField] private float poundImpactVFXLifetime = 4f;
+
+    [Header("ONI VFX 5/5   PHASE-2 ENTRANCE. Lightning on the club and the sky fill")]
+    [Tooltip("YOUR lightning prefab — spawned ON the club tip at the beat, parented to the club so it rides the pose. Empty = the shake + storm bolt still fire.")]
+    [SerializeField] private GameObject cineLightningVFX;
+    [Tooltip("Seconds before the lightning instance is destroyed.")]
+    [SerializeField] private float cineLightningLifetime = 4f;
+    [Tooltip("ROUND 62 — EXTRA lightning instances spawned HIGH around him during the build, so the sky truly fills. EMPTY = automatically uses your Cine Lightning VFX — your look, more of it. Drag a different sky bolt here whenever you find one.")]
+    [SerializeField] private GameObject cineSkyFillVFX;
+
     [Header("Tiered Hit Reactions")]
     [Tooltip("Master switch for the tiered reactions below.")]
     [SerializeField] private bool tieredReactionsEnabled = true;
@@ -262,10 +331,6 @@ public class OniBoss : MonoBehaviour
     [Tooltip("Camera shake at the slam — the 'cave is about to fall' one. The phase roar is 0.6 for 0.5s; this tops it.")]
     [SerializeField] private float poundShakeIntensity = 1.1f;
     [SerializeField] private float poundShakeDuration = 0.8f;
-    [Tooltip("YOUR explosion/impact prefab, spawned at the landing point. Empty = only the code-built ring is drawn.")]
-    [SerializeField] private GameObject poundImpactVFX;
-    [Tooltip("Seconds before the impact effect is destroyed.")]
-    [SerializeField] private float poundImpactVFXLifetime = 4f;
     [Tooltip("ROUND 52 — 'only at phase 2 sometimes': earliest seconds between pounds during phase 2. 0 = the entrance pound only, no repeats.")]
     [SerializeField] private float poundRepeatCooldown = 25f;
     [Tooltip("Once the cooldown is over, roughly this chance PER SECOND that a pound fires while he is chasing her in phase 2.")]
@@ -301,10 +366,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float cineTopHold = 2f;
     [Tooltip("Gentle camera drift during the hang, degrees per second — keeps the shot alive without sweeping.")]
     [SerializeField] private float cineHangDrift = 7f;
-    [Tooltip("YOUR lightning prefab — spawned ON the club tip at the beat, parented to the club so it rides the pose. Empty = the shake + storm bolt still fire.")]
-    [SerializeField] private GameObject cineLightningVFX;
-    [Tooltip("Seconds before the lightning instance is destroyed.")]
-    [SerializeField] private float cineLightningLifetime = 4f;
     [Tooltip("Camera shake when the lightning hits the club.")]
     [SerializeField] private float cineLightningShake = 0.9f;
     [SerializeField] private float cineLightningShakeDuration = 0.5f;
@@ -317,8 +378,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private int cineSkyBolts = 9;
     [Tooltip("ROUND 62 — where the FIRST bolts land, metres from him; the last lands almost on top of him. 14 keeps the whole pull visible through the cave's storm fog (24 was fog-eaten).")]
     [SerializeField] private float cineSkyBoltRange = 14f;
-    [Tooltip("ROUND 62 — EXTRA lightning instances spawned HIGH around him during the build, so the sky truly fills. EMPTY = automatically uses your Cine Lightning VFX — your look, more of it. Drag a different sky bolt here whenever you find one.")]
-    [SerializeField] private GameObject cineSkyFillVFX;
     [Tooltip("Thin flickering sky-to-club streamer bolts during the build — code-built, no assets. 0 = none.")]
     [Range(0, 6)]
     [SerializeField] private int cineStreamerCount = 3;
@@ -440,14 +499,6 @@ public class OniBoss : MonoBehaviour
     [Header("Swing Wave — round 16")]
     [Tooltip("ROUND 16. A shockwave released at the moment each swing strikes, so a swing that is just short of Yoru still reaches her. Measured over 28 of his swings, the club came within a metre of her on only 10 — the other 18 were guaranteed whiffs before they started, which is most of the dead air in the fight. This extends his threat in-world instead of making him magnetically follow her.")]
     [SerializeField] private bool swingWaveEnabled = true;
-    [Tooltip("ROUND 24. One row per attack, so each swing can have its own effect. Give Club_Swing and ClubSwing2 the same prefab and they read as one move; give ClubSlam its own and it reads as a different one. Placement is per row too, because a slam wants its effect low and in front while a swing wants it at chest height. A row with no prefab falls back to Swing Wave VFX (Fallback) below. Match is by attack NAME or attack ANIMATION, whichever the row's text matches.")]
-    [SerializeField] private SwingVFXBinding[] swingWaveVFXByAttack =
-    {
-        new SwingVFXBinding("Club_Swing"),
-        new SwingVFXBinding("ClubSwing2"),
-        new SwingVFXBinding("ClubSlam"),
-        new SwingVFXBinding("KanaboSweep"),
-    };
 
     [System.Serializable]
     public class SwingVFXBinding
@@ -481,22 +532,12 @@ public class OniBoss : MonoBehaviour
     }
 
 
-    [Tooltip("ROUND 28. Trail used for any attack whose row has no Trail Vfx of its own. Empty = that attack has no trail.")]
-    [SerializeField] private GameObject swingTrailVFX;
-    [Tooltip("ROUND 28. Seconds the trail is left to fade after the swing ends. It is unparented first, so it stops following him and dies where it was rather than snapping out of existence mid-arc.")]
-    [SerializeField] private float trailFadeOut = 0.4f;
 
     private GameObject activeTrail;
     // ROUND 38: no activeWave / one-wave-at-a-time guard any more (round 37's mechanism, deleted
     // rather than kept as a stacked safety). A wave is now armed for well under a second and only
     // exists at all when its club missed, so hits from long-finished swings are impossible.
 
-    [Tooltip("ROUND 25. Used for any attack whose row has no Hit VFX of its own. Spawned at the point where the club actually meets Yoru's body, only on swings that connect.")]
-    [SerializeField] private GameObject hitLandVFX;
-    [Tooltip("Seconds before a hit effect is destroyed.")]
-    [SerializeField] private float hitLandVFXLifetime = 2f;
-    [Tooltip("Nudge the hit effect this far back along the line from Yoru toward the club, metres. A small positive value keeps a flat effect from being buried inside her body.")]
-    [SerializeField] private float hitLandVFXOffset = 0.1f;
     [Tooltip("ROUND 26. Measurement only, changes nothing. Logs where his club actually is at each strike moment — height above his feet, distance in front, sideways offset, and how far its own facing has swung from his — next to where the swing effect is currently being spawned, so the gap between the two is a number rather than a guess. Turn off once the effect is placed.")]
     [SerializeField] private bool logClubPositionAtStrike = true;
     [Tooltip("ROUND 38. How fast the ground wave travels, m/s. It is a REAL hitbox for its whole travel, so this is her reaction window: at 12 it covers its full 6m in half a second — visible, jumpable, and physically incapable of the old seconds-late hit. RENAMED from swingWaveSpeed so the scene's saved 3 (a four-second crawl that delivered hits from swings long finished) is dropped.")]
@@ -509,8 +550,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float groundWaveHeight = 0.35f;
     [Tooltip("ROUND 38. Metres the wave travels before it dissolves — and it is ARMED the whole way, there is no cosmetic phase. Armed time = this ÷ speed (0.50s at the defaults). Total threat = Start Distance + this; 1.6 + 6 = 7.6m punishes backing straight off without owning the whole arena. RENAMED from swingWaveTravel so the scene's saved 12 (4 seconds of flight) is dropped.")]
     [SerializeField] private float groundWaveTravel = 6f;
-    [Tooltip("ROUND 33. Playback speed of the wave's effect. 1 = as authored. 0.5 plays it at half speed so it takes TWICE as long to play out — this is the only real way to make a short burst last longer, because deleting it later does nothing for an effect that has already finished. 0.35-0.6 is the useful range if your prefabs are over too quickly.")]
-    [SerializeField] private float swingWaveVisualPlaybackSpeed = 1f;
 
     private PlayerHealth playerHealthRef;
     private PlayerMovement playerMoveRef;   // ROUND 38: the wave's airborne check — jumping clears it
@@ -634,26 +673,6 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private float chargeTurnSpeed = 6f;
     [Tooltip("Hard ceiling in REAL seconds for the rush. If he somehow cannot reach the lock point (blocked, off-mesh) he releases the strike anyway instead of holding the pose forever.")]
     [SerializeField] private float chargeMaxTravelSeconds = 2.5f;
-
-    [Header("Charge Trail VFX (placeholder)")]
-    [Tooltip("The code-built arcs that trailed the rush last round — the 'linear strips' you saw. OFF by default now: they are stretched primitives standing in for real VFX and they read as junk. Turn on only if you want them back until a proper wave effect is authored and wired into EnemyFX.")]
-    [SerializeField] private bool chargeTrailVFX = false;
-    [Tooltip("Seconds between wave puffs while the charge clip plays.")]
-    [SerializeField] private float chargeWaveInterval = 0.09f;
-    [Tooltip("Width of each wave arc in metres. Scale to the Oni's size.")]
-    [SerializeField] private float chargeWaveScale = 2.6f;
-    [Tooltip("ROUND 43 — YOUR fire for the charge. Drag a fire VFX prefab here: while the rush travels, one puff spawns at his feet every Charge Wave Interval seconds and lives Charge Trail Lifetime seconds — a burning line follows him along the ground. Empty = no fire trail. (This replaces the gray placeholder arcs; the old toggle below only matters when this slot is empty.)")]
-    [SerializeField] private GameObject chargeGroundTrailVFX;
-    [Tooltip("ROUND 47. Seconds the fire keeps burning/fading where the rush ended, after the charge is over.")]
-    [SerializeField] private float chargeTrailLifetime = 1.5f;
-    [Tooltip("ROUND 51. Height above the floor the fire rides at during the rush. Hazel: it must sit ON the ground — keep this near 0.")]
-    [SerializeField] private float chargeTrailHeight = 0.03f;
-    [Tooltip("ROUND 43. Effect spawned ON Yoru at the exact moment the charge's damage connects. Empty = the shared Hit Land VFX is used.")]
-    [SerializeField] private GameObject chargeHitVFX;
-    // ROUND 50: the round-49 "second standing-fire slot" was a misunderstanding and is deleted —
-    // there is ONE fire (the trail prefab above). How long its line stays on the ground and how
-    // gradually it fades are the PREFAB's own Trail Renderer settings: Time and the Color
-    // gradient's end alpha. The code's only duty is never to cut it short (see ReleaseChargeTrail).
 
     [Header("Boss Bar")]
     [Tooltip("Drive the screen-top BossHealthBarUI for this boss: show on any hostile state, crimson at phase 2, hide on disengage. Needs a BossHealthBar object (with BossHealthBarUI) on the HUD canvas.")]
