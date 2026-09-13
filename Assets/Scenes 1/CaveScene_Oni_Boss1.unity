@@ -239660,6 +239660,7 @@ GameObject:
   - component: {fileID: 4767760526052186094}
   - component: {fileID: 8499313715706244077}
   - component: {fileID: 8791002026854113344}
+  - component: {fileID: 1765026200}
   m_Layer: 0
   m_Name: PlayerYoru_1.1
   m_TagString: Player
@@ -252419,3 +252420,42 @@ SceneRoots:
   - {fileID: 935069770}
   - {fileID: 997864748}
   - {fileID: 8791002026854113402}
+--- !u!114 &1765026200
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8266721774955611434}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6df716f98ab94b60978311964982ebb0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  activateVFX: {fileID: 0}
+  deactivateVFX: {fileID: 0}
+  vfxAnchor: {fileID: 0}
+  vfxLifetime: 3
+  activateSFX: {fileID: 0}
+  deactivateSFX: {fileID: 0}
+  sfxVolume: 0.7
+  toggleKey: 108
+  keyEnabled: 1
+  glowEnabled: 1
+  glowColor: {r: 0.62, g: 0.55, b: 1, a: 1}
+  glowIntensity: 1.4
+  glowRange: 9
+  glowHeight: 1
+  beamEnabled: 1
+  beamColor: {r: 0.72, g: 0.78, b: 1, a: 1}
+  beamIntensity: 1.6
+  beamRange: 20
+  beamAngle: 55
+  beamForwardOffset: 0.5
+  fadeInSeconds: 0.35
+  fadeOutSeconds: 0.6
+  breatheAmount: 0.08
+  breatheSpeed: 0.5
+  excludedLayers:
+    serializedVersion: 2
+    m_Bits: 8
