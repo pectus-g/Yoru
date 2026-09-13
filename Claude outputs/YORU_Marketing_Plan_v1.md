@@ -2,6 +2,8 @@
 
 Pectus Games. Drafted Sept 12, 2026. Status: draft for discussion, nothing here is locked.
 
+Update Sept 13, 2026: the dates in this plan were placeholders. The measured dates are in YORU_Dates_v1.md and the work list in YORU_Demo_Roadmap_v1.md: Steam page and announce trailer Feb 26, 2027 (March 31 latest); demo at the October 2027 Next Fest (registration about Aug 31, 2027); Kickstarter decision Nov 1, 2027; release window 2029, not Q1 2028. Where this plan says June 2027 for the fest, read October 2027 and shift the demo-phase items by four months.
+
 ## 0. Assumptions (change any of these and I re-cut the timeline)
 
 - Demo target: June 2027 Steam Next Fest. You said the date is not decided; June is the middle option. If the demo can be public by early Jan 2027, everything below moves 4 months earlier and uses the Feb 2027 fest (better: 12 months of wishlist runway before launch). If it slips to the Oct 2027 fest, the Q1 2028 release should move to mid 2028; 4 months of runway is not enough.
@@ -14,7 +16,7 @@ Pectus Games. Drafted Sept 12, 2026. Status: draft for discussion, nothing here 
 
 1. Evolve PR: not on retainer. Buy fixed-scope beats: an Announce beat (Dec 2026 or Jan 2027) and a Demo beat (May to July 2027, covering Next Fest and the Kickstarter if it happens). A Launch beat in early 2028 comes from a separate 2028 budget. You do community, social and dev logs yourself in every option.
 2. Kickstarter: conditional go, decided in the week after Next Fest with hard gates (section 5). If gates hit: 30 days, launch 3 to 5 weeks after the fest, goal $35k to $45k CAD, digital rewards only. If gates miss: skip it and lose nothing.
-3. Canada funding: apply to CMF Prototyping in the Oct 27 to Nov 10, 2026 window (consult must be booked at least 2 weeks before). Apply to the Ontario Creates IP Fund Pre-Production stream in the spring 2027 round. Put yourself on payroll now so OIDMTC pays out at launch.
+3. Canada funding: one catch found on Sept 12. CMF and Ontario Creates both require a "Canadian-controlled" company under the Investment Canada Act (sections 26 to 28), and that Act counts only citizens and permanent residents as Canadian. A company whose owner is not yet a citizen or permanent resident does not pass. Send one email to each program this week to confirm. If confirmed, CMF and the IP Fund move to after permanent residence (see 6b), and the 2026-27 plan runs on your own budget, Kickstarter and OIDMTC. OIDMTC accepts Canadian or foreign-owned Canadian corporations, so payroll starts now regardless.
 4. Steam page public by end of Nov 2026, announcement trailer by mid Jan 2027 at the latest, so wishlists have 5 or more months to build before the fest.
 5. Two social channels, 2 to 3 posts a week, every post built on one of the three hooks. No more channels than that; you are one person.
 
@@ -32,8 +34,8 @@ Pectus Games. Drafted Sept 12, 2026. Status: draft for discussion, nothing here 
 
 ### Phase 0, Sept to Nov 2026: foundation, no agency
 
-- CMF: request the pre-application consultation this week. New applicants must do it at least 2 weeks before the closing date, so aim to hold it by mid Oct. Draft the Prototyping application with the demo as the project: budget, 10 to 25% of the budget on marketing and community (this is required, and it pays for the assets below), deliverable = functioning prototype build.
-- Ontario Creates: email idmfund@ontariocreates.ca. Ask (a) whether 3+ years of remote, international full-time game industry experience satisfies the senior-level requirement (the guideline text does not require Canadian experience, only that it was full-time and not during school), (b) the 2027 deadlines, (c) to be added to the deadline list.
+- CMF: first email, one question: does a corporation whose sole owner is not yet a citizen or permanent resident count as Canadian-controlled for the IDM programs? If yes, request the pre-application consultation at once (it must happen at least 2 weeks before the Nov 10 close) and draft the Prototyping application with the demo as the project: budget, 10 to 25% on marketing and community, deliverable = functioning prototype build. If no, park CMF until PR.
+- Ontario Creates: email idmfund@ontariocreates.ca with the same ownership question first, then (a) whether 3+ years of remote, international full-time game industry experience satisfies the senior-level requirement (the text does not require Canadian experience, only full-time and not during school), (b) the 2027 deadlines, (c) the deadline mailing list.
 - Company: set up payroll and pay yourself a T4 salary. Dividends do not count for OIDMTC; wages do. Start a simple labour log by feature (hours, who, where they live). Keep non-Ontario contractor labour under 20% of total development labour cost or the product fails the 80/25 test. Ask your accountant to confirm this reading before the next contractor hire.
 - Steam: clear the tax and identity verification. Commission capsule art from an illustrator ($2k to $4k). 8 to 10 screenshots at 1920x1080 with the post-processing on. Page text in hook order. Translate the page text to JP, ZH-CN, DE, FR, ES, PT-BR, KO, RU (page text only, about $1k to $2k; Japanese first).
 - Trailer 1, announcement: 60 to 90 seconds. Non-combat footage is cleared now (movement, environment, ring activation). Add combat once CameraGameFeel, CombatPostProcessPulse and CombatFeedbackManager are confirmed at runtime. Freelance trailer editor $1.5k to $4k. Use the composer's main theme if it exists by then.
@@ -116,6 +118,8 @@ Canada specifics: Kickstarter supports Canadian creators and CAD campaigns. Fund
 
 ## 6. Canada funding path (stacked, in order)
 
+Gate on every CMF and Ontario Creates row: the company must be Canadian-controlled under the Investment Canada Act, which means majority owned by citizens or permanent residents (Ontario Creates Program Policies use the same definition). Confirm by email; if it does not pass today, these rows move to after PR and the rest of the plan does not change. OIDMTC and Kickstarter do not have this gate.
+
 | Program | What it funds | How much | When | Gate | Do now |
 |---|---|---|---|---|---|
 | CMF Prototyping (2026-27) | The demo, as a functioning prototype build, plus 10 to 25% of the budget on marketing and community | Lesser of 75% of eligible costs or $250k. Advance, repayable when the project moves into production | Window Oct 27 to Nov 10, 2026 | Canadian-controlled corp with head office in Canada; a shareholder with 1+ year professional experience; new applicants must do a pre-application consult at least 2 weeks before the close | Request the consult this week |
@@ -128,6 +132,17 @@ Canada specifics: Kickstarter supports Canadian creators and CAD campaigns. Fund
 Stacking: the IP Fund guideline sets no percentage cap on total public money, but Ontario Creates is a last-in funder: other financing (CMF included) must be confirmed before they commit, and a project under review at CMF is allowed. So the order is CMF first (decision Jan to Feb 2027), IP Fund second (spring 2027). IP Fund eligibility does not by itself make you OIDMTC eligible; OIDMTC is its own test. Ask the coordinator whether costs incurred before the deadline count (usually they do not).
 
 Rights: the game stays 100% Pectus Games. Nothing above takes ownership. CMF gives a repayable advance (prototyping) or a recoupable share of revenue (production, 15% of gross until repaid or 7 years) and requires that you own and control the rights. The Ontario Creates IP Fund exists to fund Ontario-owned IP; its rule is that you hold at least 51% of the copyright, and you hold all of it. OIDMTC is a tax refund. Kickstarter backers get rewards, never equity or rights. No publisher. A porting or storefront contract is a licence to distribute, so read it for scope and term only, and walk away from anything that mentions ownership, sequels, or approval over creative decisions.
+
+## 6b. Permanent residence track (it unlocks the grants)
+
+Not legal advice. One paid hour with a licensed immigration consultant (RCIC) or immigration lawyer to pick the route is worth more than anything below. State of play, Sept 2026:
+
+- Closed or paused: federal Start-up Visa (new applications paused since June 30, 2026), federal Self-Employed Persons (paused since April 2024), Ontario's Entrepreneur and Human Capital Priorities streams (revoked May 30, 2026). A new federal entrepreneur pilot has been hinted at; do not plan on it.
+- Ontario's only current stream (Ontario Workforce Priority, since June 26, 2026) needs a full-time permanent job offer from an Ontario employer that registers with the program. A nomination adds 600 points to Express Entry, which guarantees an invitation.
+- Express Entry realities in 2026: Canadian Experience Class cut-offs 507 to 523; French-language draws 382 to 400 with 5,000 invitations each; no STEM draw since April 2024 and software developers are not on the 2026 STEM list; "senior managers with Canadian work experience" drew at 392 in July 2026.
+- Self-employment in Canada does not count for the Canadian Experience Class. Foreign self-employed experience can count for the Federal Skilled Worker program if documented.
+- Routes that fit a founder household, in order of speed: (1) whichever spouse is an employee in a skilled job gets the employer's nomination or 12 months of Canadian experience, the other comes as accompanying spouse; (2) French to CLB 7 in all four skills and enter the French category; (3) a job at a studio for 12 months. Ask the RCIC whether running your own company counts for the senior managers category.
+- Timing: Express Entry takes roughly 6 months after an invitation. Have the PR application submitted well before the permit expires; a bridging open work permit covers the gap once the application is in.
 
 ## 7. Budget split for the next 12 months (CAD, ranges)
 
@@ -144,7 +159,7 @@ Rights: the game stays 100% Pectus Games. Nothing above takes ownership. CMF giv
 | Playtesting | $0.5k to $1k | Gift cards for testers; Steam Playtest is free |
 | Reserve for the 2028 launch beat and surprises | 20 to 25% of the 12-month figure | Do not touch it in 2027 |
 
-Rule: nothing beyond the capsule art and the announce trailer is spent before the CMF decision lands (Jan to Feb 2027). If CMF funds the prototype, its marketing line pays for most of the Demo beat and the show.
+Rule: nothing beyond the capsule art and the announce trailer is spent before the grant eligibility answers are in (and, if eligible, before the CMF decision in Jan to Feb 2027). If CMF funds the prototype, its marketing line pays for most of the Demo beat and the show. If the grants are gated on PR, the same split stands on your own budget, and the launch reserve becomes non-negotiable.
 
 ## 8. Metrics and gates
 
@@ -156,8 +171,9 @@ Rule: nothing beyond the capsule art and the announce trailer is spent before th
 
 ## 9. This week
 
-1. Email CMF to book the pre-application consultation.
-2. Email idmfund@ontariocreates.ca: experience eligibility (remote, international), 2027 dates, deadline list.
+1. Email CMF: does a company whose owner is not yet a citizen or permanent resident count as Canadian-controlled? If yes, book the pre-application consultation in the same email.
+2. Email idmfund@ontariocreates.ca: the same ownership question, then experience eligibility (remote, international), 2027 dates, deadline list.
+7. Book one paid hour with an RCIC or immigration lawyer to pick the PR route (section 6b).
 3. Ask Evolve for per-beat quotes: Announce, Demo, Launch, press and creators only.
 4. Fix the Steam tax verification.
 5. Decide the demo date: Feb, June or Oct 2027. I re-cut the timeline the same day.
@@ -182,3 +198,10 @@ Rule: nothing beyond the capsule art and the announce trailer is spent before th
 - Evolve PR (services, Terminals.io from $2,000): https://www.evolve-pr.com/ and https://www.evolve-pr.com/contact
 - XP Game Summit Toronto indie showcase: https://xpgamesummit.com/xp26-indie-showcase/
 - MIGS Montreal 2026 (Nov 10 to 11): https://www.eventbrite.ca/e/migs-montreal-international-games-summit-2026-tickets-1988912214975
+- Investment Canada Act, definition of Canadian (s. 3): https://laws-lois.justice.gc.ca/eng/acts/I-21.8/page-1.html
+- Ontario Creates Program Policies (Canadian-owned, Ontario resident definitions): https://www.ontariocreates.ca/program-policies
+- IRCC: Start-up Visa and Self-Employed Persons intake pause (2026): https://www.canada.ca/en/immigration-refugees-citizenship/corporate/publications-manuals/operational-bulletins-manuals/updates/2026-startup-selfemployed-pause.html
+- OINP changes 2026 (streams revoked May 30, Ontario Workforce Priority stream): https://www.nihanglaw.ca/oinp-changes-2026-ontario-streams-closing-may-30/
+- Express Entry category-based selection (2026 categories and STEM list): https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/submit-profile/rounds-invitations/category-based-selection.html
+- Express Entry 2026 draw results and cut-offs: https://www.amirismail.com/express-entry-draws-2026/
+- CEC vs FSW self-employment rules: https://bridgepointlaw.ca/express-entry-canada-2026-category-based-draws/

@@ -1641,6 +1641,14 @@ public class OniBoss : MonoBehaviour
     /// 3D on purpose: jumping over a low sweep genuinely clears the shaft.</summary>
     private static float DistanceSegmentToSegment(Vector3 p1, Vector3 q1, Vector3 p2, Vector3 q2)
     {
+        ClosestPointsSegmentSegment(p1, q1, p2, q2, out Vector3 c1, out Vector3 c2);
+        return Vector3.Distance(c1, c2);
+    }
+
+    /// <summary>Same closed-form solution, returning the two closest points: c1 on the first
+    /// segment (the club shaft), c2 on the second (Yoru's body line).</summary>
+    private static void ClosestPointsSegmentSegment(Vector3 p1, Vector3 q1, Vector3 p2, Vector3 q2, out Vector3 c1, out Vector3 c2)
+    {
         Vector3 d1 = q1 - p1;   // club: root -> tip
         Vector3 d2 = q2 - p2;   // body: bottom -> top
         Vector3 r  = p1 - p2;
@@ -1650,7 +1658,7 @@ public class OniBoss : MonoBehaviour
         const float EPS = 0.00000001f;
 
         float s, t;
-        if (a <= EPS && e <= EPS) return r.magnitude;
+        if (a <= EPS && e <= EPS) { c1 = p1; c2 = p2; return; }
         if (a <= EPS)
         {
             s = 0f;
@@ -1675,9 +1683,8 @@ public class OniBoss : MonoBehaviour
             }
         }
 
-        Vector3 c1 = p1 + d1 * s;
-        Vector3 c2 = p2 + d2 * t;
-        return Vector3.Distance(c1, c2);
+        c1 = p1 + d1 * s;
+        c2 = p2 + d2 * t;
     }
 
     /// <summary>
@@ -1775,25 +1782,43 @@ public class OniBoss : MonoBehaviour
     {
         if (prefab == null || playerT == null) return;
 
-        Vector3 from = clubBone != null
-            ? clubBone.position
-            : transform.position + transform.forward * 1.2f + Vector3.up * strikeContactBodyHeight;
-
-        Vector3 contact;
-        Collider body = playerT.GetComponent<Collider>();
-        if (body != null && body.enabled)
+        // The point on the club SHAFT nearest her body line, not the tip: at 100+ m/s the tip is
+        // already past her by the frame the touch resolves, which put the effect on her back.
+        // Same body line the touch test uses. onBody is her axis at the matching height.
+        Vector3 from, onBody;
+        if (clubBone != null && clubRootBone != null && clubRootBone != clubBone)
         {
-            contact = body.ClosestPoint(from);
-            // ClosestPoint returns the query point itself when it is already inside the collider.
-            if ((contact - from).sqrMagnitude < 0.0001f)
-                contact = playerT.position + Vector3.up * strikeContactBodyHeight;
+            ClosestPointsSegmentSegment(clubRootBone.position, clubBone.position,
+                                        playerT.position + Vector3.up * clubTouchBodyBottom,
+                                        playerT.position + Vector3.up * clubTouchBodyTop,
+                                        out from, out onBody);
         }
         else
         {
-            contact = playerT.position + Vector3.up * strikeContactBodyHeight;
+            from = clubBone != null
+                ? clubBone.position
+                : transform.position + transform.forward * 1.2f + Vector3.up * strikeContactBodyHeight;
+            onBody = playerT.position + Vector3.up * strikeContactBodyHeight;
         }
 
-        Vector3 approach = from - contact;
+        // Her only collider is a CharacterController, and Collider.ClosestPoint does not support
+        // that type: it hands the query point straight back, which the old inside-the-collider
+        // guard read as "buried", so every hit fell through to her centre line and the effect was
+        // born inside her with only the far half showing. Build the point from the body line the
+        // touch test already trusts instead: onBody is the height, side is the face the club is on.
+        Vector3 side = from - onBody;
+        side.y = 0f;
+        if (side.sqrMagnitude < 0.0001f && clubRootBone != null)
+        {
+            // Shaft is dead on her axis. The handle is in his hands, so it is never past her.
+            side = clubRootBone.position - onBody;
+            side.y = 0f;
+        }
+        if (side.sqrMagnitude < 0.0001f) side = -transform.forward;
+        side.Normalize();
+
+        Vector3 contact = onBody;
+        Vector3 approach = side;
         Quaternion rot = approach.sqrMagnitude > 0.0001f
             ? Quaternion.LookRotation(approach.normalized)
             : Quaternion.LookRotation(-transform.forward);
