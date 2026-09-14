@@ -14,15 +14,19 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private GameObject leftTailMagicPrefab;   
     [SerializeField] private GameObject rightTailMagicPrefab;  
     
-    [Header("=== COMBO / ATTACK VFX (assign ParticleSystems here) ===")]
-    [SerializeField] private ParticleSystem combo1VFX;
-    [SerializeField] private ParticleSystem combo2VFX;
-    [SerializeField] private ParticleSystem combo3VFX;
+    [Header("=== COMBO / ATTACK VFX (drag a prefab, same as every other slot) ===")]
+    [Tooltip("Spawned at the RIGHT paw when the first combo hit lands.")]
+    [SerializeField] private GameObject combo1VFX;
+    [Tooltip("Spawned at the LEFT paw when the second combo hit lands.")]
+    [SerializeField] private GameObject combo2VFX;
+    [Tooltip("Spawned at the body centre when the combo finisher lands.")]
+    [SerializeField] private GameObject combo3VFX;
     [Tooltip("Prefab spawned at rightPaw on heavy release. Same prefab+spawn pattern as heavyChargeBuildupPrefab and pawAttack1Prefab.")]
     [SerializeField] private GameObject heavyAttackPrefab;
     [Tooltip("Prefab spawned at leftPaw on charge start, destroyed on release/cancel/hit. Same prefab+spawn pattern as pawAttack1Prefab. (Buildup uses leftPaw; release uses rightPaw — matches the punch animation.)")]
     [SerializeField] private GameObject heavyChargeBuildupPrefab;
-    [SerializeField] private ParticleSystem spinVFX;
+    [Tooltip("Spawned at the body centre and PARENTED to her when the spin starts, destroyed when it ends. Inherits her scale, so a prefab authored at 1x reads large on her.")]
+    [SerializeField] private GameObject spinVFX;
     
     [Header("=== HIT SPARK VFX (spawned at contact point) ===")]
     [SerializeField] private GameObject lightHitSparkPrefab;
@@ -35,8 +39,10 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private float dodgeVFXLifetime = 1.5f;
     
     [Header("=== HIT REACTION VFX ===")]
-    [SerializeField] private ParticleSystem lightHitReactVFX;
-    [SerializeField] private ParticleSystem heavyHitReactVFX;  
+    [Tooltip("Spawned at the body centre when she takes a light hit.")]
+    [SerializeField] private GameObject lightHitReactVFX;
+    [Tooltip("Spawned at the body centre when she takes a heavy hit.")]
+    [SerializeField] private GameObject heavyHitReactVFX;
     
     [Header("=== CINEMATIC EFFECTS ===")]
     [SerializeField] private GameObject soulFreeingPrefab;     
@@ -558,12 +564,20 @@ public void OnJump(int jumpNumber)
     /// <summary>Play combo attack VFX for the given combo step (1, 2, or 3).</summary>
     public void PlayComboVFX(int comboStep)
     {
+        GameObject prefab = null;
+        Transform spawnPoint = null;
+
         switch (comboStep)
         {
-            case 1: if (combo1VFX != null) combo1VFX.Play(); break;
-            case 2: if (combo2VFX != null) combo2VFX.Play(); break;
-            case 3: if (combo3VFX != null) combo3VFX.Play(); break;
+            case 1: prefab = combo1VFX; spawnPoint = rightPaw;   break;
+            case 2: prefab = combo2VFX; spawnPoint = leftPaw;    break;
+            case 3: prefab = combo3VFX; spawnPoint = centerBody; break;
         }
+
+        if (prefab == null) return;
+        if (spawnPoint == null) spawnPoint = transform;
+
+        SpawnEffect(prefab, spawnPoint.position, spawnPoint.rotation);
     }
 
     /// <summary>Spawn the heavy release VFX prefab at rightPaw. Same spawn-at-paw
@@ -593,6 +607,7 @@ public void OnJump(int jumpNumber)
     // Tracks the currently spawned charge buildup instance so StopHeavyChargeBuildupVFX
     // can tear it down. Null when nothing is charging.
     private GameObject activeChargeBuildupInstance;
+    private GameObject activeSpinInstance;
 
     /// <summary>Spawn the charge buildup prefab at rightPaw and parent it to the bone
     /// so it follows the paw through the wind-up. Same SpawnEffect/rightPaw pattern as
@@ -635,25 +650,42 @@ public void OnJump(int jumpNumber)
     /// <summary>Play spin VFX (combo 3 / aerial).</summary>
     public void PlaySpinStart()
     {
-        if (spinVFX != null) spinVFX.Play();
+        if (spinVFX == null) return;
+        if (activeSpinInstance != null) return;   // already spinning, do not double-spawn
+
+        Transform spawnPoint = centerBody ? centerBody : transform;
+        activeSpinInstance = Instantiate(spinVFX, spawnPoint.position, spawnPoint.rotation, spawnPoint);
+        activeSpinInstance.SetActive(true);       // in case the prefab was saved disabled
+
+        ParticleSystem ps = activeSpinInstance.GetComponent<ParticleSystem>();
+        if (ps == null) ps = activeSpinInstance.GetComponentInChildren<ParticleSystem>();
+        if (ps != null) ps.Play();
+
+        if (debugMode) Debug.Log($"[YoruVFX] Spin VFX spawned at {spawnPoint.name}. PS found: {ps != null}");
     }
 
     public void PlaySpinStop()
     {
-        if (spinVFX != null) spinVFX.Stop();
+        if (activeSpinInstance == null) return;
+
+        ParticleSystem ps = activeSpinInstance.GetComponent<ParticleSystem>();
+        if (ps == null) ps = activeSpinInstance.GetComponentInChildren<ParticleSystem>();
+        if (ps != null) ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+
+        Destroy(activeSpinInstance, 0.5f);        // let the live particles finish rather than cutting them
+        activeSpinInstance = null;
+
+        if (debugMode) Debug.Log("[YoruVFX] Spin VFX stopped");
     }
 
     /// <summary>Play hit reaction VFX on Yoru.</summary>
     public void PlayHitReactVFX(bool isHeavy)
     {
-        if (isHeavy)
-        {
-            if (heavyHitReactVFX != null) heavyHitReactVFX.Play();
-        }
-        else
-        {
-            if (lightHitReactVFX != null) lightHitReactVFX.Play();
-        }
+        GameObject prefab = isHeavy ? heavyHitReactVFX : lightHitReactVFX;
+        if (prefab == null) return;
+
+        Transform spawnPoint = centerBody ? centerBody : transform;
+        SpawnEffect(prefab, spawnPoint.position, spawnPoint.rotation);
     }
 
     // ========== DODGE VFX — Called by PlayerCombat ==========
