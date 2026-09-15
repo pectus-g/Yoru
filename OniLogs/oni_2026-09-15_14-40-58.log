@@ -1,0 +1,299 @@
+# Oni combat log — 2026-09-15 14:40:58
+# Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
+# columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
+#
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-15_14-40-58.log
+[     0    0.000 x1.00] LOG  [OniHairShadows] shadow casting off on 27 hair renderers
+[     0    0.000 x1.00] LOG  [RingMesh] Auto-found 11/11 left, 11/11 right meshes
+[     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
+[     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
+[     1    0.000 x1.00] LOG  [StormWeather] post volumes ready on layer 9 (storm priority 10, flash priority 11).
+[     1    0.000 x1.00] LOG  [StormWeather] ROUND 80: fur weather ready on 'Weather Zone'. Rain 0, wind 0.50 in the open, sky check 30 m from 'PlayerYoru_1.1'.
+[     1    0.000 x1.00] LOG  [StormWeather] COZY bridge: Rain_Cave retired, COZY owns the rain now.
+[     1    0.000 x1.00] LOG  [StormWeather] COZY → 'Clear' (pre-fight - open sky, 0 s)
+[     1    0.000 x1.00] LOG  [StormWeather] Ready. Open sky, dry floor. Waiting for the fight.
+[     1    0.000 x1.00] LOG  OniBoss initialized with 500 HP
+[     1    0.000 x1.00] LOG  [OniBoss] ANIMATOR SETUP: cullingMode=CullUpdateTransforms updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [OniBoss] Initialized
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] facing: minFlat 1m, snapOnAttack off, trackInHitReact off
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch model ON: launches ALL THE WAY to an enemy within 4.7m of its surface at 10m/s (stop gap 0.00m, NO minimum distance), else steps 0.90m forward. Targeting cone left exactly as her prefab has it.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch ROUND 9: airborne attacks launch too (ON), edge probe now runs on its OWN layer mask (Everything) instead of the line-of-sight mask - the Ground-only mask found no floor in this cave and was cancelling 100% of launches at 0.00m travelled.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] animator speed x1.35 — his 1.13s swing now plays in 0.84s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] chase speed pushed: phase1 4.5, phase2 5.5 (Yoru runs at 7).
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] ground wave ON (round 38): half the club's damage on TOUCH, 12m/s x 6.0m from 1.6m in front at 0.35m height — a club hit cancels that swing's wave, jumping clears it. Per-attack effects come from the Swing Wave VFX By Attack rows. PlayerHealth found, PlayerMovement found.
+[     1    0.000 x1.00] LOG  [StormWeather] storm break HELD (waiting for the lightning beat)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] storm break HELD — it releases at the lightning-on-the-club beat.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] club tracking ON — tip 'Kanabo3' (depth 4), shaft root 'kanabo'.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] skinned meshes: 46 renderer(s), updateWhenOffscreen ON, body renderer 'Body' rootBone 'Hips'
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge travel bone: 'Hips' at depth 1 under 'OniBoss', rest local (0.00, 3.24, -0.24)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] anti-kite ON: thrown swing after 4s of failed chase (within 7.6m), charge after 6s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge drive ON (windup to 0.40 at x1.3, rush 14m/s stops at 2.6m, steers 0.35s then commits, strike section from 0.58, strike moment 0.76, trail VFX off)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] attack armor ON (his swings are not interrupted by light/medium hits; heavy hits and rapid-hit bursts still stop him)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] strike moments overridden: Club_Swing=0.42 ClubSwing2=0.32 ClubSlam=0.85 KanaboSweep=0.48
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] club TOUCH hits ON (radius 0.70m, min tip speed 50m/s, armed from 0.20 of the clip): Club_Swing ClubSwing2 ClubSlam KanaboSweep. First touch wins — club full damage, wave half, one hit per swing.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] combo damage ramp ON: mid x1.25, finisher x1.50 — finisher wave carries FULL damage at x2.0 size, x2.0 travel.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge follow-up ON: 90 % of solo charges chain into a random melee finisher.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] hold-ground ON (backstep 1.5m @ 1.6m/s after own attacks, watch 'Watch', attack facing LOCKED)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] OniBoss layer ready (reactions, wake-on-hit, watch stance, boss bar). player=found
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge clip 'Oni Charge.fbx' imports with Root Motion Node = None (in place) — good.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] clips importing with Root Transform Position (Y) NOT baked into pose (12): Oni_Alert(Oni Alert), Club_Slam(Oni Club Slam), Club_Swing(Oni Club Swing), Club_swing2(Oni Club Swing 2), Death(Oni Death Kneel), Hit_react_light(Oni Hit react lighter light), KanaboSweep(Oni Kanabo sweep), Phase_Transition(Oni Phase transition), run(Oni Run), Walk(Oni Walk), Watch(Oni Watch), Idle(Oni Idle) — their hips' up/down motion is stripped (see round notes; optional).
+[     1    0.000 x1.00] LOG  === VFX MANAGER INITIALIZED ===
+[     1    0.000 x1.00] LOG  Auto-detect animations: False
+[     1    0.000 x1.00] LOG  Parent effects to tail: True
+[     1    0.000 x1.00] LOG  Prefabs: Jump=True, Land=True, LTail=True, RTail=True
+[     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailTip_Anchor
+[     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
+[     1    0.000 x1.00] LOG  [VolumetricFogController] applyPresets is OFF in this scene. The Volumetric Fog component keeps its hand-set inspector values.
+[     1    0.000 x1.00] LOG  [TailAirShot] Ready. drawState=RightTail_Fast castParam=TailCastSpeed (found)
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/vfx_Muzzle_Fireball01Blue
+[     1    0.000 x1.00] LOG  [RingMesh] VFX Status:
+[     1    0.000 x1.00] LOG    Left: Prefab=✓, Spawn=Tail6_L_end_end_end
+[     1    0.000 x1.00] LOG    Right: Prefab=✓, Spawn=Tail6_R_end_end_end
+[     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
+  aim VFX right: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/Glow_4Leg_R
+[     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
+[     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized, Phase 3C v27
+[     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
+[     1    2.683 x1.00] LOG  [OniBoss] Playing animation: Idle
+[     1    2.683 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
+[    16    3.657 x1.00] LOG  💨 Landing VFX spawned!
+[    16    3.657 x1.00] LOG  ✅ LANDED! (was jump #0)
+[    71    3.917 x1.00] LOG  🚶 2-LEG JUMP
+[    71    3.917 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   103    4.107 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[   103    4.107 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[   103    4.107 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[   103    4.107 x1.00] LOG  [AirPosePin] engaged, holding body at 0.938m above the transform
+[   117    4.236 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[   209    4.791 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[   214    4.825 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.91 clipLen=0.79s queued=0 elapsed=0.72s
+[   215    4.829 x1.00] LOG  [AirPosePin] released, peak correction was 0.026m
+[   220    4.854 x1.00] LOG  💨 Landing VFX spawned!
+[   220    4.854 x1.00] LOG  ✅ LANDED! (was jump #1)
+[   386    5.812 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[   386    5.812 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target=none: no collider on enemyLayer within 8m
+[   386    5.812 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s
+[   401    5.946 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.90m, completed
+[   423    6.050 x1.00] LOG  [Combat] Queued click #1 (combo 1)
+[   423    6.050 x1.00] LOG  [ComboTrace] QUEUED #1 during step 1
+[   465    6.231 x1.00] LOG  [Combat] Queued click #2 (combo 1)
+[   465    6.231 x1.00] LOG  [ComboTrace] QUEUED #2 during step 1
+[   503    6.404 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=1 queued=2)
+[   536    6.560 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=1 queued=2)
+[   540    6.582 x1.00] LOG  🐾 VFX_AttackPaw triggered!
+[   563    6.721 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=1 queued=2)
+[   564    6.724 x1.00] LOG  [Combat] Combo 2: 20 dmg
+[   564    6.724 x1.00] LOG  [ComboTrace] START step=2 state='Combo2' queued=1 target=none: no collider on enemyLayer within 8m
+[   564    6.724 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s
+[   580    6.861 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.90m, completed
+[   627    7.074 x1.00] LOG  [Combat] Queued click #2 (combo 2)
+[   627    7.074 x1.00] LOG  [ComboTrace] QUEUED #2 during step 2
+[   673    7.285 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[   712    7.459 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[   731    7.535 x1.00] LOG  🐾🐾 VFX_TowPaw triggered!
+[   746    7.621 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[   784    7.803 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[   826    8.024 x1.00] LOG  🐾🐾 VFX_TowPaw triggered!
+[   834    8.057 x1.00] LOG  [Combat] Combo 3: 35 dmg
+[   834    8.057 x1.00] LOG  [ComboTrace] START step=3 state='Combo3' queued=1 target=none: no collider on enemyLayer within 8m
+[   834    8.057 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s
+[   834    8.057 x1.00] LOG  [YoruVFX] Ground spin: 'VFX_spinGround' at GroundVFX, 24 systems, longest 5.00s fitted to 0.79s at speed 6.33, 1 forced Local, 0 delays zeroed, tail 0.79s
+[   849    8.196 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.90m, completed
+[   968    8.751 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 0.79s
+[   979    8.823 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.95 clipLen=0.79s queued=0 elapsed=0.77s
+[  1118    9.494 x1.00] LOG  🚶 2-LEG JUMP
+[  1118    9.494 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  1169    9.819 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  1169    9.819 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  1169    9.819 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  1169    9.819 x1.00] LOG  [AirPosePin] engaged, holding body at 1.641m above the transform
+[  1177    9.896 x1.00] LOG  [OniBoss:Layer] watch stance OFF, back to Idle (player 16.5m)
+[  1184    9.959 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  1261   10.434 x1.00] LOG  💨 Landing VFX spawned!
+[  1261   10.434 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  1261   10.434 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  1272   10.504 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  1278   10.531 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  1381   11.008 x1.00] LOG  🚶 2-LEG JUMP
+[  1381   11.008 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  1430   11.338 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  1430   11.338 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  1430   11.338 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  1430   11.338 x1.00] LOG  [AirPosePin] engaged, holding body at 1.448m above the transform
+[  1441   11.464 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.95m, completed
+[  1518   11.933 x1.00] LOG  💨 Landing VFX spawned!
+[  1518   11.933 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  1518   11.933 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  1536   12.021 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  1542   12.053 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.72s
+[  1569   12.180 x1.00] LOG  🚶 2-LEG JUMP
+[  1569   12.180 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  1632   12.588 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  1632   12.588 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  1632   12.588 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  1632   12.588 x1.00] LOG  [AirPosePin] engaged, holding body at 1.805m above the transform
+[  1646   12.716 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  1710   13.117 x1.00] LOG  💨 Landing VFX spawned!
+[  1710   13.117 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  1710   13.117 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  1744   13.277 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  1749   13.313 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.92 clipLen=0.79s queued=0 elapsed=0.72s
+[  1768   13.406 x1.00] LOG  🚶 2-LEG JUMP
+[  1768   13.406 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  1815   13.701 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  1815   13.701 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  1815   13.701 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  1815   13.701 x1.00] LOG  [AirPosePin] engaged, holding body at 1.492m above the transform
+[  1829   13.843 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  1910   14.337 x1.00] LOG  💨 Landing VFX spawned!
+[  1910   14.337 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  1910   14.337 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  1920   14.387 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  1926   14.413 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  1969   14.607 x1.00] LOG  🚶 2-LEG JUMP
+[  1969   14.607 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  2016   14.904 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  2016   14.904 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  2016   14.904 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  2016   14.904 x1.00] LOG  [AirPosePin] engaged, holding body at 1.401m above the transform
+[  2030   15.037 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  2107   15.534 x1.00] LOG  💨 Landing VFX spawned!
+[  2107   15.534 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  2107   15.534 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  2113   15.587 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  2118   15.615 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  2126   15.653 x1.00] LOG  🚶 2-LEG JUMP
+[  2126   15.653 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  2182   16.014 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  2182   16.014 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  2182   16.014 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  2182   16.014 x1.00] LOG  [AirPosePin] engaged, holding body at 1.451m above the transform
+[  2196   16.137 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.95m, completed
+[  2273   16.593 x1.00] LOG  💨 Landing VFX spawned!
+[  2273   16.593 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  2273   16.593 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  2292   16.702 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  2298   16.725 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  2312   16.819 x1.00] LOG  🚶 2-LEG JUMP
+[  2312   16.819 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  2357   17.092 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  2357   17.092 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  2357   17.092 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  2357   17.092 x1.00] LOG  [AirPosePin] engaged, holding body at 1.298m above the transform
+[  2372   17.221 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.95m, completed
+[  2462   17.753 x1.00] LOG  💨 Landing VFX spawned!
+[  2462   17.753 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  2462   17.753 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  2466   17.776 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  2472   17.803 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  2529   18.094 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[  2529   18.094 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target=none: no collider on enemyLayer within 8m
+[  2529   18.094 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s
+[  2545   18.229 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.90m, completed
+[  2681   18.862 x1.00] LOG  🐾 VFX_AttackPaw triggered!
+[  2741   19.138 x1.00] LOG  [ComboTrace] END step=1 clipProgress=0.85 clipLen=1.23s queued=0 elapsed=1.04s
+[  2746   19.156 x1.00] LOG  🚶 2-LEG JUMP
+[  2746   19.156 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  2826   19.629 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  2826   19.629 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  2826   19.629 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  2826   19.629 x1.00] LOG  [AirPosePin] engaged, holding body at 1.911m above the transform
+[  2840   19.755 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  2893   20.095 x1.00] LOG  💨 Landing VFX spawned!
+[  2893   20.095 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  2893   20.095 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  2934   20.323 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  2938   20.345 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.72s
+[  3002   20.634 x1.00] LOG  🚶 2-LEG JUMP
+[  3002   20.634 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  3049   20.929 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  3049   20.929 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  3049   20.929 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  3049   20.929 x1.00] LOG  [AirPosePin] engaged, holding body at 1.505m above the transform
+[  3064   21.067 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  3142   21.576 x1.00] LOG  💨 Landing VFX spawned!
+[  3142   21.576 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  3142   21.576 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  3149   21.613 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  3155   21.643 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  3230   22.003 x1.00] LOG  🚶 2-LEG JUMP
+[  3230   22.003 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  3296   22.394 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  3296   22.394 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  3296   22.394 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  3296   22.394 x1.00] LOG  [AirPosePin] engaged, holding body at 1.928m above the transform
+[  3311   22.535 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  3359   22.894 x1.00] LOG  💨 Landing VFX spawned!
+[  3359   22.894 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  3359   22.894 x1.00] LOG  [AirPosePin] released, peak correction was 0.109m
+[  3398   23.078 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  3404   23.104 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  3480   23.489 x1.00] LOG  🚶 2-LEG JUMP
+[  3480   23.489 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  3553   23.946 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  3553   23.946 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  3553   23.946 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  3553   23.946 x1.00] LOG  [AirPosePin] engaged, holding body at 1.961m above the transform
+[  3567   24.074 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  3617   24.394 x1.00] LOG  💨 Landing VFX spawned!
+[  3617   24.394 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  3617   24.394 x1.00] LOG  [AirPosePin] released, peak correction was 0.047m
+[  3662   24.631 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  3668   24.658 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  3688   24.764 x1.00] LOG  🚶 2-LEG JUMP
+[  3688   24.764 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  3733   25.046 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  3733   25.046 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  3733   25.046 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  3733   25.046 x1.00] LOG  [AirPosePin] engaged, holding body at 1.339m above the transform
+[  3747   25.180 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  3839   25.674 x1.00] LOG  💨 Landing VFX spawned!
+[  3839   25.674 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  3839   25.674 x1.00] LOG  [AirPosePin] released, peak correction was 0.047m
+[  3849   25.728 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  3855   25.758 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  3910   26.029 x1.00] LOG  🚶 2-LEG JUMP
+[  3910   26.029 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  4074   26.935 x1.00] LOG  💨 Landing VFX spawned!
+[  4074   26.935 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  4122   27.182 x1.00] LOG  🚶 2-LEG JUMP
+[  4122   27.182 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  4182   27.547 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  4182   27.547 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  4182   27.547 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  4182   27.547 x1.00] LOG  [AirPosePin] engaged, holding body at 1.642m above the transform
+[  4196   27.680 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  4262   28.117 x1.00] LOG  💨 Landing VFX spawned!
+[  4262   28.117 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  4262   28.117 x1.00] LOG  [AirPosePin] released, peak correction was 0.025m
+[  4281   28.230 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  4288   28.264 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.91 clipLen=0.79s queued=0 elapsed=0.72s
+[  4356   28.589 x1.00] LOG  🚶 2-LEG JUMP
+[  4356   28.589 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  4397   28.836 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  4397   28.836 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  4397   28.836 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  4397   28.836 x1.00] LOG  [AirPosePin] engaged, holding body at 1.260m above the transform
+[  4412   28.978 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  4495   29.512 x1.00] LOG  💨 Landing VFX spawned!
+[  4495   29.512 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  4495   29.512 x1.00] LOG  [AirPosePin] released, peak correction was 0.021m
+[  4497   29.526 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  4503   29.549 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  4547   29.761 x1.00] LOG  🚶 2-LEG JUMP
+[  4547   29.761 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  4625   30.227 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  4625   30.227 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  4625   30.227 x1.00] LOG  [YoruVFX] Air spin: 'VFX_airSpin' at CenterVFX, 20 systems, longest 1.00s fitted to 0.79s at speed 1.27, 2 forced Local, 0 delays zeroed, tail 2.37s
+[  4625   30.227 x1.00] LOG  [AirPosePin] engaged, holding body at 2.045m above the transform
+[  4640   30.362 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.96m, completed
+[  4698   30.695 x1.00] LOG  💨 Landing VFX spawned!
+[  4698   30.695 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  4698   30.695 x1.00] LOG  [AirPosePin] released, peak correction was 0.089m
+[  4738   30.909 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  4744   30.939 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[  6109   37.398 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 289 lines

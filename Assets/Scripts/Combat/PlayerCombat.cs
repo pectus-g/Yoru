@@ -363,6 +363,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float airPinReleaseRamp = 0.12f;
     [Tooltip("Seconds before touchdown that her body starts settling to standing height. The correction is faded out across this window so it reaches zero exactly as her paws land, which is why nothing snaps at the landing. Longer is gentler but starts the settle higher up.")]
     [SerializeField] private float airPinSettleBeforeLanding = 0.18f;
+    [Tooltip("Layers the airtime probe treats as floor when it estimates the time to landing for the settle above. Everything by default: the cave floor is on Default (layer 0), not Ground, and the probe already ignores Yoru herself. Environment Mask is NOT used here on purpose, it is the lock-on line-of-sight mask and must keep excluding Enemy and Player. When this finds no floor the settle never runs and her body drops the whole correction on the landing frame.")]
+    [SerializeField] private LayerMask airtimeGroundMask = ~0;
     [Tooltip("Log the measured pose height difference each time the pin engages. Useful once, noisy forever.")]
     [SerializeField] private bool logAirPin = true;
 
@@ -3343,11 +3345,11 @@ public class PlayerCombat : MonoBehaviour
         const float originLift = 0.3f;
         Vector3 origin = cachedTransform.position + Vector3.up * originLift;
 
-        // Nearest hit that is NOT Yoru herself. Environment Mask is Everything by default, so a
-        // plain Raycast starts inside her own capsule and reports zero distance, which reads as
-        // zero airtime and refuses every spin.
+        // Nearest hit that is NOT Yoru herself. Airtime Ground Mask is Everything by default, so a
+        // plain Raycast would start inside her own capsule and report zero distance; the self
+        // filter below is what keeps that from reading as zero airtime.
         int count = Physics.RaycastNonAlloc(origin, Vector3.down, groundProbeBuffer,
-            airtimeProbeDistance, environmentMask, QueryTriggerInteraction.Ignore);
+            airtimeProbeDistance, airtimeGroundMask, QueryTriggerInteraction.Ignore);
         float nearest = -1f;
         for (int i = 0; i < count; i++)
         {

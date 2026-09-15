@@ -23,12 +23,16 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private GameObject combo3VFX;
     [Tooltip("Prefab spawned at rightPaw on heavy release. Same prefab+spawn pattern as heavyChargeBuildupPrefab and pawAttack1Prefab.")]
     [SerializeField] private GameObject heavyAttackPrefab;
-    [Tooltip("Prefab spawned at leftPaw on charge start, destroyed on release/cancel/hit. Same prefab+spawn pattern as pawAttack1Prefab. (Buildup uses leftPaw; release uses rightPaw — matches the punch animation.)")]
+    [Tooltip("Prefab spawned at leftPaw on charge start, destroyed on release/cancel/hit. Same prefab+spawn pattern as pawAttack1Prefab. (Buildup uses leftPaw; release uses rightPaw, matches the punch animation.)")]
     [SerializeField] private GameObject heavyChargeBuildupPrefab;
-    [Tooltip("AIR spin: jump then attack. Spawned at the body centre and parented to her for the whole spin, destroyed when it ends. Inherits her scale. A looping prefab (the _L ones) reads best, a one-shot flashes once and is gone while she is still spinning.")]
+    [Tooltip("AIR spin: jump then attack. Born at Center Body and parented to her for the whole spin. At spawn every particle system inside is forced to Local simulation space (nothing is left behind when she lunges), every start delay is zeroed (it starts with the move), and the whole effect is sped up or slowed down so it finishes at Spin Length (it ends with the move). Drop in any prefab, no hand editing needed.")]
     [SerializeField] private GameObject airSpinVFX;
-    [Tooltip("GROUND spin, the beyblade finisher. Same animation as the air spin, different attack, so it gets its own effect. Same spawn rules as Air Spin VFX.")]
+    [Tooltip("GROUND spin, the beyblade finisher. Same animation as the air spin, different attack, so it gets its own effect. Born at Ground Spin Point. Same three corrections as Air Spin VFX.")]
     [SerializeField] private GameObject groundSpinVFX;
+    [Tooltip("Where the GROUND spin effect is born. Drag GroundVFX (her feet) here. Left empty it falls back to Center Body.")]
+    [SerializeField] private Transform groundSpinPoint;
+    [Tooltip("Length of the Combo3 spin clip in seconds. The spin effect is squeezed as one piece so its longest system finishes exactly here. 0.79 is the current clip. Only change it if the animation changes.")]
+    [SerializeField] private float spinLength = 0.79f;
     
     [Header("=== HIT SPARK VFX (spawned at contact point) ===")]
     [SerializeField] private GameObject lightHitSparkPrefab;
@@ -74,7 +78,7 @@ public class YoruVFXManager : MonoBehaviour
     private float lastFootstepTime;
     private bool wasGrounded;
     private GameObject activeRunTrail;
-    private float airborneTimer; // Track how long airborne — prevents landing VFX spam
+    private float airborneTimer; // Track how long airborne, prevents landing VFX spam
     
     private PlayerCombat playerCombat;
     
@@ -240,7 +244,7 @@ public class YoruVFXManager : MonoBehaviour
             }
         }
         
-        // Landing effect — only fires after actually being airborne (not ground flicker)
+        // Landing effect, only fires after actually being airborne (not ground flicker)
         if (!isGrounded)
         {
             airborneTimer += Time.deltaTime;
@@ -561,7 +565,7 @@ public void OnJump(int jumpNumber)
     SpawnEffect(absorbingPrefab, position, transform.rotation);
 }
 
-    // ========== COMBAT VFX — Called by PlayerCombat ==========
+    // ========== COMBAT VFX, Called by PlayerCombat ==========
 
     /// <summary>Play combo attack VFX for the given combo step (1, 2, or 3).</summary>
     public void PlayComboVFX(int comboStep)
@@ -583,13 +587,13 @@ public void OnJump(int jumpNumber)
     }
 
     /// <summary>Spawn the heavy release VFX prefab at rightPaw. Same spawn-at-paw
-    /// pattern as PlayHeavyChargeBuildupVFX — one consistent mechanism for all heavy attack VFX.
-    /// Auto-destroyed after effectLifetime seconds (no manual stop needed — it's a one-shot).</summary>
+    /// pattern as PlayHeavyChargeBuildupVFX, one consistent mechanism for all heavy attack VFX.
+    /// Auto-destroyed after effectLifetime seconds (no manual stop needed, it's a one-shot).</summary>
     public void PlayHeavyAttackVFX()
     {
         if (heavyAttackPrefab == null)
         {
-            if (debugMode) Debug.LogWarning("🐾⚡ Heavy attack prefab is NULL — assign it in YoruVFXManager Inspector");
+            if (debugMode) Debug.LogWarning("🐾⚡ Heavy attack prefab is NULL, assign it in YoruVFXManager Inspector");
             return;
         }
 
@@ -610,6 +614,7 @@ public void OnJump(int jumpNumber)
     // can tear it down. Null when nothing is charging.
     private GameObject activeChargeBuildupInstance;
     private GameObject activeSpinInstance;
+    private float activeSpinTail = 0.5f;    // real seconds the spin effect keeps fading after PlaySpinStop
 
     /// <summary>Spawn the charge buildup prefab at rightPaw and parent it to the bone
     /// so it follows the paw through the wind-up. Same SpawnEffect/rightPaw pattern as
@@ -618,10 +623,10 @@ public void OnJump(int jumpNumber)
     {
         if (heavyChargeBuildupPrefab == null)
         {
-            if (debugMode) Debug.LogWarning("🐾⚡ Heavy charge buildup prefab is NULL — assign it in YoruVFXManager Inspector");
+            if (debugMode) Debug.LogWarning("🐾⚡ Heavy charge buildup prefab is NULL, assign it in YoruVFXManager Inspector");
             return;
         }
-        if (activeChargeBuildupInstance != null) return; // already active — don't double-spawn
+        if (activeChargeBuildupInstance != null) return; // already active, don't double-spawn
 
         Transform spawnPoint = leftPaw ? leftPaw : transform;
         activeChargeBuildupInstance = Instantiate(heavyChargeBuildupPrefab, spawnPoint.position, spawnPoint.rotation, spawnPoint);
@@ -649,39 +654,117 @@ public void OnJump(int jumpNumber)
         if (debugMode) Debug.Log("🐾⚡ Heavy charge buildup stopped");
     }
 
-    /// <summary>Play spin VFX (combo 3 / aerial).</summary>
     /// <summary>Spawn the spin effect and keep it on her until PlaySpinStop. Air and ground spins
-    /// share one animation but are different attacks, so each has its own prefab. Safe to call
-    /// more than once per spin: a second call while one is live does nothing.</summary>
+    /// share one animation but are different attacks, so each has its own prefab and its own
+    /// spawn point. Three corrections are applied to every particle system in the prefab at spawn,
+    /// so any prefab works without hand editing: Local simulation space (follows her through the
+    /// lunge), zero start delay (starts with the move), and one shared simulation speed that makes
+    /// the longest system finish at Spin Length (ends with the move). Safe to call more than once
+    /// per spin: a second call while one is live does nothing.</summary>
     public void PlaySpinStart(bool airborne)
     {
         GameObject prefab = airborne ? airSpinVFX : groundSpinVFX;
         if (prefab == null) return;
         if (activeSpinInstance != null) return;   // already spinning, do not double-spawn
 
-        Transform spawnPoint = centerBody ? centerBody : transform;
+        Transform spawnPoint = airborne ? centerBody : (groundSpinPoint ? groundSpinPoint : centerBody);
+        if (spawnPoint == null) spawnPoint = transform;
+
         activeSpinInstance = Instantiate(prefab, spawnPoint.position, spawnPoint.rotation, spawnPoint);
         activeSpinInstance.SetActive(true);       // in case the prefab was saved disabled
 
-        ParticleSystem ps = activeSpinInstance.GetComponent<ParticleSystem>();
-        if (ps == null) ps = activeSpinInstance.GetComponentInChildren<ParticleSystem>();
-        if (ps != null) ps.Play();
+        ParticleSystem[] systems = activeSpinInstance.GetComponentsInChildren<ParticleSystem>(true);
+        if (systems.Length == 0)
+        {
+            if (debugMode) Debug.LogWarning($"[YoruVFX] {(airborne ? "Air" : "Ground")} spin prefab '{prefab.name}' has no ParticleSystem. Nothing to play.");
+            return;
+        }
 
-        if (debugMode) Debug.Log($"[YoruVFX] {(airborne ? "Air" : "Ground")} spin VFX spawned at {spawnPoint.name}. PS found: {ps != null}");
+        // Play On Awake may already have started them on the Instantiate frame. Stop and clear
+        // first so the settings below apply to a clean run, then start everything together.
+        foreach (ParticleSystem ps in systems)
+            ps.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        float longestDuration = 0f;
+        float longestLifetime = 0f;
+        int forcedLocal = 0;
+        int zeroedDelays = 0;
+        foreach (ParticleSystem ps in systems)
+        {
+            ParticleSystem.MainModule main = ps.main;
+            if (main.simulationSpace != ParticleSystemSimulationSpace.Local)
+            {
+                main.simulationSpace = ParticleSystemSimulationSpace.Local;
+                forcedLocal++;
+            }
+            if (MaxOf(main.startDelay) > 0.0001f)
+            {
+                main.startDelay = new ParticleSystem.MinMaxCurve(0f);
+                zeroedDelays++;
+            }
+            if (main.duration > longestDuration) longestDuration = main.duration;
+            float life = MaxOf(main.startLifetime);
+            if (life > longestLifetime) longestLifetime = life;
+        }
+
+        // One speed for the whole effect, so the prefab keeps its internal proportions and its
+        // longest system lands exactly on Spin Length.
+        float speed = 1f;
+        if (spinLength > 0.01f && longestDuration > 0.0001f)
+            speed = longestDuration / spinLength;
+        foreach (ParticleSystem ps in systems)
+        {
+            ParticleSystem.MainModule main = ps.main;
+            main.simulationSpeed = speed;
+        }
+
+        // Real seconds the last particle can still be alive after emission stops. PlaySpinStop
+        // waits this long before destroying, so the tail fades instead of being cut.
+        activeSpinTail = Mathf.Clamp(longestLifetime / speed, 0.1f, 3f);
+
+        foreach (ParticleSystem ps in systems)
+            ps.Play(false);
+
+        if (debugMode)
+            Debug.Log($"[YoruVFX] {(airborne ? "Air" : "Ground")} spin: '{prefab.name}' at {spawnPoint.name}, "
+                + $"{systems.Length} systems, longest {longestDuration:F2}s fitted to {spinLength:F2}s at speed {speed:F2}, "
+                + $"{forcedLocal} forced Local, {zeroedDelays} delays zeroed, tail {activeSpinTail:F2}s");
     }
 
+    /// <summary>Stop emitting and let the live particles fade out on her. The instance is destroyed
+    /// only after the longest particle lifetime has passed, so nothing is ever cut mid frame.</summary>
     public void PlaySpinStop()
     {
         if (activeSpinInstance == null) return;
 
-        ParticleSystem ps = activeSpinInstance.GetComponent<ParticleSystem>();
-        if (ps == null) ps = activeSpinInstance.GetComponentInChildren<ParticleSystem>();
-        if (ps != null) ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+        foreach (ParticleSystem ps in activeSpinInstance.GetComponentsInChildren<ParticleSystem>(true))
+            ps.Stop(false, ParticleSystemStopBehavior.StopEmitting);
 
-        Destroy(activeSpinInstance, 0.5f);        // let the live particles finish rather than cutting them
+        Destroy(activeSpinInstance, activeSpinTail);
         activeSpinInstance = null;
 
-        if (debugMode) Debug.Log("[YoruVFX] Spin VFX stopped");
+        if (debugMode) Debug.Log($"[YoruVFX] Spin VFX stopped, fading for {activeSpinTail:F2}s");
+    }
+
+    /// <summary>Largest value a MinMaxCurve can produce, whichever of its four modes it is in.</summary>
+    private static float MaxOf(ParticleSystem.MinMaxCurve curve)
+    {
+        switch (curve.mode)
+        {
+            case ParticleSystemCurveMode.Constant:     return curve.constant;
+            case ParticleSystemCurveMode.TwoConstants: return Mathf.Max(curve.constantMin, curve.constantMax);
+            case ParticleSystemCurveMode.Curve:        return curve.curveMultiplier * PeakOf(curve.curve);
+            default:                                   return curve.curveMultiplier * Mathf.Max(PeakOf(curve.curveMin), PeakOf(curve.curveMax));
+        }
+    }
+
+    private static float PeakOf(AnimationCurve c)
+    {
+        if (c == null || c.length == 0) return 0f;
+        float peak = float.MinValue;
+        for (int i = 0; i <= 16; i++)
+            peak = Mathf.Max(peak, c.Evaluate(i / 16f));
+        return peak;
     }
 
     /// <summary>Play hit reaction VFX on Yoru.</summary>
@@ -694,7 +777,7 @@ public void OnJump(int jumpNumber)
         SpawnEffect(prefab, spawnPoint.position, spawnPoint.rotation);
     }
 
-    // ========== DODGE VFX — Called by PlayerCombat ==========
+    // ========== DODGE VFX, Called by PlayerCombat ==========
 
     /// <summary>Spawn dodge trail at Yoru's feet.</summary>
     public void PlayDodgeTrailVFX()
@@ -716,7 +799,7 @@ public void OnJump(int jumpNumber)
         Destroy(vfx, dodgeVFXLifetime);
     }
 
-    // ========== HIT SPARK VFX — Called by CombatFeedbackManager ==========
+    // ========== HIT SPARK VFX, Called by CombatFeedbackManager ==========
 
     /// <summary>Spawn hit spark at contact point.</summary>
     public void PlayHitSparkVFX(Vector3 contactPoint, bool isHeavy)
