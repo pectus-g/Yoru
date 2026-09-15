@@ -1,8 +1,8 @@
-# Oni combat log — 2026-09-13 18:06:50
+# Oni combat log — 2026-09-14 12:43:01
 # Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
 # columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
 #
-[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-13_18-06-50.log
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-14_12-43-01.log
 [     0    0.000 x1.00] LOG  [OniHairShadows] shadow casting off on 27 hair renderers
 [     0    0.000 x1.00] LOG  [RingMesh] Auto-found 11/11 left, 11/11 right meshes
 [     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
@@ -57,10 +57,28 @@
 [     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
 [     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized, Phase 3C v27
 [     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
-[     1    2.242 x1.00] LOG  [OniBoss] Playing animation: Idle
-[     1    2.242 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
-[    94    3.044 x1.00] LOG  💨 Landing VFX spawned!
-[    94    3.044 x1.00] LOG  ✅ LANDED! (was jump #0)
-[  2017   10.365 x1.00] LOG  [OniBoss:Layer] watch stance OFF, back to Idle (player 16.6m)
-[  6378   25.746 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
-# end — 56 lines
+[     1    2.388 x1.00] LOG  [OniBoss] Playing animation: Idle
+[     1    2.388 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
+[    15    3.288 x1.00] LOG  💨 Landing VFX spawned!
+[    15    3.288 x1.00] LOG  ✅ LANDED! (was jump #0)
+[    42    3.419 x1.00] LOG  🚶 2-LEG JUMP
+[    42    3.419 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[    87    3.695 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[    87    3.695 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[    87    3.695 x1.00] LOG  [YoruVFX] Air spin VFX spawned at CenterVFX. PS found: True
+[    87    3.695 x1.00] LOG  [AirPosePin] engaged, holding body at 1.374m above the transform
+[   102    3.828 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.95m, completed
+[   195    4.351 x1.00] LOG  💨 Landing VFX spawned!
+[   195    4.351 x1.00] LOG  ✅ LANDED! (was jump #1)
+[   195    4.351 x1.00] LOG  [AirPosePin] released, peak correction was 0.642m
+[   200    4.382 x1.00] LOG  [YoruVFX] Spin VFX stopped
+[   205    4.407 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[   279    4.761 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[   279    4.761 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target=none: no collider on enemyLayer within 8m
+[   279    4.761 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s
+[   295    4.896 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.90m, completed
+[   426    5.531 x1.00] LOG  🐾 VFX_AttackPaw triggered!
+[   487    5.803 x1.00] LOG  [ComboTrace] END step=1 clipProgress=0.85 clipLen=1.23s queued=0 elapsed=1.04s
+[   492    5.826 x1.00] LOG  [ComboTrace] CLICK DROPPED by attackCooldown (0.10s, 0.02s since last attack) step=1
+[   916    7.838 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 74 lines

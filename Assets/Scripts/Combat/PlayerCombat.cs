@@ -3108,6 +3108,7 @@ public class PlayerCombat : MonoBehaviour
     {
         isBeyblading = true;
         beybladeRotationIndex = 0;
+        if (vfxManager != null) vfxManager.PlaySpinStart(false);
         if (beybladeCoroutine != null) StopCoroutine(beybladeCoroutine);
         beybladeCoroutine = StartCoroutine(BeybladeRoutine());
     }
@@ -3420,6 +3421,10 @@ public class PlayerCombat : MonoBehaviour
         queuedClicks = 0;
         lastAttackTime = Time.time;
 
+        // Started here, not from the clip's VFX_SpinStart event: that event sits at time 0, and an
+        // event on the very first frame is skipped when the state is entered through a crossfade.
+        if (vfxManager != null) vfxManager.PlaySpinStart(true);
+
         // The routine owns the spin from here: it keeps hurting everything close for the whole
         // clip and carries the spin through the landing so it finishes on the ground.
         if (aerialSpinCoroutine != null) StopCoroutine(aerialSpinCoroutine);
@@ -3707,7 +3712,7 @@ public class PlayerCombat : MonoBehaviour
     #region VFX/SFX Animation Events
     public void VFX_SpinStart()
     {
-        if (vfxManager != null) vfxManager.PlaySpinStart();
+        if (vfxManager != null) vfxManager.PlaySpinStart(isAerialAttack);
     }
 
     public void VFX_SpinStop()

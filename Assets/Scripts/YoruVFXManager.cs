@@ -25,8 +25,10 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private GameObject heavyAttackPrefab;
     [Tooltip("Prefab spawned at leftPaw on charge start, destroyed on release/cancel/hit. Same prefab+spawn pattern as pawAttack1Prefab. (Buildup uses leftPaw; release uses rightPaw — matches the punch animation.)")]
     [SerializeField] private GameObject heavyChargeBuildupPrefab;
-    [Tooltip("Spawned at the body centre and PARENTED to her when the spin starts, destroyed when it ends. Inherits her scale, so a prefab authored at 1x reads large on her.")]
-    [SerializeField] private GameObject spinVFX;
+    [Tooltip("AIR spin: jump then attack. Spawned at the body centre and parented to her for the whole spin, destroyed when it ends. Inherits her scale. A looping prefab (the _L ones) reads best, a one-shot flashes once and is gone while she is still spinning.")]
+    [SerializeField] private GameObject airSpinVFX;
+    [Tooltip("GROUND spin, the beyblade finisher. Same animation as the air spin, different attack, so it gets its own effect. Same spawn rules as Air Spin VFX.")]
+    [SerializeField] private GameObject groundSpinVFX;
     
     [Header("=== HIT SPARK VFX (spawned at contact point) ===")]
     [SerializeField] private GameObject lightHitSparkPrefab;
@@ -648,20 +650,24 @@ public void OnJump(int jumpNumber)
     }
 
     /// <summary>Play spin VFX (combo 3 / aerial).</summary>
-    public void PlaySpinStart()
+    /// <summary>Spawn the spin effect and keep it on her until PlaySpinStop. Air and ground spins
+    /// share one animation but are different attacks, so each has its own prefab. Safe to call
+    /// more than once per spin: a second call while one is live does nothing.</summary>
+    public void PlaySpinStart(bool airborne)
     {
-        if (spinVFX == null) return;
+        GameObject prefab = airborne ? airSpinVFX : groundSpinVFX;
+        if (prefab == null) return;
         if (activeSpinInstance != null) return;   // already spinning, do not double-spawn
 
         Transform spawnPoint = centerBody ? centerBody : transform;
-        activeSpinInstance = Instantiate(spinVFX, spawnPoint.position, spawnPoint.rotation, spawnPoint);
+        activeSpinInstance = Instantiate(prefab, spawnPoint.position, spawnPoint.rotation, spawnPoint);
         activeSpinInstance.SetActive(true);       // in case the prefab was saved disabled
 
         ParticleSystem ps = activeSpinInstance.GetComponent<ParticleSystem>();
         if (ps == null) ps = activeSpinInstance.GetComponentInChildren<ParticleSystem>();
         if (ps != null) ps.Play();
 
-        if (debugMode) Debug.Log($"[YoruVFX] Spin VFX spawned at {spawnPoint.name}. PS found: {ps != null}");
+        if (debugMode) Debug.Log($"[YoruVFX] {(airborne ? "Air" : "Ground")} spin VFX spawned at {spawnPoint.name}. PS found: {ps != null}");
     }
 
     public void PlaySpinStop()
