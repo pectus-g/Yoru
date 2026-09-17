@@ -233,6 +233,10 @@ public class EnemyCombat : MonoBehaviour
     [Header("Attack Commitment (opt-in)")]
     [Tooltip("OFF = old behavior (the enemy keeps rotating to face the player for the whole attack, so it can track a dodging target mid-swing). ON = once the strike begins the enemy CANNOT turn — it swings where the player WAS. This is what makes dodging feel like a skill instead of a coin flip. Enabled at runtime by OniBoss.")]
     [SerializeField] private bool lockFacingDuringAttack = false;
+    [Tooltip("Degrees per second the enemy may still turn toward the player during the START of an attack while Lock Facing During Attack is on. 0 = no turning at all, he swings where he stood. A value lets the wind-up aim without the one frame pop of Snap To Face On Attack; the lock then holds for the rest of the swing.")]
+    [SerializeField] private float attackAimTurnSpeed = 0f;
+    [Tooltip("Fraction of the attack clip (0 to 1) during which Attack Aim Turn Speed applies. Past it the facing is locked. Keep it below the attack's damage moment.")]
+    [SerializeField] private float attackAimWindow = 0.2f;
     [Tooltip("Below this horizontal distance (metres) LookAtPlayer does not turn at all. 0 = old behavior (turn toward any direction, however tiny). A player standing on top of / directly above the enemy produces a near-zero flat direction that flips every frame — turning toward it makes the body shudder. Boss layers set ~1.0.")]
     [SerializeField] private float lookAtMinFlatDistance = 0f;
     [Tooltip("ON = old behavior: the enemy keeps turning to face the player during its hit-react flinch. OFF = the flinch plays where the body is; no tracking. Boss layers turn this off.")]
@@ -1259,11 +1263,14 @@ public class EnemyCombat : MonoBehaviour
     /// face-snap at attack start (a visible pop on a heavy body). trackInHitReact: keep turning
     /// toward the player during the flinch.
     /// </summary>
-    public void ConfigureFacing(float minFlatDistance, bool? snapOnAttack = null, bool? trackInHitReact = null)
+    public void ConfigureFacing(float minFlatDistance, bool? snapOnAttack = null, bool? trackInHitReact = null,
+                                float aimTurnSpeed = -1f, float aimWindow = -1f)
     {
         if (minFlatDistance >= 0f) lookAtMinFlatDistance = minFlatDistance;
         if (snapOnAttack.HasValue) snapToFaceOnAttack = snapOnAttack.Value;
         if (trackInHitReact.HasValue) hitReactTracksPlayer = trackInHitReact.Value;
+        if (aimTurnSpeed >= 0f) attackAimTurnSpeed = aimTurnSpeed;
+        if (aimWindow >= 0f) attackAimWindow = Mathf.Clamp01(aimWindow);
     }
 
     /// <summary>Writes the AnimSpeed multiplier directly (0 = freeze a bound attack clip in place).</summary>
@@ -1541,6 +1548,8 @@ public class EnemyCombat : MonoBehaviour
         // a rush that cannot steer would drive into a wall next to the player instead of at her.
         if (!lockFacingDuringAttack || lunging)
             LookAtPlayer();
+        else if (attackAimTurnSpeed > 0f && AttackClipProgress() < attackAimWindow)
+            TurnTowardPlayer(attackAimTurnSpeed);   // aim through the wind-up, then the lock holds
 
         // HairLash pull — while a pulling attack plays, drag Yoru toward the enemy via
         // PlayerMovement (single-Move owner). Stops at pullStopDistance so it snaps to melee
@@ -2720,6 +2729,21 @@ private void TriggerHitFlash()
     /// The slow LookAtPlayer slerp can't catch a moving target before a short clip ends, which
     /// is what made the pull look like it had "horrible aim".
     /// </summary>
+    /// <summary>Turn toward the player at a fixed rate in degrees per second. Same overhead guard as
+    /// LookAtPlayer, so a player directly above never makes the body shudder.</summary>
+    private void TurnTowardPlayer(float degreesPerSecond)
+    {
+        if (player == null) return;
+
+        Vector3 dir = player.position - transform.position;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f) return;
+        if (lookAtMinFlatDistance > 0f && dir.sqrMagnitude < lookAtMinFlatDistance * lookAtMinFlatDistance) return;
+
+        Quaternion target = Quaternion.LookRotation(dir.normalized);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, target, degreesPerSecond * Time.deltaTime);
+    }
+
     private void FacePlayerInstant()
     {
         if (player == null) return;

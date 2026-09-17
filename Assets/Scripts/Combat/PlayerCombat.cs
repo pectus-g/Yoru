@@ -255,6 +255,8 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Combo Settings")]
     [SerializeField] private float comboWindowTime = 2.0f;
+    [Tooltip("ON = a LIGHT hit interrupts the swing she is in but keeps her place in the combo: after the flinch her next click continues at the next step, as long as it comes inside Combo Window Time counted from the hit. A HEAVY hit still resets to step 1. OFF = any hit resets the combo, the old rule.")]
+    [SerializeField] private bool comboMemoryOnLightHit = true;
     [SerializeField] private float attackCooldown = 0.1f;
 
     [Header("Damage")]
@@ -337,6 +339,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float guardOffsetRampDuration = 0.3f;
     [Tooltip("Y offset applied to bodyYoru during dash to lift paw tips off ground")]
     [SerializeField] private float dashModelYOffset = 0.1f;
+    [Tooltip("Seconds for the dash lift to reach Dash Model Y Offset. A dash is over in half a second, so this has to be near instant; 0.05 lifts her paws clear on the first frames. It used to share the guard ramp, which moved the dash lift at the guard's tiny speed (0.02 m over 0.3 s) and never arrived before the dash was over: that was the sinking paws.")]
+    [SerializeField] private float dashOffsetRampDuration = 0.05f;
     [Tooltip("Visual model root (auto-finds bodyYoru). Offset during guard/dash for paw clipping fix.")]
     [SerializeField] private Transform visualModelRoot;
 
@@ -587,6 +591,7 @@ public class PlayerCombat : MonoBehaviour
     private float heavyStuckTimer;          // tracks how long isChargingHeavy is true while LMB not held
     private float guardIdleDebounceTimer;   // prevents flicker during quick walk direction changes (W→S passes through 0)
     private bool modelOffsetActive;         // true when bodyYoru Y offset is applied
+    private bool modelOffsetRampIsDash;     // which lift the ramp speed follows, kept through the exit ramp
     private float currentModelYOffset;      // current interpolated offset for smooth transitions
 
     // Air pose height pin. airPinComp is the metres currently added to bodyYoru to cancel the
@@ -953,8 +958,15 @@ public class PlayerCombat : MonoBehaviour
             // the visible ramp time stays constant regardless of the offset value chosen.
             // Fallback to the old fast rate if either field is configured at zero, so the behavior
             // degrades gracefully rather than getting stuck mid-ramp.
-            float rampSpeed = (guardModelYOffset > 0.001f && guardOffsetRampDuration > 0.001f)
-                ? guardModelYOffset / guardOffsetRampDuration
+            // Ramp at the speed of the lift that is, or was last, active, so each lift reaches its
+            // own offset in its own duration. The dash used to borrow the guard's speed (0.02 m over
+            // 0.3 s = 0.07 m/s) and never reached 0.15 m inside a half second dash: the sinking paws.
+            if (isDashing) modelOffsetRampIsDash = true;
+            else if (isGuarding) modelOffsetRampIsDash = false;
+            float rampOffset = modelOffsetRampIsDash ? dashModelYOffset : guardModelYOffset;
+            float rampDuration = modelOffsetRampIsDash ? dashOffsetRampDuration : guardOffsetRampDuration;
+            float rampSpeed = (rampOffset > 0.001f && rampDuration > 0.001f)
+                ? rampOffset / rampDuration
                 : 10f;
             currentModelYOffset = Mathf.MoveTowards(currentModelYOffset, targetOffset, Time.deltaTime * rampSpeed);
 
@@ -2189,7 +2201,15 @@ public class PlayerCombat : MonoBehaviour
         // clip is chosen or whether the combat layer is being fought over.
         FlashDamage();
 
+        // Combo memory: a light hit costs her the swing, not the combo. Heavy hits reset as before.
+        int rememberedStep = currentComboStep;
         EndActiveCombatActions();
+        if (comboMemoryOnLightHit && !isHeavy && rememberedStep > 0)
+        {
+            currentComboStep = rememberedStep;
+            lastAttackTime = Time.time;     // the combo window restarts from the hit, not from the last swing
+            DebugLog($"Combo memory: light hit, keeping step {rememberedStep}");
+        }
 
         string animState;
         float duration;

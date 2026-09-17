@@ -33,6 +33,8 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private float spinLength = 0.79f;
     [Tooltip("Seconds taken off every start delay in the ground hazard prefab at spawn, floored at 0. Vefects builds every Area effect as 'warn for 2 seconds, then erupt'; a spin has no warning phase, so 2 makes the eruption fire on the first frame and keeps the rest of the sequence in order. 0 = play the prefab exactly as authored.")]
     [SerializeField] private float groundHazardDelayShift = 2f;
+    [Tooltip("Metres the ground hazard floats above the floor it is laid on. The zone is placed on the real floor under her (a downward ray) and tilted to the floor's slope, so on a bump or a ramp the disc lies on the surface instead of cutting through it. Only the lift is yours to tune; 0.05 stops z-fighting without looking like it hovers.")]
+    [SerializeField] private float groundHazardLift = 0.05f;
     
     [Header("=== HIT SPARK VFX (spawned at contact point) ===")]
     [SerializeField] private GameObject lightHitSparkPrefab;
@@ -762,7 +764,20 @@ public void OnJump(int jumpNumber)
         if (groundSpinVFX == null) return null;
 
         Transform at = groundSpinPoint ? groundSpinPoint : (centerBody ? centerBody : transform);
-        GameObject zone = Instantiate(groundSpinVFX, at.position, at.rotation);
+
+        // Sit the zone on the actual floor, tilted to its slope, keeping her yaw. Falls back to
+        // the spawn point itself when there is no floor under her (mid air, over a gap).
+        Vector3 pos = at.position;
+        Quaternion rot = at.rotation;
+        if (FindFloorUnder(at.position, out Vector3 floorPoint, out Vector3 floorNormal))
+        {
+            pos = floorPoint + floorNormal * groundHazardLift;
+            Vector3 forward = Vector3.ProjectOnPlane(at.forward, floorNormal);
+            if (forward.sqrMagnitude < 0.0001f) forward = Vector3.ProjectOnPlane(Vector3.forward, floorNormal);
+            rot = Quaternion.LookRotation(forward.normalized, floorNormal);
+        }
+
+        GameObject zone = Instantiate(groundSpinVFX, pos, rot);
         zone.SetActive(true);                     // in case the prefab was saved disabled
 
         // Pull the authored telegraph forward so the eruption lands with the spin. Delays are
@@ -786,9 +801,32 @@ public void OnJump(int jumpNumber)
         }
 
         if (debugMode)
-            Debug.Log($"[YoruVFX] Ground hazard: '{groundSpinVFX.name}' laid at {at.name} ({at.position}), "
+            Debug.Log($"[YoruVFX] Ground hazard: '{groundSpinVFX.name}' laid at {at.name} ({pos}), floor tilt {Vector3.Angle(Vector3.up, rot * Vector3.up):F1} deg, "
                 + $"{shifted} delays shifted by {groundHazardDelayShift:F2}s, own lifetime {NaturalLifetimeOf(zone):F2}s");
         return zone;
+    }
+
+    private readonly RaycastHit[] floorHits = new RaycastHit[8];
+
+    /// <summary>Nearest floor under a point that is not Yoru herself. Any layer, triggers ignored.
+    /// Looks from 0.5 m above the point down to 3 m below it.</summary>
+    private bool FindFloorUnder(Vector3 point, out Vector3 floorPoint, out Vector3 floorNormal)
+    {
+        floorPoint = point; floorNormal = Vector3.up;
+        Vector3 origin = point + Vector3.up * 0.5f;
+        int count = Physics.RaycastNonAlloc(origin, Vector3.down, floorHits, 3.5f, ~0, QueryTriggerInteraction.Ignore);
+        float nearest = float.MaxValue;
+        bool found = false;
+        for (int i = 0; i < count; i++)
+        {
+            if (floorHits[i].transform == null || floorHits[i].transform.root == transform.root) continue;
+            if (floorHits[i].distance >= nearest) continue;
+            nearest = floorHits[i].distance;
+            floorPoint = floorHits[i].point;
+            floorNormal = floorHits[i].normal;
+            found = true;
+        }
+        return found;
     }
 
     /// <summary>Real seconds until the last particle of this effect can be gone: the longest

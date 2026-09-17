@@ -116,6 +116,10 @@ public class OniBoss : MonoBehaviour
     [SerializeField] private bool snapToFaceOnAttack = false;
     [Tooltip("Keep turning toward Yoru during the flinch? OFF: a flinch is a flinch — he reacts where he stands.")]
     [SerializeField] private bool trackPlayerDuringHitReact = false;
+    [Tooltip("Degrees per second he may still turn toward Yoru during the first part of a swing, while Lock Facing During Attack is on. Fixes 'swings with his back to her' without the pop of Snap To Face On Attack: he aims through the wind-up, then commits. 0 = off (old behaviour). 540 turns him half way round in a third of a second.")]
+    [SerializeField] private float attackAimTurnSpeed = 540f;
+    [Tooltip("Fraction of the swing clip (0 to 1) during which Attack Aim Turn Speed applies. His club arms at 0.20 of the clip, so 0.2 means he aims through the wind-up and is locked from the moment the club can hit.")]
+    [SerializeField] private float attackAimWindow = 0.2f;
 
     [Header("Knockback On Being Hit")]
     [Tooltip("Push the Oni backward when Yoru connects, scaled by the damage tier. Without this a heavy hit reads as the boss simply stopping; with it he stumbles, which is what sells the weight.")]
@@ -791,8 +795,9 @@ public class OniBoss : MonoBehaviour
 
         // How he turns: no shudder when she is overhead, no one-frame face-snap at attack start,
         // no tracking during the flinch.
-        combat.ConfigureFacing(lookAtMinFlatDistance, snapToFaceOnAttack, trackPlayerDuringHitReact);
-        DebugLog($"facing: minFlat {lookAtMinFlatDistance}m, snapOnAttack {(snapToFaceOnAttack ? "ON" : "off")}, trackInHitReact {(trackPlayerDuringHitReact ? "ON" : "off")}");
+        combat.ConfigureFacing(lookAtMinFlatDistance, snapToFaceOnAttack, trackPlayerDuringHitReact, attackAimTurnSpeed, attackAimWindow);
+        DebugLog($"facing: minFlat {lookAtMinFlatDistance}m, snapOnAttack {(snapToFaceOnAttack ? "ON" : "off")}, trackInHitReact {(trackPlayerDuringHitReact ? "ON" : "off")}, "
+            + $"aimTurn {attackAimTurnSpeed:F0} deg/s for the first {attackAimWindow:F2} of the swing");
 
         // Round 8: the agreed launch model. It lives on PlayerCombat, which every fight shares, so
         // it is switched on HERE - this scene only - until it has been judged. Start-only lookup.
