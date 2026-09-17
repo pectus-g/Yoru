@@ -27,12 +27,12 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private GameObject heavyChargeBuildupPrefab;
     [Tooltip("AIR spin: jump then attack. Born at Center Body and parented to her for the whole spin. At spawn every particle system inside is forced to Local simulation space (nothing is left behind when she lunges), every start delay is zeroed (it starts with the move), and the whole effect is sped up or slowed down so it finishes at Spin Length (it ends with the move). Drop in any prefab, no hand editing needed.")]
     [SerializeField] private GameObject airSpinVFX;
-    [Tooltip("GROUND spin, the beyblade finisher. Same animation as the air spin, different attack, so it gets its own effect. Born at Ground Spin Point. Same three corrections as Air Spin VFX.")]
+    [Tooltip("GROUND spin, the beyblade finisher: the hazard zone it leaves on the floor. Born at Ground Spin Point and NOT parented to her, so it stays where she spun while she moves on. Plays exactly as authored, no speed or delay change, and lives as long as its own effect is visible. What it does to enemies (tick damage, radius, unlock, cooldown) is set on Player Combat under Beyblade Ground Hazard.")]
     [SerializeField] private GameObject groundSpinVFX;
-    [Tooltip("Where the GROUND spin effect is born. Drag GroundVFX (her feet) here. Left empty it falls back to Center Body.")]
-    [SerializeField] private Transform groundSpinPoint;
-    [Tooltip("Length of the Combo3 spin clip in seconds. The spin effect is squeezed as one piece so its longest system finishes exactly here. 0.79 is the current clip. Only change it if the animation changes.")]
+    [Tooltip("Length of the Combo3 spin clip in seconds. The AIR spin effect is squeezed as one piece so its longest system finishes exactly here. 0.79 is the current clip. Only change it if the animation changes.")]
     [SerializeField] private float spinLength = 0.79f;
+    [Tooltip("Seconds taken off every start delay in the ground hazard prefab at spawn, floored at 0. Vefects builds every Area effect as 'warn for 2 seconds, then erupt'; a spin has no warning phase, so 2 makes the eruption fire on the first frame and keeps the rest of the sequence in order. 0 = play the prefab exactly as authored.")]
+    [SerializeField] private float groundHazardDelayShift = 2f;
     
     [Header("=== HIT SPARK VFX (spawned at contact point) ===")]
     [SerializeField] private GameObject lightHitSparkPrefab;
@@ -61,6 +61,8 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private Transform leftTailTip;   // Will auto-find if not assigned
     [SerializeField] private Transform rightTailTip;  // Will auto-find if not assigned
     [SerializeField] private Transform centerBody;
+    [Tooltip("Where the GROUND hazard zone is born. Drag GroundVFX (her feet) here. Left empty it falls back to Center Body.")]
+    [SerializeField] private Transform groundSpinPoint;
     
     [Header("Settings")]
     [SerializeField] private float effectLifetime = 3f;
@@ -654,21 +656,25 @@ public void OnJump(int jumpNumber)
         if (debugMode) Debug.Log("🐾⚡ Heavy charge buildup stopped");
     }
 
-    /// <summary>Spawn the spin effect and keep it on her until PlaySpinStop. Air and ground spins
-    /// share one animation but are different attacks, so each has its own prefab and its own
-    /// spawn point. Three corrections are applied to every particle system in the prefab at spawn,
+    /// <summary>Spawn the AIR spin effect and keep it on her until PlaySpinStop. The ground spin
+    /// takes the other road, see SpawnGroundHazard. Three corrections are applied to every particle
+    /// system in the prefab at spawn,
     /// so any prefab works without hand editing: Local simulation space (follows her through the
     /// lunge), zero start delay (starts with the move), and one shared simulation speed that makes
     /// the longest system finish at Spin Length (ends with the move). Safe to call more than once
     /// per spin: a second call while one is live does nothing.</summary>
     public void PlaySpinStart(bool airborne)
     {
-        GameObject prefab = airborne ? airSpinVFX : groundSpinVFX;
+        // The ground spin wears nothing on her body: the beyblade lays a hazard on the floor
+        // instead (SpawnGroundHazard, driven by PlayerCombat). Kept as a no-op here so the clip's
+        // VFX_SpinStart event can never spawn a stray effect if it ever fires on the ground.
+        if (!airborne) return;
+
+        GameObject prefab = airSpinVFX;
         if (prefab == null) return;
         if (activeSpinInstance != null) return;   // already spinning, do not double-spawn
 
-        Transform spawnPoint = airborne ? centerBody : (groundSpinPoint ? groundSpinPoint : centerBody);
-        if (spawnPoint == null) spawnPoint = transform;
+        Transform spawnPoint = centerBody ? centerBody : transform;
 
         activeSpinInstance = Instantiate(prefab, spawnPoint.position, spawnPoint.rotation, spawnPoint);
         activeSpinInstance.SetActive(true);       // in case the prefab was saved disabled
@@ -744,6 +750,62 @@ public void OnJump(int jumpNumber)
         activeSpinInstance = null;
 
         if (debugMode) Debug.Log($"[YoruVFX] Spin VFX stopped, fading for {activeSpinTail:F2}s");
+    }
+
+    /// <summary>Lay the beyblade's ground hazard where she is standing and hand it back. Born at
+    /// Ground Spin Point and NOT parented, so it stays on the floor when she moves on. Plays
+    /// exactly as authored: no speed change, no delay change, the prefab keeps its own pacing and
+    /// its own lifetime. PlayerCombat owns what it does to enemies, and whether it may spawn at
+    /// all (unlock, cooldown). Returns null when no prefab is assigned.</summary>
+    public GameObject SpawnGroundHazard()
+    {
+        if (groundSpinVFX == null) return null;
+
+        Transform at = groundSpinPoint ? groundSpinPoint : (centerBody ? centerBody : transform);
+        GameObject zone = Instantiate(groundSpinVFX, at.position, at.rotation);
+        zone.SetActive(true);                     // in case the prefab was saved disabled
+
+        // Pull the authored telegraph forward so the eruption lands with the spin. Delays are
+        // shifted, not zeroed, so IN, LOOP and OUT keep their order. Done before the systems
+        // start so it applies to this run, and before NaturalLifetimeOf so the zone measures
+        // the shortened timeline.
+        int shifted = 0;
+        if (groundHazardDelayShift > 0.0001f)
+        {
+            foreach (ParticleSystem ps in zone.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                ParticleSystem.MainModule main = ps.main;
+                float delay = MaxOf(main.startDelay);
+                if (delay <= 0.0001f) continue;
+                bool wasPlaying = ps.isPlaying;
+                if (wasPlaying) ps.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+                main.startDelay = new ParticleSystem.MinMaxCurve(Mathf.Max(0f, delay - groundHazardDelayShift));
+                if (wasPlaying) ps.Play(false);
+                shifted++;
+            }
+        }
+
+        if (debugMode)
+            Debug.Log($"[YoruVFX] Ground hazard: '{groundSpinVFX.name}' laid at {at.name} ({at.position}), "
+                + $"{shifted} delays shifted by {groundHazardDelayShift:F2}s, own lifetime {NaturalLifetimeOf(zone):F2}s");
+        return zone;
+    }
+
+    /// <summary>Real seconds until the last particle of this effect can be gone: the longest
+    /// start delay plus duration plus particle lifetime across its systems, at each system's own
+    /// simulation speed. A looping system reports one cycle, so give a looping prefab an explicit
+    /// duration instead of relying on this.</summary>
+    public float NaturalLifetimeOf(GameObject effect)
+    {
+        float longest = 0f;
+        foreach (ParticleSystem ps in effect.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            ParticleSystem.MainModule main = ps.main;
+            float speed = Mathf.Max(0.01f, main.simulationSpeed);
+            float t = (MaxOf(main.startDelay) + main.duration + MaxOf(main.startLifetime)) / speed;
+            if (t > longest) longest = t;
+        }
+        return Mathf.Max(0.1f, longest);
     }
 
     /// <summary>Largest value a MinMaxCurve can produce, whichever of its four modes it is in.</summary>

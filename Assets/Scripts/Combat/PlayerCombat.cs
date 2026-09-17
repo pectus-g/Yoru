@@ -481,6 +481,20 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("ON = after the single-target strike, keep spinning until the Combo3 clip has actually finished (capped by Beyblade Max Time) instead of cutting to idle after the wind-down. OFF = old behavior: the swirl ended ~0.36s in, at 40% of its clip, and snapped to idle.")]
     [SerializeField] private bool beybladeSingleLetClipFinish = true;
 
+    [Header("Beyblade Ground Hazard (the zone the finisher leaves on the floor)")]
+    [Tooltip("ON = the beyblade lays its hazard zone. This is the switch the ability tree flips when the hazard is unlocked; until the tree exists it is simply on. Also reachable from code as SpinHazardUnlocked.")]
+    [SerializeField] private bool spinHazardUnlocked = true;
+    [Tooltip("Seconds after laying a zone before another may be laid. 0 = no cooldown, today's behaviour. The ability tree can raise it later. SpinHazardCooldownRemaining reports the wait for a UI.")]
+    [SerializeField] private float spinHazardCooldown = 0f;
+    [Tooltip("Damage dealt to each enemy inside the zone on every tick, as a LIGHT hit, so the Oni's attack armor is respected and his swings are not interrupted. The Oni has 500 HP: 5 damage every 0.5s is 10 a second, 30 for a 3 second zone if he stands in it the whole time.")]
+    [SerializeField] private int spinHazardTickDamage = 5;
+    [Tooltip("Seconds between damage ticks while an enemy stands in the zone.")]
+    [SerializeField] private float spinHazardTickInterval = 0.5f;
+    [Tooltip("Radius of the damage area in metres, centred where the zone was born. Match it to the prefab's visual footprint. Select the spawned zone in Play and the gizmo shows it.")]
+    [SerializeField] private float spinHazardRadius = 2f;
+    [Tooltip("0 = the zone lasts exactly as long as its effect is visible, the prefab's own lifetime (delay + duration + particle life of its longest system). Any other value overrides that, in seconds. Needed for a looping prefab, which has no own lifetime.")]
+    [SerializeField] private float spinHazardDurationOverride = 0f;
+
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
     [SerializeField] private bool showHitboxGizmo = true;
@@ -522,6 +536,7 @@ public class PlayerCombat : MonoBehaviour
 
     // Combat engagement, see engagedInCombatDuration serialized field above
     private float engagedInCombatUntil;
+    private float spinHazardReadyTime;     // Time.time from which the next hazard zone may be laid
 
     // Position lock
     private bool lockPosition;
@@ -3110,9 +3125,58 @@ public class PlayerCombat : MonoBehaviour
     {
         isBeyblading = true;
         beybladeRotationIndex = 0;
-        if (vfxManager != null) vfxManager.PlaySpinStart(false);
+        TrySpawnSpinHazard();
         if (beybladeCoroutine != null) StopCoroutine(beybladeCoroutine);
         beybladeCoroutine = StartCoroutine(BeybladeRoutine());
+    }
+
+    /// <summary>Unlock hook for the ability tree. Off = the beyblade lays no zone.</summary>
+    public bool SpinHazardUnlocked
+    {
+        get => spinHazardUnlocked;
+        set => spinHazardUnlocked = value;
+    }
+
+    /// <summary>Seconds until the next hazard zone may be laid. Zero when ready. For a UI.</summary>
+    public float SpinHazardCooldownRemaining => Mathf.Max(0f, spinHazardReadyTime - Time.time);
+
+    /// <summary>
+    /// Lay the beyblade's ground hazard if it is unlocked and off cooldown. Called once at the
+    /// start of every beyblade. The VFX manager spawns the zone effect where she stands; this
+    /// arms it with the damage numbers and starts the cooldown. The zone drains anything on the
+    /// enemy layer inside its radius for as long as its effect is visible, then removes itself.
+    /// </summary>
+    private void TrySpawnSpinHazard()
+    {
+        if (!spinHazardUnlocked) return;
+        if (Time.time < spinHazardReadyTime)
+        {
+            DebugLog($"Hazard zone on cooldown, {SpinHazardCooldownRemaining:F2}s left");
+            return;
+        }
+        if (vfxManager == null) return;
+
+        GameObject zone = vfxManager.SpawnGroundHazard();
+        if (zone == null) return;
+
+        float life = spinHazardDurationOverride > 0.01f
+            ? spinHazardDurationOverride
+            : vfxManager.NaturalLifetimeOf(zone);
+
+        SpinHazardZone hazard = zone.AddComponent<SpinHazardZone>();
+        hazard.Configure(life, spinHazardRadius, spinHazardTickDamage, spinHazardTickInterval, enemyLayer, OnSpinHazardTick);
+
+        spinHazardReadyTime = Time.time + spinHazardCooldown;
+        DebugLog($"Hazard zone laid: {life:F2}s, {spinHazardTickDamage} dmg every {spinHazardTickInterval:F2}s in {spinHazardRadius:F2}m"
+            + (spinHazardCooldown > 0f ? $", next in {spinHazardCooldown:F1}s" : ""));
+    }
+
+    /// <summary>Per enemy per tick, after the zone applied its damage. Keeps the same bookkeeping
+    /// every other Yoru hit does, so a zone tick counts as a hit exchanged (GDD Doc 04, 4a).</summary>
+    private void OnSpinHazardTick(EnemyHealth target, int damage)
+    {
+        engagedInCombatUntil = Time.time + engagedInCombatDuration;
+        DebugLog($"Hazard zone tick: {target.name} for {damage}");
     }
 
     private IEnumerator BeybladeRoutine()
