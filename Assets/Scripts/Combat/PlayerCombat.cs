@@ -255,6 +255,8 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Combo Settings")]
     [SerializeField] private float comboWindowTime = 2.0f;
+    [Tooltip("Speed dial for Combo 1 and Combo 2, on top of their Animator state speed (1.6). Drives the ComboSpeed parameter on those two states; Combo 3 is left alone so the spin and its effect keep their length. Measured: at 1.0 the first paw lands 0.63 s after the click while the Oni's club lands in 0.38 s, so he wins every trade. 1.3 lands it at 0.48 s, 1.5 at 0.42 s. Tune live in Play until the exchange feels fair, then judge the look; if it turns frantic, the wind-up frames should be trimmed in the clip instead of pushing this further.")]
+    [SerializeField] private float comboSpeed = 1.3f;
     [Tooltip("ON = a LIGHT hit interrupts the swing she is in but keeps her place in the combo: after the flinch her next click continues at the next step, as long as it comes inside Combo Window Time counted from the hit. A HEAVY hit still resets to step 1. OFF = any hit resets the combo, the old rule.")]
     [SerializeField] private bool comboMemoryOnLightHit = true;
     [SerializeField] private float attackCooldown = 0.1f;
@@ -280,6 +282,8 @@ public class PlayerCombat : MonoBehaviour
     [Header("Dodge: Arc")]
     [Tooltip("Height of the frontflip arc. 0 = flat, 1.5 = noticeable hop, 3 = big leap")]
     [SerializeField] private float dodgeHeight = 1.5f;
+    [Tooltip("Speed dial for the frontflip clips (Dodge_2Leg, Dodge_4Leg), on top of their Animator state speed. Drives the DodgeSpeed parameter. The travel is slaved to the clip, so the flip covers the same distance in less time. 1 = today, 1.3 = a third quicker.")]
+    [SerializeField] private float dodgeSpeed = 1.3f;
 
     [Header("Dodge: Timing")]
     [SerializeField] private float dodgeFallbackDuration = 0.87f;
@@ -319,6 +323,10 @@ public class PlayerCombat : MonoBehaviour
     [Header("Guard/Parry")]
     [Tooltip("Time window after Q press where a hit triggers perfect parry")]
     [SerializeField] private float perfectParryWindow = 0.2f;
+    [Tooltip("Speed dial for the Parry_Start clip. Drives the GuardSpeed parameter. The parry WINDOW opens on the Q press regardless; this only makes the pose arrive in time to match it. The clip is 1.26 s at 1, which is why the guard looked slow: at 3 it is up in 0.42 s. Parry Intro Length is divided by this automatically.")]
+    [SerializeField] private float parryStartSpeed = 3f;
+    [Tooltip("Parry_Start speed when there is no fight: no enemy in range and no hit exchanged in the last few seconds. 1 = the clip as authored. In a fight Parry Start Speed is used instead.")]
+    [SerializeField] private float parryStartSpeedCalm = 1f;
     [Tooltip("Fraction of damage blocked by regular guard (0.7 = 70% blocked, 30% gets through)")]
     [SerializeField] private float guardDamageReduction = 0.7f;
     [Tooltip("Damage dealt to enemy on perfect parry counter")]
@@ -338,9 +346,17 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Duration in seconds for guardModelYOffset to ramp up (Q press / guard entry) or ramp down (Q release / guard exit). v27 recommendation: match this to guardExitBlendTime so the body Y offset descent finishes at the same moment as the parry-to-standing pose blend. Mismatch produces either a brief float (ramp longer than blend) or brief paw clipping (ramp shorter than blend) for the difference window. Default 0.3s matches the v27 default for guardExitBlendTime.")]
     [SerializeField] private float guardOffsetRampDuration = 0.3f;
     [Tooltip("Y offset applied to bodyYoru during dash to lift paw tips off ground")]
-    [SerializeField] private float dashModelYOffset = 0.1f;
+    [SerializeField] private float dashModelYOffset = 0.05f;
     [Tooltip("Seconds for the dash lift to reach Dash Model Y Offset. A dash is over in half a second, so this has to be near instant; 0.05 lifts her paws clear on the first frames. It used to share the guard ramp, which moved the dash lift at the guard's tiny speed (0.02 m over 0.3 s) and never arrived before the dash was over: that was the sinking paws.")]
     [SerializeField] private float dashOffsetRampDuration = 0.05f;
+    [Tooltip("Metres per second a GROUND dash is pressed onto the floor while it travels. A purely sideways Move leaves the CharacterController reading 'not grounded' from its second frame, so every dash ended with a fake landing 0.4 s later: landing dust, landing clip, the little hop. This keeps ground contact and follows slopes; it is not gravity and adds no speed. A dash that starts in the air is untouched and still holds its height.")]
+    [SerializeField] private float dashGroundStick = 1f;
+    [Tooltip("ON = during a ground dash her body is held at exactly the height it had on the frame the dash began, measured live from her hip bone, and eased back when the dash ends. The dash clip is authored low, and this cancels most of that dip without a hand-tuned number. Dash Model Y Offset is added on top for whatever the hip hold does not cover (the paws reach lower than the hip in the lunge pose), so tune that field for the last few centimetres.")]
+    [SerializeField] private bool dashPinsPoseHeight = true;
+    [Tooltip("ON = during a ground dash the lowest paw bone is measured every frame and the whole body is lifted by exactly enough to keep it above the floor. No number to guess: whatever the dash clip does with her paws, they never render below the ground. Adds to the pose pin and to Dash Model Y Offset. The dash log prints the largest lift it needed.")]
+    [SerializeField] private bool dashKeepsPawsAboveFloor = true;
+    [Tooltip("Metres the lowest paw is kept above the floor by the setting above. 0.02 = just clear, no visible float.")]
+    [SerializeField] private float dashPawClearance = 0.02f;
     [Tooltip("Visual model root (auto-finds bodyYoru). Offset during guard/dash for paw clipping fix.")]
     [SerializeField] private Transform visualModelRoot;
 
@@ -490,7 +506,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private bool spinHazardUnlocked = true;
     [Tooltip("Seconds after laying a zone before another may be laid. 0 = no cooldown, today's behaviour. The ability tree can raise it later. SpinHazardCooldownRemaining reports the wait for a UI.")]
     [SerializeField] private float spinHazardCooldown = 0f;
-    [Tooltip("Damage dealt to each enemy inside the zone on every tick, as a LIGHT hit, so the Oni's attack armor is respected and his swings are not interrupted. The Oni has 500 HP: 5 damage every 0.5s is 10 a second, 30 for a 3 second zone if he stands in it the whole time.")]
+    [Tooltip("Damage dealt to each enemy inside the zone on every tick, as SILENT damage: health, red flash and the number, no flinch, no stagger, no reaction. He fights on through the drain. At 2500 HP, 25 every 0.5 s is 2% a second while he stands in it.")]
     [SerializeField] private int spinHazardTickDamage = 5;
     [Tooltip("Seconds between damage ticks while an enemy stands in the zone.")]
     [SerializeField] private float spinHazardTickInterval = 0.5f;
@@ -592,6 +608,11 @@ public class PlayerCombat : MonoBehaviour
     private float guardIdleDebounceTimer;   // prevents flicker during quick walk direction changes (W→S passes through 0)
     private bool modelOffsetActive;         // true when bodyYoru Y offset is applied
     private bool modelOffsetRampIsDash;     // which lift the ramp speed follows, kept through the exit ramp
+    private bool dashStartedGrounded;       // the current dash began on the floor (ground dash) rather than in the air
+    private bool airPinDashRelease;         // the pin is letting go of a ground dash: ease out instead of the grounded snap-to-zero
+    private float activeParryStartSpeed = 1f;   // the Parry_Start speed chosen on this Q press (fight or calm)
+    private Transform[] pawBones = System.Array.Empty<Transform>();   // finger and toe bones of the live rig, for the paw clearance
+    private float dashPawLiftPeak;                                     // largest paw-clearance lift this dash, for the log
     private float currentModelYOffset;      // current interpolated offset for smooth transitions
 
     // Air pose height pin. airPinComp is the metres currently added to bodyYoru to cancel the
@@ -634,6 +655,9 @@ public class PlayerCombat : MonoBehaviour
     // Animation hashes
     private static readonly int HashIsAttacking = Animator.StringToHash("IsAttacking");
     private static readonly int HashComboStep = Animator.StringToHash("ComboStep");
+    private static readonly int HashComboSpeed = Animator.StringToHash("ComboSpeed");
+    private static readonly int HashDodgeSpeed = Animator.StringToHash("DodgeSpeed");
+    private static readonly int HashGuardSpeed = Animator.StringToHash("GuardSpeed");
     #endregion
 
     #region Unity Lifecycle
@@ -682,7 +706,16 @@ public class PlayerCombat : MonoBehaviour
                 Debug.LogWarning("[Combat] WARNING: visualModelRoot (bodyYoru) not found! Assign in Inspector.");
         }
         if (visualModelRoot != null)
+        {
             originalModelLocalPos = visualModelRoot.localPosition;
+
+            // Paw clearance: every finger and toe bone on the live rig. Read each frame during a
+            // dash for the lowest point of her paws. Names come from the rig (IndexFinger*, IndexToe*...).
+            var paws = new System.Collections.Generic.List<Transform>();
+            foreach (Transform t in visualModelRoot.GetComponentsInChildren<Transform>())
+                if (t.name.Contains("Finger") || t.name.Contains("Toe")) paws.Add(t);
+            pawBones = paws.ToArray();
+        }
 
         // Air pose height pin setup. The bone is only ever READ, to measure how high the current
         // pose is holding the body above the transform.
@@ -944,7 +977,7 @@ public class PlayerCombat : MonoBehaviour
             }
             else if (isDashing)
             {
-                targetOffset = dashModelYOffset;
+                targetOffset = dashModelYOffset;   // on top of the pose pin when that is holding the dash
             }
 
             // v25: Smooth ramp on BOTH directions (was: instant up, fast descent at 10 units/sec).
@@ -974,6 +1007,22 @@ public class PlayerCombat : MonoBehaviour
             UpdateAirPoseHeightPin();
 
             float totalOffset = currentModelYOffset + airPinComp;
+
+            // Paw clearance, ground dash only: measure the lowest paw bone as the pose puts it this
+            // frame (with last frame's lift removed so the reading is raw), and lift by what is
+            // missing to keep it at Dash Paw Clearance above the floor. Composed into the one write.
+            if (dashKeepsPawsAboveFloor && isDashing && dashStartedGrounded && pawBones.Length > 0)
+            {
+                float appliedLastFrame = visualModelRoot.localPosition.y - originalModelLocalPos.y;
+                float lowest = float.MaxValue;
+                foreach (Transform paw in pawBones)
+                    if (paw != null && paw.position.y < lowest) lowest = paw.position.y;
+                float rawLowest = lowest - cachedTransform.position.y - appliedLastFrame;
+                float lift = Mathf.Max(0f, dashPawClearance - rawLowest - totalOffset);
+                totalOffset += lift;
+                if (lift > dashPawLiftPeak) dashPawLiftPeak = lift;
+            }
+
             bool needsOffset = Mathf.Abs(totalOffset) > 0.001f;
             if (needsOffset)
             {
@@ -1039,8 +1088,14 @@ public class PlayerCombat : MonoBehaviour
             || TailAimController4Leg.IsAiming || TailAimController4Leg.IsShotRunning;
         bool combatOwnsBody = combatState != combatIdleHash || tailShotActive;
 
-        if (airborne && combatOwnsBody)
+        // ROUND 44: a ground dash is pinned on purpose. It does not depend on isGrounded, so a
+        // controller that flickers between grounded and not during the travel cannot make the
+        // pin grab and let go every other frame (the shudder).
+        bool dashPinned = dashPinsPoseHeight && isDashing && dashStartedGrounded;
+
+        if ((airborne || dashPinned) && combatOwnsBody)
         {
+            airPinDashRelease = dashPinned;
             if (!airPinEngaged)
             {
                 // Engage on the frame the takeover starts, holding the height the jump pose had.
@@ -1056,7 +1111,9 @@ public class PlayerCombat : MonoBehaviour
             // height at some point; doing it at the landing frame is the snap. So the correction is
             // faded out across the last moments of the fall and reaches zero exactly as she lands,
             // leaving nothing to move at the landing itself.
-            if (airPinSettleBeforeLanding > 0.001f)
+            // The settle is for a fall: on the ground it would read 'landing now' and zero the
+            // hold, so a dash pin skips it and holds the full height until the dash ends.
+            if (!dashPinned && airPinSettleBeforeLanding > 0.001f)
             {
                 float timeToLand = EstimateTimeToLand();
                 if (timeToLand >= 0f)
@@ -1073,16 +1130,17 @@ public class PlayerCombat : MonoBehaviour
 
         // On the ground the correction is already zero, because the settle above finished it during
         // the fall. Anything left is rounding, so clear it rather than ease it and risk a float.
-        if (!airborne)
+        if (!airborne && !airPinDashRelease)
         {
             airPinComp = 0f;
             return;
         }
 
-        // Still airborne, so the combat layer handed the body back mid air. The pose blends home on
-        // its own, so unwind gently and let the two move together.
+        // Still airborne, so the combat layer handed the body back mid air, or a ground dash just
+        // ended. The pose blends home on its own, so unwind gently and let the two move together.
         float ease = airPinReleaseRamp > 0.001f ? Time.unscaledDeltaTime / airPinReleaseRamp : 1f;
         airPinComp = Mathf.MoveTowards(airPinComp, 0f, Mathf.Abs(airPinComp) * ease + 0.0005f);
+        if (Mathf.Abs(airPinComp) < 0.0005f) airPinDashRelease = false;
     }
 
     private void EnforcePositionLock()
@@ -1293,6 +1351,10 @@ public class PlayerCombat : MonoBehaviour
 
         isGuarding = true;
         guardStartTime = Time.time;
+        // Fast guard in a fight, the clip as authored when there is nothing to guard against.
+        bool inFight = Time.time < engagedInCombatUntil || AcquireTarget() != null;
+        activeParryStartSpeed = Mathf.Max(0.1f, inFight ? parryStartSpeed : parryStartSpeedCalm);
+        if (animator != null) animator.SetFloat(HashGuardSpeed, activeParryStartSpeed);
         currentGuardAnim = "";
         parryIntroComplete = false;
         guardIdleDebounceTimer = 0f;
@@ -1355,7 +1417,7 @@ public class PlayerCombat : MonoBehaviour
         // already played partially, and gameplay flow matters more than animation purity.
         if (!parryIntroComplete)
         {
-            if (Time.time - guardStartTime >= parryIntroLength)
+            if (Time.time - guardStartTime >= parryIntroLength / activeParryStartSpeed)
             {
                 parryIntroComplete = true;
                 // Fall through to Phase 2, pick idle/walk based on current input
@@ -1472,6 +1534,7 @@ public class PlayerCombat : MonoBehaviour
     public void OnPerfectParry(Vector3 attackerPos)
     {
         DebugLog("PERFECT PARRY!");
+        CombatMomentum.OnParry();
 
         EnemyCombat closestEnemy = FindClosestAttackingEnemy();
         if (closestEnemy != null)
@@ -1614,6 +1677,7 @@ public class PlayerCombat : MonoBehaviour
         // her standing pose into a pose that is already mid-flip, and that pose jump is a visible
         // stutter, worse than the wind-up it was meant to skip. A slow flip start has to be fixed
         // in the clip or the state's Speed, not by jumping into the middle of it from code.
+        animator.SetFloat(HashDodgeSpeed, Mathf.Max(0.1f, dodgeSpeed * CombatMomentum.SpeedMultiplier));   // dial x momentum, read every flip
         animator.CrossFadeInFixedTime(animState, 0.12f, combatLayerIndex);
         lastCombatCrossFadeTime = Time.time;
 
@@ -1628,6 +1692,8 @@ public class PlayerCombat : MonoBehaviour
 
     private IEnumerator DodgeMovement(Vector3 direction, string dodgeStateName, float distance, bool is4Leg)
     {
+        Vector3 dodgeStartPos = cachedTransform.position;
+        float dodgePeakRise = 0f;
         // Movement is slaved to the dodge clip's own playback so it can never
         // outrun the animation. Previously the duration was read from
         // GetCurrentAnimatorStateInfo one frame after the entry CrossFade, which
@@ -1787,6 +1853,7 @@ public class PlayerCombat : MonoBehaviour
                 break;
             }
 
+            dodgePeakRise = Mathf.Max(dodgePeakRise, cachedTransform.position.y - dodgeStartPos.y);
             yield return null;
         }
 
@@ -1795,8 +1862,9 @@ public class PlayerCombat : MonoBehaviour
             string tail = travelDoneAt >= 0f
                 ? $"travel finished at {travelDoneAt:F2}s, leaving {Mathf.Max(0f, elapsed - travelDoneAt):F2}s of clip with nothing moving"
                 : "travel never completed (cut short)";
+            Vector3 flat = cachedTransform.position - dodgeStartPos; flat.y = 0f;
             Debug.Log($"[DodgeTrace] {(is4Leg ? "4leg" : "2leg")} flip: clip {duration:F2}s, ran {elapsed:F2}s, "
-                    + $"{distance:F1}m, {tail}.");
+                    + $"asked {distance:F1}m, actually moved {flat.magnitude:F2}m forward and rose {dodgePeakRise:F2}m at the peak (Dodge Height {dodgeHeight:F1}), {tail}.");
         }
 
         EndDodge();
@@ -1934,6 +2002,11 @@ public class PlayerCombat : MonoBehaviour
 
     private IEnumerator DashMovement(Vector3 direction, float distance)
     {
+        bool startedGrounded = characterController != null && characterController.isGrounded;
+        dashStartedGrounded = startedGrounded;
+        dashPawLiftPeak = 0f;
+        int groundedFrames = 0, dashFrames = 0;
+
         // ROUND 13: an explicit travel time wins. The animator path below is kept for anyone who
         // sets Dash Move Duration to 0, but it is no longer the default, it was reading the
         // outgoing state's clip, which pinned every dash to exactly 1.000s.
@@ -1993,7 +2066,12 @@ public class PlayerCombat : MonoBehaviour
             if (characterController != null && characterController.enabled)
             {
                 Vector3 move = direction * (distance * frameDelta);
-                if (!characterController.isGrounded)
+                if (startedGrounded)
+                {
+                    // ROUND 44: a ground dash hugs the floor, see Dash Ground Stick.
+                    move.y = -dashGroundStick * Time.deltaTime;
+                }
+                else if (!characterController.isGrounded)
                 {
                     // ROUND 11: an airborne dash HOLDS her altitude, Hazel's call. move.y stays
                     // 0, so she shoots sideways through the air and resumes falling from a
@@ -2004,6 +2082,8 @@ public class PlayerCombat : MonoBehaviour
                 }
 
                 characterController.Move(move);
+                dashFrames++;
+                if (characterController.isGrounded) groundedFrames++;
             }
 
             DealDashDamage(hitEnemyIDs);
@@ -2011,6 +2091,8 @@ public class PlayerCombat : MonoBehaviour
             yield return null;
         }
 
+        if (logDodgeTiming)
+            DebugLog($"Dash done: {(startedGrounded ? "ground" : "air")} dash, grounded {groundedFrames}/{dashFrames} frames, pose pin {(dashPinsPoseHeight && startedGrounded ? "held " + airPinHeldPoseY.ToString("F2") + "m" : "off")}, paw clearance lifted up to {dashPawLiftPeak:F3}m");
         EndDash();
     }
 
@@ -2200,6 +2282,8 @@ public class PlayerCombat : MonoBehaviour
         // one piece of damage feedback that is guaranteed to be visible no matter which reaction
         // clip is chosen or whether the combat layer is being fought over.
         FlashDamage();
+
+        CombatMomentum.OnPlayerHit(isHeavy);
 
         // Combo memory: a light hit costs her the swing, not the combo. Heavy hits reset as before.
         int rememberedStep = currentComboStep;
@@ -3364,7 +3448,9 @@ public class PlayerCombat : MonoBehaviour
         // only the finisher (combo step 3) nudges forward, see StartLunge. No position freeze.
         StartLunge(currentLungeTarget, currentComboStep == 3);
 
+        animator.SetFloat(HashComboSpeed, Mathf.Max(0.1f, comboSpeed * CombatMomentum.SpeedMultiplier));   // dial x momentum, read every swing
         PlayCombatAnimation(GetComboStateName(currentComboStep));
+        CombatFloatingText.ShowCombo(currentComboStep, cachedTransform.position);
 
         if (vfxManager != null) vfxManager.PlayComboVFX(currentComboStep);
 

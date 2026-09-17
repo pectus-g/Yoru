@@ -1,0 +1,698 @@
+# Oni combat log — 2026-09-17 14:56:32
+# Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
+# columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
+#
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-17_14-56-32.log
+[     0    0.000 x1.00] LOG  [OniHairShadows] shadow casting off on 27 hair renderers
+[     0    0.000 x1.00] LOG  [RingMesh] Auto-found 11/11 left, 11/11 right meshes
+[     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
+[     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
+[     1    0.000 x1.00] LOG  [StormWeather] post volumes ready on layer 9 (storm priority 10, flash priority 11).
+[     1    0.000 x1.00] LOG  [StormWeather] ROUND 80: fur weather ready on 'Weather Zone'. Rain 0, wind 0.50 in the open, sky check 30 m from 'PlayerYoru_1.1'.
+[     1    0.000 x1.00] LOG  [StormWeather] COZY bridge: Rain_Cave retired, COZY owns the rain now.
+[     1    0.000 x1.00] LOG  [StormWeather] COZY → 'Clear' (pre-fight - open sky, 0 s)
+[     1    0.000 x1.00] LOG  [StormWeather] Ready. Open sky, dry floor. Waiting for the fight.
+[     1    0.000 x1.00] LOG  OniBoss initialized with 2500 HP
+[     1    0.000 x1.00] LOG  [OniBoss] ANIMATOR SETUP: cullingMode=CullUpdateTransforms updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [OniBoss] Initialized
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] facing: minFlat 1m, snapOnAttack off, trackInHitReact off, aimTurn 540 deg/s for the first 0.20 of the swing
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch model ON: launches ALL THE WAY to an enemy within 4.7m of its surface at 10m/s (stop gap 0.00m, NO minimum distance), else steps 0.90m forward. Targeting cone left exactly as her prefab has it.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch ROUND 9: airborne attacks launch too (ON), edge probe now runs on its OWN layer mask (Everything) instead of the line-of-sight mask - the Ground-only mask found no floor in this cave and was cancelling 100% of launches at 0.00m travelled.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] animator speed x1.35 — his 1.13s swing now plays in 0.84s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] chase speed pushed: phase1 4.5, phase2 5.5 (Yoru runs at 7).
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] ground wave ON (round 38): half the club's damage on TOUCH, 12m/s x 6.0m from 1.6m in front at 0.35m height — a club hit cancels that swing's wave, jumping clears it. Per-attack effects come from the Swing Wave VFX By Attack rows. PlayerHealth found, PlayerMovement found.
+[     1    0.000 x1.00] LOG  [StormWeather] storm break HELD (waiting for the lightning beat)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] storm break HELD — it releases at the lightning-on-the-club beat.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] club tracking ON — tip 'Kanabo3' (depth 4), shaft root 'kanabo'.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] skinned meshes: 46 renderer(s), updateWhenOffscreen ON, body renderer 'Body' rootBone 'Hips'
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge travel bone: 'Hips' at depth 1 under 'OniBoss', rest local (0.00, 3.24, -0.24)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] anti-kite ON: thrown swing after 4s of failed chase (within 7.6m), charge after 6s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge drive ON (windup to 0.40 at x1.3, rush 14m/s stops at 2.6m, steers 0.35s then commits, strike section from 0.58, strike moment 0.76, trail VFX off)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] attack armor ON (his swings are not interrupted by light/medium hits; heavy hits and rapid-hit bursts still stop him)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] strike moments overridden: Club_Swing=0.42 ClubSwing2=0.32 ClubSlam=0.85 KanaboSweep=0.48
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] club TOUCH hits ON (radius 0.70m, min tip speed 50m/s, armed from 0.20 of the clip): Club_Swing ClubSwing2 ClubSlam KanaboSweep. First touch wins — club full damage, wave half, one hit per swing.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] combo damage ramp ON: mid x1.25, finisher x1.50 — finisher wave carries FULL damage at x2.0 size, x2.0 travel.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge follow-up ON: 90 % of solo charges chain into a random melee finisher.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] hold-ground ON (backstep 1.5m @ 1.6m/s after own attacks, watch 'Watch', attack facing LOCKED)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] OniBoss layer ready (reactions, wake-on-hit, watch stance, boss bar). player=found
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge clip 'Oni Charge.fbx' imports with Root Motion Node = None (in place) — good.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] clips importing with Root Transform Position (Y) NOT baked into pose (12): Oni_Alert(Oni Alert), Club_Slam(Oni Club Slam), Club_Swing(Oni Club Swing), Club_swing2(Oni Club Swing 2), Death(Oni Death Kneel), Hit_react_light(Oni Hit react lighter light), KanaboSweep(Oni Kanabo sweep), Phase_Transition(Oni Phase transition), run(Oni Run), Walk(Oni Walk), Watch(Oni Watch), Idle(Oni Idle) — their hips' up/down motion is stripped (see round notes; optional).
+[     1    0.000 x1.00] LOG  === VFX MANAGER INITIALIZED ===
+[     1    0.000 x1.00] LOG  Auto-detect animations: False
+[     1    0.000 x1.00] LOG  Parent effects to tail: True
+[     1    0.000 x1.00] LOG  Prefabs: Jump=True, Land=True, LTail=True, RTail=True
+[     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailTip_Anchor
+[     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
+[     1    0.000 x1.00] LOG  [VolumetricFogController] applyPresets is OFF in this scene. The Volumetric Fog component keeps its hand-set inspector values.
+[     1    0.000 x1.00] LOG  [TailAirShot] Ready. drawState=RightTail_Fast castParam=TailCastSpeed (found)
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/vfx_Muzzle_Fireball01Blue
+[     1    0.000 x1.00] LOG  [RingMesh] VFX Status:
+[     1    0.000 x1.00] LOG    Left: Prefab=✓, Spawn=Tail6_L_end_end_end
+[     1    0.000 x1.00] LOG    Right: Prefab=✓, Spawn=Tail6_R_end_end_end
+[     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
+  aim VFX right: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/Glow_4Leg_R
+[     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
+[     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized, Phase 3C v27
+[     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
+[     1    3.035 x1.00] LOG  [OniBoss] Playing animation: Idle
+[     1    3.035 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
+[    36    4.140 x1.00] LOG  💨 Landing VFX spawned!
+[    36    4.140 x1.00] LOG  ✅ LANDED! (was jump #0)
+[  2509   15.419 x1.00] LOG  🐾 4-LEG JUMP #0
+[  2509   15.419 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  2561   15.745 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 0.7m dist=0.75m in 0.13s [AIRBORNE]
+[  2561   15.745 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  2561   15.745 x1.00] LOG  [YoruVFX] Air spin: 'VFX_Void_Burst_AirSpinYoru' at CenterVFX, 46 systems, longest 1.00s fitted to 0.79s at speed 1.27, 8 forced Local, 38 delays zeroed, tail 2.37s
+[  2561   15.745 x1.00] LOG  OniBoss took 10 damage. HP: 2490/2500
+[  2561   15.745 x1.00] LOG  [OniBoss] 🤕 Hit during LostSoul — flash only
+[  2561   15.745 x1.00] LOG  [OniBoss] LostSoul → Alert
+[  2561   15.745 x1.00] LOG  [OniBoss] Playing animation: Oni_Alert
+[  2561   15.745 x1.00] LOG  [OniBoss] Became HOSTILE
+[  2561   15.745 x1.00] LOG  [OniBoss:Layer] woken by damage (10) — back attacks count.
+[  2561   15.745 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.200s
+[  2561   15.745 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  2561   15.745 x1.00] LOG  [AirPosePin] engaged, holding body at 0.953m above the transform
+[  2562   15.775 x1.00] LOG  [StormWeather] COZY → 'Yoru_Oni_Phase1_Storm' (fight engaged - storm rolls in, 0 s)
+[  2562   15.775 x1.00] LOG  [StormWeather] FIGHT STARTED (he engaged) - storm on, floor starts to soak.
+[  2562   15.775 x1.00] LOG  [BossBar] Showing bar for: Oni (2490/2500)
+[  2562   15.775 x1.00] LOG  [OniBoss:Layer] boss bar shown
+[  2563   15.789 x1.00] WARN The referenced script on this Behaviour (Game Object '<null>') is missing!
+[  2563   15.789 x1.00] WARN The referenced script on this Behaviour (Game Object 'Lightning Light') is missing!
+[  2563   15.789 x1.00] WARN The referenced script on this Behaviour (Game Object 'Lightning Light') is missing!
+[  2572   15.865 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.75m actually moved=0.17m, completed
+[  2576   15.896 x1.00] LOG  OniBoss took 10 damage. HP: 2480/2500
+[  2576   15.896 x1.00] LOG  [OniBoss] 🤕 Hit during Alert — flash only
+[  2576   15.896 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.18 duration=0.200s
+[  2588   15.979 x1.00] LOG  [StormWeather] fur: rain reaching the coat (intensity 0.01, follows floor wetness).
+[  2597   16.048 x1.00] LOG  OniBoss took 10 damage. HP: 2470/2500
+[  2597   16.048 x1.00] LOG  [OniBoss] 🤕 Hit during Alert — flash only
+[  2597   16.048 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.18 duration=0.200s
+[  2617   16.201 x1.00] LOG  OniBoss took 10 damage. HP: 2460/2500
+[  2617   16.201 x1.00] LOG  [OniBoss] 🤕 Hit during Alert — flash only
+[  2617   16.201 x1.00] LOG  [OniBoss] Alert → Stagger
+[  2617   16.201 x1.00] LOG  [OniBoss] Playing animation: Stagger
+[  2617   16.201 x1.00] LOG  [OniBoss] STAGGERED for 2.5s
+[  2617   16.201 x1.00] LOG  [OniBoss:Layer] heavy knock-back react (swirl burst, 3 hits / 30 dmg) → 'HitReact_Heavy', down for 1.80s
+[  2617   16.201 x1.00] LOG  [OniBoss:Layer] burst: 3 hits / 30 dmg inside 0.8s → knock-back + 0.90m push
+[  2617   16.201 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.18 duration=0.200s
+[  2630   16.324 x1.00] LOG  💨 Landing VFX spawned!
+[  2630   16.324 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  2630   16.324 x1.00] LOG  [AirPosePin] released, peak correction was 0.017m
+[  2633   16.354 x1.00] LOG  OniBoss punish window! 10 → 15 (x1.5)
+[  2633   16.354 x1.00] LOG  OniBoss took 15 damage. HP: 2445/2500
+[  2633   16.354 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.18 duration=0.200s
+[  2654   16.470 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  2659   16.504 x1.00] LOG  OniBoss punish window! 10 → 15 (x1.5)
+[  2659   16.504 x1.00] LOG  OniBoss took 15 damage. HP: 2430/2500
+[  2659   16.504 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.18 duration=0.200s
+[  2659   16.504 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.76s
+[  2664   16.556 x1.00] LOG  [StormWeather] storm post weight -> 0.40
+[  2793   17.267 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[  2793   17.267 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target='OniBoss' at 3.3m
+[  2793   17.267 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 2.0m dist=2.02m in 0.20s
+[  2793   17.267 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  2822   17.474 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=2.02m actually moved=1.35m, completed
+[  2825   17.494 x1.00] LOG  [Combat] Queued click #1 (combo 1)
+[  2825   17.494 x1.00] LOG  [ComboTrace] QUEUED #1 during step 1
+[  2853   17.644 x1.00] LOG  [Combat] Queued click #2 (combo 1)
+[  2853   17.644 x1.00] LOG  [ComboTrace] QUEUED #2 during step 1
+[  2874   17.740 x1.00] LOG  OniBoss punish window! 10 → 15 (x1.5)
+[  2874   17.740 x1.00] LOG  OniBoss took 15 damage. HP: 2415/2500
+[  2874   17.740 x1.00] LOG  [Combat] Hit OniBoss for 10
+[  2874   17.740 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.200s
+[  2874   17.740 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  2887   17.853 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=1 queued=2)
+[  2893   17.900 x1.00] LOG  🐾 VFX_AttackPaw triggered!
+[  2912   18.004 x1.00] LOG  [OniBoss] Stagger → Chase
+[  2912   18.004 x1.00] LOG  [Combat] Combo 2: 20 dmg
+[  2912   18.004 x1.00] LOG  [ComboTrace] START step=2 state='Combo2' queued=1 target='OniBoss' at 2.9m
+[  2912   18.004 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 1.6m dist=1.58m in 0.16s
+[  2912   18.004 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  2913   18.009 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  2913   18.009 x1.00] LOG  [OniBoss] Combo started: ClubSwing1 → ClubSwing2 → ClubSlam (3 steps remaining)
+[  2913   18.009 x1.00] LOG  [OniBoss] Chase → Attack
+[  2913   18.009 x1.00] LOG  [OniBoss] Attack: Club_Swing (16 dmg)
+[  2913   18.009 x1.00] LOG  [OniBoss:Trail] Club_Swing trail START at clip 1.00 (transition done).
+[  2921   18.076 x1.00] LOG  [ComboTrace] CLICK DROPPED by attackCooldown (0.10s, 0.07s since last attack) step=2
+[  2935   18.159 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=1.58m actually moved=0.90m, completed
+[  2950   18.244 x1.00] LOG  [Combat] Queued click #2 (combo 2)
+[  2950   18.244 x1.00] LOG  [ComboTrace] QUEUED #2 during step 2
+[  2975   18.369 x1.00] LOG  [OniBoss:ClubPos] Club_Swing at strike: club tip 3.02m up, 2.27m in front, -3.07m to his right (3.81m out from his centre). Club faces -87deg from his forward, pitch 0.41. (the ground wave is born 1.6m in front of him at 0.35m.)
+[  2975   18.369 x1.00] LOG  [OniBoss:Layer] Club_Swing: club has not connected — ground wave released ARMED, 1.6m in front, 12m/s x 6.0m = 0.50s, carrying 8 (half of the club's 16).
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Disc_Windup_Air_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Disc_Windup_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Disc_Windup_Air_02 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Disc_Windup_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Windup_Core_Add_02_Void (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Windup_Core_Add_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Glow_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Glow_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Glow_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Glow_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Embers_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Embers_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Refraction_Shockwave_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Refraction_Shockwave_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Refraction_Shockwave_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Refraction_Shockwave_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Ring_Burst_02_Dark (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_LUT_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Ring_Burst_02_Dark_Add (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_LUT_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Impact_Hemisphere_02_Void (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Impact_Hemisphere_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Impact_Hemisphere_02_Void_Inverted (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Impact_Hemisphere_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Impact_HP_01_Dark (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_LUT_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Impact_HP_01_Dark (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_LUT_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Spike_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Energy_Balls_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Thin_Smoke_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Central_Area_01_Void (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Central_Area_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Central_Area_02_Void (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Central_Area_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Disc_Windup_Air_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Disc_Windup_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Disc_Windup_Air_02 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Disc_Windup_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Windup_Core_Add_02_Void (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Windup_Core_Add_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Glow_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Glow_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Glow_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Glow_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Embers_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Embers_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Refraction_Shockwave_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Refraction_Shockwave_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Refraction_Shockwave_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Refraction_Shockwave_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Ring_Burst_02_Dark (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_LUT_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Ring_Burst_02_Dark_Add (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_LUT_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Impact_Hemisphere_02_Void (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Impact_Hemisphere_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Impact_Hemisphere_02_Void_Inverted (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Impact_Hemisphere_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Impact_HP_01_Dark (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_LUT_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Impact_HP_01_Dark (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_LUT_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Spike_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Unlit_Simple_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Energy_Balls_01 (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Thin_Smoke_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Central_Area_01_Void (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Central_Area_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] ERR  Material 'M_VFX_Central_Area_02_Void (Instance)' with Shader 'Vefects/SH_Vefects_BIRP_Central_Area_01' doesn't have a color property '_Color'
+        at UnityEngine.Material:get_color ()
+        at PlayerCombat:FlashDamage () (at Assets/Scripts/Combat/PlayerCombat.cs:2628)
+        at PlayerCombat:PlayHitReaction (bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Combat/PlayerCombat.cs:2222)
+        at PlayerHealth:TakeDamage (int,bool,UnityEngine.Vector3,bool) (at Assets/Scripts/Player/PlayerHealth.cs:163)
+[  2976   18.375 x1.00] LOG  [Combat] Combo memory: light hit, keeping step 2
+[  2976   18.375 x1.00] LOG  [Combat] Hit react: HitReact_Light_2Leg (0.5s, clip starts at 0.35s)
+[  2976   18.375 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.30 duration=0.200s
+[  2976   18.375 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-2.0°)
+[  2976   18.375 x1.00] LOG  [OniBoss:Wave] wave TOUCHED Yoru (grounded) for 8 after 0.1m / 0.01s of travel.
+[  2979   18.395 x1.00] LOG  [HitReactTrace] asked for 'HitReact_Light_2Leg' (0.50s, clip start 0.35s): playing it, blend resolved after 20 ms, state 1.21s long at speed 1.00, now at 0.37s, layer weight 1.00, animator.speed 1.00.
+[  3065   18.849 x1.00] LOG  [OniBoss] Attack → Recovery
+[  3065   18.849 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  3065   18.849 x1.00] LOG  [OniBoss:Trail] trail END at clip 1.00, fading over 0.40s.
+[  3065   18.849 x1.00] LOG  [OniBoss:Strike] Club_Swing: club tip closest to Yoru at 0.50m, clip position 0.91 | damage fires at 0.42 | clip 0.84s => damage fires 409 ms BEFORE the club is closest
+[  3072   18.887 x1.00] LOG  [Combat] Combo 3: 35 dmg
+[  3072   18.887 x1.00] LOG  [ComboTrace] START step=3 state='Combo3' queued=0 target='OniBoss' at 2.0m
+[  3072   18.887 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 0.8m dist=0.77m in 0.13s
+[  3072   18.887 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.14 duration=0.080s
+[  3072   18.887 x1.00] LOG  [YoruVFX] Ground hazard: 'VFX_Void_Area_GroundSpinYORU' laid at GroundVFX ((467.25, 0.18, 439.16)), floor tilt 0.0 deg, 17 delays shifted by 2.00s, own lifetime 8.98s
+[  3072   18.887 x1.00] LOG  OniBoss took 25 damage. HP: 2390/2500
+[  3072   18.887 x1.00] LOG  [OniBoss] Recovery → Stagger
+[  3072   18.887 x1.00] LOG  [OniBoss] Playing animation: Stagger
+[  3072   18.887 x1.00] LOG  [OniBoss] STAGGERED for 2.5s
+[  3072   18.887 x1.00] LOG  [OniBoss:Layer] heavy knock-back react (25 dmg) → 'HitReact_Heavy', down for 1.80s
+[  3072   18.887 x1.00] LOG  [Combat] Hazard zone tick: OniBoss for 25
+[  3072   18.887 x1.00] LOG  [Combat] Hazard zone laid: 8.98s, 25 dmg every 0.50s in 2.00m
+[  3078   18.948 x1.00] LOG  OniBoss punish window! 35 → 52 (x1.5)
+[  3078   18.948 x1.00] LOG  OniBoss took 52 damage. HP: 2338/2500
+[  3078   18.948 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.200s
+[  3078   18.948 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  3087   19.029 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.77m actually moved=0.61m, completed
+[  3100   19.111 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=3 queued=0)
+[  3139   19.324 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=3 queued=0)
+[  3152   19.389 x1.00] LOG  OniBoss punish window! 25 → 38 (x1.5)
+[  3152   19.389 x1.00] LOG  OniBoss took 38 damage. HP: 2300/2500
+[  3152   19.389 x1.00] LOG  [Combat] Hazard zone tick: OniBoss for 25
+[  3171   19.547 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=3 queued=0)
+[  3197   19.699 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.96 clipLen=0.79s queued=0 elapsed=0.81s
+[  3211   19.766 x1.00] LOG  [ComboTrace] CLICK DROPPED by attackCooldown (0.10s, 0.07s since last attack) step=3
+[  3255   19.993 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[  3255   19.993 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target='OniBoss' at 3.2m
+[  3255   19.993 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 1.9m dist=1.85m in 0.19s
+[  3255   19.993 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  3282   20.175 x1.00] LOG  [Combat] Queued click #1 (combo 1)
+[  3282   20.175 x1.00] LOG  [ComboTrace] QUEUED #1 during step 1
+[  3283   20.180 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=1.85m actually moved=1.19m, completed
+[  3327   20.397 x1.00] LOG  [Combat] Queued click #2 (combo 1)
+[  3327   20.397 x1.00] LOG  [ComboTrace] QUEUED #2 during step 1
+[  3340   20.464 x1.00] LOG  OniBoss punish window! 10 → 15 (x1.5)
+[  3340   20.464 x1.00] LOG  OniBoss took 15 damage. HP: 2285/2500
+[  3340   20.464 x1.00] LOG  [Combat] Hit OniBoss for 10
+[  3340   20.464 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.200s
+[  3340   20.464 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  3357   20.608 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=1 queued=2)
+[  3359   20.622 x1.00] LOG  🐾 VFX_AttackPaw triggered!
+[  3368   20.687 x1.00] LOG  [OniBoss] Stagger → Chase
+[  3369   20.691 x1.00] LOG  [OniBoss] Playing animation: Idle
+[  3369   20.691 x1.00] LOG  [OniBoss] Combo started: ClubSwing1 → ClubSwing2 → ClubSlam (3 steps remaining)
+[  3369   20.691 x1.00] LOG  [OniBoss] Chase → Attack
+[  3369   20.691 x1.00] LOG  [OniBoss] Attack: Club_Swing (16 dmg)
+[  3369   20.691 x1.00] LOG  [OniBoss:Trail] Club_Swing trail START at clip 1.00 (transition done).
+[  3375   20.729 x1.00] LOG  [Combat] Combo 2: 20 dmg
+[  3375   20.729 x1.00] LOG  [ComboTrace] START step=2 state='Combo2' queued=1 target='OniBoss' at 2.9m
+[  3375   20.729 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 1.6m dist=1.58m in 0.16s
+[  3375   20.729 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  3388   20.830 x1.00] LOG  [Combat] Queued click #2 (combo 2)
+[  3388   20.830 x1.00] LOG  [ComboTrace] QUEUED #2 during step 2
+[  3399   20.892 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=1.58m actually moved=0.90m, completed
+[  3424   21.027 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[  3429   21.052 x1.00] LOG  [OniBoss:ClubPos] Club_Swing at strike: club tip 3.02m up, 2.35m in front, -3.03m to his right (3.83m out from his centre). Club faces -86deg from his forward, pitch 0.41. (the ground wave is born 1.6m in front of him at 0.35m.)
+[  3429   21.052 x1.00] LOG  [OniBoss:Layer] Club_Swing: club has not connected — ground wave released ARMED, 1.6m in front, 12m/s x 6.0m = 0.50s, carrying 8 (half of the club's 16).
+[  3430   21.057 x1.00] LOG  [Combat] Combo memory: light hit, keeping step 2
+[  3430   21.057 x1.00] LOG  [Combat] Hit react: HitReact_Light_2Leg (0.5s, clip starts at 0.35s)
+[  3430   21.057 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.30 duration=0.200s
+[  3430   21.057 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-2.0°)
+[  3430   21.057 x1.00] LOG  [OniBoss:Wave] wave TOUCHED Yoru (grounded) for 8 after 0.1m / 0.01s of travel.
+[  3433   21.078 x1.00] LOG  [HitReactTrace] asked for 'HitReact_Light_2Leg' (0.50s, clip start 0.35s): playing it, blend resolved after 21 ms, state 1.21s long at speed 1.00, now at 0.37s, layer weight 1.00, animator.speed 1.00.
+[  3520   21.529 x1.00] LOG  [OniBoss] Attack → Recovery
+[  3520   21.529 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  3520   21.529 x1.00] LOG  [OniBoss:Trail] trail END at clip 0.99, fading over 0.40s.
+[  3520   21.529 x1.00] LOG  [OniBoss:Strike] Club_Swing: club tip closest to Yoru at 0.49m, clip position 0.91 | damage fires at 0.42 | clip 0.84s => damage fires 410 ms BEFORE the club is closest
+[  3549   21.680 x1.00] LOG  [OniBoss] Recovery → Attack
+[  3549   21.680 x1.00] LOG  [OniBoss] Attack: ClubSwing2 (16 dmg)
+[  3549   21.680 x1.00] LOG  [OniBoss:Trail] ClubSwing2 trail START at clip 1.00 (transition still blending).
+[  3552   21.699 x1.00] LOG  [Combat] Combo 3: 35 dmg
+[  3552   21.699 x1.00] LOG  [ComboTrace] START step=3 state='Combo3' queued=0 target='OniBoss' at 2.0m
+[  3552   21.699 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 0.8m dist=0.78m in 0.13s
+[  3552   21.699 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.14 duration=0.080s
+[  3552   21.699 x1.00] LOG  [YoruVFX] Ground hazard: 'VFX_Void_Area_GroundSpinYORU' laid at GroundVFX ((465.52, 0.18, 441.23)), floor tilt 0.0 deg, 17 delays shifted by 2.00s, own lifetime 8.98s
+[  3552   21.699 x1.00] LOG  OniBoss took 25 damage. HP: 2260/2500
+[  3552   21.699 x1.00] LOG  [OniBoss] Attack → Stagger
+[  3552   21.699 x1.00] LOG  [OniBoss] Playing animation: Stagger
+[  3552   21.699 x1.00] LOG  [OniBoss] STAGGERED for 2.5s
+[  3552   21.699 x1.00] LOG  [OniBoss:Layer] heavy knock-back react (25 dmg) → 'HitReact_Heavy', down for 1.80s
+[  3552   21.699 x1.00] LOG  [Combat] Hazard zone tick: OniBoss for 25
+[  3552   21.699 x1.00] LOG  [Combat] Hazard zone laid: 8.98s, 25 dmg every 0.50s in 2.00m
+[  3553   21.709 x1.00] LOG  [OniBoss:Trail] trail END at clip 1.00, fading over 0.40s.
+[  3559   21.762 x1.00] LOG  OniBoss punish window! 35 → 52 (x1.5)
+[  3559   21.762 x1.00] LOG  OniBoss took 52 damage. HP: 2208/2500
+[  3559   21.762 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.200s
+[  3559   21.762 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  3567   21.836 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.78m actually moved=0.59m, completed
+[  3580   21.926 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=3 queued=0)
+[  3621   22.162 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=3 queued=0)
+[  3627   22.202 x1.00] LOG  OniBoss punish window! 25 → 38 (x1.5)
+[  3627   22.202 x1.00] LOG  OniBoss took 38 damage. HP: 2170/2500
+[  3627   22.202 x1.00] LOG  [Combat] Hazard zone tick: OniBoss for 25
+[  3649   22.387 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=3 queued=0)
+[  3671   22.504 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.95 clipLen=0.79s queued=0 elapsed=0.81s
+[  3690   22.606 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[  3690   22.606 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target='OniBoss' at 3.2m
+[  3690   22.606 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 1.9m dist=1.88m in 0.19s
+[  3690   22.606 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  3719   22.797 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=1.88m actually moved=1.21m, completed
+[  3727   22.840 x1.00] LOG  [Combat] Queued click #1 (combo 1)
+[  3727   22.840 x1.00] LOG  [ComboTrace] QUEUED #1 during step 1
+[  3768   23.045 x1.00] LOG  [Combat] Queued click #2 (combo 1)
+[  3768   23.045 x1.00] LOG  [ComboTrace] QUEUED #2 during step 1
+[  3776   23.078 x1.00] LOG  OniBoss punish window! 10 → 15 (x1.5)
+[  3776   23.078 x1.00] LOG  OniBoss took 15 damage. HP: 2155/2500
+[  3776   23.078 x1.00] LOG  [Combat] Hit OniBoss for 10
+[  3776   23.078 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.200s
+[  3776   23.078 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  3793   23.236 x1.00] LOG  🐾 VFX_AttackPaw triggered!
+[  3795   23.251 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=1 queued=2)
+[  3812   23.345 x1.00] LOG  [Combat] Combo 2: 20 dmg
+[  3812   23.345 x1.00] LOG  [ComboTrace] START step=2 state='Combo2' queued=1 target='OniBoss' at 2.9m
+[  3812   23.345 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 1.6m dist=1.59m in 0.16s
+[  3812   23.345 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  3818   23.395 x1.00] WARN The referenced script on this Behaviour (Game Object '<null>') is missing!
+[  3818   23.395 x1.00] WARN The referenced script on this Behaviour (Game Object 'Lightning Light') is missing!
+[  3818   23.395 x1.00] WARN The referenced script on this Behaviour (Game Object 'Lightning Light') is missing!
+[  3831   23.470 x1.00] LOG  [Combat] Queued click #2 (combo 2)
+[  3831   23.470 x1.00] LOG  [ComboTrace] QUEUED #2 during step 2
+[  3836   23.500 x1.00] LOG  [OniBoss] Stagger → Chase
+[  3836   23.500 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=1.59m actually moved=0.90m, completed
+[  3837   23.507 x1.00] LOG  [OniBoss] Playing animation: Idle
+[  3837   23.507 x1.00] LOG  [OniBoss] Chase → Attack
+[  3837   23.507 x1.00] LOG  [OniBoss] Attack: Club_Swing (16 dmg)
+[  3837   23.507 x1.00] LOG  [OniBoss:Trail] Club_Swing trail START at clip 1.00 (transition done).
+[  3855   23.621 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[  3885   23.800 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[  3897   23.866 x1.00] LOG  [OniBoss:ClubPos] Club_Swing at strike: club tip 3.02m up, 2.84m in front, -2.75m to his right (3.95m out from his centre). Club faces -75deg from his forward, pitch 0.40. (the ground wave is born 1.6m in front of him at 0.35m.)
+[  3897   23.866 x1.00] LOG  [OniBoss:Layer] Club_Swing: club has not connected — ground wave released ARMED, 1.6m in front, 12m/s x 6.0m = 0.50s, carrying 8 (half of the club's 16).
+[  3898   23.871 x1.00] LOG  [Combat] Combo memory: light hit, keeping step 2
+[  3898   23.871 x1.00] LOG  [Combat] Hit react: HitReact_Light_2Leg (0.5s, clip starts at 0.35s)
+[  3898   23.871 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.30 duration=0.200s
+[  3898   23.871 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-2.0°)
+[  3898   23.871 x1.00] LOG  [OniBoss:Wave] wave TOUCHED Yoru (grounded) for 8 after 0.1m / 0.01s of travel.
+[  3901   23.895 x1.00] LOG  [HitReactTrace] asked for 'HitReact_Light_2Leg' (0.50s, clip start 0.35s): playing it, blend resolved after 24 ms, state 1.21s long at speed 1.00, now at 0.37s, layer weight 1.00, animator.speed 1.00.
+[  3985   24.344 x1.00] LOG  [OniBoss] Attack → Recovery
+[  3985   24.344 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  3985   24.344 x1.00] LOG  [OniBoss:Trail] trail END at clip 0.99, fading over 0.40s.
+[  3985   24.344 x1.00] LOG  [OniBoss:Strike] Club_Swing: club tip closest to Yoru at 0.48m, clip position 0.91 | damage fires at 0.42 | clip 0.84s => damage fires 411 ms BEFORE the club is closest
+[  4010   24.496 x1.00] LOG  [OniBoss] Recovery → Chase
+[  4011   24.504 x1.00] LOG  [OniBoss] hold-ground: BACKSTEP 1.5m (player 2.1m)
+[  4052   24.853 x1.00] LOG  [OniBoss] hold-ground: backstep done (0.56m), WATCH (player 4.3m, cooldown 1.4s)
+[  4052   24.853 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  4053   24.861 x1.00] LOG  [OniBoss] Playing animation: Walk
+[  4060   24.904 x1.00] LOG  [OniBoss] Playing animation: run
+[  4159   25.729 x1.00] LOG  OniBoss took 25 damage. HP: 2130/2500
+[  4159   25.729 x1.00] LOG  [OniBoss] Chase → Stagger
+[  4159   25.729 x1.00] LOG  [OniBoss] Playing animation: Stagger
+[  4159   25.729 x1.00] LOG  [OniBoss] STAGGERED for 2.5s
+[  4159   25.729 x1.00] LOG  [OniBoss:Layer] heavy knock-back react (25 dmg) → 'HitReact_Heavy', down for 1.80s
+[  4159   25.729 x1.00] LOG  [Combat] Hazard zone tick: OniBoss for 25
+[  4436   27.534 x1.00] LOG  [OniBoss] Stagger → Chase
+[  4437   27.538 x1.00] LOG  [OniBoss] Pull-band decision: RUN-IN (dist 8.3m, pullRange 0m, chance 0.50)
+[  4437   27.538 x1.00] LOG  [OniBoss] Playing animation: run
+[  4524   28.254 x1.00] LOG  OniBoss took 25 damage. HP: 2105/2500
+[  4524   28.254 x1.00] LOG  [OniBoss] Chase → Stagger
+[  4524   28.254 x1.00] LOG  [OniBoss] Playing animation: Stagger
+[  4524   28.254 x1.00] LOG  [OniBoss] STAGGERED for 2.5s
+[  4524   28.254 x1.00] LOG  [OniBoss:Layer] heavy knock-back react (25 dmg) → 'HitReact_Heavy', down for 1.80s
+[  4524   28.254 x1.00] LOG  [Combat] Hazard zone tick: OniBoss for 25
+[  4565   28.553 x1.00] LOG  [Combat] Combo window expired
+[  4565   28.553 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[  4565   28.553 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target='OniBoss' at 7.4m
+[  4565   28.553 x1.00] LOG  [ComboTrace] LAUNCH STEP (too far: OniBoss at 5.3m > engage 4.7m) dist=0.90m in 0.13s
+[  4565   28.553 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  4581   28.684 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.90m, completed
+[  4593   28.738 x1.00] LOG  [Combat] Queued click #1 (combo 1)
+[  4593   28.738 x1.00] LOG  [ComboTrace] QUEUED #1 during step 1
+[  4597   28.755 x1.00] LOG  OniBoss punish window! 25 → 38 (x1.5)
+[  4597   28.755 x1.00] LOG  OniBoss took 38 damage. HP: 2067/2500
+[  4597   28.755 x1.00] LOG  [Combat] Hazard zone tick: OniBoss for 25
+[  4617   28.914 x1.00] LOG  [Combat] Queued click #2 (combo 1)
+[  4617   28.914 x1.00] LOG  [ComboTrace] QUEUED #2 during step 1
+[  4663   29.144 x1.00] LOG  🐾 VFX_AttackPaw triggered!
+[  4664   29.149 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=1 queued=2)
+[  4686   29.256 x1.00] LOG  [Combat] Combo 2: 20 dmg
+[  4686   29.256 x1.00] LOG  [ComboTrace] START step=2 state='Combo2' queued=1 target='OniBoss' at 6.7m
+[  4686   29.256 x1.00] LOG  [ComboTrace] LAUNCH STEP (too far: OniBoss at 5.3m > engage 4.7m) dist=0.90m in 0.13s
+[  4686   29.256 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  4700   29.386 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=0.90m, completed
+[  4801   29.888 x1.00] LOG  🐾🐾 VFX_TowPaw triggered!
+[  4833   30.056 x1.00] LOG  [OniBoss] Stagger → Chase
+[  4834   30.060 x1.00] LOG  [OniBoss] Pull-band decision: RUN-IN (dist 5.8m, pullRange 0m, chance 0.50)
+[  4834   30.060 x1.00] LOG  [OniBoss] Playing animation: run
+[  4865   30.260 x1.00] LOG  [Combat] Safety: movement stuck 1.0s (atk=True dod=False dsh=False hvy=False hit=False animSpeed=1), forcing reset
+[  4865   30.260 x1.00] LOG  [Combat] Combat reset
+[  4865   30.260 x1.00] LOG  🐾🐾 VFX_TowPaw triggered!
+[  4919   30.714 x1.00] LOG  [OniBoss] Playing animation: Idle
+[  4919   30.714 x1.00] LOG  [OniBoss] Combo started: swing1-2 (2 steps remaining)
+[  4919   30.714 x1.00] LOG  [OniBoss] Chase → Attack
+[  4919   30.714 x1.00] LOG  [OniBoss] Attack: Club_Swing (16 dmg)
+[  4919   30.714 x1.00] LOG  [OniBoss:Trail] Club_Swing trail START at clip 0.70 (transition done).
+[  4925   30.764 x1.00] LOG  [OniBoss:Layer] step-in: 'Club_Swing' closed 0.23m, Yoru now 3.0m away (range 3.5)
+[  4925   30.764 x1.00] LOG  🐾 4-LEG JUMP #0
+[  4925   30.764 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  4942   30.882 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 1.2m dist=1.23m in 0.13s [AIRBORNE]
+[  4942   30.882 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  4942   30.882 x1.00] LOG  [YoruVFX] Air spin: 'VFX_Void_Burst_AirSpinYoru' at CenterVFX, 46 systems, longest 1.00s fitted to 0.79s at speed 1.27, 8 forced Local, 38 delays zeroed, tail 2.37s
+[  4942   30.882 x1.00] LOG  OniBoss took 10 damage. HP: 2057/2500
+[  4942   30.882 x1.00] LOG  [OniBoss] 🤕 Hit during Attack — flash only
+[  4942   30.882 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.200s
+[  4942   30.882 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  4942   30.882 x1.00] LOG  [AirPosePin] engaged, holding body at 0.534m above the transform
+[  4958   31.017 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=1.23m actually moved=0.94m, completed
+[  4961   31.039 x1.00] LOG  OniBoss took 10 damage. HP: 2047/2500
+[  4961   31.039 x1.00] LOG  [OniBoss] 🤕 Hit during Attack — flash only
+[  4961   31.039 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.18 duration=0.200s
+[  4970   31.098 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.20 duration=0.250s
+[  4970   31.098 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  4970   31.098 x1.00] LOG  [Combat] Combo memory: light hit, keeping step 3
+[  4970   31.098 x1.00] LOG  [Combat] Hit react: HitReact_Light_2Leg (0.5s, clip starts at 0.35s)
+[  4970   31.098 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.30 duration=0.200s
+[  4970   31.098 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-2.0°)
+[  4970   31.098 x1.00] LOG  [OniBoss] Hit player for 16 (Club_Swing)
+[  4970   31.098 x1.00] LOG  [OniBoss:Touch] Club_Swing: club TOUCHED Yoru at clip 0.41, shaft 0.36m from her body line, head 0.51 along the club, tip speed 154m/s. Full club hit delivered this frame.
+[  4971   31.106 x1.00] LOG  [HitReactTrace] asked for 'HitReact_Light_2Leg' (0.50s, clip start 0.35s): NOT playing it, another state took the combat layer, blend resolved after 8 ms, state 0.79s long at speed 0.80, now at 0.18s, layer weight 1.00, animator.speed 1.00.
+[  4973   31.124 x1.00] LOG  [OniBoss:ClubPos] Club_Swing at strike: club tip 3.03m up, 1.99m in front, -3.17m to his right (3.74m out from his centre). Club faces -93deg from his forward, pitch 0.41. (the ground wave is born 1.6m in front of him at 0.35m.)
+[  4973   31.124 x1.00] LOG  [OniBoss:Layer] Club_Swing: club already hit — ground wave released as VISUAL only (0 damage).
+[  5042   31.589 x1.00] LOG  [OniBoss] Attack → Recovery
+[  5042   31.589 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  5042   31.589 x1.00] LOG  [OniBoss:Trail] trail END at clip 0.99, fading over 0.40s.
+[  5042   31.589 x1.00] LOG  [OniBoss:Strike] Club_Swing: club tip closest to Yoru at 1.43m, clip position 0.82 | damage fires at 0.42 | clip 0.84s => damage fires 338 ms BEFORE the club is closest
+[  5043   31.599 x1.00] LOG  [AirPosePin] released, peak correction was -0.038m
+[  5058   31.700 x1.00] LOG  💨 Landing VFX spawned!
+[  5058   31.700 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  5064   31.740 x1.00] LOG  [OniBoss] Recovery → Attack
+[  5064   31.740 x1.00] LOG  [OniBoss] Attack: ClubSwing2 (16 dmg)
+[  5064   31.740 x1.00] LOG  [OniBoss:Trail] ClubSwing2 trail START at clip 1.00 (transition still blending).
+[  5066   31.758 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[  5066   31.758 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target='OniBoss' at 4.0m
+[  5066   31.758 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 1.6m dist=1.57m in 0.16s
+[  5066   31.758 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  5090   31.913 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=1.57m actually moved=0.88m, completed
+[  5092   31.927 x1.00] WARN The referenced script on this Behaviour (Game Object '<null>') is missing!
+[  5092   31.927 x1.00] WARN The referenced script on this Behaviour (Game Object 'Lightning Light') is missing!
+[  5092   31.927 x1.00] WARN The referenced script on this Behaviour (Game Object 'Lightning Light') is missing!
+[  5122   32.079 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.20 duration=0.250s
+[  5122   32.079 x1.00] LOG  [Combat] Hit react: HitReact_Heavy_2Leg (0.9s, clip starts at 0.35s)
+[  5122   32.079 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.60 duration=0.200s
+[  5122   32.079 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-3.0°)
+[  5122   32.079 x1.00] LOG  [OniBoss] Hit player for 24 (ClubSwing2) [combo x1.50]
+[  5122   32.079 x1.00] LOG  [OniBoss:Touch] ClubSwing2: club TOUCHED Yoru at clip 0.29, shaft 0.49m from her body line, head 0.52 along the club, tip speed 102m/s. Full club hit delivered this frame.
+[  5123   32.086 x1.00] LOG  [HitReactTrace] asked for 'HitReact_Heavy_2Leg' (0.90s, clip start 0.35s): NOT playing it, another state took the combat layer, blend resolved after 7 ms, state 0.95s long at speed 1.60, now at 0.32s, layer weight 1.00, animator.speed 1.00.
+[  5128   32.123 x1.00] LOG  [OniBoss:ClubPos] ClubSwing2 at strike: club tip 0.14m up, 1.71m in front, 2.54m to his right (3.06m out from his centre). Club faces 10deg from his forward, pitch -0.88. (the ground wave is born 1.6m in front of him at 0.35m.)
+[  5128   32.123 x1.00] LOG  [OniBoss:Layer] ClubSwing2: club already hit — ground wave released as VISUAL only (0 damage), finisher size x2.0.
+[  5260   32.903 x1.00] LOG  [OniBoss] Attack → Recovery
+[  5260   32.903 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  5260   32.903 x1.00] LOG  [OniBoss:Trail] trail END at clip 0.99, fading over 0.40s.
+[  5260   32.903 x1.00] LOG  [OniBoss:Strike] ClubSwing2: club tip closest to Yoru at 1.47m, clip position 0.31 | damage fires at 0.32 | clip 1.17s => MATCHED (within one or two frames)
+[  5273   32.989 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[  5273   32.989 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target='OniBoss' at 2.3m
+[  5273   32.989 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 0.7m dist=0.75m in 0.13s
+[  5273   32.989 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  5285   33.055 x1.00] LOG  [OniBoss] Recovery → Chase
+[  5286   33.059 x1.00] LOG  [OniBoss] hold-ground: BACKSTEP 1.5m (player 1.9m)
+[  5294   33.131 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.75m actually moved=0.02m, completed
+[  5299   33.171 x1.00] LOG  [Combat] Queued click #1 (combo 1)
+[  5299   33.171 x1.00] LOG  [ComboTrace] QUEUED #1 during step 1
+[  5328   33.408 x1.00] LOG  [Combat] Queued click #2 (combo 1)
+[  5328   33.408 x1.00] LOG  [ComboTrace] QUEUED #2 during step 1
+[  5335   33.469 x1.00] LOG  OniBoss took 10 damage. HP: 2037/2500
+[  5335   33.469 x1.00] LOG  [OniBoss] Chase → HitReact
+[  5335   33.469 x1.00] LOG  [OniBoss:Layer] react tier: LIGHT (10 dmg) → 'Hit_react_light'
+[  5335   33.469 x1.00] LOG  [Combat] Hit OniBoss for 10
+[  5335   33.469 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.200s
+[  5335   33.469 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  5362   33.619 x1.00] LOG  🐾 VFX_AttackPaw triggered!
+[  5363   33.627 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=1 queued=2)
+[  5380   33.736 x1.00] LOG  [Combat] Combo 2: 20 dmg
+[  5380   33.736 x1.00] LOG  [ComboTrace] START step=2 state='Combo2' queued=1 target='OniBoss' at 2.6m
+[  5380   33.736 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 1.3m dist=1.31m in 0.13s
+[  5380   33.736 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  5391   33.811 x1.00] LOG  [ComboTrace] CLICK DROPPED by attackCooldown (0.10s, 0.07s since last attack) step=2
+[  5401   33.862 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=1.31m actually moved=0.61m, completed
+[  5432   34.040 x1.00] LOG  [Combat] Queued click #2 (combo 2)
+[  5432   34.040 x1.00] LOG  [ComboTrace] QUEUED #2 during step 2
+[  5465   34.226 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[  5475   34.270 x1.00] LOG  [OniBoss] HitReact → Chase
+[  5476   34.276 x1.00] LOG  [OniBoss] Playing animation: Idle
+[  5476   34.276 x1.00] LOG  [OniBoss] Playing animation: Walk
+[  5490   34.365 x1.00] LOG  🐾🐾 VFX_TowPaw triggered!
+[  5493   34.382 x1.00] LOG  OniBoss took 20 damage. HP: 2017/2500
+[  5493   34.382 x1.00] LOG  [OniBoss] 🤕 Hit during Chase — flash only
+[  5493   34.382 x1.00] LOG  [Combat] Hit OniBoss for 20
+[  5493   34.382 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.50 duration=0.200s
+[  5493   34.382 x1.00] LOG  [CameraGameFeel] FOV punch: hit light (+1.5°)
+[  5500   34.445 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[  5502   34.461 x1.00] LOG  [OniBoss] Playing animation: Idle
+[  5538   34.681 x1.00] LOG  [ComboTrace] CLICK IGNORED (step=2 queued=2)
+[  5550   34.738 x1.00] LOG  [Combat] Safety: movement stuck 1.0s (atk=True dod=False dsh=False hvy=False hit=False animSpeed=1), forcing reset
+[  5550   34.738 x1.00] LOG  [Combat] Combat reset
+[  5556   34.777 x1.00] LOG  🐾🐾 VFX_TowPaw triggered!
+[  5568   34.858 x1.00] LOG  [OniBoss] Combo started: swing1-2 (2 steps remaining)
+[  5568   34.858 x1.00] LOG  [OniBoss] Chase → Attack
+[  5568   34.858 x1.00] LOG  [OniBoss] Attack: Club_Swing (16 dmg)
+[  5568   34.858 x1.00] LOG  [OniBoss:Trail] Club_Swing trail START at clip 0.25 (transition done).
+[  5575   34.920 x1.00] LOG  [Combat] Combo 1: 10 dmg
+[  5575   34.920 x1.00] LOG  [ComboTrace] START step=1 state='Combo1' queued=0 target='OniBoss' at 3.8m
+[  5575   34.920 x1.00] LOG  [ComboTrace] LAUNCH OniBoss at 0.9m dist=0.87m in 0.13s
+[  5575   34.920 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.06 duration=0.080s
+[  5597   35.044 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.87m actually moved=0.11m, completed
+[  5621   35.161 x1.00] LOG  [Combat] Queued click #1 (combo 1)
+[  5621   35.161 x1.00] LOG  [ComboTrace] QUEUED #1 during step 1
+[  5632   35.217 x1.00] LOG  [OniBoss:ClubPos] Club_Swing at strike: club tip 3.02m up, 2.79m in front, -2.79m to his right (3.94m out from his centre). Club faces -76deg from his forward, pitch 0.40. (the ground wave is born 1.6m in front of him at 0.35m.)
+[  5632   35.217 x1.00] LOG  [OniBoss:Layer] Club_Swing: club has not connected — ground wave released ARMED, 1.6m in front, 12m/s x 6.0m = 0.50s, carrying 8 (half of the club's 16).
+[  5633   35.223 x1.00] LOG  [Combat] Combo memory: light hit, keeping step 1
+[  5633   35.223 x1.00] LOG  [Combat] Hit react: HitReact_Light_2Leg (0.5s, clip starts at 0.35s)
+[  5633   35.223 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.30 duration=0.200s
+[  5633   35.223 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-2.0°)
+[  5633   35.223 x1.00] LOG  [OniBoss:Wave] wave TOUCHED Yoru (grounded) for 8 after 0.1m / 0.01s of travel.
+[  5636   35.242 x1.00] LOG  [HitReactTrace] asked for 'HitReact_Light_2Leg' (0.50s, clip start 0.35s): playing it, blend resolved after 19 ms, state 1.21s long at speed 1.00, now at 0.36s, layer weight 1.00, animator.speed 1.00.
+[  5727   35.691 x1.00] LOG  [OniBoss] Attack → Recovery
+[  5727   35.691 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  5727   35.691 x1.00] LOG  [OniBoss:Trail] trail END at clip 0.99, fading over 0.40s.
+[  5727   35.691 x1.00] LOG  [OniBoss:Strike] Club_Swing: club tip closest to Yoru at 0.50m, clip position 0.91 | damage fires at 0.42 | clip 0.84s => damage fires 412 ms BEFORE the club is closest
+[  5753   35.842 x1.00] LOG  [OniBoss] Recovery → Attack
+[  5753   35.842 x1.00] LOG  [OniBoss] Attack: ClubSwing2 (16 dmg)
+[  5753   35.842 x1.00] LOG  [OniBoss:Trail] ClubSwing2 trail START at clip 1.00 (transition still blending).
+[  5817   36.182 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.20 duration=0.250s
+[  5817   36.182 x1.00] LOG  [Combat] Hit react: HitReact_Heavy_2Leg (0.9s, clip starts at 0.35s)
+[  5817   36.182 x1.00] LOG  [CameraGameFeel] Shake: intensity=0.60 duration=0.200s
+[  5817   36.182 x1.00] LOG  [CameraGameFeel] FOV punch: player damage (-3.0°)
+[  5817   36.182 x1.00] LOG  [OniBoss] Hit player for 24 (ClubSwing2) [combo x1.50]
+[  5817   36.182 x1.00] LOG  [OniBoss:Touch] ClubSwing2: club TOUCHED Yoru at clip 0.29, shaft 0.45m from her body line, head 0.53 along the club, tip speed 99m/s. Full club hit delivered this frame.
+[  5818   36.192 x1.00] LOG  [HitReactTrace] asked for 'HitReact_Heavy_2Leg' (0.90s, clip start 0.35s): NOT playing it, another state took the combat layer, blend resolved after 10 ms, state 1.00s long at speed 1.00, now at 0.45s, layer weight 1.00, animator.speed 1.00.
+[  5824   36.227 x1.00] LOG  [OniBoss:ClubPos] ClubSwing2 at strike: club tip 0.17m up, 1.64m in front, 2.62m to his right (3.09m out from his centre). Club faces 14deg from his forward, pitch -0.89. (the ground wave is born 1.6m in front of him at 0.35m.)
+[  5824   36.227 x1.00] LOG  [OniBoss:Layer] ClubSwing2: club already hit — ground wave released as VISUAL only (0 damage), finisher size x2.0.
+[  5963   37.008 x1.00] LOG  [OniBoss] Attack → Recovery
+[  5963   37.008 x1.00] LOG  [OniBoss] Playing animation: Watch
+[  5963   37.008 x1.00] LOG  [OniBoss:Trail] trail END at clip 0.99, fading over 0.40s.
+[  5963   37.008 x1.00] LOG  [OniBoss:Strike] ClubSwing2: club tip closest to Yoru at 1.38m, clip position 0.30 | damage fires at 0.32 | clip 1.17s => MATCHED (within one or two frames)
+[  5964   37.020 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 520 lines

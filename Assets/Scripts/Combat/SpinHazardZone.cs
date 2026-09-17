@@ -6,8 +6,8 @@ using UnityEngine;
 /// The ground hazard the beyblade finisher leaves on the floor.
 ///
 /// Lives on the spawned zone effect for as long as that effect is visible, and drains every
-/// enemy standing inside its radius for that whole time: one light hit per tick, so the Oni's
-/// attack armor is respected and his swings are not interrupted. Nothing here is serialized on
+/// enemy standing inside its radius for that whole time. The drain is silent damage: health,
+/// red flash and the numbers, no flinch and no stagger, so the Oni fights on through it. Nothing here is serialized on
 /// purpose. The zone is a runtime object; every number lives in the Inspector on PlayerCombat,
 /// which also decides whether the hazard is unlocked and whether it is off cooldown. That keeps
 /// the ability tree and the cooldown in one place when they arrive, and this script untouched.
@@ -84,7 +84,7 @@ public class SpinHazardZone : MonoBehaviour
             EnemyHealth enemy = hits[i].GetComponentInParent<EnemyHealth>();
             if (enemy == null || !hitThisTick.Add(enemy)) continue;
 
-            enemy.TakeDamage(tickDamage, false);
+            enemy.TakeDamageSilent(tickDamage);   // health, red flash, numbers. No flinch: he fights on through the drain.
             onTick?.Invoke(enemy, tickDamage);
         }
     }

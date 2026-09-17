@@ -201,7 +201,7 @@ public class OniBoss : MonoBehaviour
     [Tooltip("Overrides for the melee attacks' Strike Moment, applied at Start over the values on the attack list. ROUND 38: re-measured from the [OniBoss:Strike] runtime logs of real play — the FBX-derived numbers were wrong in both directions. Club_Swing 0.42 (was 0.85: every mid-range sample showed damage landing 350-380ms AFTER the club had already swept past her). ClubSwing2 0.32 (was right, ±46ms). ClubSlam 0.85 (was 0.52: damage fired ~305ms BEFORE the club reached the floor, on every clean close-range hit). KanaboSweep 0.48 (unmeasured — its Animator state still plays the Idle clip). RENAMED from strikeMomentOverrides so the stale values saved in the scene are dropped; keep [OniBoss:Strike] on for one session to confirm, then tune here. Delete an entry to keep the attack list's own value.")]
     [SerializeField] private StrikeMomentOverride[] strikeMomentsTuned =
     {
-        new StrikeMomentOverride("Club_Swing", 0.42f),
+        new StrikeMomentOverride("Club_Swing", 0.88f),   // ROUND 43: wave releases when the club reaches the floor (touch log: head contact 0.91), not mid-arc
         new StrikeMomentOverride("ClubSwing2", 0.32f),
         new StrikeMomentOverride("ClubSlam", 0.85f),
         new StrikeMomentOverride("KanaboSweep", 0.48f),
@@ -217,6 +217,8 @@ public class OniBoss : MonoBehaviour
     [Tooltip("ROUND 39. The touch check arms only after this fraction of the attack clip, so the WINDUP (the club whipping up/back at full speed, sometimes through her space at point-blank) can never deliver the hit early. Every measured real contact sits at 0.29-0.94 of its clip; windups live below 0.2. This is NOT a strike moment — inside the armed part, only real contact decides.")]
     [Range(0f, 0.9f)]
     [SerializeField] private float clubTouchArmFrom = 0.2f;
+    [Tooltip("ROUND 43. A club held above this height, in metres above her feet, cannot hit her. Measured on the overhead Club_Swing: the touch was landing at clip 0.38 with the club TIP 3 m in the air, because his hands and the handle swept past her body line at 170 m/s while the club pointed up and away; the real blow reached her at clip 0.91, tip near the floor. Real contacts measured today had the tip between 0.05 and 0.6 m up. 2.5 lets every real blow through, including point-blank ones on the handle, and refuses the raise. The touch line prints the tip height on every contact.")]
+    [SerializeField] private float clubTouchMaxTipHeight = 2.5f;
     [Tooltip("ROUND 40. Bottom of Yoru's body line, metres above her feet. The club is now compared against her WHOLE body (a vertical line from here to Body Top), not one chest point — a slam descending from above meets her head first, so with a single chest point the hit registered ~100-150ms late ('slam hits very late'), and a high horizontal sweep could pass through her shoulders without ever nearing the chest point.")]
     [SerializeField] private float clubTouchBodyBottom = 0.25f;
     [Tooltip("ROUND 40. Top of Yoru's body line, metres above her feet — about her head. See Body Bottom.")]
@@ -392,7 +394,7 @@ public class OniBoss : MonoBehaviour
     [Tooltip("ROUND 57 — normalized moment of the POUND clip that counts as the top of the jump: SLOW MOTION ends here and the orbit turns downward, but the cinematic (and Yoru's freeze + protection) now runs until he LANDS at Pound Strike Moment — control returns there, straight into dodging the ring.")]
     [Range(0f, 0.95f)]
     [SerializeField] private float cineApexMoment = 0.4f;
-    [Tooltip("ROUND 57 — Hazel: phase 2 always STARTS at exactly half health. The hit that triggers the transition usually lands below 50% — this snaps him back up to a clean half bar as the second half of the fight begins. Untick to keep the raw value.")]
+    [Tooltip("ROUND 57, Hazel: phase 2 always STARTS on a clean bar. The hit that triggers the transition usually lands below the line; this snaps him back up to exactly the phase line (Enemy Combat > Phase Threshold: 0.5 = half, 0.6 = the 40/60 split). Untick to keep the raw value.")]
     [SerializeField] private bool phase2StartsAtHalf = true;
     [Tooltip("ROUND 53 — Hazel: after the cinematic the Oni waits AT LEAST this many seconds before his first attack, so the entrance never turns into an instant cheap hit. 0 = no grace.")]
     [SerializeField] private float cineFirstAttackGrace = 2f;
@@ -595,6 +597,7 @@ public class OniBoss : MonoBehaviour
     private bool musicStoppedOnDeath;
     private float  clubTouchClosest = float.MaxValue;  // per-swing closest shaft-to-body distance, logged on swing end
     private float  clubTouchClosestClip = -1f;
+    private float  clubTouchClosestHead;                // ROUND 43: head fraction at the closest approach, for the miss line
     private float  clubTouchMaxSpeed;
 
     [Header("Strike contact measurement — round 15 (diagnostic, temporary)")]
@@ -1538,6 +1541,7 @@ public class OniBoss : MonoBehaviour
             clubPrevTipValid     = false;
             clubTouchClosest     = float.MaxValue;
             clubTouchClosestClip = -1f;
+            clubTouchClosestHead = 0f;
             clubTouchMaxSpeed    = 0f;
         }
 
@@ -1570,8 +1574,10 @@ public class OniBoss : MonoBehaviour
         // ~100-150ms of "slam hits very late". A high sweep through her shoulders counts now too.
         Vector3 bodyBottom = playerT.position + Vector3.up * clubTouchBodyBottom;
         Vector3 bodyTop    = playerT.position + Vector3.up * clubTouchBodyTop;
-        float shaftDist = DistanceSegmentToSegment(root, tip, bodyBottom, bodyTop);
-        if (shaftDist < clubTouchClosest) { clubTouchClosest = shaftDist; clubTouchClosestClip = clip; }
+        ClosestPointsSegmentSegment(root, tip, bodyBottom, bodyTop, out Vector3 onClub, out Vector3 onBody);
+        float shaftDist = Vector3.Distance(onClub, onBody);
+        float head = HeadFraction(root, tip, onClub);
+        if (shaftDist < clubTouchClosest) { clubTouchClosest = shaftDist; clubTouchClosestClip = clip; clubTouchClosestHead = head; }
 
         // ROUND 42 — one frame of foresight. At 85-190 m/s the club crosses 1.5-3m between two
         // frames, so waiting for "inside NOW" can be one frame behind what the eye already saw.
@@ -1580,12 +1586,17 @@ public class OniBoss : MonoBehaviour
         bool predicted = false;
         if (!touching && havePrev)
         {
-            float nextDist = DistanceSegmentToSegment(root + rootVel * dt, tip + tipVel * dt, bodyBottom, bodyTop);
-            if (nextDist <= clubTouchRadius) { touching = true; predicted = true; shaftDist = nextDist; }
+            Vector3 nextRoot = root + rootVel * dt, nextTip = tip + tipVel * dt;
+            ClosestPointsSegmentSegment(nextRoot, nextTip, bodyBottom, bodyTop, out Vector3 nextOnClub, out Vector3 nextOnBody);
+            float nextDist = Vector3.Distance(nextOnClub, nextOnBody);
+            if (nextDist <= clubTouchRadius) { touching = true; predicted = true; shaftDist = nextDist; head = HeadFraction(nextRoot, nextTip, nextOnClub); }
         }
 
         if (!touching) return;
         if (tipSpeed < clubTouchMinSpeed) return;
+        // ROUND 43: a club pointing up over his head is not a blow, however fast his hands sweep past her.
+        float tipHeight = tip.y - playerT.position.y;
+        if (tipHeight > clubTouchMaxTipHeight) return;
 
         // Contact. The engine runs the full club hit this frame — or refuses if this attack's hit
         // was somehow already delivered engine-side; either way the swing is spent.
@@ -1597,7 +1608,7 @@ public class OniBoss : MonoBehaviour
         bool disarmedWave = currentSwingWave != null;
         if (disarmedWave) currentSwingWave.CancelledByClub();   // released before he reached her — the club got there first, so it flies on as pure effect
 
-        Debug.Log($"[OniBoss:Touch] {atk}: club TOUCHED Yoru at clip {clip:F2} — shaft {shaftDist:F2}m from her body line, tip speed {tipSpeed:F0}m/s{(predicted ? ", ONE FRAME EARLY (predicted)" : "")}. Full club hit delivered this frame."
+        Debug.Log($"[OniBoss:Touch] {atk}: club TOUCHED Yoru at clip {clip:F2}, shaft {shaftDist:F2}m from her body line, head {head:F2} along the club, tip {tipHeight:F2}m up, tip speed {tipSpeed:F0}m/s{(predicted ? ", ONE FRAME EARLY (predicted)" : "")}. Full club hit delivered this frame."
                 + (disarmedWave ? " This swing's wave is disarmed and flies on as visual." : ""));
     }
 
@@ -1606,13 +1617,22 @@ public class OniBoss : MonoBehaviour
     private void FlushClubTouchSwing()
     {
         if (logClubPositionAtStrike && !swingHitDelivered && clubTouchClosestClip >= 0f && clubTouchClosest < float.MaxValue * 0.5f)
-            Debug.Log($"[OniBoss:Touch] {clubTouchAttackName}: no touch this swing — closest {clubTouchClosest:F2}m at clip {clubTouchClosestClip:F2}, fastest tip {clubTouchMaxSpeed:F0}m/s (radius {clubTouchRadius:F2}, min speed {clubTouchMinSpeed:F0}).");
+            Debug.Log($"[OniBoss:Touch] {clubTouchAttackName}: no touch this swing, closest {clubTouchClosest:F2}m at clip {clubTouchClosestClip:F2} (head {clubTouchClosestHead:F2} along the club), fastest tip {clubTouchMaxSpeed:F0}m/s (radius {clubTouchRadius:F2}, min speed {clubTouchMinSpeed:F0}, max tip height {clubTouchMaxTipHeight:F1}m).");
         clubTouchAttackName  = "";
         swingHitDelivered    = false;
         currentSwingWave     = null;
         clubTouchClosest     = float.MaxValue;
         clubTouchClosestClip = -1f;
+        clubTouchClosestHead = 0f;
         clubTouchMaxSpeed    = 0f;
+    }
+
+    /// <summary>ROUND 43. Where along the club a point on its shaft sits: 0 at his hands, 1 at the tip.</summary>
+    private static float HeadFraction(Vector3 root, Vector3 tip, Vector3 pointOnClub)
+    {
+        Vector3 shaft = tip - root;
+        float len2 = shaft.sqrMagnitude;
+        return len2 > 0.0001f ? Mathf.Clamp01(Vector3.Dot(pointOnClub - root, shaft) / len2) : 0f;
     }
 
     /// <summary>ROUND 39. This swing's wave touched her first — the swing is spent and the club
@@ -2515,11 +2535,13 @@ public class OniBoss : MonoBehaviour
         // clean half. SetHealth fires no events, and isPhase2 is already latched — nothing flips.
         if (phase2StartsAtHalf && health != null && health.IsAlive())
         {
-            int half = Mathf.Max(1, health.GetMaxHealth() / 2);
-            if (health.GetCurrentHealth() < half)
+            // ROUND 44: snaps to the phase line itself (Enemy Combat > Phase Threshold), so a 60/40
+            // split starts phase 2 at a clean 60%, exactly as a 50/50 split started it at half.
+            int line = Mathf.Max(1, Mathf.RoundToInt(health.GetMaxHealth() * combat.PhaseThreshold));
+            if (health.GetCurrentHealth() < line)
             {
-                DebugLog($"PHASE 2: health snapped {health.GetCurrentHealth()} → {half} (exactly half) for the phase-2 start.");
-                health.SetHealth(half);
+                DebugLog($"PHASE 2: health snapped {health.GetCurrentHealth()} → {line} (the phase line, {combat.PhaseThreshold:P0}) for the phase-2 start.");
+                health.SetHealth(line);
             }
         }
 

@@ -143,8 +143,49 @@ public class EnemyHealth : MonoBehaviour
         // Boss layer hook — fires AFTER the generic reaction so a listener (OniBoss) can refine
         // what just happened (e.g. swap the flinch clip by damage size). See OnDamaged docs.
         OnDamaged?.Invoke(damage, isHeavy);
+        AnyDamaged?.Invoke(this, damage, isHeavy);
+        AnyHit?.Invoke(this, damage, isHeavy);
     }
     
+    /// <summary>
+    /// Damage with no reaction: health drops, the red flash plays, the damage numbers fire, and
+    /// nothing else. No flinch, no stagger, no boss-layer hook (no wake, no burst count, no
+    /// reaction tier), so the enemy keeps doing whatever it was doing. For drains such as the
+    /// beyblade's floor zone. Same gates as TakeDamage: dead, yielded, invulnerable and the
+    /// hallucination all still block it. Death and yield still resolve if the drain gets there.
+    /// </summary>
+    public void TakeDamageSilent(int damage)
+    {
+        if (isDead) return;
+        if (hasYielded) return;
+        if (invulnerable) return;
+        if (HallucinationEffect.IsActive) return;
+        if (damage <= 0) return;
+
+        currentHealth -= damage;
+        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+
+        FlashRed();
+
+        if (nonLethal)
+        {
+            if (currentHealth <= yieldHealthThreshold)
+            {
+                hasYielded = true;
+                Debug.Log($"{gameObject.name} yielded (non-lethal) at {currentHealth} HP");
+                OnYield?.Invoke(this);
+                return;
+            }
+        }
+        else if (currentHealth <= 0)
+        {
+            Die();
+            return;
+        }
+
+        AnyDamaged?.Invoke(this, damage, false);
+    }
+
     /// <summary>
     /// Overload for positional damage (backwards compatibility).
     /// </summary>
@@ -206,6 +247,18 @@ public class EnemyHealth : MonoBehaviour
     /// Same layering pattern as OnYield.
     /// </summary>
     public event System.Action<int, bool> OnDamaged;
+
+    /// <summary>
+    /// Same moment as OnDamaged, for every enemy at once: (enemy, damage, isHeavy). Presentation
+    /// listeners such as the damage numbers subscribe here once instead of finding every enemy.
+    /// </summary>
+    public static event System.Action<EnemyHealth, int, bool> AnyDamaged;
+
+    /// <summary>
+    /// Like AnyDamaged but only for real hits, never for silent drains (TakeDamageSilent).
+    /// The momentum counter listens here, so standing in the floor zone earns nothing.
+    /// </summary>
+    public static event System.Action<EnemyHealth, int, bool> AnyHit;
 
     private void Die()
     {

@@ -283,6 +283,8 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private bool hasPhases = false;
     [Tooltip("HP percentage to trigger Phase 2 (0.5 = 50%)")]
     [SerializeField] private float phaseThreshold = 0.5f;
+    /// <summary>Health fraction at which phase 2 begins, as set in the Inspector.</summary>
+    public float PhaseThreshold => phaseThreshold;
     [SerializeField] private float chaseSpeedP2 = 4.0f;
     [SerializeField] private float attackCooldownP2 = 2.0f;
     [SerializeField] private string bossBarName = "";
