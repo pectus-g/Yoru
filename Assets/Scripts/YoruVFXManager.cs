@@ -41,9 +41,16 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private GameObject heavyHitSparkPrefab;
     [SerializeField] private float hitSparkLifetime = 1.5f;
     
-    [Header("=== DODGE VFX ===")]
+    [Header("=== FRONTFLIP / DASH VFX ===")]
+    [Tooltip("FRONTFLIP (C). Born at her feet and carried with her for the whole flip, so a looping prefab draws a trail behind her; stops emitting the moment the flip ends and fades where it is. A prefab with World simulation space leaves the trail in the air, Local drags it along with her.")]
     [SerializeField] private GameObject dodgeTrailPrefab;
+    [Tooltip("DASH (MMB). Same rules as the frontflip trail, its own prefab.")]
     [SerializeField] private GameObject dodgeDashTrailPrefab;
+    [Tooltip("DASH strikes an enemy: spawned once at the point of contact, on top of the normal hit spark.")]
+    [SerializeField] private GameObject dashHitVFX;
+    [Tooltip("DASH runs into a wall: spawned once where she hit it, facing out of the wall.")]
+    [SerializeField] private GameObject dashWallHitVFX;
+    [Tooltip("Seconds the flip or dash trail lingers after the move ends before it is removed. Long enough for its last particles to die.")]
     [SerializeField] private float dodgeVFXLifetime = 1.5f;
     
     [Header("=== HIT REACTION VFX ===")]
@@ -880,23 +887,56 @@ public void OnJump(int jumpNumber)
     // ========== DODGE VFX, Called by PlayerCombat ==========
 
     /// <summary>Spawn dodge trail at Yoru's feet.</summary>
-    public void PlayDodgeTrailVFX()
+    public void PlayDodgeTrailVFX()  => StartTrail(dodgeTrailPrefab, "flip");
+
+    /// <summary>Start the dash trail: carried with her until StopTrailVFX.</summary>
+    public void PlayDodgeDashTrailVFX() => StartTrail(dodgeDashTrailPrefab, "dash");
+
+    private GameObject activeTrail;
+
+    /// <summary>A trail rides with her: born at her feet, parented to her so it follows the move,
+    /// left where it is and allowed to fade when the move ends. Spawning it once at the start
+    /// point (the old way) made a single puff behind her that looked like nothing at all.</summary>
+    private void StartTrail(GameObject prefab, string what)
     {
-        if (dodgeTrailPrefab == null) return;
+        StopTrailVFX();
+        if (prefab == null) return;
+
         Vector3 pos = transform.position;
         pos.y += 0.1f;
-        GameObject vfx = Instantiate(dodgeTrailPrefab, pos, transform.rotation);
-        Destroy(vfx, dodgeVFXLifetime);
+        activeTrail = Instantiate(prefab, pos, transform.rotation, transform);
+        activeTrail.SetActive(true);
+        foreach (ParticleSystem ps in activeTrail.GetComponentsInChildren<ParticleSystem>(true))
+            if (!ps.isPlaying) ps.Play(false);
+
+        if (debugMode) Debug.Log($"[YoruVFX] {what} trail '{prefab.name}' started, riding with her");
     }
 
-    /// <summary>Spawn dodge dash damage trail.</summary>
-    public void PlayDodgeDashTrailVFX()
+    /// <summary>The flip or dash ended: let go of the trail, stop it emitting, let it fade in place.
+    /// Called by PlayerCombat from EndDodge and EndDash. Safe to call with no trail running.</summary>
+    public void StopTrailVFX()
     {
-        if (dodgeDashTrailPrefab == null) return;
-        Vector3 pos = transform.position;
-        pos.y += 0.1f;
-        GameObject vfx = Instantiate(dodgeDashTrailPrefab, pos, transform.rotation);
-        Destroy(vfx, dodgeVFXLifetime);
+        if (activeTrail == null) return;
+        activeTrail.transform.SetParent(null, true);
+        foreach (ParticleSystem ps in activeTrail.GetComponentsInChildren<ParticleSystem>(true))
+            ps.Stop(false, ParticleSystemStopBehavior.StopEmitting);
+        Destroy(activeTrail, dodgeVFXLifetime);
+        activeTrail = null;
+    }
+
+    /// <summary>The dash struck an enemy. Once per enemy per dash, at the point of contact.</summary>
+    public void PlayDashHitVFX(Vector3 contactPoint)
+    {
+        if (dashHitVFX == null) return;
+        SpawnEffect(dashHitVFX, contactPoint, transform.rotation);
+    }
+
+    /// <summary>The dash ran into a wall. Once per dash, where she hit it, facing out of the wall.</summary>
+    public void PlayDashWallHitVFX(Vector3 point, Vector3 wallNormal)
+    {
+        if (dashWallHitVFX == null) return;
+        Quaternion facing = wallNormal.sqrMagnitude > 0.001f ? Quaternion.LookRotation(wallNormal) : transform.rotation;
+        SpawnEffect(dashWallHitVFX, point, facing);
     }
 
     // ========== HIT SPARK VFX, Called by CombatFeedbackManager ==========

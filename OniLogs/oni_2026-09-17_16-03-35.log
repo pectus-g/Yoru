@@ -1,0 +1,308 @@
+# Oni combat log — 2026-09-17 16:03:35
+# Unity 6000.2.7f2 | scene 'CaveScene_Oni_Boss1' | platform OSXEditor
+# columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
+#
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-17_16-03-35.log
+[     0    0.000 x1.00] LOG  [OniHairShadows] shadow casting off on 27 hair renderers
+[     0    0.000 x1.00] LOG  [RingMesh] Auto-found 11/11 left, 11/11 right meshes
+[     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
+[     1    0.000 x1.00] LOG  [StormWeather] layer 'TerrainLayer_Dirt_01' dry smoothness=0.00 (restore to this if a crash ever leaves it wet)
+[     1    0.000 x1.00] LOG  [StormWeather] post volumes ready on layer 9 (storm priority 10, flash priority 11).
+[     1    0.000 x1.00] LOG  [StormWeather] ROUND 80: fur weather ready on 'Weather Zone'. Rain 0, wind 0.50 in the open, sky check 30 m from 'PlayerYoru_1.1'.
+[     1    0.000 x1.00] LOG  [StormWeather] COZY bridge: Rain_Cave retired, COZY owns the rain now.
+[     1    0.000 x1.00] LOG  [StormWeather] COZY → 'Clear' (pre-fight - open sky, 0 s)
+[     1    0.000 x1.00] LOG  [StormWeather] Ready. Open sky, dry floor. Waiting for the fight.
+[     1    0.000 x1.00] LOG  OniBoss initialized with 2500 HP
+[     1    0.000 x1.00] LOG  [OniBoss] ANIMATOR SETUP: cullingMode=CullUpdateTransforms updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [OniBoss] Initialized
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] facing: minFlat 1m, snapOnAttack off, trackInHitReact off, aimTurn 540 deg/s for the first 0.20 of the swing
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch model ON: launches ALL THE WAY to an enemy within 4.7m of its surface at 10m/s (stop gap 0.00m, NO minimum distance), else steps 0.90m forward. Targeting cone left exactly as her prefab has it.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] Yoru launch ROUND 9: airborne attacks launch too (ON), edge probe now runs on its OWN layer mask (Everything) instead of the line-of-sight mask - the Ground-only mask found no floor in this cave and was cancelling 100% of launches at 0.00m travelled.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] animator speed x1.35 — his 1.13s swing now plays in 0.84s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] chase speed pushed: phase1 4.5, phase2 5.5 (Yoru runs at 7).
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] ground wave ON (round 38): half the club's damage on TOUCH, 12m/s x 6.0m from 1.6m in front at 0.35m height — a club hit cancels that swing's wave, jumping clears it. Per-attack effects come from the Swing Wave VFX By Attack rows. PlayerHealth found, PlayerMovement found.
+[     1    0.000 x1.00] LOG  [StormWeather] storm break HELD (waiting for the lightning beat)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] storm break HELD — it releases at the lightning-on-the-club beat.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] club tracking ON — tip 'Kanabo3' (depth 4), shaft root 'kanabo'.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] skinned meshes: 46 renderer(s), updateWhenOffscreen ON, body renderer 'Body' rootBone 'Hips'
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge travel bone: 'Hips' at depth 1 under 'OniBoss', rest local (0.00, 3.24, -0.24)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] anti-kite ON: thrown swing after 4s of failed chase (within 7.6m), charge after 6s.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge drive ON (windup to 0.40 at x1.3, rush 14m/s stops at 2.6m, steers 0.35s then commits, strike section from 0.58, strike moment 0.76, trail VFX off)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] attack armor ON (his swings are not interrupted by light/medium hits; heavy hits and rapid-hit bursts still stop him)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] strike moments overridden: Club_Swing=0.42 ClubSwing2=0.32 ClubSlam=0.85 KanaboSweep=0.48
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] club TOUCH hits ON (radius 0.70m, min tip speed 50m/s, armed from 0.20 of the clip): Club_Swing ClubSwing2 ClubSlam KanaboSweep. First touch wins — club full damage, wave half, one hit per swing.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] combo damage ramp ON: mid x1.25, finisher x1.50 — finisher wave carries FULL damage at x2.0 size, x2.0 travel.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge follow-up ON: 90 % of solo charges chain into a random melee finisher.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] hold-ground ON (backstep 1.5m @ 1.6m/s after own attacks, watch 'Watch', attack facing LOCKED)
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] OniBoss layer ready (reactions, wake-on-hit, watch stance, boss bar). player=found
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] charge clip 'Oni Charge.fbx' imports with Root Motion Node = None (in place) — good.
+[     1    0.000 x1.00] LOG  [OniBoss:Layer] clips importing with Root Transform Position (Y) NOT baked into pose (12): Oni_Alert(Oni Alert), Club_Slam(Oni Club Slam), Club_Swing(Oni Club Swing), Club_swing2(Oni Club Swing 2), Death(Oni Death Kneel), Hit_react_light(Oni Hit react lighter light), KanaboSweep(Oni Kanabo sweep), Phase_Transition(Oni Phase transition), run(Oni Run), Walk(Oni Walk), Watch(Oni Watch), Idle(Oni Idle) — their hips' up/down motion is stripped (see round notes; optional).
+[     1    0.000 x1.00] LOG  === VFX MANAGER INITIALIZED ===
+[     1    0.000 x1.00] LOG  Auto-detect animations: False
+[     1    0.000 x1.00] LOG  Parent effects to tail: True
+[     1    0.000 x1.00] LOG  Prefabs: Jump=True, Land=True, LTail=True, RTail=True
+[     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailTip_Anchor
+[     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
+[     1    0.000 x1.00] LOG  [VolumetricFogController] applyPresets is OFF in this scene. The Volumetric Fog component keeps its hand-set inspector values.
+[     1    0.000 x1.00] LOG  [TailAirShot] Ready. drawState=RightTail_Fast castParam=TailCastSpeed (found)
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/vfx_Muzzle_Fireball01Blue
+[     1    0.000 x1.00] LOG  [RingMesh] VFX Status:
+[     1    0.000 x1.00] LOG    Left: Prefab=✓, Spawn=Tail6_L_end_end_end
+[     1    0.000 x1.00] LOG    Right: Prefab=✓, Spawn=Tail6_R_end_end_end
+[     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
+  aim VFX right: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/Glow_4Leg_R
+[     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
+[     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized, Phase 3C v27
+[     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
+[     1    3.238 x1.00] LOG  [OniBoss] Playing animation: Idle
+[     1    3.238 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 13.4m)
+[    14    4.388 x1.00] LOG  💨 Landing VFX spawned!
+[    14    4.388 x1.00] LOG  ✅ LANDED! (was jump #0)
+[   179    5.291 x1.00] LOG  [Combat] Guard START (perfect parry window: 0.2s)
+[   628    7.207 x1.00] LOG  [Combat] Guard END
+[   836    8.191 x1.00] LOG  [Combat] Dodge: Dodge_2Leg (4m, 2leg)
+[   836    8.191 x1.00] LOG  [AirPosePin] engaged, holding body at 0.654m above the transform
+[   912    8.870 x1.00] LOG  [DodgeTrace] 2leg flip: clip 0.67s, ran 0.69s, asked 4.0m, actually moved 4.05m forward and rose 1.50m at the peak (Dodge Height 1.5), travel finished at 0.68s, leaving 0.01s of clip with nothing moving.
+[   912    8.870 x1.00] LOG  [Combat] Dodge ended
+[   912    8.870 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[   913    8.879 x1.00] LOG  💨 Landing VFX spawned!
+[   913    8.879 x1.00] LOG  ✅ LANDED! (was jump #0)
+[   960    9.102 x1.00] LOG  [Combat] Dodge: Dodge_2Leg (4m, 2leg)
+[   960    9.102 x1.00] LOG  [DodgeTrace] 2leg flip: clip 0.67s, ran 0.01s, asked 4.0m, actually moved 0.20m forward and rose 0.00m at the peak (Dodge Height 1.5), travel finished at 0.01s, leaving 0.00s of clip with nothing moving.
+[   960    9.102 x1.00] LOG  [Combat] Dodge ended
+[  1083    9.652 x1.00] LOG  [Combat] Dodge: Dodge_2Leg (4m, 2leg)
+[  1083    9.652 x1.00] LOG  [AirPosePin] engaged, holding body at 0.657m above the transform
+[  1086    9.680 x1.00] LOG  [OniBoss:Layer] watch stance OFF, back to Idle (player 16.5m)
+[  1158   10.336 x1.00] LOG  [DodgeTrace] 2leg flip: clip 0.67s, ran 0.69s, asked 4.0m, actually moved 4.08m forward and rose 1.50m at the peak (Dodge Height 1.5), travel finished at 0.69s, leaving 0.01s of clip with nothing moving.
+[  1158   10.336 x1.00] LOG  [Combat] Dodge ended
+[  1158   10.336 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  1159   10.344 x1.00] LOG  💨 Landing VFX spawned!
+[  1159   10.344 x1.00] LOG  ✅ LANDED! (was jump #0)
+[  1458   11.692 x1.00] LOG  [Combat] Dodge: Dodge_2Leg (4m, 2leg)
+[  1458   11.692 x1.00] LOG  [AirPosePin] engaged, holding body at 0.653m above the transform
+[  1459   11.701 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  1460   11.711 x1.00] LOG  [AirPosePin] engaged, holding body at 0.657m above the transform
+[  1534   12.371 x1.00] LOG  [DodgeTrace] 2leg flip: clip 0.67s, ran 0.69s, asked 4.0m, actually moved 4.06m forward and rose 1.50m at the peak (Dodge Height 1.5), travel finished at 0.68s, leaving 0.01s of clip with nothing moving.
+[  1534   12.371 x1.00] LOG  [Combat] Dodge ended
+[  1534   12.371 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  1535   12.379 x1.00] LOG  💨 Landing VFX spawned!
+[  1535   12.379 x1.00] LOG  ✅ LANDED! (was jump #0)
+[  1932   14.419 x1.00] LOG  [Combat] Dodge: Dodge_4Leg (3m, 4leg)
+[  1932   14.419 x1.00] LOG  [AirPosePin] engaged, holding body at 0.799m above the transform
+[  1933   14.423 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  1934   14.437 x1.00] LOG  [AirPosePin] engaged, holding body at 0.771m above the transform
+[  1987   14.956 x1.00] LOG  [Combat] Dodge early exit at 86% (movement input)
+[  1987   14.956 x1.00] LOG  [DodgeTrace] 4leg flip: clip 0.62s, ran 0.54s, asked 3.0m, actually moved 2.59m forward and rose 1.50m at the peak (Dodge Height 1.5), travel never completed (cut short).
+[  1987   14.956 x1.00] LOG  [Combat] Dodge ended
+[  1987   14.956 x1.00] LOG  [AirPosePin] released, peak correction was -0.489m
+[  2001   15.045 x1.00] LOG  💨 Landing VFX spawned!
+[  2001   15.045 x1.00] LOG  ✅ LANDED! (was jump #0)
+[  2072   15.454 x1.00] LOG  [Combat] Dodge: Dodge_4Leg (3m, 4leg)
+[  2072   15.454 x1.00] LOG  [AirPosePin] engaged, holding body at 0.537m above the transform
+[  2073   15.457 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  2074   15.466 x1.00] LOG  [AirPosePin] engaged, holding body at 0.558m above the transform
+[  2135   15.986 x1.00] LOG  [Combat] Dodge early exit at 85% (movement input)
+[  2135   15.986 x1.00] LOG  [DodgeTrace] 4leg flip: clip 0.62s, ran 0.54s, asked 3.0m, actually moved 2.59m forward and rose 1.50m at the peak (Dodge Height 1.5), travel never completed (cut short).
+[  2135   15.986 x1.00] LOG  [Combat] Dodge ended
+[  2135   15.986 x1.00] LOG  [AirPosePin] released, peak correction was -0.570m
+[  2152   16.082 x1.00] LOG  💨 Landing VFX spawned!
+[  2152   16.082 x1.00] LOG  ✅ LANDED! (was jump #0)
+[  2229   16.522 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  2229   16.522 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  2229   16.522 x1.00] LOG  [AirPosePin] engaged, holding body at 0.535m above the transform
+[  2277   16.930 x1.00] LOG  [Combat] Dash done: ground dash, grounded 48/48 frames, pose pin held 0.53m, pin correction now 0.054m, manual lift 0.050m
+[  2277   16.930 x1.00] LOG  [Combat] Dash ended
+[  2277   16.930 x1.00] LOG  [AirPosePin] released, peak correction was 0.054m
+[  2615   18.470 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  2615   18.470 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  2615   18.470 x1.00] LOG  [AirPosePin] engaged, holding body at 0.593m above the transform
+[  2660   18.872 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.59m, pin correction now 0.112m, manual lift 0.050m
+[  2660   18.872 x1.00] LOG  [Combat] Dash ended
+[  2660   18.872 x1.00] LOG  [AirPosePin] released, peak correction was 0.112m
+[  2861   19.990 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  2861   19.990 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  2861   19.990 x1.00] LOG  [AirPosePin] engaged, holding body at 0.522m above the transform
+[  2906   20.388 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.52m, pin correction now 0.046m, manual lift 0.050m
+[  2906   20.388 x1.00] LOG  [Combat] Dash ended
+[  2906   20.388 x1.00] LOG  [AirPosePin] released, peak correction was 0.046m
+[  3285   22.417 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  3285   22.417 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  3285   22.417 x1.00] LOG  [AirPosePin] engaged, holding body at 0.701m above the transform
+[  3330   22.819 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.70m, pin correction now 0.229m, manual lift 0.050m
+[  3330   22.819 x1.00] LOG  [Combat] Dash ended
+[  3330   22.819 x1.00] LOG  [AirPosePin] released, peak correction was 0.229m
+[  3345   22.902 x1.00] LOG  [OniBoss:Layer] watch stance ON (player 14.9m)
+[  3430   23.416 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  3430   23.416 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  3430   23.416 x1.00] LOG  [AirPosePin] engaged, holding body at 0.718m above the transform
+[  3474   23.809 x1.00] LOG  [Combat] Dash done: ground dash, grounded 44/44 frames, pose pin held 0.72m, pin correction now 0.249m, manual lift 0.050m
+[  3474   23.809 x1.00] LOG  [Combat] Dash ended
+[  3474   23.809 x1.00] LOG  [AirPosePin] released, peak correction was 0.249m
+[  3647   24.689 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  3647   24.689 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  3647   24.689 x1.00] LOG  [AirPosePin] engaged, holding body at 0.600m above the transform
+[  3692   25.102 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.60m, pin correction now 0.105m, manual lift 0.050m
+[  3692   25.102 x1.00] LOG  [Combat] Dash ended
+[  3692   25.102 x1.00] LOG  [AirPosePin] released, peak correction was 0.105m
+[  3771   25.470 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  3771   25.470 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  3771   25.470 x1.00] LOG  [AirPosePin] engaged, holding body at 0.623m above the transform
+[  3816   25.874 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.62m, pin correction now 0.128m, manual lift 0.050m
+[  3816   25.874 x1.00] LOG  [Combat] Dash ended
+[  3816   25.874 x1.00] LOG  [AirPosePin] released, peak correction was 0.128m
+[  4181   27.604 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  4181   27.604 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  4181   27.604 x1.00] LOG  [AirPosePin] engaged, holding body at 0.548m above the transform
+[  4225   27.993 x1.00] LOG  [Combat] Dash done: ground dash, grounded 44/44 frames, pose pin held 0.55m, pin correction now 0.053m, manual lift 0.050m
+[  4225   27.993 x1.00] LOG  [Combat] Dash ended
+[  4225   27.993 x1.00] LOG  [AirPosePin] released, peak correction was 0.053m
+[  4284   28.340 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  4284   28.340 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  4284   28.340 x1.00] LOG  [AirPosePin] engaged, holding body at 0.575m above the transform
+[  4320   28.740 x1.00] LOG  [Combat] Dash done: ground dash, grounded 36/36 frames, pose pin held 0.57m, pin correction now 0.080m, manual lift 0.050m
+[  4320   28.740 x1.00] LOG  [Combat] Dash ended
+[  4320   28.740 x1.00] LOG  [AirPosePin] released, peak correction was 0.080m
+[  4388   29.138 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  4388   29.138 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  4388   29.138 x1.00] LOG  [AirPosePin] engaged, holding body at 0.545m above the transform
+[  4432   29.530 x1.00] LOG  [Combat] Dash done: ground dash, grounded 44/44 frames, pose pin held 0.54m, pin correction now 0.050m, manual lift 0.050m
+[  4432   29.530 x1.00] LOG  [Combat] Dash ended
+[  4432   29.530 x1.00] LOG  [AirPosePin] released, peak correction was 0.050m
+[  4605   30.499 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  4605   30.499 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  4605   30.499 x1.00] LOG  [AirPosePin] engaged, holding body at 0.556m above the transform
+[  4650   30.906 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.56m, pin correction now 0.061m, manual lift 0.050m
+[  4650   30.906 x1.00] LOG  [Combat] Dash ended
+[  4650   30.906 x1.00] LOG  [AirPosePin] released, peak correction was 0.061m
+[  4693   31.162 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  4693   31.162 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  4693   31.162 x1.00] LOG  [AirPosePin] engaged, holding body at 0.606m above the transform
+[  4696   31.185 x1.00] LOG  [OniBoss:Layer] watch stance OFF, back to Idle (player 16.6m)
+[  4737   31.562 x1.00] LOG  [Combat] Dash done: ground dash, grounded 44/44 frames, pose pin held 0.61m, pin correction now 0.111m, manual lift 0.050m
+[  4737   31.562 x1.00] LOG  [Combat] Dash ended
+[  4737   31.562 x1.00] LOG  [AirPosePin] released, peak correction was 0.111m
+[  4782   31.809 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  4782   31.809 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  4782   31.809 x1.00] LOG  [AirPosePin] engaged, holding body at 0.574m above the transform
+[  4825   32.212 x1.00] LOG  [Combat] Dash done: ground dash, grounded 43/43 frames, pose pin held 0.57m, pin correction now 0.079m, manual lift 0.050m
+[  4825   32.212 x1.00] LOG  [Combat] Dash ended
+[  4825   32.212 x1.00] LOG  [AirPosePin] released, peak correction was 0.079m
+[  4915   32.749 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  4915   32.749 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  4915   32.749 x1.00] LOG  [AirPosePin] engaged, holding body at 0.546m above the transform
+[  4960   33.140 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.55m, pin correction now 0.051m, manual lift 0.050m
+[  4960   33.140 x1.00] LOG  [Combat] Dash ended
+[  4960   33.140 x1.00] LOG  [AirPosePin] released, peak correction was 0.051m
+[  5167   34.359 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  5167   34.359 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  5167   34.359 x1.00] LOG  [AirPosePin] engaged, holding body at 0.583m above the transform
+[  5212   34.753 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.58m, pin correction now 0.111m, manual lift 0.050m
+[  5212   34.753 x1.00] LOG  [Combat] Dash ended
+[  5212   34.753 x1.00] LOG  [AirPosePin] released, peak correction was 0.111m
+[  5308   35.242 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  5308   35.242 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  5308   35.242 x1.00] LOG  [AirPosePin] engaged, holding body at 0.632m above the transform
+[  5352   35.632 x1.00] LOG  [Combat] Dash done: ground dash, grounded 44/44 frames, pose pin held 0.63m, pin correction now 0.166m, manual lift 0.050m
+[  5352   35.632 x1.00] LOG  [Combat] Dash ended
+[  5352   35.632 x1.00] LOG  [AirPosePin] released, peak correction was 0.166m
+[  5488   36.403 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  5488   36.403 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  5488   36.403 x1.00] LOG  [AirPosePin] engaged, holding body at 0.637m above the transform
+[  5533   36.798 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.64m, pin correction now 0.171m, manual lift 0.050m
+[  5533   36.798 x1.00] LOG  [Combat] Dash ended
+[  5533   36.798 x1.00] LOG  [AirPosePin] released, peak correction was 0.171m
+[  5574   37.019 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  5574   37.019 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  5574   37.019 x1.00] LOG  [AirPosePin] engaged, holding body at 0.574m above the transform
+[  5620   37.413 x1.00] LOG  [Combat] Dash done: ground dash, grounded 46/46 frames, pose pin held 0.57m, pin correction now 0.101m, manual lift 0.050m
+[  5620   37.413 x1.00] LOG  [Combat] Dash ended
+[  5620   37.413 x1.00] LOG  [AirPosePin] released, peak correction was 0.101m
+[  5636   37.505 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  5636   37.505 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  5636   37.505 x1.00] LOG  [AirPosePin] engaged, holding body at 0.657m above the transform
+[  5680   37.911 x1.00] LOG  [Combat] Dash done: ground dash, grounded 44/44 frames, pose pin held 0.66m, pin correction now 0.168m, manual lift 0.050m
+[  5680   37.911 x1.00] LOG  [Combat] Dash ended
+[  5680   37.911 x1.00] LOG  [AirPosePin] released, peak correction was 0.168m
+[  5704   38.058 x1.00] LOG  [Combat] Dash: DodgeDash_4Leg (5m, 20 dmg, 4leg)
+[  5704   38.058 x1.00] LOG  [Combat] Dash movement: 5.0m over 0.40s (Dash Move Duration) = 12.5 m/s
+[  5704   38.058 x1.00] LOG  [AirPosePin] engaged, holding body at 0.667m above the transform
+[  5748   38.453 x1.00] LOG  [Combat] Dash done: ground dash, grounded 44/44 frames, pose pin held 0.67m, pin correction now 0.195m, manual lift 0.050m
+[  5748   38.453 x1.00] LOG  [Combat] Dash ended
+[  5748   38.453 x1.00] LOG  [AirPosePin] released, peak correction was 0.195m
+[  5941   39.645 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  5941   39.645 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  5941   39.645 x1.00] LOG  [AirPosePin] engaged, holding body at 0.592m above the transform
+[  5988   40.043 x1.00] LOG  [Combat] Dash done: ground dash, grounded 47/47 frames, pose pin held 0.59m, pin correction now 0.097m, manual lift 0.050m
+[  5988   40.043 x1.00] LOG  [Combat] Dash ended
+[  5988   40.043 x1.00] LOG  [AirPosePin] released, peak correction was 0.097m
+[  6009   40.162 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  6009   40.162 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  6009   40.162 x1.00] LOG  [AirPosePin] engaged, holding body at 0.565m above the transform
+[  6047   40.564 x1.00] LOG  [Combat] Dash done: ground dash, grounded 38/38 frames, pose pin held 0.56m, pin correction now 0.070m, manual lift 0.050m
+[  6047   40.564 x1.00] LOG  [Combat] Dash ended
+[  6047   40.564 x1.00] LOG  [AirPosePin] released, peak correction was 0.070m
+[  6083   40.761 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  6083   40.761 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  6083   40.761 x1.00] LOG  [AirPosePin] engaged, holding body at 0.573m above the transform
+[  6129   41.166 x1.00] LOG  [Combat] Dash done: ground dash, grounded 46/46 frames, pose pin held 0.57m, pin correction now 0.078m, manual lift 0.050m
+[  6129   41.166 x1.00] LOG  [Combat] Dash ended
+[  6129   41.166 x1.00] LOG  [AirPosePin] released, peak correction was 0.078m
+[  6169   41.403 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  6169   41.403 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  6169   41.403 x1.00] LOG  [AirPosePin] engaged, holding body at 0.640m above the transform
+[  6217   41.807 x1.00] LOG  [Combat] Dash done: ground dash, grounded 48/48 frames, pose pin held 0.64m, pin correction now 0.145m, manual lift 0.050m
+[  6217   41.807 x1.00] LOG  [Combat] Dash ended
+[  6217   41.807 x1.00] LOG  [AirPosePin] released, peak correction was 0.145m
+[  6264   42.065 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  6264   42.065 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  6264   42.065 x1.00] LOG  [AirPosePin] engaged, holding body at 0.565m above the transform
+[  6309   42.466 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.57m, pin correction now 0.070m, manual lift 0.050m
+[  6309   42.466 x1.00] LOG  [Combat] Dash ended
+[  6309   42.466 x1.00] LOG  [AirPosePin] released, peak correction was 0.070m
+[  6349   42.693 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  6349   42.693 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  6349   42.693 x1.00] LOG  [AirPosePin] engaged, holding body at 0.530m above the transform
+[  6395   43.083 x1.00] LOG  [Combat] Dash done: ground dash, grounded 46/46 frames, pose pin held 0.53m, pin correction now 0.035m, manual lift 0.050m
+[  6395   43.083 x1.00] LOG  [Combat] Dash ended
+[  6395   43.083 x1.00] LOG  [AirPosePin] released, peak correction was 0.035m
+[  6449   43.404 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  6449   43.404 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  6449   43.404 x1.00] LOG  [AirPosePin] engaged, holding body at 0.620m above the transform
+[  6496   43.806 x1.00] LOG  [Combat] Dash done: ground dash, grounded 47/47 frames, pose pin held 0.62m, pin correction now 0.125m, manual lift 0.050m
+[  6496   43.806 x1.00] LOG  [Combat] Dash ended
+[  6496   43.806 x1.00] LOG  [AirPosePin] released, peak correction was 0.125m
+[  6664   44.714 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  6664   44.714 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  6664   44.714 x1.00] LOG  [AirPosePin] engaged, holding body at 0.567m above the transform
+[  6709   45.119 x1.00] LOG  [Combat] Dash done: ground dash, grounded 45/45 frames, pose pin held 0.57m, pin correction now 0.072m, manual lift 0.050m
+[  6709   45.119 x1.00] LOG  [Combat] Dash ended
+[  6709   45.119 x1.00] LOG  [AirPosePin] released, peak correction was 0.072m
+[  6794   45.631 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  6794   45.631 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  6794   45.631 x1.00] LOG  [AirPosePin] engaged, holding body at 0.574m above the transform
+[  6840   46.027 x1.00] LOG  [Combat] Dash done: ground dash, grounded 46/46 frames, pose pin held 0.57m, pin correction now 0.079m, manual lift 0.050m
+[  6840   46.027 x1.00] LOG  [Combat] Dash ended
+[  6840   46.027 x1.00] LOG  [AirPosePin] released, peak correction was 0.079m
+[  7033   47.181 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  7033   47.181 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  7033   47.181 x1.00] LOG  [AirPosePin] engaged, holding body at 0.567m above the transform
+[  7081   47.585 x1.00] LOG  [Combat] Dash done: ground dash, grounded 48/48 frames, pose pin held 0.57m, pin correction now 0.072m, manual lift 0.050m
+[  7081   47.585 x1.00] LOG  [Combat] Dash ended
+[  7081   47.585 x1.00] LOG  [AirPosePin] released, peak correction was 0.072m
+[  7192   48.277 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  7192   48.277 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  7192   48.277 x1.00] LOG  [AirPosePin] engaged, holding body at 0.621m above the transform
+[  7238   48.681 x1.00] LOG  [Combat] Dash done: ground dash, grounded 46/46 frames, pose pin held 0.62m, pin correction now 0.126m, manual lift 0.050m
+[  7238   48.681 x1.00] LOG  [Combat] Dash ended
+[  7238   48.681 x1.00] LOG  [AirPosePin] released, peak correction was 0.126m
+[  7297   49.066 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  7297   49.066 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  7297   49.066 x1.00] LOG  [AirPosePin] engaged, holding body at 0.588m above the transform
+[  7343   49.464 x1.00] LOG  [Combat] Dash done: ground dash, grounded 46/46 frames, pose pin held 0.59m, pin correction now 0.093m, manual lift 0.050m
+[  7343   49.464 x1.00] LOG  [Combat] Dash ended
+[  7343   49.464 x1.00] LOG  [AirPosePin] released, peak correction was 0.093m
+[  7753   51.412 x1.00] LOG  [StormWeather] terrain layers restored to dry values.
+# end — 298 lines

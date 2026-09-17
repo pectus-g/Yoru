@@ -280,8 +280,10 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float dodge4LegDistance = 2.5f;
 
     [Header("Dodge: Arc")]
-    [Tooltip("Height of the frontflip arc. 0 = flat, 1.5 = noticeable hop, 3 = big leap")]
+    [Tooltip("Height of the 2-leg frontflip arc. 0 = flat, 1.5 = noticeable hop, 3 = big leap")]
     [SerializeField] private float dodgeHeight = 1.5f;
+    [Tooltip("Height of the 4-leg frontflip arc, separate so the sprinting flip can leap bigger than the standing one.")]
+    [SerializeField] private float dodge4LegHeight = 2.2f;
     [Tooltip("Speed dial for the frontflip clips (Dodge_2Leg, Dodge_4Leg), on top of their Animator state speed. Drives the DodgeSpeed parameter. The travel is slaved to the clip, so the flip covers the same distance in less time. 1 = today, 1.3 = a third quicker.")]
     [SerializeField] private float dodgeSpeed = 1.3f;
 
@@ -346,17 +348,13 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("Duration in seconds for guardModelYOffset to ramp up (Q press / guard entry) or ramp down (Q release / guard exit). v27 recommendation: match this to guardExitBlendTime so the body Y offset descent finishes at the same moment as the parry-to-standing pose blend. Mismatch produces either a brief float (ramp longer than blend) or brief paw clipping (ramp shorter than blend) for the difference window. Default 0.3s matches the v27 default for guardExitBlendTime.")]
     [SerializeField] private float guardOffsetRampDuration = 0.3f;
     [Tooltip("Y offset applied to bodyYoru during dash to lift paw tips off ground")]
-    [SerializeField] private float dashModelYOffset = 0.05f;
+    [SerializeField] private float dashModelYOffset = 0.15f;
     [Tooltip("Seconds for the dash lift to reach Dash Model Y Offset. A dash is over in half a second, so this has to be near instant; 0.05 lifts her paws clear on the first frames. It used to share the guard ramp, which moved the dash lift at the guard's tiny speed (0.02 m over 0.3 s) and never arrived before the dash was over: that was the sinking paws.")]
     [SerializeField] private float dashOffsetRampDuration = 0.05f;
     [Tooltip("Metres per second a GROUND dash is pressed onto the floor while it travels. A purely sideways Move leaves the CharacterController reading 'not grounded' from its second frame, so every dash ended with a fake landing 0.4 s later: landing dust, landing clip, the little hop. This keeps ground contact and follows slopes; it is not gravity and adds no speed. A dash that starts in the air is untouched and still holds its height.")]
     [SerializeField] private float dashGroundStick = 1f;
-    [Tooltip("ON = during a ground dash her body is held at exactly the height it had on the frame the dash began, measured live from her hip bone, and eased back when the dash ends. The dash clip is authored low, and this cancels most of that dip without a hand-tuned number. Dash Model Y Offset is added on top for whatever the hip hold does not cover (the paws reach lower than the hip in the lunge pose), so tune that field for the last few centimetres.")]
-    [SerializeField] private bool dashPinsPoseHeight = true;
-    [Tooltip("ON = during a ground dash the lowest paw bone is measured every frame and the whole body is lifted by exactly enough to keep it above the floor. No number to guess: whatever the dash clip does with her paws, they never render below the ground. Adds to the pose pin and to Dash Model Y Offset. The dash log prints the largest lift it needed.")]
-    [SerializeField] private bool dashKeepsPawsAboveFloor = true;
-    [Tooltip("Metres the lowest paw is kept above the floor by the setting above. 0.02 = just clear, no visible float.")]
-    [SerializeField] private float dashPawClearance = 0.02f;
+    [Tooltip("ON = during a ground dash her hip is held at the height it had when the dash began. Measured 17 Sep: wrong tool for a lunge. The dash clip crouches on purpose, so holding the run-height hip lifted her 5 to 25 cm depending on what she was doing when she pressed dash (log: 'pin correction now 0.05 to 0.25m'), she floated, and the hold chased the clip's hip bob every frame. OFF = the dash lift is Dash Model Y Offset alone, one steady number. Leave OFF.")]
+    [SerializeField] private bool dashPinsPoseHeight = false;
     [Tooltip("Visual model root (auto-finds bodyYoru). Offset during guard/dash for paw clipping fix.")]
     [SerializeField] private Transform visualModelRoot;
 
@@ -609,10 +607,9 @@ public class PlayerCombat : MonoBehaviour
     private bool modelOffsetActive;         // true when bodyYoru Y offset is applied
     private bool modelOffsetRampIsDash;     // which lift the ramp speed follows, kept through the exit ramp
     private bool dashStartedGrounded;       // the current dash began on the floor (ground dash) rather than in the air
+    private bool dashWallHitShown;          // one wall-hit effect per dash
     private bool airPinDashRelease;         // the pin is letting go of a ground dash: ease out instead of the grounded snap-to-zero
     private float activeParryStartSpeed = 1f;   // the Parry_Start speed chosen on this Q press (fight or calm)
-    private Transform[] pawBones = System.Array.Empty<Transform>();   // finger and toe bones of the live rig, for the paw clearance
-    private float dashPawLiftPeak;                                     // largest paw-clearance lift this dash, for the log
     private float currentModelYOffset;      // current interpolated offset for smooth transitions
 
     // Air pose height pin. airPinComp is the metres currently added to bodyYoru to cancel the
@@ -706,16 +703,7 @@ public class PlayerCombat : MonoBehaviour
                 Debug.LogWarning("[Combat] WARNING: visualModelRoot (bodyYoru) not found! Assign in Inspector.");
         }
         if (visualModelRoot != null)
-        {
             originalModelLocalPos = visualModelRoot.localPosition;
-
-            // Paw clearance: every finger and toe bone on the live rig. Read each frame during a
-            // dash for the lowest point of her paws. Names come from the rig (IndexFinger*, IndexToe*...).
-            var paws = new System.Collections.Generic.List<Transform>();
-            foreach (Transform t in visualModelRoot.GetComponentsInChildren<Transform>())
-                if (t.name.Contains("Finger") || t.name.Contains("Toe")) paws.Add(t);
-            pawBones = paws.ToArray();
-        }
 
         // Air pose height pin setup. The bone is only ever READ, to measure how high the current
         // pose is holding the body above the transform.
@@ -1007,22 +995,6 @@ public class PlayerCombat : MonoBehaviour
             UpdateAirPoseHeightPin();
 
             float totalOffset = currentModelYOffset + airPinComp;
-
-            // Paw clearance, ground dash only: measure the lowest paw bone as the pose puts it this
-            // frame (with last frame's lift removed so the reading is raw), and lift by what is
-            // missing to keep it at Dash Paw Clearance above the floor. Composed into the one write.
-            if (dashKeepsPawsAboveFloor && isDashing && dashStartedGrounded && pawBones.Length > 0)
-            {
-                float appliedLastFrame = visualModelRoot.localPosition.y - originalModelLocalPos.y;
-                float lowest = float.MaxValue;
-                foreach (Transform paw in pawBones)
-                    if (paw != null && paw.position.y < lowest) lowest = paw.position.y;
-                float rawLowest = lowest - cachedTransform.position.y - appliedLastFrame;
-                float lift = Mathf.Max(0f, dashPawClearance - rawLowest - totalOffset);
-                totalOffset += lift;
-                if (lift > dashPawLiftPeak) dashPawLiftPeak = lift;
-            }
-
             bool needsOffset = Mathf.Abs(totalOffset) > 0.001f;
             if (needsOffset)
             {
@@ -1067,9 +1039,13 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        // Body height the CURRENT pose is producing, with last frame's compensation removed so the
-        // measurement stays raw.
-        float rawPoseY = poseHeightBone.position.y - cachedTransform.position.y - airPinComp;
+        // Body height the CURRENT pose is producing, with EVERYTHING applied to the model last frame
+        // removed so the measurement stays raw. ROUND 44: this used to subtract only the pin's own
+        // correction, so any other lift (the guard offset, the dash's manual lift) read as 'the
+        // pose sits higher' and the pin quietly cancelled it. That is why Dash Model Y Offset had
+        // no visible effect at 0.04, 0.1 or 0.15 while the pin was holding the dash.
+        float appliedLastFrame = visualModelRoot != null ? visualModelRoot.localPosition.y - originalModelLocalPos.y : airPinComp;
+        float rawPoseY = poseHeightBone.position.y - cachedTransform.position.y - appliedLastFrame;
 
         bool airborne = characterController != null && !characterController.isGrounded;
         int combatState = animator.GetCurrentAnimatorStateInfo(combatLayerIndex).shortNameHash;
@@ -1792,18 +1768,23 @@ public class PlayerCombat : MonoBehaviour
             // 0.80s. On the switching frame the remapped progress can go DOWN, which moved her
             // backwards for a frame. Clamping here removes that jitter at the source.
             float frameDelta = Mathf.Max(0f, eased - previousEased);
-            previousEased = eased;
+            // ROUND 44: a second C press on the frame a flip ends read the OLD state's progress as
+            // 1.0 and spent the whole distance in one frame (log: 3 m moved in 0.02 s, a teleport).
+            // No single frame may travel more than three times the flip's average speed.
+            frameDelta = Mathf.Min(frameDelta, 3f * Time.deltaTime / Mathf.Max(0.05f, duration));
+            previousEased = Mathf.Min(eased, previousEased + frameDelta);
 
             if (characterController != null && characterController.enabled)
             {
                 Vector3 move = direction * (distance * frameDelta);
 
-                if (dodgeHeight > 0f)
+                float arcHeight = is4Leg ? dodge4LegHeight : dodgeHeight;
+                if (arcHeight > 0f)
                 {
                     // Use eased t (not raw t) for zero-velocity arc endpoints:
                     // sin(smoothstep(t) * PI) has derivative=0 at t=0 and t=1,
                     // eliminating sudden Y jolts that cause camera overshoot.
-                    float arc = Mathf.Sin(eased * Mathf.PI) * dodgeHeight;
+                    float arc = Mathf.Sin(eased * Mathf.PI) * arcHeight;
                     float arcDelta = arc - previousArc;
                     previousArc = arc;
                     move.y += arcDelta;
@@ -1873,6 +1854,7 @@ public class PlayerCombat : MonoBehaviour
     private void EndDodge()
     {
         isDodging = false;
+        if (vfxManager != null) vfxManager.StopTrailVFX();
         if (dodgeCoroutine != null)
         {
             StopCoroutine(dodgeCoroutine);
@@ -2004,8 +1986,8 @@ public class PlayerCombat : MonoBehaviour
     {
         bool startedGrounded = characterController != null && characterController.isGrounded;
         dashStartedGrounded = startedGrounded;
-        dashPawLiftPeak = 0f;
         int groundedFrames = 0, dashFrames = 0;
+        float yMin = cachedTransform.position.y, yMax = yMin;   // controller height wobble during the dash
 
         // ROUND 13: an explicit travel time wins. The animator path below is kept for anyone who
         // sets Dash Move Duration to 0, but it is no longer the default, it was reading the
@@ -2084,6 +2066,8 @@ public class PlayerCombat : MonoBehaviour
                 characterController.Move(move);
                 dashFrames++;
                 if (characterController.isGrounded) groundedFrames++;
+                yMin = Mathf.Min(yMin, cachedTransform.position.y);
+                yMax = Mathf.Max(yMax, cachedTransform.position.y);
             }
 
             DealDashDamage(hitEnemyIDs);
@@ -2092,7 +2076,7 @@ public class PlayerCombat : MonoBehaviour
         }
 
         if (logDodgeTiming)
-            DebugLog($"Dash done: {(startedGrounded ? "ground" : "air")} dash, grounded {groundedFrames}/{dashFrames} frames, pose pin {(dashPinsPoseHeight && startedGrounded ? "held " + airPinHeldPoseY.ToString("F2") + "m" : "off")}, paw clearance lifted up to {dashPawLiftPeak:F3}m");
+            DebugLog($"Dash done: {(startedGrounded ? "ground" : "air")} dash, grounded {groundedFrames}/{dashFrames} frames, pose pin {(dashPinsPoseHeight && startedGrounded ? "held " + airPinHeldPoseY.ToString("F2") + "m" : "off")}, pin correction now {airPinComp:F3}m, manual lift {currentModelYOffset:F3}m, controller height wobble {(yMax - yMin) * 100f:F1}cm");
         EndDash();
     }
 
@@ -2113,6 +2097,7 @@ public class PlayerCombat : MonoBehaviour
                 DebugLog($"Dash hit {enemy.name} for {dashDamage}");
 
                 Vector3 contactPoint = enemy.ClosestPoint(attackPoint.position);
+                if (vfxManager != null) vfxManager.PlayDashHitVFX(contactPoint);
                 if (CombatFeedbackManager.Instance != null)
                 {
                     Animator enemyAnimator = enemy.GetComponent<Animator>();
@@ -2126,9 +2111,26 @@ public class PlayerCombat : MonoBehaviour
         }
     }
 
+    /// <summary>The CharacterController touched something. Only cared about while dashing: a
+    /// near-vertical surface in front of her is a wall, and the dash shows its wall-hit effect
+    /// there, once. Floors and enemies are ignored (enemies have their own dash hit).</summary>
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (!isDashing || dashWallHitShown || hit.collider == null) return;
+        if (hit.normal.y > 0.4f) return;                                   // floor or ramp, not a wall
+        if (((1 << hit.collider.gameObject.layer) & enemyLayer.value) != 0) return;
+        Vector3 dashDir = dashLockedRotation * Vector3.forward;
+        if (Vector3.Dot(hit.normal, dashDir) > -0.5f) return;              // not in her path
+        dashWallHitShown = true;
+        if (vfxManager != null) vfxManager.PlayDashWallHitVFX(hit.point, hit.normal);
+        DebugLog($"Dash hit a wall: {hit.collider.name}");
+    }
+
     private void EndDash()
     {
         isDashing = false;
+        dashWallHitShown = false;
+        if (vfxManager != null) vfxManager.StopTrailVFX();
         if (dashCoroutine != null)
         {
             StopCoroutine(dashCoroutine);
@@ -2216,6 +2218,7 @@ public class PlayerCombat : MonoBehaviour
         if (isDodging)
         {
             isDodging = false;
+            if (vfxManager != null) vfxManager.StopTrailVFX();   // cancelled flip: release its trail too
             if (dodgeCoroutine != null)
             {
                 StopCoroutine(dodgeCoroutine);
@@ -2226,6 +2229,8 @@ public class PlayerCombat : MonoBehaviour
         if (isDashing)
         {
             isDashing = false;
+            dashWallHitShown = false;
+            if (vfxManager != null) vfxManager.StopTrailVFX();   // cancelled dash: release its trail too
             if (dashCoroutine != null)
             {
                 StopCoroutine(dashCoroutine);
@@ -4014,6 +4019,7 @@ public class PlayerCombat : MonoBehaviour
         if (isDodging)
         {
             isDodging = false;
+            if (vfxManager != null) vfxManager.StopTrailVFX();   // cancelled flip: release its trail too
             if (dodgeCoroutine != null)
             {
                 StopCoroutine(dodgeCoroutine);
@@ -4023,6 +4029,8 @@ public class PlayerCombat : MonoBehaviour
         if (isDashing)
         {
             isDashing = false;
+            dashWallHitShown = false;
+            if (vfxManager != null) vfxManager.StopTrailVFX();   // cancelled dash: release its trail too
             if (dashCoroutine != null)
             {
                 StopCoroutine(dashCoroutine);
