@@ -237,6 +237,16 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private float attackAimTurnSpeed = 0f;
     [Tooltip("Fraction of the attack clip (0 to 1) during which Attack Aim Turn Speed applies. Past it the facing is locked. Keep it below the attack's damage moment.")]
     [SerializeField] private float attackAimWindow = 0.2f;
+
+    [Header("Combo Finisher Step In (opt-in)")]
+    [Tooltip("Metres the enemy may walk toward the player during the wind-up of the LAST hit of a combo when she is out of reach (her flinch from the earlier hits pushed her back). 0 = off, the finisher swings where he stands. 1.5 = one visible step, never a teleport. Attacks that lunge or pull on their own are left alone.")]
+    [SerializeField] private float finisherStepInMax = 0f;
+    [Tooltip("Speed of that step in metres per second. Keep it at a walk (3 to 6) so the player can read it.")]
+    [SerializeField] private float finisherStepInSpeed = 4f;
+    [Tooltip("Fraction of the finisher clip (0 to 1) during which the step is allowed. Keep it below the attack's strike moment so the step is part of the wind-up, not the swing.")]
+    [SerializeField] private float finisherStepInUntil = 0.5f;
+    [Tooltip("The step stops once the player is this many metres inside Attack Range, so he arrives in reach without walking through her.")]
+    [SerializeField] private float finisherStepInStopMargin = 0.5f;
     [Tooltip("Below this horizontal distance (metres) LookAtPlayer does not turn at all. 0 = old behavior (turn toward any direction, however tiny). A player standing on top of / directly above the enemy produces a near-zero flat direction that flips every frame — turning toward it makes the body shudder. Boss layers set ~1.0.")]
     [SerializeField] private float lookAtMinFlatDistance = 0f;
     [Tooltip("ON = old behavior: the enemy keeps turning to face the player during its hit-react flinch. OFF = the flinch plays where the body is; no tracking. Boss layers turn this off.")]
@@ -364,6 +374,7 @@ public class EnemyCombat : MonoBehaviour
     // Combo — queued attackNames for the active sequence. Empty = single attack.
     private readonly System.Collections.Generic.Queue<EnemyAttack> comboQueue = new System.Collections.Generic.Queue<EnemyAttack>();
     private string activeComboName = "";
+    private float finisherStepped;   // metres already walked by the current finisher's step-in
     private int comboStepIndex; // ROUND 42: 1-based position of the current attack inside its combo (see ComboDamageMultiplier)
     
     // Alert (only triggers once per encounter)
@@ -1563,6 +1574,35 @@ public class EnemyCombat : MonoBehaviour
             float dist = toEnemy.magnitude;
             if (dist > currentAttack.pullStopDistance)
                 playerMovement.ApplyExternalPull(toEnemy.normalized * currentAttack.pullSpeed, Time.deltaTime * 2f);
+        }
+
+        // Combo finisher step-in: the last hit of a combo walks one readable step toward the player
+        // during its wind-up when she is out of reach, so the finisher can land on a player who just
+        // stood there after the earlier hits, while a player who flips out of the flinch still escapes.
+        // Along his facing when the facing is locked (he commits, a sidestep beats it), toward her
+        // otherwise. Capped in distance, only during the wind-up, never for lunging or pulling attacks.
+        if (finisherStepInMax > 0f && currentAttack != null && player != null && !lunging
+            && !currentAttack.pullsPlayer && !currentAttack.lungeToPlayer
+            && !string.IsNullOrEmpty(activeComboName) && comboQueue.Count == 0
+            && finisherStepped < finisherStepInMax && AttackClipProgress() < finisherStepInUntil)
+        {
+            Vector3 toHer = player.position - transform.position;
+            toHer.y = 0f;
+            float reach = Mathf.Max(0.1f, attackRange - finisherStepInStopMargin);
+            float gap = toHer.magnitude - reach;
+            if (gap > 0f)
+            {
+                Vector3 dir = lockFacingDuringAttack ? transform.forward : toHer.normalized;
+                dir.y = 0f;
+                if (dir.sqrMagnitude > 0.0001f)
+                {
+                    float step = Mathf.Min(finisherStepInSpeed * Time.deltaTime, finisherStepInMax - finisherStepped, gap);
+                    if (navAgent != null && navAgent.isOnNavMesh) navAgent.Move(dir.normalized * step);
+                    else transform.position += dir.normalized * step;
+                    if (finisherStepped <= 0f) DebugLog($"Finisher step-in: {currentAttack.attackName}, she is {gap:F2}m out of reach, walking up to {finisherStepInMax}m");
+                    finisherStepped += step;
+                }
+            }
         }
 
         // Early strike: when this attack defines a Strike Moment below 1, the damage (and the
@@ -2834,6 +2874,7 @@ private void TriggerHitFlash()
         cachedClipLength = 0f;
         strikeFired = false; // re-arm the Strike Moment for the new clip
         touchStrikeConnected = false; // ROUND 39: re-arm the touch delivery too
+        finisherStepped = 0f;         // re-arm the finisher step-in
         chaseFrustration = 0f; // ROUND 51: any attack starting means the chase is no longer failing
         
         if (animator == null || string.IsNullOrEmpty(stateName)) return;

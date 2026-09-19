@@ -224,6 +224,8 @@ public class PlayerCombat : MonoBehaviour
     [Header("Hit Reaction Timing")]
     [SerializeField] private float lightHitReactDuration = 0.3f;
     [SerializeField] private float heavyHitReactDuration = 0.5f;
+    [Tooltip("The exit. From this fraction of a LIGHT hit reaction (0.5 = halfway through the flinch) the flip and the dash work again and cut the flinch short, so a player who reacts escapes the combo finisher. Attacks and guard stay locked until the flinch ends. A HEAVY flinch is never cut: that one is the punishment. 1 = old rule, the whole flinch locks everything.")]
+    [Range(0f, 1f)] [SerializeField] private float hitReactCancelFrom = 0.5f;
     [Tooltip("ROUND 84. Seconds skipped at the START of the 2-leg LIGHT reaction clip (HitReact_Light_2Leg), so the clip opens on its impact pose instead of its anticipation. Measured from the FBX curves: head, pelvis and body position do not move until 0.40 to 0.47s into the clip, the peak pose is at 0.58s. Starting at 0.40 puts a readable flinch 2 to 3 frames after contact and lets the 0.5s hold cover the peak AND the recovery. 0 = play from frame 0.")]
     [SerializeField] private float hitReactOffsetLight2Leg = 0.40f;
     [Tooltip("ROUND 84. Start offset for the 2-leg HEAVY reaction clip (HitReact_Heavy_2Leg). Measured: it is the same animation as the light clip for its first 0.43s, so it needs the same skip.")]
@@ -575,6 +577,8 @@ public class PlayerCombat : MonoBehaviour
     // Hit reaction
     private bool isInHitReaction;
     private float hitReactionEndTime;
+    private float hitReactionStartTime;
+    private bool hitReactionIsHeavy;
     private Coroutine runningReactCoroutine;  // ROUND 85: the in-stride flinch, see RunningHitReaction
     private bool runningReactActive;          // ROUND 85: deliberately NOT isInHitReaction, so movement is never blocked
     private Coroutine hitReactSafetyCoroutine; // Backup force-clear (independent of UpdateHitReaction)
@@ -1198,7 +1202,15 @@ public class PlayerCombat : MonoBehaviour
             return;
         }
 
-        if (isInHitReaction) return;
+        if (isInHitReaction)
+        {
+            // The exit: late in a light flinch only the flip and the dash get through, nothing else.
+            if (!HitReactionExitOpen()) return;
+            if (playerHealth != null && playerHealth.IsStunned()) return;
+            if (Input.GetKeyDown(dodgeKey) && TryDodge()) return;
+            if (Input.GetKeyDown(dashKey) && TryDash()) return;
+            return;
+        }
         if (isDodging || isDashing) return;
         // Captured/stunned (e.g. enemy grab): no attacks, guard, dodge, dash, or tail abilities.
         // The freeze is time-boxed in PlayerHealth, so this self-releases.
@@ -1648,6 +1660,7 @@ public class PlayerCombat : MonoBehaviour
     {
         combatIdleSettledTimer = 0f;
         movementStuckTimer = 0f;
+        CancelHitReactionForMove("flip");
         if (isAttacking)
         {
             isAttacking = false;
@@ -1955,6 +1968,7 @@ public class PlayerCombat : MonoBehaviour
     {
         combatIdleSettledTimer = 0f;
         movementStuckTimer = 0f;
+        CancelHitReactionForMove("dash");
         if (isAttacking)
         {
             isAttacking = false;
@@ -2422,6 +2436,8 @@ public class PlayerCombat : MonoBehaviour
             CombatSFXManager.Instance.PlayPlayerHit(isHeavy);
 
         isInHitReaction = true;
+        hitReactionStartTime = Time.time;
+        hitReactionIsHeavy = isHeavy;
         hitReactionEndTime = Time.time + duration;
 
         // Backup force-clear coroutine, independent of UpdateHitReaction's Time.time check.
@@ -2779,6 +2795,25 @@ public class PlayerCombat : MonoBehaviour
         }
 
         damageFlashRoutine = null;
+    }
+
+    /// <summary>True while a LIGHT hit reaction has passed Hit React Cancel From, the window in which a
+    /// flip or a dash may cut it short. Never true for a heavy reaction.</summary>
+    private bool HitReactionExitOpen()
+    {
+        if (!isInHitReaction || hitReactionIsHeavy || hitReactCancelFrom >= 1f) return false;
+        float length = Mathf.Max(0.01f, hitReactionEndTime - hitReactionStartTime);
+        return Time.time - hitReactionStartTime >= hitReactCancelFrom * length;
+    }
+
+    /// <summary>A flip or dash was allowed to cut the flinch: drop the reaction cleanly so the move
+    /// owns the combat layer. The hold coroutine exits on its own once the flag is down.</summary>
+    private void CancelHitReactionForMove(string move)
+    {
+        if (!isInHitReaction) return;
+        isInHitReaction = false;
+        if (hitReactSafetyCoroutine != null) { StopCoroutine(hitReactSafetyCoroutine); hitReactSafetyCoroutine = null; }
+        DebugLog($"Hit react cut by {move} at {(Time.time - hitReactionStartTime):F2}s of {(hitReactionEndTime - hitReactionStartTime):F2}s (the exit)");
     }
 
     private void UpdateHitReaction()
