@@ -143,6 +143,12 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private Transform attackPoint;
 
+    [Header("Input Keys")]
+    [Tooltip("Frontflip key. Direction comes from WASD relative to the camera; with no direction held she flips the way she faces. C by default.")]
+    [SerializeField] private KeyCode dodgeKey = KeyCode.C;
+    [Tooltip("Dash key. Same direction rules as the flip. V by default (was the middle mouse button: a wheel click is too slow and too stiff for a timed move, and it fought the held RMB camera).")]
+    [SerializeField] private KeyCode dashKey = KeyCode.V;
+
     [Header("Animation State Names: Combo")]
     [SerializeField] private string combo1StateName = "Combo1";
     [SerializeField] private string combo2StateName = "Combo2";
@@ -259,6 +265,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float comboSpeed = 1.3f;
     [Tooltip("ON = a LIGHT hit interrupts the swing she is in but keeps her place in the combo: after the flinch her next click continues at the next step, as long as it comes inside Combo Window Time counted from the hit. A HEAVY hit still resets to step 1. OFF = any hit resets the combo, the old rule.")]
     [SerializeField] private bool comboMemoryOnLightHit = true;
+    [Tooltip("ON = a flip or dash keeps her place in the combo, the way Bayonetta (Dodge Offset), Nier, God of War's step dodge and Kingdom Hearts 3 do: Combo Window Time restarts when the move ends and her next click continues at the next step. OFF = a flip or dash that cuts a swing resets the combo to step 1, the old rule.")]
+    [SerializeField] private bool comboSurvivesDodge = true;
     [SerializeField] private float attackCooldown = 0.1f;
 
     [Header("Damage")]
@@ -293,7 +301,7 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float iFrameEnd = 0.35f;
     [SerializeField] private float dodgeEarlyExitThreshold = 0.75f;
 
-    [Header("Dash: Distances (RMB rush)")]
+    [Header("Dash: Distances (rush)")]
     [Tooltip("Forward distance for 2-leg dash")]
     [SerializeField] private float dash2LegDistance = 4.0f;
     [Tooltip("Forward distance for 4-leg dash")]
@@ -584,7 +592,7 @@ public class PlayerCombat : MonoBehaviour
     private bool hasUsedAirDodge;
     private float dodgeEndTime;
 
-    // Dash (rush, MMB)
+    // Dash (rush, Dash Key)
     private bool isDashing;
     private float dashStartTime;
     private float currentDashDuration;
@@ -1175,12 +1183,12 @@ public class PlayerCombat : MonoBehaviour
         if (formController != null && formController.IsHuman)
         {
             // Diagnostic, log ONLY on actual input frames, not every Update tick.
-            // If you press C/MMB/LMB in Granny form and see THIS log, the gate is working
+            // If you press the flip key, the dash key or LMB in Granny form and see THIS log, the gate is working
             // and any VFX you see is leftover particles from a prior Yoru action (not a new attack).
             // If you press these keys in Granny form and DON'T see this log, the gate is broken.
-            if (Input.GetKeyDown(KeyCode.C)
+            if (Input.GetKeyDown(dodgeKey)
                 || Input.GetMouseButtonDown(0)
-                || Input.GetMouseButtonDown(2)
+                || Input.GetKeyDown(dashKey)
                 || Input.GetKeyDown(KeyCode.Q))
             {
                 Debug.Log("[PlayerCombat] Combat input BLOCKED in Granny form (Phase 2 gate active).");
@@ -1206,9 +1214,9 @@ public class PlayerCombat : MonoBehaviour
         if (TailAimController.IsAiming || TailAimController.IsShotRunning
             || TailAimController4Leg.IsAiming || TailAimController4Leg.IsShotRunning)
         {
-            if (Input.GetKeyDown(KeyCode.C)
+            if (Input.GetKeyDown(dodgeKey)
                 || Input.GetMouseButtonDown(0)
-                || Input.GetMouseButtonDown(2)
+                || Input.GetKeyDown(dashKey)
                 || Input.GetKeyDown(KeyCode.Q))
             {
                 Debug.Log("[PlayerCombat] Combat input BLOCKED during tail air shot.");
@@ -1260,14 +1268,14 @@ public class PlayerCombat : MonoBehaviour
             return; // Q held (or pending release within grace), guard overrides everything
         }
 
-        // Dodge input (C key)
-        if (Input.GetKeyDown(KeyCode.C))
+        // Frontflip input (Dodge Key, C by default)
+        if (Input.GetKeyDown(dodgeKey))
         {
             if (TryDodge()) return;
         }
 
-        // Dash input (Middle Mouse)
-        if (Input.GetMouseButtonDown(2))
+        // Dash input (Dash Key, V by default)
+        if (Input.GetKeyDown(dashKey))
         {
             if (TryDash()) return;
         }
@@ -1337,6 +1345,7 @@ public class PlayerCombat : MonoBehaviour
         qReleaseStartTime = -1f; // v24: clear any stale grace state from prior guard
 
         PlayGuardAnim(parryStartState);
+        if (vfxManager != null) vfxManager.StartGuardBubble();
 
         // Lock guard facing to the direction player is currently moving
         // If pressing D → guard faces right. If no input → fall back to transform.forward.
@@ -1365,6 +1374,7 @@ public class PlayerCombat : MonoBehaviour
 
         if (guardMovement != null)
             guardMovement.DisableGuard();
+        if (vfxManager != null) vfxManager.StopGuardBubble();
 
         // v27: bypass ReturnToIdle()'s hardcoded 0.1s CrossFade and use the tunable
         // guardExitBlendTime instead. The shared ReturnToIdle() is correct for fast
@@ -1511,6 +1521,7 @@ public class PlayerCombat : MonoBehaviour
     {
         DebugLog("PERFECT PARRY!");
         CombatMomentum.OnParry();
+        if (vfxManager != null) vfxManager.PlayPerfectParryVFX(attackerPos);
 
         EnemyCombat closestEnemy = FindClosestAttackingEnemy();
         if (closestEnemy != null)
@@ -1629,7 +1640,7 @@ public class PlayerCombat : MonoBehaviour
             isAttacking = false;
             canQueueNextAttack = false;
             queuedClicks = 0;
-            currentComboStep = 0;
+            if (!comboSurvivesDodge) currentComboStep = 0;   // ON keeps her place in the combo, see the field
             if (vfxManager != null) vfxManager.PlaySpinStop();
             animator.SetBool(HashIsAttacking, false);
             animator.SetInteger(HashComboStep, 0);
@@ -1861,9 +1872,10 @@ public class PlayerCombat : MonoBehaviour
             dodgeCoroutine = null;
         }
         dodgeEndTime = Time.time;
+        RestartComboWindowAfterMove();
         if (animator != null)
         {
-            // 0.25s blend for smoother frontflip→sprint/idle transition
+            // 0.25s blend for smoother frontflip to sprint/idle transition
             animator.CrossFadeInFixedTime(combatIdleStateName, 0.25f, combatLayerIndex);
             lastCombatCrossFadeTime = Time.time;
         }
@@ -1878,7 +1890,7 @@ public class PlayerCombat : MonoBehaviour
     }
     #endregion
 
-    #region Dash System (MMB, aggressive flat rush with damage)
+    #region Dash System (Dash Key, aggressive flat rush with damage)
     private bool TryDash()
     {
         if (characterController == null) return false;
@@ -1935,7 +1947,7 @@ public class PlayerCombat : MonoBehaviour
             isAttacking = false;
             canQueueNextAttack = false;
             queuedClicks = 0;
-            currentComboStep = 0;
+            if (!comboSurvivesDodge) currentComboStep = 0;   // ON keeps her place in the combo, see the field
             if (vfxManager != null) vfxManager.PlaySpinStop();
             animator.SetBool(HashIsAttacking, false);
             animator.SetInteger(HashComboStep, 0);
@@ -1960,7 +1972,11 @@ public class PlayerCombat : MonoBehaviour
 
         DebugLog($"Dash: {animState} ({distance}m, {dashDamage} dmg, {(is4Leg ? "4leg" : "2leg")})");
 
-        if (vfxManager != null) vfxManager.PlayDodgeDashTrailVFX();
+        if (vfxManager != null)
+        {
+            vfxManager.PlayDodgeDashTrailVFX();
+            vfxManager.PlayDashWhooshVFX(moveDir);
+        }
         if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayDodge();
 
         if (dashCoroutine != null) StopCoroutine(dashCoroutine);
@@ -2093,8 +2109,9 @@ public class PlayerCombat : MonoBehaviour
             if (enemyHealth != null)
             {
                 hitEnemyIDs.Add(id);
-                enemyHealth.TakeDamage(dashDamage, false);
-                DebugLog($"Dash hit {enemy.name} for {dashDamage}");
+                int dashHit = Mathf.Max(1, Mathf.RoundToInt(dashDamage * CombatMomentum.DamageMultiplier));   // momentum power reward
+                enemyHealth.TakeDamage(dashHit, false);
+                DebugLog($"Dash hit {enemy.name} for {dashHit}");
 
                 Vector3 contactPoint = enemy.ClosestPoint(attackPoint.position);
                 if (vfxManager != null) vfxManager.PlayDashHitVFX(contactPoint);
@@ -2137,13 +2154,24 @@ public class PlayerCombat : MonoBehaviour
             dashCoroutine = null;
         }
         dodgeEndTime = Time.time;
+        RestartComboWindowAfterMove();
         if (animator != null)
         {
-            // 0.2s blend for smoother dash→sprint/idle transition
+            // 0.2s blend for smoother dash to sprint/idle transition
             animator.CrossFadeInFixedTime(combatIdleStateName, 0.2f, combatLayerIndex);
             lastCombatCrossFadeTime = Time.time;
         }
         DebugLog("Dash ended");
+    }
+
+    /// <summary>A flip or dash just ended with a combo place kept (Combo Survives Dodge). The combo
+    /// window restarts from here, not from the last swing, so a long move never eats it. Backdated by
+    /// Attack Cooldown so a click on the very next frame is not dropped by the cooldown gate.</summary>
+    private void RestartComboWindowAfterMove()
+    {
+        if (!comboSurvivesDodge || currentComboStep <= 0) return;
+        lastAttackTime = Time.time - attackCooldown;
+        if (logComboTrace) Debug.Log($"[ComboTrace] move ended, combo kept at step {currentComboStep}, window restarted");
     }
 
     public bool IsInDashIFrames()
@@ -3333,7 +3361,7 @@ public class PlayerCombat : MonoBehaviour
             EnemyHealth target = targets[beybladeRotationIndex];
             beybladeRotationIndex++;
 
-            target.TakeDamage(combo3Damage, false);
+            target.TakeDamage(Mathf.Max(1, Mathf.RoundToInt(combo3Damage * CombatMomentum.DamageMultiplier)), false);   // momentum power reward
             engagedInCombatUntil = Time.time + engagedInCombatDuration;
 
             Collider c = target.GetComponent<Collider>();
@@ -3659,7 +3687,7 @@ public class PlayerCombat : MonoBehaviour
         {
             if (target == null || target.IsDead()) continue;
 
-            target.TakeDamage(aerialSpinTickDamage, false);
+            target.TakeDamage(Mathf.Max(1, Mathf.RoundToInt(aerialSpinTickDamage * CombatMomentum.DamageMultiplier)), false);   // momentum power reward
             engagedInCombatUntil = Time.time + engagedInCombatDuration;
 
             Collider c = target.GetComponent<Collider>();
@@ -3835,6 +3863,7 @@ public class PlayerCombat : MonoBehaviour
         // hit, the connecting blow is weaker. Default multiplier 1.0 = no change.
         if (lungeEndedShort && reachHitDamageMultiplier < 1f)
             damage = Mathf.Max(1, Mathf.RoundToInt(damage * reachHitDamageMultiplier));
+        damage = Mathf.Max(1, Mathf.RoundToInt(damage * CombatMomentum.DamageMultiplier));   // momentum power reward
 
         Collider[] hitEnemies = Physics.OverlapSphere(attackPoint.position, attackRange, enemyLayer);
         foreach (Collider enemy in hitEnemies)

@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// YORU Combat Feedback — Phase 3B → Game Feel v3
+/// YORU Combat Feedback, Phase 3B → Game Feel v3
 /// Singleton manager for all combat "juice": hitstop, camera shake, VFX at contact, post-process pulse, FOV punch.
 /// All timing uses WaitForSecondsRealtime / unscaledTime so it works during Flurry Rush (timeScale 0.3).
 /// 
@@ -37,17 +37,17 @@ public class CombatFeedbackManager : MonoBehaviour
     [SerializeField] private float lightHitStopDuration = 0.04f;
     [Tooltip("Heavy hit: Combo3, Heavy Attack, Pounce")]
     [SerializeField] private float heavyHitStopDuration = 0.08f;
-    [Tooltip("Parry success — most dramatic freeze")]
+    [Tooltip("Parry success, most dramatic freeze")]
     [SerializeField] private float parryHitStopDuration = 0.12f;
-    [Tooltip("Guard block (not perfect parry) — subtle")]
+    [Tooltip("Guard block (not perfect parry), subtle")]
     [SerializeField] private float guardHitStopDuration = 0.04f;
 
     [Header("Camera Shake Intensities")]
-    [Tooltip("Combo1, Combo2 — subtle")]
+    [Tooltip("Combo1, Combo2, subtle")]
     [SerializeField] private float lightShakeIntensity = 0.15f;
-    [Tooltip("Combo3, Heavy Attack — noticeable")]
+    [Tooltip("Combo3, Heavy Attack, noticeable")]
     [SerializeField] private float heavyShakeIntensity = 0.35f;
-    [Tooltip("Parry success — strongest")]
+    [Tooltip("Parry success, strongest")]
     [SerializeField] private float parryShakeIntensity = 0.50f;
     [Tooltip("Camera shake duration in seconds")]
     [SerializeField] private float shakeDuration = 0.15f;
@@ -60,7 +60,7 @@ public class CombatFeedbackManager : MonoBehaviour
     [Header("Post-Process Pulse (Heavy Hits Only)")]
     [Tooltip("Enable chromatic aberration / vignette pulse on heavy hits")]
     [SerializeField] private bool enablePostProcessPulse = true;
-    [Tooltip("Pulse intensity — chromatic aberration amount")]
+    [Tooltip("Pulse intensity, chromatic aberration amount")]
     [SerializeField] private float pulseIntensity = 0.4f;
     [Tooltip("Pulse duration in seconds")]
     [SerializeField] private float pulseDuration = 0.15f;
@@ -88,7 +88,7 @@ public class CombatFeedbackManager : MonoBehaviour
     private Animator frozenPlayerAnim;
     private Animator frozenEnemyAnim;
     // ROUND 17: the speeds those animators were running at BEFORE the freeze. Restoring a
-    // hardcoded 1 silently destroys any deliberate speed — a boss set to 1.35 dropped to 1 on the
+    // hardcoded 1 silently destroys any deliberate speed, a boss set to 1.35 dropped to 1 on the
     // first hit it took and never recovered, and nothing logged it. Captured per freeze; a value
     // at or near 0 is ignored on the way back out, which is what the old hardcoded 1 was guarding
     // against (restoring a 0 would leave the animator frozen forever).
@@ -100,11 +100,11 @@ public class CombatFeedbackManager : MonoBehaviour
     private void Start()
     {
         vfxManager = FindObjectOfType<YoruVFXManager>();
-        DebugLog("CombatFeedbackManager initialized (v3 — shake/pulse delegated)");
+        DebugLog("CombatFeedbackManager initialized (v3, shake/pulse delegated)");
     }
     #endregion
 
-    #region Public API — Called by PlayerCombat and PlayerHealth
+    #region Public API, Called by PlayerCombat and PlayerHealth
 
     /// <summary>
     /// Full feedback burst for a landed player attack.
@@ -112,17 +112,17 @@ public class CombatFeedbackManager : MonoBehaviour
     /// </summary>
     /// <param name="contactPoint">World position where the hit connected (enemy collider closest point)</param>
     /// <param name="isHeavy">True for Combo3, Heavy Attack, Pounce</param>
-    /// <param name="playerAnimator">Yoru's Animator — frozen during hitstop</param>
-    /// <param name="enemyAnimator">Hit enemy's Animator — frozen during hitstop (can be null)</param>
+    /// <param name="playerAnimator">Yoru's Animator, frozen during hitstop</param>
+    /// <param name="enemyAnimator">Hit enemy's Animator, frozen during hitstop (can be null)</param>
     public void PlayHitFeedback(Vector3 contactPoint, bool isHeavy, Animator playerAnimator, Animator enemyAnimator)
     {
-        float stopDuration = isHeavy ? heavyHitStopDuration : lightHitStopDuration;
-        float shakeAmount = isHeavy ? heavyShakeIntensity : lightShakeIntensity;
+        float stopDuration = (isHeavy ? heavyHitStopDuration : lightHitStopDuration) * CombatMomentum.ImpactMultiplier;   // momentum: high counts hit harder
+        float shakeAmount = (isHeavy ? heavyShakeIntensity : lightShakeIntensity) * CombatMomentum.ImpactMultiplier;
 
         // Multi-hit guard. The aerial spin ticks damage ~8 times a second and the beyblade a few
         // times a second; each tick used to freeze BOTH animators, restart the camera shake and
         // punch the FOV. Eight hitstops and eight shake restarts per second is not "impact", it is
-        // a continuous rattle — the enemy's flinch is chopped into 40ms slices and the whole screen
+        // a continuous rattle, the enemy's flinch is chopped into 40ms slices and the whole screen
         // vibrates for the length of the spin. Inside the window only the spark (and a fraction of
         // the shake) plays; the first hit of a burst still gets the full treatment.
         bool rapid = multiHitWindow > 0f && Time.unscaledTime - lastHitFeedbackRealTime < multiHitWindow;
@@ -147,7 +147,7 @@ public class CombatFeedbackManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Parry-specific feedback — strongest freeze and shake in the game.
+    /// Parry-specific feedback, strongest freeze and shake in the game.
     /// Call from PlayerCombat.OnPerfectParry().
     /// </summary>
     public void PlayParryFeedback(Vector3 contactPoint, Animator playerAnimator, Animator enemyAnimator)
@@ -158,7 +158,7 @@ public class CombatFeedbackManager : MonoBehaviour
         PostProcessPulse(pulseIntensity * 1.2f, pulseDuration);
 
         // Game Feel v3: FOV zoom in on parry (dramatic focus)
-        // ROUND 45: plus Hazel's glass-window slam — the camera rams the impact point and
+        // ROUND 45: plus Hazel's glass-window slam, the camera rams the impact point and
         // bounces off, so a blocked hit reads like smashing into an invisible wall.
         if (CameraGameFeel.Instance != null)
         {
@@ -174,7 +174,7 @@ public class CombatFeedbackManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Guard block feedback — subtle hitstop only.
+    /// Guard block feedback, subtle hitstop only.
     /// Call from PlayerHealth.TakeDamage() when guarding but not perfect parry.
     /// </summary>
     public void PlayGuardFeedback()
@@ -191,7 +191,7 @@ public class CombatFeedbackManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Player took damage — light feedback (screen shake only, no hitstop on player).
+    /// Player took damage, light feedback (screen shake only, no hitstop on player).
     /// Call from PlayerHealth.TakeDamage() after HP subtraction.
     /// </summary>
     public void PlayPlayerHitFeedback(bool isHeavy)
@@ -200,7 +200,7 @@ public class CombatFeedbackManager : MonoBehaviour
         CameraShake(intensity, shakeDuration);
 
         // Game Feel v3: damage-specific post-process (red vignette) + FOV flinch
-        // Replaces the old PostProcessPulse call — PulseDamage uses red vignette color
+        // Replaces the old PostProcessPulse call, PulseDamage uses red vignette color
         if (enablePostProcessPulse && CombatPostProcessPulse.Instance != null)
             CombatPostProcessPulse.Instance.PulseDamage(isHeavy);
         if (CameraGameFeel.Instance != null)
@@ -214,7 +214,7 @@ public class CombatFeedbackManager : MonoBehaviour
     }
     #endregion
 
-    #region Hitstop — Animator.speed = 0 (single-active, no stacking)
+    #region Hitstop, Animator.speed = 0 (single-active, no stacking)
 
     /// <summary>
     /// Freeze animators for a brief moment. Uses WaitForSecondsRealtime so it works during Flurry Rush.
@@ -252,7 +252,7 @@ public class CombatFeedbackManager : MonoBehaviour
         if (enemyAnim != null)
             enemyAnim.speed = 0f;
 
-        // Wait real time — not affected by timeScale
+        // Wait real time, not affected by timeScale
         yield return new WaitForSecondsRealtime(duration);
 
         // Restore to whatever they were running at, falling back to 1 if that was a frozen 0.
@@ -280,10 +280,10 @@ public class CombatFeedbackManager : MonoBehaviour
     }
     #endregion
 
-    #region Camera Shake — Delegated to CameraGameFeel
+    #region Camera Shake, Delegated to CameraGameFeel
 
     /// <summary>
-    /// Camera shake — delegated to CameraGameFeel which applies offsets AFTER Cinemachine.
+    /// Camera shake, delegated to CameraGameFeel which applies offsets AFTER Cinemachine.
     /// The old implementation wrote to camTransform.localPosition directly, but Cinemachine
     /// overwrote it every LateUpdate, so shake was never visible.
     /// </summary>
@@ -295,12 +295,12 @@ public class CombatFeedbackManager : MonoBehaviour
         }
         else
         {
-            DebugLog("WARNING: CameraGameFeel not found — shake skipped");
+            DebugLog("WARNING: CameraGameFeel not found, shake skipped");
         }
     }
     #endregion
 
-    #region VFX Spawning — Delegated to YoruVFXManager
+    #region VFX Spawning, Delegated to YoruVFXManager
 
     private void SpawnHitVFX(Vector3 position, bool isHeavy)
     {
@@ -309,7 +309,7 @@ public class CombatFeedbackManager : MonoBehaviour
     }
     #endregion
 
-    #region Post-Process Pulse — Delegated to CombatPostProcessPulse
+    #region Post-Process Pulse, Delegated to CombatPostProcessPulse
     /// <summary>
     /// Brief chromatic aberration / vignette pulse on heavy hits and parry.
     /// Game Feel v3: delegates to CombatPostProcessPulse (separate volume, priority 100).

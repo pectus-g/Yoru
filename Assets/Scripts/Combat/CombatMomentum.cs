@@ -6,6 +6,8 @@ using UnityEngine;
 /// heavy hit; light hits, dodges, dashes and parries never touch it, so weaving through his
 /// swings keeps what she built. Each point also makes her a little faster, capped so the clips
 /// stay readable; PlayerCombat multiplies its Combo Speed and Dodge Speed by SpeedMultiplier.
+/// Each point also makes her hits stronger and heavier: PlayerCombat multiplies every damage she
+/// deals by DamageMultiplier, CombatFeedbackManager multiplies hitstop and shake by ImpactMultiplier.
 ///
 /// One component, on PlayerYoru_1.1, next to Combat Floating Text (which draws the count).
 /// Hits are counted from EnemyHealth.AnyHit, so every source of hers counts: combo, dash strike,
@@ -34,6 +36,16 @@ public class CombatMomentum : MonoBehaviour
     [Tooltip("Cap on the bonus so the clips stay readable. 0.5 = never more than 50% faster from momentum, however high the count.")]
     [SerializeField] private float maxSpeedBonus = 0.5f;
 
+    [Header("Power Reward")]
+    [Tooltip("Damage added per point to every hit she lands (combo, heavy, dash, spins). 0.05 = at x10 her hits do 50% more. 0 = off.")]
+    [SerializeField] private float damagePerPoint = 0.05f;
+    [Tooltip("Cap on the damage bonus. 0.5 = never more than +50% from momentum, however high the count.")]
+    [SerializeField] private float maxDamageBonus = 0.5f;
+    [Tooltip("Hitstop and camera shake added per point on every hit she lands, so a high count hits harder on screen. 0.05 = at x10 the freeze and the shake are 50% bigger. 0 = off.")]
+    [SerializeField] private float impactPerPoint = 0.05f;
+    [Tooltip("Cap on the impact bonus. 1 = never more than double the freeze and shake.")]
+    [SerializeField] private float maxImpactBonus = 1f;
+
     [Header("Text")]
     [Tooltip("Draw the count in the corner through Combat Floating Text on every landed hit.")]
     [SerializeField] private bool showCount = true;
@@ -56,6 +68,14 @@ public class CombatMomentum : MonoBehaviour
     /// <summary>1 + the capped speed bonus. 1 with no instance, so nothing changes without the component.</summary>
     public static float SpeedMultiplier =>
         instance != null ? 1f + Mathf.Min(instance.maxSpeedBonus, instance.count * instance.speedPerPoint) : 1f;
+
+    /// <summary>1 + the capped damage bonus for every hit she lands. 1 with no instance.</summary>
+    public static float DamageMultiplier =>
+        instance != null ? 1f + Mathf.Min(instance.maxDamageBonus, instance.count * instance.damagePerPoint) : 1f;
+
+    /// <summary>1 + the capped hitstop and shake bonus for every hit she lands. 1 with no instance.</summary>
+    public static float ImpactMultiplier =>
+        instance != null ? 1f + Mathf.Min(instance.maxImpactBonus, instance.count * instance.impactPerPoint) : 1f;
 
     /// <summary>True when a momentum counter is running, so the plain combo step text steps aside.</summary>
     public static bool Active => instance != null && instance.showCount;
@@ -111,7 +131,7 @@ public class CombatMomentum : MonoBehaviour
         int before = count;
         count = Mathf.Max(0, value);
         if (logMomentum && count != before)
-            Debug.Log($"[Momentum] {before} -> {count} ({why}), speed x{SpeedMultiplier:F2}");
+            Debug.Log($"[Momentum] {before} -> {count} ({why}), speed x{SpeedMultiplier:F2}, damage x{DamageMultiplier:F2}, impact x{ImpactMultiplier:F2}");
     }
 
     private void Show()

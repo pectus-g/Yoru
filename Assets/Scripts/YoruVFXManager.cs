@@ -44,12 +44,18 @@ public class YoruVFXManager : MonoBehaviour
     [Header("=== FRONTFLIP / DASH VFX ===")]
     [Tooltip("FRONTFLIP (C). Born at her feet and carried with her for the whole flip, so a looping prefab draws a trail behind her; stops emitting the moment the flip ends and fades where it is. A prefab with World simulation space leaves the trail in the air, Local drags it along with her.")]
     [SerializeField] private GameObject dodgeTrailPrefab;
-    [Tooltip("DASH (MMB). Same rules as the frontflip trail, its own prefab.")]
+    [Tooltip("DASH (Dash Key on Player Combat, V by default). Same rules as the frontflip trail, its own prefab.")]
     [SerializeField] private GameObject dodgeDashTrailPrefab;
     [Tooltip("DASH strikes an enemy: spawned once at the point of contact, on top of the normal hit spark.")]
     [SerializeField] private GameObject dashHitVFX;
     [Tooltip("DASH runs into a wall: spawned once where she hit it, facing out of the wall.")]
     [SerializeField] private GameObject dashWallHitVFX;
+    [Tooltip("DASH whoosh, both forms: one burst born BEHIND her body centre the instant the dash starts, turned to the dash direction so it rushes forward through her body, and left at the start point while she goes (not carried with her). Plays on top of the trail.")]
+    [SerializeField] private GameObject dashWhooshVFX;
+    [Tooltip("Metres behind her body centre where the whoosh is born. 1 = it starts one metre behind her and rushes forward through her. 0 = born on her centre.")]
+    [SerializeField] private float dashWhooshBehind = 1f;
+    [Tooltip("Tick if your whoosh prefab is authored to fly backward (its particles travel along its own -Z). Flips the spawn rotation 180 degrees so it still rushes in the dash direction.")]
+    [SerializeField] private bool dashWhooshFacesBack = false;
     [Tooltip("Seconds the flip or dash trail lingers after the move ends before it is removed. Long enough for its last particles to die.")]
     [SerializeField] private float dodgeVFXLifetime = 1.5f;
     
@@ -58,6 +64,20 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private GameObject lightHitReactVFX;
     [Tooltip("Spawned at the body centre when she takes a heavy hit.")]
     [SerializeField] private GameObject heavyHitReactVFX;
+
+    [Header("=== GUARD / PARRY VFX ===")]
+    [Tooltip("GUARD stance (Q held): born at her feet and parented to her the moment the guard starts, so it covers her body and walks with her; stops emitting the moment Q is released and fades on her. A bubble or aura prefab belongs here.")]
+    [SerializeField] private GameObject guardBubbleVFX;
+    [Tooltip("Opacity of the guard bubble. 1 = as authored, 0.4 = faint. Applied at spawn to the start colour of every particle system in the prefab and to the _Color, _BaseColor or _TintColor of any mesh in it. A shader that fades through another property is not reached; lower that one in its material.")]
+    [Range(0f, 1f)] [SerializeField] private float guardBubbleAlpha = 0.5f;
+    [Tooltip("Seconds the guard bubble takes to disappear after Q is released. Set it at least as long as its longest particle lifetime.")]
+    [SerializeField] private float guardBubbleFade = 1f;
+    [Tooltip("ON = every particle system in the bubble prefab is forced to loop at spawn, so a one-shot prefab keeps going for as long as Q is held. OFF = the prefab plays exactly as authored.")]
+    [SerializeField] private bool guardBubbleLoop = true;
+    [Tooltip("Metres the bubble sits above the real floor under her (a downward ray, like the ground spin). Raise it if the bubble cuts into the floor.")]
+    [SerializeField] private float guardBubbleLift = 0.1f;
+    [Tooltip("PERFECT PARRY (Q at the right moment): one burst half a metre in front of her chest toward the attacker, facing him, on top of the parry hitstop, shake and clang.")]
+    [SerializeField] private GameObject perfectParryVFX;
     
     [Header("=== CINEMATIC EFFECTS ===")]
     [SerializeField] private GameObject soulFreeingPrefab;     
@@ -937,6 +957,137 @@ public void OnJump(int jumpNumber)
         if (dashWallHitVFX == null) return;
         Quaternion facing = wallNormal.sqrMagnitude > 0.001f ? Quaternion.LookRotation(wallNormal) : transform.rotation;
         SpawnEffect(dashWallHitVFX, point, facing);
+    }
+
+    /// <summary>The dash whoosh: one burst at her body centre, facing the dash direction, left behind at the start point.</summary>
+    public void PlayDashWhooshVFX(Vector3 dashDir)
+    {
+        if (dashWhooshVFX == null) return;
+        Vector3 dir = dashDir;
+        dir.y = 0f;
+        dir = dir.sqrMagnitude > 0.001f ? dir.normalized : transform.forward;
+        Vector3 centre = centerBody != null ? centerBody.position : transform.position + Vector3.up * 0.5f;
+        Vector3 pos = centre - dir * dashWhooshBehind;
+        Quaternion facing = Quaternion.LookRotation(dashWhooshFacesBack ? -dir : dir);
+        SpawnEffect(dashWhooshVFX, pos, facing);
+    }
+
+    // ========== GUARD / PARRY VFX, Called by PlayerCombat ==========
+
+    private GameObject activeGuardBubble;
+
+    /// <summary>Q went down: the bubble is born at her feet, rides with her, and is faded to Guard Bubble Alpha.</summary>
+    public void StartGuardBubble()
+    {
+        StopGuardBubble();
+        if (guardBubbleVFX == null) return;
+        Vector3 pos = transform.position + Vector3.up * guardBubbleLift;
+        if (FindFloorUnder(transform.position, out Vector3 floorPoint, out Vector3 floorNormal))
+            pos = floorPoint + floorNormal * guardBubbleLift;
+        activeGuardBubble = Instantiate(guardBubbleVFX, pos, transform.rotation, transform);
+        activeGuardBubble.SetActive(true);
+        ApplyAlpha(activeGuardBubble, guardBubbleAlpha);
+        foreach (ParticleSystem ps in activeGuardBubble.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            if (guardBubbleLoop)
+            {
+                ParticleSystem.MainModule main = ps.main;
+                main.loop = true;
+            }
+            if (!ps.isPlaying) ps.Play(false);
+        }
+        if (debugMode) Debug.Log("[YoruVFX] guard bubble on");
+    }
+
+    /// <summary>Q released (or the guard was cancelled): stop emitting, fade on her, remove. Safe with no bubble running.</summary>
+    public void StopGuardBubble()
+    {
+        if (activeGuardBubble == null) return;
+        foreach (ParticleSystem ps in activeGuardBubble.GetComponentsInChildren<ParticleSystem>(true))
+            ps.Stop(false, ParticleSystemStopBehavior.StopEmitting);
+        Destroy(activeGuardBubble, Mathf.Max(0.05f, guardBubbleFade));
+        activeGuardBubble = null;
+    }
+
+    /// <summary>A perfect parry landed: one burst between her chest and the attacker, facing him.</summary>
+    public void PlayPerfectParryVFX(Vector3 attackerPos)
+    {
+        if (perfectParryVFX == null) return;
+        Vector3 chest = centerBody != null ? centerBody.position : transform.position + Vector3.up * 0.6f;
+        Vector3 toAttacker = attackerPos - chest;
+        toAttacker.y = 0f;
+        Vector3 dir = toAttacker.sqrMagnitude > 0.001f ? toAttacker.normalized : transform.forward;
+        SpawnEffect(perfectParryVFX, chest + dir * 0.5f, Quaternion.LookRotation(dir));
+    }
+
+    private static readonly string[] AlphaProps = { "_Color", "_BaseColor", "_TintColor" };
+
+    /// <summary>Multiplies the opacity of everything in a spawned effect: particle start colours and the
+    /// common colour property of any mesh renderer (through a property block, so no material is duplicated).</summary>
+    private static void ApplyAlpha(GameObject root, float alpha)
+    {
+        if (alpha >= 0.999f) return;
+        foreach (ParticleSystem ps in root.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            ParticleSystem.MainModule main = ps.main;
+            main.startColor = ScaleAlpha(main.startColor, alpha);
+        }
+        MaterialPropertyBlock block = new MaterialPropertyBlock();
+        foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
+        {
+            if (r is ParticleSystemRenderer) continue;
+            Material m = r.sharedMaterial;
+            if (m == null) continue;
+            r.GetPropertyBlock(block);
+            bool any = false;
+            foreach (string prop in AlphaProps)
+            {
+                if (!m.HasProperty(prop)) continue;
+                Color c = m.GetColor(prop);
+                c.a *= alpha;
+                block.SetColor(prop, c);
+                any = true;
+            }
+            if (any) r.SetPropertyBlock(block);
+        }
+    }
+
+    private static ParticleSystem.MinMaxGradient ScaleAlpha(ParticleSystem.MinMaxGradient g, float alpha)
+    {
+        switch (g.mode)
+        {
+            case ParticleSystemGradientMode.Color:
+            {
+                Color c = g.color; c.a *= alpha; g.color = c;
+                break;
+            }
+            case ParticleSystemGradientMode.TwoColors:
+            {
+                Color a = g.colorMin; a.a *= alpha; g.colorMin = a;
+                Color b = g.colorMax; b.a *= alpha; g.colorMax = b;
+                break;
+            }
+            case ParticleSystemGradientMode.Gradient:
+            case ParticleSystemGradientMode.RandomColor:
+                g.gradient = ScaleGradient(g.gradient, alpha);
+                break;
+            case ParticleSystemGradientMode.TwoGradients:
+                g.gradientMin = ScaleGradient(g.gradientMin, alpha);
+                g.gradientMax = ScaleGradient(g.gradientMax, alpha);
+                break;
+        }
+        return g;
+    }
+
+    private static Gradient ScaleGradient(Gradient src, float alpha)
+    {
+        if (src == null) return null;
+        Gradient g = new Gradient();
+        GradientAlphaKey[] keys = src.alphaKeys;
+        for (int i = 0; i < keys.Length; i++) keys[i].alpha *= alpha;
+        g.SetKeys(src.colorKeys, keys);
+        g.mode = src.mode;
+        return g;
     }
 
     // ========== HIT SPARK VFX, Called by CombatFeedbackManager ==========
