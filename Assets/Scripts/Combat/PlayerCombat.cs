@@ -343,6 +343,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private int parryCounterDamage = 15;
     [Tooltip("Duration enemy is staggered after perfect parry")]
     [SerializeField] private float parryStaggerDuration = 1.2f;
+    [Tooltip("HP she gets back on a perfect parry. Skill is rewarded, holding Q heals nothing. 0 = off.")]
+    [SerializeField] private int parryHeal = 5;
     [Tooltip("Range to find closest attacking enemy for parry counter")]
     [SerializeField] private float parryCounterRange = 5f;
     [Tooltip("Duration of Parry_Start clip in seconds. After this elapses, idle/walk anims take over based on current input. Set this to match the actual length of your Parry_Start animation clip.")]
@@ -1522,6 +1524,10 @@ public class PlayerCombat : MonoBehaviour
         DebugLog("PERFECT PARRY!");
         CombatMomentum.OnParry();
         if (vfxManager != null) vfxManager.PlayPerfectParryVFX(attackerPos);
+        if (playerHealth != null && parryHeal > 0) playerHealth.Heal(parryHeal);
+
+        Vector3 chest = cachedTransform.position + Vector3.up * 0.6f;
+        Vector3 clashPoint = chest;   // where the feedback (spark, camera ram) happens: between her chest and him
 
         EnemyCombat closestEnemy = FindClosestAttackingEnemy();
         if (closestEnemy != null)
@@ -1529,11 +1535,17 @@ public class PlayerCombat : MonoBehaviour
             closestEnemy.TriggerStagger(parryStaggerDuration);
             DebugLog($"Parry stagger: {closestEnemy.name} for {parryStaggerDuration}s");
 
+            Collider enemyCol = closestEnemy.GetComponent<Collider>();
+            if (enemyCol == null) enemyCol = closestEnemy.GetComponentInChildren<Collider>();
+            Vector3 contactOnEnemy = enemyCol != null ? SurfacePoint(enemyCol, chest) : closestEnemy.transform.position + Vector3.up * 0.6f;
+            clashPoint = (chest + contactOnEnemy) * 0.5f;
+
             EnemyHealth enemyHealth = closestEnemy.GetComponent<EnemyHealth>();
             if (enemyHealth != null)
             {
                 enemyHealth.TakeDamage(parryCounterDamage, true);
                 DebugLog($"Parry counter damage: {parryCounterDamage}");
+                if (vfxManager != null) vfxManager.PlayParryHitVFX(contactOnEnemy);   // her hit on him, with its own number
             }
         }
 
@@ -1543,7 +1555,7 @@ public class PlayerCombat : MonoBehaviour
             Animator enemyAnimator = closestEnemy != null ? closestEnemy.GetComponent<Animator>() : null;
             if (enemyAnimator == null && closestEnemy != null)
                 enemyAnimator = closestEnemy.GetComponentInChildren<Animator>();
-            CombatFeedbackManager.Instance.PlayParryFeedback(cachedTransform.position, animator, enemyAnimator);
+            CombatFeedbackManager.Instance.PlayParryFeedback(clashPoint, animator, enemyAnimator);
         }
         if (CombatSFXManager.Instance != null)
             CombatSFXManager.Instance.PlayParryClang();

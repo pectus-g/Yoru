@@ -50,12 +50,14 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private GameObject dashHitVFX;
     [Tooltip("DASH runs into a wall: spawned once where she hit it, facing out of the wall.")]
     [SerializeField] private GameObject dashWallHitVFX;
-    [Tooltip("DASH whoosh, both forms: one burst born BEHIND her body centre the instant the dash starts, turned to the dash direction so it rushes forward through her body, and left at the start point while she goes (not carried with her). Plays on top of the trail.")]
+    [Tooltip("DASH whoosh, both forms: one burst born behind her body centre the instant the dash starts, turned to the dash direction, and parented to her body so it rides with her and stays whole for the entire dash. Plays on top of the trail.")]
     [SerializeField] private GameObject dashWhooshVFX;
     [Tooltip("Metres behind her body centre where the whoosh is born. 1 = it starts one metre behind her and rushes forward through her. 0 = born on her centre.")]
     [SerializeField] private float dashWhooshBehind = 1f;
     [Tooltip("Tick if your whoosh prefab is authored to fly backward (its particles travel along its own -Z). Flips the spawn rotation 180 degrees so it still rushes in the dash direction.")]
     [SerializeField] private bool dashWhooshFacesBack = false;
+    [Tooltip("Extra rotation in degrees applied after the dash facing, for a prefab built sideways or upright. Wrong by 90 to the side: put 90 or -90 in Y. Lying flat when it should stand: 90 or -90 in X.")]
+    [SerializeField] private Vector3 dashWhooshRotationOffset = Vector3.zero;
     [Tooltip("Seconds the flip or dash trail lingers after the move ends before it is removed. Long enough for its last particles to die.")]
     [SerializeField] private float dodgeVFXLifetime = 1.5f;
     
@@ -68,16 +70,18 @@ public class YoruVFXManager : MonoBehaviour
     [Header("=== GUARD / PARRY VFX ===")]
     [Tooltip("GUARD stance (Q held): born at her feet and parented to her the moment the guard starts, so it covers her body and walks with her; stops emitting the moment Q is released and fades on her. A bubble or aura prefab belongs here.")]
     [SerializeField] private GameObject guardBubbleVFX;
-    [Tooltip("Opacity of the guard bubble. 1 = as authored, 0.4 = faint. Applied at spawn to the start colour of every particle system in the prefab and to the _Color, _BaseColor or _TintColor of any mesh in it. A shader that fades through another property is not reached; lower that one in its material.")]
+    [Tooltip("Opacity and intensity of the guard bubble. 1 = as authored, 0.3 = faint. Applied at spawn to the start colour of every particle system in the prefab, to any light in it, and to the _Color, _BaseColor or _TintColor of any mesh in it. A shader that fades through another property is not reached; lower that one in its material.")]
     [Range(0f, 1f)] [SerializeField] private float guardBubbleAlpha = 0.5f;
     [Tooltip("Seconds the guard bubble takes to disappear after Q is released. Set it at least as long as its longest particle lifetime.")]
     [SerializeField] private float guardBubbleFade = 1f;
     [Tooltip("ON = every particle system in the bubble prefab is forced to loop at spawn, so a one-shot prefab keeps going for as long as Q is held. OFF = the prefab plays exactly as authored.")]
     [SerializeField] private bool guardBubbleLoop = true;
-    [Tooltip("Metres the bubble sits above the real floor under her (a downward ray, like the ground spin). Raise it if the bubble cuts into the floor.")]
-    [SerializeField] private float guardBubbleLift = 0.1f;
+    [Tooltip("Metres the bubble sits above the real floor under her. It is re-pinned to the floor every frame while Q is held (a downward ray, like the ground spin), so it never sinks on a slope or a step. Negative pushes it down, for a prefab whose pivot sits high above its own bottom.")]
+    [SerializeField] private float guardBubbleLift = 0.05f;
     [Tooltip("PERFECT PARRY (Q at the right moment): one burst half a metre in front of her chest toward the attacker, facing him, on top of the parry hitstop, shake and clang.")]
     [SerializeField] private GameObject perfectParryVFX;
+    [Tooltip("PERFECT PARRY, on the Oni: spawned on his body where her counter lands, so the parry reads as her hit on him, next to the damage number. Empty = nothing extra (the heavy hit spark of the parry feedback still fires at the clash point between them).")]
+    [SerializeField] private GameObject parryHitVFX;
     
     [Header("=== CINEMATIC EFFECTS ===")]
     [SerializeField] private GameObject soulFreeingPrefab;     
@@ -966,10 +970,12 @@ public void OnJump(int jumpNumber)
         Vector3 dir = dashDir;
         dir.y = 0f;
         dir = dir.sqrMagnitude > 0.001f ? dir.normalized : transform.forward;
+        Transform anchor = centerBody != null ? centerBody : transform;
         Vector3 centre = centerBody != null ? centerBody.position : transform.position + Vector3.up * 0.5f;
         Vector3 pos = centre - dir * dashWhooshBehind;
-        Quaternion facing = Quaternion.LookRotation(dashWhooshFacesBack ? -dir : dir);
-        SpawnEffect(dashWhooshVFX, pos, facing);
+        Quaternion facing = Quaternion.LookRotation(dashWhooshFacesBack ? -dir : dir) * Quaternion.Euler(dashWhooshRotationOffset);
+        GameObject whoosh = SpawnEffect(dashWhooshVFX, pos, facing);
+        if (whoosh != null) whoosh.transform.SetParent(anchor, true);   // rides with her, stays whole
     }
 
     // ========== GUARD / PARRY VFX, Called by PlayerCombat ==========
@@ -981,10 +987,7 @@ public void OnJump(int jumpNumber)
     {
         StopGuardBubble();
         if (guardBubbleVFX == null) return;
-        Vector3 pos = transform.position + Vector3.up * guardBubbleLift;
-        if (FindFloorUnder(transform.position, out Vector3 floorPoint, out Vector3 floorNormal))
-            pos = floorPoint + floorNormal * guardBubbleLift;
-        activeGuardBubble = Instantiate(guardBubbleVFX, pos, transform.rotation, transform);
+        activeGuardBubble = Instantiate(guardBubbleVFX, GuardBubblePoint(), transform.rotation, transform);
         activeGuardBubble.SetActive(true);
         ApplyAlpha(activeGuardBubble, guardBubbleAlpha);
         foreach (ParticleSystem ps in activeGuardBubble.GetComponentsInChildren<ParticleSystem>(true))
@@ -997,6 +1000,26 @@ public void OnJump(int jumpNumber)
             if (!ps.isPlaying) ps.Play(false);
         }
         if (debugMode) Debug.Log("[YoruVFX] guard bubble on");
+    }
+
+    /// <summary>Where the bubble sits: on the real floor under her plus Guard Bubble Lift; her feet if no floor is found.</summary>
+    private Vector3 GuardBubblePoint()
+    {
+        if (FindFloorUnder(transform.position, out Vector3 floorPoint, out Vector3 floorNormal))
+            return floorPoint + floorNormal * guardBubbleLift;
+        return transform.position + Vector3.up * guardBubbleLift;
+    }
+
+    private void LateUpdate()
+    {
+        if (activeGuardBubble != null) activeGuardBubble.transform.position = GuardBubblePoint();   // never sinks, never floats
+    }
+
+    /// <summary>The parry counter landed on the enemy: the parry hit effect on his body. Nothing when the slot is empty.</summary>
+    public void PlayParryHitVFX(Vector3 contactOnEnemy)
+    {
+        if (parryHitVFX == null) return;
+        SpawnEffect(parryHitVFX, contactOnEnemy, transform.rotation);
     }
 
     /// <summary>Q released (or the guard was cancelled): stop emitting, fade on her, remove. Safe with no bubble running.</summary>
@@ -1032,6 +1055,13 @@ public void OnJump(int jumpNumber)
             ParticleSystem.MainModule main = ps.main;
             main.startColor = ScaleAlpha(main.startColor, alpha);
         }
+        foreach (ParticleSystem ps in root.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            ParticleSystem.LightsModule lights = ps.lights;
+            if (lights.enabled) lights.intensityMultiplier *= alpha;
+        }
+        foreach (Light light in root.GetComponentsInChildren<Light>(true))
+            light.intensity *= alpha;
         MaterialPropertyBlock block = new MaterialPropertyBlock();
         foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
         {
