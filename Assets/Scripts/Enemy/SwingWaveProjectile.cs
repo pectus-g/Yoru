@@ -195,15 +195,17 @@ public class SwingWaveProjectile : MonoBehaviour
             if (approach.sqrMagnitude < 0.0001f) approach = -direction;
             approach.Normalize();
 
-            if (hitVFX != null)
+            Vector3 reactFrom = attacker != null ? attacker.position : transform.position;
+            targetHealth.TakeDamage(damage, false, reactFrom, false);
+
+            // The impact is drawn only when the hit really landed: blocked, parried or dodged,
+            // her own block or parry effect shows instead of a red mark.
+            if (hitVFX != null && targetHealth.LastHitOutcome == PlayerHealth.HitOutcome.Damaged)
             {
                 GameObject fx = Instantiate(hitVFX, contact + approach * hitVFXOffset,
                                             Quaternion.LookRotation(approach));
                 if (hitVFXLifetime > 0f) Destroy(fx, hitVFXLifetime);
             }
-
-            Vector3 reactFrom = attacker != null ? attacker.position : transform.position;
-            targetHealth.TakeDamage(damage, false, reactFrom, false);
 
             Vector3 flownV = transform.position - startPos; flownV.y = 0f;
             Debug.Log($"[OniBoss:Wave] wave TOUCHED Yoru (grounded) for {damage} after "

@@ -35,6 +35,8 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private float groundHazardDelayShift = 2f;
     [Tooltip("Metres the ground hazard floats above the floor it is laid on. The zone is placed on the real floor under her (a downward ray) and tilted to the floor's slope, so on a bump or a ramp the disc lies on the surface instead of cutting through it. Only the lift is yours to tune; 0.05 stops z-fighting without looking like it hovers.")]
     [SerializeField] private float groundHazardLift = 0.05f;
+    [Tooltip("Radius in metres over which the floor is felt before the zone is laid. The floor is sampled at the centre and at 8 points on this ring, and the zone sits on the HIGHEST of them, so a bump or a rock inside its footprint can no longer poke through the disc. Set it to about the zone's visible radius. 0 = centre only, the old way.")]
+    [SerializeField] private float groundHazardFootprint = 2f;
     
     [Header("=== HIT SPARK VFX (spawned at contact point) ===")]
     [SerializeField] private GameObject lightHitSparkPrefab;
@@ -77,11 +79,13 @@ public class YoruVFXManager : MonoBehaviour
     [Tooltip("ON = every particle system in the bubble prefab is forced to loop at spawn, so a one-shot prefab keeps going for as long as Q is held. OFF = the prefab plays exactly as authored.")]
     [SerializeField] private bool guardBubbleLoop = true;
     [Tooltip("Metres the bubble sits above the real floor under her. It is re-pinned to the floor every frame while Q is held (a downward ray, like the ground spin), so it never sinks on a slope or a step. Negative pushes it down, for a prefab whose pivot sits high above its own bottom.")]
-    [SerializeField] private float guardBubbleLift = 0.05f;
+    [SerializeField] private float guardBubbleLift = 0f;
     [Tooltip("PERFECT PARRY (Q at the right moment): one burst half a metre in front of her chest toward the attacker, facing him, on top of the parry hitstop, shake and clang.")]
     [SerializeField] private GameObject perfectParryVFX;
     [Tooltip("PERFECT PARRY, on the Oni: spawned on his body where her counter lands, so the parry reads as her hit on him, next to the damage number. Empty = nothing extra (the heavy hit spark of the parry feedback still fires at the clash point between them).")]
     [SerializeField] private GameObject parryHitVFX;
+    [Tooltip("GUARD BLOCK: a hit that lands while Q is held but is NOT a perfect parry (70% of it is blocked). Spawned half a metre in front of her chest, facing where she guards, to show the hit was stopped. Nothing to do with damage numbers.")]
+    [SerializeField] private GameObject guardBlockVFX;
     
     [Header("=== CINEMATIC EFFECTS ===")]
     [SerializeField] private GameObject soulFreeingPrefab;     
@@ -802,6 +806,7 @@ public void OnJump(int jumpNumber)
         Quaternion rot = at.rotation;
         if (FindFloorUnder(at.position, out Vector3 floorPoint, out Vector3 floorNormal))
         {
+            floorPoint = HighestFloorInFootprint(at.position, floorPoint, groundHazardFootprint);
             pos = floorPoint + floorNormal * groundHazardLift;
             Vector3 forward = Vector3.ProjectOnPlane(at.forward, floorNormal);
             if (forward.sqrMagnitude < 0.0001f) forward = Vector3.ProjectOnPlane(Vector3.forward, floorNormal);
@@ -858,6 +863,22 @@ public void OnJump(int jumpNumber)
             found = true;
         }
         return found;
+    }
+
+    /// <summary>The centre floor point raised to the highest floor found on a ring of 8 samples around it,
+    /// so a flat disc laid there clears every bump inside its footprint. XZ stays at the centre.</summary>
+    private Vector3 HighestFloorInFootprint(Vector3 centre, Vector3 centreFloor, float radius)
+    {
+        Vector3 best = centreFloor;
+        if (radius <= 0.01f) return best;
+        for (int i = 0; i < 8; i++)
+        {
+            float a = i * Mathf.PI * 0.25f;
+            Vector3 sample = centre + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * radius;
+            if (FindFloorUnder(sample, out Vector3 p, out Vector3 n) && p.y > best.y)
+                best.y = p.y;
+        }
+        return best;
     }
 
     /// <summary>Real seconds until the last particle of this effect can be gone: the longest
@@ -987,7 +1008,8 @@ public void OnJump(int jumpNumber)
     {
         StopGuardBubble();
         if (guardBubbleVFX == null) return;
-        activeGuardBubble = Instantiate(guardBubbleVFX, GuardBubblePoint(), transform.rotation, transform);
+        GuardBubblePose(out Vector3 bubblePos, out Quaternion bubbleRot);
+        activeGuardBubble = Instantiate(guardBubbleVFX, bubblePos, bubbleRot, transform);
         activeGuardBubble.SetActive(true);
         ApplyAlpha(activeGuardBubble, guardBubbleAlpha);
         foreach (ParticleSystem ps in activeGuardBubble.GetComponentsInChildren<ParticleSystem>(true))
@@ -999,20 +1021,42 @@ public void OnJump(int jumpNumber)
             }
             if (!ps.isPlaying) ps.Play(false);
         }
-        if (debugMode) Debug.Log("[YoruVFX] guard bubble on");
+        if (debugMode)
+        {
+            bool floorFound = FindFloorUnder(transform.position, out Vector3 fp, out Vector3 fn);
+            Debug.Log($"[YoruVFX] guard bubble on at y={bubblePos.y:F3} (floor {(floorFound ? fp.y.ToString("F3") : "none")}, her root y={transform.position.y:F3}, lift {guardBubbleLift:F2}, floor tilt {(floorFound ? Vector3.Angle(fn, Vector3.up) : 0f):F0} deg)");
+        }
     }
 
-    /// <summary>Where the bubble sits: on the real floor under her plus Guard Bubble Lift; her feet if no floor is found.</summary>
-    private Vector3 GuardBubblePoint()
+    /// <summary>Where the bubble sits and how it lies: on the real floor under her plus Guard Bubble Lift,
+    /// tilted to the floor's slope, keeping her yaw. Her feet and her rotation if no floor is found.</summary>
+    private void GuardBubblePose(out Vector3 pos, out Quaternion rot)
     {
-        if (FindFloorUnder(transform.position, out Vector3 floorPoint, out Vector3 floorNormal))
-            return floorPoint + floorNormal * guardBubbleLift;
-        return transform.position + Vector3.up * guardBubbleLift;
+        pos = transform.position + Vector3.up * guardBubbleLift;
+        rot = transform.rotation;
+        if (!FindFloorUnder(transform.position, out Vector3 floorPoint, out Vector3 floorNormal)) return;
+        pos = floorPoint + floorNormal * guardBubbleLift;
+        Vector3 forward = Vector3.ProjectOnPlane(transform.forward, floorNormal);
+        if (forward.sqrMagnitude < 0.0001f) forward = Vector3.ProjectOnPlane(Vector3.forward, floorNormal);
+        rot = Quaternion.LookRotation(forward.normalized, floorNormal);
     }
 
     private void LateUpdate()
     {
-        if (activeGuardBubble != null) activeGuardBubble.transform.position = GuardBubblePoint();   // never sinks, never floats
+        if (activeGuardBubble == null) return;
+        GuardBubblePose(out Vector3 pos, out Quaternion rot);   // every frame: never sinks, never floats, lies on the slope
+        activeGuardBubble.transform.SetPositionAndRotation(pos, rot);
+    }
+
+    /// <summary>A hit was blocked by the held guard (not a perfect parry): the block effect in front of her chest.</summary>
+    public void PlayGuardBlockVFX()
+    {
+        if (guardBlockVFX == null) return;
+        Vector3 chest = centerBody != null ? centerBody.position : transform.position + Vector3.up * 0.6f;
+        Vector3 forward = transform.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
+        SpawnEffect(guardBlockVFX, chest + forward.normalized * 0.5f, Quaternion.LookRotation(forward.normalized));
     }
 
     /// <summary>The parry counter landed on the enemy: the parry hit effect on his body. Nothing when the slot is empty.</summary>

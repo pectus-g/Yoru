@@ -154,7 +154,7 @@ public class CombatFeedbackManager : MonoBehaviour
     {
         HitStop(parryHitStopDuration, playerAnimator, enemyAnimator);
         CameraShake(parryShakeIntensity, shakeDuration * 1.5f);
-        SpawnHitVFX(contactPoint, true);
+        // No heavy hit spark here any more: the parry flash is Yoru VFX Manager > Perfect Parry VFX.
         PostProcessPulse(pulseIntensity * 1.2f, pulseDuration);
 
         // Game Feel v3: FOV zoom in on parry (dramatic focus)

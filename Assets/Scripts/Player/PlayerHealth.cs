@@ -78,8 +78,15 @@ public class PlayerHealth : MonoBehaviour
     /// Full TakeDamage — all defensive gates checked BEFORE HP subtraction.
     /// Called by EnemyCombat.DealDamageToPlayer().
     /// </summary>
+    /// <summary>What her defence did with the last hit that reached her. Set inside TakeDamage before it
+    /// returns, so an attacker that calls TakeDamage can read it in the same frame and draw its
+    /// impact only when the hit really landed (a parried, blocked or dodged club leaves no red mark).</summary>
+    public enum HitOutcome { None, Immune, Dodged, Parried, Blocked, Damaged }
+    public HitOutcome LastHitOutcome { get; private set; } = HitOutcome.None;
+
     public void TakeDamage(int damage, bool isHeavy, Vector3 attackerPos, bool feedbackOnly = false)
     {
+        LastHitOutcome = HitOutcome.Immune;   // every early return below is a hit that did not land
         // GATE 0: Tomoe (human form) is never damaged. GDD Doc 04 §4b:
         // "Damage taken: 0x — Tomoe is never attacked. Enemies ignore her."
         // The "enemies ignore her" AI rule is deferred to a later phase — enemies may
@@ -113,15 +120,22 @@ public class PlayerHealth : MonoBehaviour
 
         // GATE 2: Dodge i-frames — mid-dodge invincibility window
         if (playerCombat != null && playerCombat.IsInDodgeIFrames())
+        {
+            LastHitOutcome = HitOutcome.Dodged;
             return;
+        }
 
         // GATE 3: Dash i-frames — mid-dash invincibility window
         if (playerCombat != null && playerCombat.IsInDashIFrames())
+        {
+            LastHitOutcome = HitOutcome.Dodged;
             return;
+        }
 
         // GATE 4: Perfect parry — 0.2s window after Q press, zero damage + enemy stagger
         if (playerCombat != null && playerCombat.IsInPerfectParryWindow())
         {
+            LastHitOutcome = HitOutcome.Parried;
             playerCombat.OnPerfectParry(attackerPos);
             iFrameTimer = iFrameDuration; // Brief i-frames after parry too
             return;
@@ -130,6 +144,7 @@ public class PlayerHealth : MonoBehaviour
         // GATE 5: Regular guard — 70% damage blocked, no hit reaction, stay in guard
         if (playerCombat != null && playerCombat.IsGuarding())
         {
+            LastHitOutcome = HitOutcome.Blocked;
             float reduction = playerCombat.GetGuardDamageReduction();
             int reducedDamage = Mathf.Max(1, Mathf.RoundToInt(damage * (1f - reduction)));
 
@@ -152,6 +167,7 @@ public class PlayerHealth : MonoBehaviour
             return;
 
         // --- All gates passed — apply full damage ---
+        LastHitOutcome = HitOutcome.Damaged;
         currentHealth = Mathf.Max(currentHealth - damage, 0);
         iFrameTimer = iFrameDuration;
 

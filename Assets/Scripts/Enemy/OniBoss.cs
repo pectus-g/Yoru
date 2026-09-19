@@ -1382,7 +1382,7 @@ public class OniBoss : MonoBehaviour
         {
             // The charge owns its own impact — ROUND 43: and it finally SHOWS one. Fired from the
             // engine's own resolution, so the effect appears the exact frame the charge damage lands.
-            if (clubConnected && playerT != null)
+            if (clubConnected && playerT != null && HitLandedOnHer())
             {
                 GameObject fx = chargeHitVFX != null ? chargeHitVFX : hitLandVFX;
                 if (fx != null)
@@ -1446,7 +1446,7 @@ public class OniBoss : MonoBehaviour
         // ROUND 39: for a TOUCH-DRIVEN attack the hit and its effect were already delivered at the
         // touch. A timed attack (the fallback, or one not handed to the touch detector) still gets
         // its impact effect at its own connected strike, exactly as before.
-        if (clubConnected && !combat.CurrentAttackTouchDriven()) SpawnHitLandVFX(hitPrefab);
+        if (clubConnected && !combat.CurrentAttackTouchDriven() && HitLandedOnHer()) SpawnHitLandVFX(hitPrefab);
 
         if (prefab == null) return;
 
@@ -1604,7 +1604,7 @@ public class OniBoss : MonoBehaviour
         swingHitDelivered = true;
         if (!delivered) return;
 
-        SpawnHitLandVFX(HitVFXForAttack(atk, combat.CurrentAttackAnim()));
+        if (HitLandedOnHer()) SpawnHitLandVFX(HitVFXForAttack(atk, combat.CurrentAttackAnim()));   // parried, blocked or dodged: her own effect tells the story
         bool disarmedWave = currentSwingWave != null;
         if (disarmedWave) currentSwingWave.CancelledByClub();   // released before he reached her — the club got there first, so it flies on as pure effect
 
@@ -1641,6 +1641,14 @@ public class OniBoss : MonoBehaviour
     private void OnSwingWaveConnected(SwingWaveProjectile w)
     {
         if (w != null && ReferenceEquals(w, currentSwingWave)) swingHitDelivered = true;
+    }
+
+    /// <summary>True when the strike just delivered really damaged her. Her health script records what its
+    /// defence did with the hit (parried, blocked, dodged with i-frames, damaged); a hit she stopped
+    /// gets no red impact from him, her own parry or block effect shows instead. True with no health ref.</summary>
+    private bool HitLandedOnHer()
+    {
+        return playerHealthRef == null || playerHealthRef.LastHitOutcome == PlayerHealth.HitOutcome.Damaged;
     }
 
     /// <summary>ROUND 39. The hit effect this attack's row wants (or the fallback) — shared by the
@@ -3604,7 +3612,7 @@ public class OniBoss : MonoBehaviour
                 {
                     poundRingSpent = true;
                     playerHealthRef.TakeDamage(poundDamage, true, poundRingCenter, false);
-                    SpawnHitLandVFX(hitLandVFX);
+                    if (HitLandedOnHer()) SpawnHitLandVFX(hitLandVFX);   // blocked or parried: her effect, not his mark
                     Debug.Log($"[OniBoss:Pound] shockwave CAUGHT Yoru (grounded) at {d:F1}m for {poundDamage}.");
                 }
             }

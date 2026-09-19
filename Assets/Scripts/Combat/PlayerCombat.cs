@@ -1565,6 +1565,7 @@ public class PlayerCombat : MonoBehaviour
     {
         DebugLog($"Guard blocked ({guardDamageReduction * 100f:F0}% reduced)");
 
+        if (vfxManager != null) vfxManager.PlayGuardBlockVFX();
         if (CombatFeedbackManager.Instance != null)
             CombatFeedbackManager.Instance.PlayGuardFeedback();
         if (CombatSFXManager.Instance != null)
