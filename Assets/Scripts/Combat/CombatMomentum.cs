@@ -2,9 +2,10 @@ using UnityEngine;
 
 /// <summary>
 /// The momentum counter. Every hit Yoru lands adds one: x1, x2, x3 and on without end. Not
-/// getting hit is what keeps it. It drains when she stops attacking and drops when she takes a
-/// heavy hit; light hits, dodges, dashes and parries never touch it, so weaving through his
-/// swings keeps what she built. Each point also makes her a little faster, capped so the clips
+/// getting hit is what keeps it. It drains when she stops attacking. A HEAVY hit resets it to
+/// zero. A LIGHT hit takes a share of it (Light Hit Percent, rounded, halves round up), at most
+/// once per Light Hit Grace seconds so one of his combos costs one penalty, not three. Dodges,
+/// dashes and parries never touch it, so weaving through his swings keeps what she built. Each point also makes her a little faster, capped so the clips
 /// stay readable; PlayerCombat multiplies its Combo Speed and Dodge Speed by SpeedMultiplier.
 /// Each point also makes her hits stronger and heavier: PlayerCombat multiplies every damage she
 /// deals by DamageMultiplier, CombatFeedbackManager multiplies hitstop and shake by ImpactMultiplier.
@@ -21,10 +22,14 @@ public class CombatMomentum : MonoBehaviour
     [SerializeField] private float idleBeforeDrain = 2.5f;
     [Tooltip("Seconds between each point lost while draining.")]
     [SerializeField] private float drainInterval = 0.5f;
-    [Tooltip("Points lost when she takes a HEAVY hit. 0 = heavy hits never touch it. 999 = a heavy hit resets it.")]
-    [SerializeField] private int heavyHitCost = 3;
-    [Tooltip("Points lost when she takes a LIGHT hit. Not getting hit is the whole point, so every hit costs something; light ones less.")]
-    [SerializeField] private int lightHitCost = 1;
+    [Tooltip("A HEAVY hit (his combo finisher, a big opener) resets the count to zero. Always, grace or no grace.")]
+    [SerializeField] private bool heavyHitResets = true;
+    [Tooltip("Share of the count a LIGHT hit takes. 0.5 = half. Rounded to the nearest whole point, halves round up, so a hit always costs at least 1 and x1 goes to zero. Proportional, so it hurts the same at x10 and x40.")]
+    [Range(0f, 1f)] [SerializeField] private float lightHitPercent = 0.5f;
+    [Tooltip("Ceiling on what one light hit can take. 0 = no ceiling. 10 = never more than 10 points in one hit, the Devil May Cry rule that a long climb is not erased by one tap.")]
+    [SerializeField] private int lightHitMaxLoss = 0;
+    [Tooltip("Seconds after a light hit during which further light hits cost nothing. His combos touch her 2 or 3 times in half a second; with this, one combo costs one penalty. A heavy hit ignores it.")]
+    [SerializeField] private float lightHitGrace = 1f;
     [Tooltip("Seconds that must pass between two counted hits. The air spin and the beyblade tick damage many times a second; without this one spin was worth 5 to 8 points. 0.25 makes a spin worth about 3.")]
     [SerializeField] private float minSecondsBetweenPoints = 0.25f;
     [Tooltip("Points gained on a perfect parry, on top of the counter hit itself.")]
@@ -58,6 +63,7 @@ public class CombatMomentum : MonoBehaviour
     private static CombatMomentum instance;
     private int count;
     private float lastHitTime = -999f;
+    private float lastLightHitTakenAt = -999f;
     private float nextDrainAt;
     #endregion
 
@@ -84,9 +90,22 @@ public class CombatMomentum : MonoBehaviour
     public static void OnPlayerHit(bool isHeavy)
     {
         if (instance == null) return;
-        int cost = isHeavy ? instance.heavyHitCost : instance.lightHitCost;
-        if (cost <= 0) return;
-        instance.Set(instance.count - cost, "hit taken");
+        if (isHeavy)
+        {
+            if (instance.heavyHitResets) instance.Set(0, "heavy hit taken, reset");
+            return;
+        }
+        if (Time.time - instance.lastLightHitTakenAt < instance.lightHitGrace)
+        {
+            if (instance.logMomentum) Debug.Log($"[Momentum] light hit inside the {instance.lightHitGrace:F1}s grace, no cost (count {instance.count})");
+            return;
+        }
+        instance.lastLightHitTakenAt = Time.time;
+        int loss = Mathf.FloorToInt(instance.count * instance.lightHitPercent + 0.5f);   // nearest whole point, halves round up
+        if (instance.count > 0) loss = Mathf.Max(1, loss);
+        if (instance.lightHitMaxLoss > 0) loss = Mathf.Min(loss, instance.lightHitMaxLoss);
+        if (loss <= 0) return;
+        instance.Set(instance.count - loss, $"light hit taken, {Mathf.RoundToInt(instance.lightHitPercent * 100f)}% = -{loss}");
     }
 
     /// <summary>She parried. Called by PlayerCombat from OnPerfectParry.</summary>
