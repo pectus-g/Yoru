@@ -344,6 +344,8 @@ public class EnemyCombat : MonoBehaviour
     [SerializeField] private bool returnToSpawnOnDisengage = true;
     [Tooltip("Player must stay beyond escapeRange (leash) for this many seconds before the enemy gives up and walks home. Prevents flickering between chase and return right at the boundary.")]
     [SerializeField] private float leashGraceDuration = 1.5f;
+    [Tooltip("BOSS: ON = distance never ends the fight. Escape Range and the leash grace are ignored; once he is hostile there is no running out of range to make him walk home. Tomoe still drops combat (GDD rule). OFF = normal enemy leash.")]
+    [SerializeField] private bool neverDisengage = false;
     [Tooltip("Seconds the enemy stands still in idle (rotating to face spawn) before starting the walk home. The 'beat' between losing target and committing to walk-home.")]
     [SerializeField] private float returnPauseDuration = 2f;
     [Tooltip("Planar (XZ) distance from spawn position considered 'home' — once within this range, transition to Idle. Slightly larger than navAgent.stoppingDistance for slope/platform robustness.")]
@@ -734,7 +736,7 @@ public class EnemyCombat : MonoBehaviour
         // Leash is the raw player↔enemy distance. The enemy only gives up once the player
         // has stayed beyond escapeRange for leashGraceDuration straight — a brief overshoot
         // past the edge won't break the chase.
-        if (dist > escapeRange)
+        if (!neverDisengage && dist > escapeRange)
         {
             leashTimer += Time.deltaTime;
             if (leashTimer >= leashGraceDuration)

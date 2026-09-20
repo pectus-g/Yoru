@@ -2499,7 +2499,8 @@ public class OniBoss : MonoBehaviour
         if (s == EnemyCombat.EnemyState.Dead || phaseTransitionActive) return false;
 
         if (burstStaggerDamage > 0 && burstDamage >= burstStaggerDamage && !burstStaggerFired
-            && s != EnemyCombat.EnemyState.Stagger)
+            && s != EnemyCombat.EnemyState.Stagger
+            && !(health != null && health.StanceMeterActive))   // the stance meter owns staggers when it is on
         {
             burstStaggerFired = true;
             combat.TriggerStagger();

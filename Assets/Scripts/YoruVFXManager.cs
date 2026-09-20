@@ -80,6 +80,8 @@ public class YoruVFXManager : MonoBehaviour
     [SerializeField] private bool guardBubbleLoop = true;
     [Tooltip("Metres the bubble sits above the real floor under her. It is re-pinned to the floor every frame while Q is held (a downward ray, like the ground spin), so it never sinks on a slope or a step. Negative pushes it down, for a prefab whose pivot sits high above its own bottom.")]
     [SerializeField] private float guardBubbleLift = 0f;
+    [Tooltip("Radius in metres over which the floor is felt under the bubble, every frame. The floor is sampled at her feet and at 8 points on this ring, and the bubble sits on the HIGHEST of them, so a bump inside the ring can no longer swallow half of it. Set it to the ring's visible radius. 0 = her feet only.")]
+    [SerializeField] private float guardBubbleFootprint = 1.5f;
     [Tooltip("PERFECT PARRY (Q at the right moment): one burst half a metre in front of her chest toward the attacker, facing him, on top of the parry hitstop, shake and clang.")]
     [SerializeField] private GameObject perfectParryVFX;
     [Tooltip("PERFECT PARRY, on the Oni: spawned on his body where her counter lands, so the parry reads as her hit on him, next to the damage number. Empty = nothing extra (the heavy hit spark of the parry feedback still fires at the clash point between them).")]
@@ -1035,6 +1037,7 @@ public void OnJump(int jumpNumber)
         pos = transform.position + Vector3.up * guardBubbleLift;
         rot = transform.rotation;
         if (!FindFloorUnder(transform.position, out Vector3 floorPoint, out Vector3 floorNormal)) return;
+        floorPoint = HighestFloorInFootprint(transform.position, floorPoint, guardBubbleFootprint);
         pos = floorPoint + floorNormal * guardBubbleLift;
         Vector3 forward = Vector3.ProjectOnPlane(transform.forward, floorNormal);
         if (forward.sqrMagnitude < 0.0001f) forward = Vector3.ProjectOnPlane(Vector3.forward, floorNormal);

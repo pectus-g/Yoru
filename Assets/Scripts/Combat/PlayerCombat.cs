@@ -175,6 +175,20 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("ROUND 42/44. How fast Yoru must actually be moving (m/s, from the CharacterController) for the running reaction above to be chosen. Her run speed is ~7. ROUND 44: lowered to 1.5 ('moving at all') because at 3 the reaction never triggered in two full test sessions, she slows the instant the hit lands.")]
     [SerializeField] private float runningReactMinSpeed = 1.5f;
 
+    [Header("Animation State Names: Death (empty = log only, no clip)")]
+    [Tooltip("Killed on 2 legs by a LIGHT hit (single swing, middle combo hit, ground wave).")]
+    [SerializeField] private string deathLight2LegState = "";
+    [Tooltip("Killed on 2 legs by a HEAVY hit (combo finisher, charge, pound).")]
+    [SerializeField] private string deathHeavy2LegState = "";
+    [Tooltip("Killed on 4 legs on the ground. Light or heavy does not matter on 4 legs.")]
+    [SerializeField] private string death4LegState = "";
+    [Tooltip("Killed in the AIR (jump, air spin), 2 or 4 legs, light or heavy: this one clip, started at Death Air Start.")]
+    [SerializeField] private string deathAirState = "Heavyhit_jumping_Die_4";
+    [Tooltip("Where the air death clip starts, as a fraction of the clip (0 to 1). 0.343 = frame 13 of Heavyhit_jumping_Die_4, the frame the hit lands.")]
+    [Range(0f, 1f)] [SerializeField] private float deathAirStart = 0.343f;
+    [Tooltip("Blend into the death clip, seconds. Short: death should snap.")]
+    [SerializeField] private float deathBlend = 0.05f;
+
     [Tooltip("ROUND 85, Hazel's rule: a hit taken WHILE RUNNING must never stop her. ON = the running reaction plays without setting the hit-reaction flag, so PlayerMovement keeps moving her and keeps driving the run on the base layer, and the reaction melts back into the run over Running React Blend Out. OFF = the running reaction behaves like every other reaction and stops her (the old behavior). Only this reaction is affected; the medium (4-leg light) and heavy reactions still stop her exactly as before.")]
     [SerializeField] private bool runningReactKeepsMoving = true;
     [Tooltip("ROUND 85. Seconds the running flinch is held before it blends back into the run. Measured from the clip: it is 0.63s long and peaks at 0.37s, so with the 0.10s start offset, 0.45 shows the impact and the start of the recovery and leaves the tail to the blend.")]
@@ -311,6 +325,8 @@ public class PlayerCombat : MonoBehaviour
 
     [Header("Dash: Damage")]
     [SerializeField] private int dashDamage = 20;
+    [Tooltip("OFF = the dash is pure movement: no damage, no hit spark, no momentum gained, no staggering him. ON = the old rule, the dash hits for Dash Damage on the way through. Off because a damaging dash could be spammed through him for free and chain-stagger him.")]
+    [SerializeField] private bool dashDealsDamage = false;
     [SerializeField] private float dashHitRange = 1.8f;
 
     [Header("Dash: Timing")]
@@ -345,8 +361,8 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private int parryCounterDamage = 15;
     [Tooltip("Duration enemy is staggered after perfect parry")]
     [SerializeField] private float parryStaggerDuration = 1.2f;
-    [Tooltip("HP she gets back on a perfect parry. Skill is rewarded, holding Q heals nothing. 0 = off.")]
-    [SerializeField] private int parryHeal = 5;
+    [Tooltip("Bites (quarter peaches) she gets back on a perfect parry. Skill is rewarded, holding Q heals nothing. 0 = off. RENAMED from parryHeal (which was in damage points) so the old saved value is dropped.")]
+    [SerializeField] private int parryHealBites = 1;
     [Tooltip("Range to find closest attacking enemy for parry counter")]
     [SerializeField] private float parryCounterRange = 5f;
     [Tooltip("Duration of Parry_Start clip in seconds. After this elapses, idle/walk anims take over based on current input. Set this to match the actual length of your Parry_Start animation clip.")]
@@ -740,6 +756,7 @@ public class PlayerCombat : MonoBehaviour
 
     private void Update()
     {
+        if (isDead) { HoldDeathClip(); return; }   // dead: no input, no safety nets, the death clip owns the layer
         if (characterController != null && characterController.isGrounded) lastGroundedTime = Time.time;
 
         // ROUND 49: measure her ACTUAL planar speed from the transform. The running hit reaction
@@ -1536,7 +1553,7 @@ public class PlayerCombat : MonoBehaviour
         DebugLog("PERFECT PARRY!");
         CombatMomentum.OnParry();
         if (vfxManager != null) vfxManager.PlayPerfectParryVFX(attackerPos);
-        if (playerHealth != null && parryHeal > 0) playerHealth.Heal(parryHeal);
+        if (playerHealth != null && parryHealBites > 0) playerHealth.HealQuarters(parryHealBites);
 
         Vector3 chest = cachedTransform.position + Vector3.up * 0.6f;
         Vector3 clashPoint = chest;   // where the feedback (spark, camera ram) happens: between her chest and him
@@ -2113,7 +2130,7 @@ public class PlayerCombat : MonoBehaviour
                 yMax = Mathf.Max(yMax, cachedTransform.position.y);
             }
 
-            DealDashDamage(hitEnemyIDs);
+            if (dashDealsDamage) DealDashDamage(hitEnemyIDs);
 
             yield return null;
         }
@@ -2447,6 +2464,67 @@ public class PlayerCombat : MonoBehaviour
         // 0.1s buffer past the expected duration lets UpdateHitReaction win in the normal case.
         if (hitReactSafetyCoroutine != null) StopCoroutine(hitReactSafetyCoroutine);
         hitReactSafetyCoroutine = StartCoroutine(HitReactSafetyTimer(duration + 0.1f));
+    }
+
+    // ---------- Death ----------
+    private bool isDead;
+    private int deathStateHash;
+    private float deathStartNorm;
+    private bool deathClipReached;
+
+    /// <summary>Called by PlayerHealth on the killing hit. Picks the clip: in the air = the air clip from
+    /// Death Air Start; on 4 legs (running) = the 4-leg clip; on 2 legs = light or heavy by the hit.
+    /// Ends every action, plays the impact feedback, locks input. Game over menu: next pass.</summary>
+    public void PlayDeath(bool killingHitWasHeavy)
+    {
+        if (isDead) return;
+        isDead = true;
+
+        bool inAir = characterController != null && !characterController.isGrounded;
+        bool is4Leg = playerMovement != null && playerMovement.IsRunning();
+        string state;
+        float startNorm = 0f;
+        if (inAir) { state = deathAirState; startNorm = deathAirStart; }
+        else if (is4Leg) state = death4LegState;
+        else state = killingHitWasHeavy ? deathHeavy2LegState : deathLight2LegState;
+
+        FlashDamage();
+        if (vfxManager != null) vfxManager.PlayHitReactVFX(killingHitWasHeavy);
+        if (CombatFeedbackManager.Instance != null) CombatFeedbackManager.Instance.PlayPlayerHitFeedback(killingHitWasHeavy);
+        if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayPlayerHit(killingHitWasHeavy);
+
+        // Clear every action and its coroutines so nothing crossfades over the death clip.
+        if (hitReactHoldCoroutine != null) { StopCoroutine(hitReactHoldCoroutine); hitReactHoldCoroutine = null; }
+        if (hitReactSafetyCoroutine != null) { StopCoroutine(hitReactSafetyCoroutine); hitReactSafetyCoroutine = null; }
+        isInHitReaction = false;
+        EndActiveCombatActions();
+
+        string where = inAir ? "in the air" : (is4Leg ? "on 4 legs" : "on 2 legs");
+        if (string.IsNullOrEmpty(state) || animator == null)
+        {
+            Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit). No death clip set for this case, she just stops.");
+            return;
+        }
+        deathStateHash = Animator.StringToHash(state);
+        deathStartNorm = startNorm;
+        deathClipReached = false;
+        animator.SetLayerWeight(combatLayerIndex, 1f);
+        if (startNorm > 0f) animator.CrossFade(state, 0.05f, combatLayerIndex, startNorm);
+        else animator.CrossFadeInFixedTime(state, Mathf.Max(0f, deathBlend), combatLayerIndex);
+        Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit): {state}{(startNorm > 0f ? $" from {startNorm:P0}" : "")}");
+    }
+
+    /// <summary>Re-asserts the death clip until the animator has really reached it once (a stray
+    /// crossfade from another script could swallow the first request). After that it is left alone,
+    /// so the state can rest on its last frame. Death states need no exit transition and no loop.</summary>
+    private void HoldDeathClip()
+    {
+        if (animator == null || deathStateHash == 0 || deathClipReached) return;
+        AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+        if (si.shortNameHash == deathStateHash) { deathClipReached = true; return; }
+        if (animator.IsInTransition(combatLayerIndex)) return;
+        if (deathStartNorm > 0f) animator.CrossFade(deathStateHash, 0.05f, combatLayerIndex, deathStartNorm);
+        else animator.CrossFadeInFixedTime(deathStateHash, Mathf.Max(0f, deathBlend), combatLayerIndex);
     }
 
     #region Running Hit Reaction (round 85)
@@ -4181,7 +4259,8 @@ public class PlayerCombat : MonoBehaviour
     public int GetCurrentComboStep() => currentComboStep;
     public bool IsAerialAttack() => isAerialAttack;
     public bool IsPositionLocked() => lockPosition;
-    public bool IsInHitReaction() => isInHitReaction;
+    public bool IsInHitReaction() => isInHitReaction || isDead;   // dead reads as a reaction: PlayerMovement blocks WASD and jump on it
+    public bool IsDead() => isDead;
     public bool IsDodging()
     {
         // Self-heal: if isDodging stuck past expected duration + 0.5s grace, force-clear.

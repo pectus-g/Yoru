@@ -1,68 +1,285 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Yoru's peach row. Draws itself from sprites at runtime under this object, so the prefab holds
+/// nothing but the sprites and the dials. PlayerHealth pushes the numbers in through SetHealth().
+///
+/// Reading the row: real peaches first, left to right, eaten from the RIGHT end (like Zelda's
+/// hearts). Full, three quarter, half, quarter, then the pit stays on screen. Gold peaches sit
+/// after the real ones, glow, are eaten first and vanish when gone. The row wraps after
+/// Peaches Per Row. The last real peach breathes when it is all she has left.
+/// </summary>
 public class PeachHealthUI : MonoBehaviour
 {
+    public enum Corner { TopLeft, TopRight, BottomLeft, BottomRight }
+
     [Header("Peach Sprites")]
-    public Sprite emptyPeach;
-    public Sprite quarterPeach;
-    public Sprite halfPeach;
-    public Sprite threeQuarterPeach;
-    public Sprite fullPeach;
-    
-    private Image[] peachImages;
-    
-    void Awake()
+    public Sprite peachFull;
+    public Sprite peach3_4;
+    public Sprite peachHalf;
+    public Sprite peach1_4;
+    [Tooltip("Shown where a real peach has been eaten completely. Stays on screen so the number of pits still says how many peaches she owns.")]
+    public Sprite peachPit;
+
+    [Header("Gold Sprites (temporary peaches from items)")]
+    public Sprite goldFull;
+    public Sprite gold3_4;
+    public Sprite goldHalf;
+    public Sprite gold1_4;
+
+    [Header("Gold Glow (halo drawn behind each gold peach, breathes)")]
+    public Sprite glowFull;
+    public Sprite glow3_4;
+    public Sprite glowHalf;
+    public Sprite glow1_4;
+
+    [Header("Layout")]
+    [Tooltip("Peach size in pixels at the canvas reference resolution (1920 x 1080). 64 is about 6 percent of the screen height.")]
+    public float peachSize = 64f;
+    [Tooltip("Space between two peaches in the row, in pixels.")]
+    public float gap = 6f;
+    [Tooltip("Which screen corner the row hangs from.")]
+    public Corner corner = Corner.TopLeft;
+    [Tooltip("Distance from that corner, in pixels (x = from the side, y = from the top or bottom).")]
+    public Vector2 margin = new Vector2(40f, 40f);
+    [Tooltip("Peaches on one row before the next row starts. 6 keeps the row clear of the Oni's ink stroke at the top centre.")]
+    public int peachesPerRow = 6;
+    [Tooltip("Space between two rows, in pixels.")]
+    public float rowGap = 6f;
+
+    [Header("Motion")]
+    [Tooltip("The peach that just lost a bite pops to this scale, then settles.")]
+    public float bitePunchScale = 1.3f;
+    [Tooltip("The peach that just gained a bite pops to this scale, then settles.")]
+    public float healPunchScale = 1.15f;
+    [Tooltip("Seconds for a pop to settle back to normal size.")]
+    public float punchSeconds = 0.2f;
+    [Tooltip("ON = when only the last real peach is left (and no gold), it breathes.")]
+    public bool lastPeachPulses = true;
+    [Tooltip("How big the breath gets. 1.12 = 12 percent bigger at the top of the breath.")]
+    public float pulseScale = 1.12f;
+    [Tooltip("Seconds for one full breath of the last peach.")]
+    public float pulseSeconds = 1.2f;
+    [Tooltip("Gold halo brightness at the bottom of its breath (0 to 1).")]
+    [Range(0f, 1f)] public float glowBreathMin = 0.55f;
+    [Tooltip("Gold halo brightness at the top of its breath (0 to 1).")]
+    [Range(0f, 1f)] public float glowBreathMax = 1f;
+    [Tooltip("Seconds for one full breath of the gold halo.")]
+    public float glowBreathSeconds = 1.6f;
+
+    private class Slot
     {
-        peachImages = new Image[3];
-        
-        for (int i = 0; i < 3; i++)
+        public RectTransform rect;
+        public Image glow;
+        public Image peach;
+        public int value = -1;     // quarters shown, 0..4
+        public bool gold;
+        public float punchFrom = 1f;
+        public float punchT = 1f;  // 0 = just popped, 1 = settled
+    }
+
+    private RectTransform row;
+    private readonly List<Slot> slots = new List<Slot>();
+    private int quarters, maxQuarters, goldQuarters;
+    private bool built;
+
+    private void Awake()
+    {
+        BuildRow();
+    }
+
+    private void Start()
+    {
+        PlayerHealth ph = FindFirstObjectByType<PlayerHealth>();
+        if (ph != null) ph.RegisterUI(this);
+    }
+
+    private void BuildRow()
+    {
+        if (row != null) return;
+        GameObject go = new GameObject("PeachRow", typeof(RectTransform));
+        row = go.GetComponent<RectTransform>();
+        row.SetParent(transform, false);
+        Vector2 a = CornerAnchor();
+        row.anchorMin = a; row.anchorMax = a; row.pivot = a;
+        row.anchoredPosition = Vector2.zero;
+        row.sizeDelta = Vector2.zero;
+        built = true;
+    }
+
+    private Vector2 CornerAnchor()
+    {
+        switch (corner)
         {
-            GameObject peach = new GameObject($"Peach_{i}");
-            peach.transform.SetParent(transform);
-            peach.transform.localScale = Vector3.one;
-            
-            Image img = peach.AddComponent<Image>();
-            img.sprite = fullPeach;
-            img.preserveAspect = true;
-            
-            RectTransform rt = peach.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(60, 60);
-            rt.anchoredPosition = new Vector2(i * 70, 0);
-            
-            peachImages[i] = img;
+            case Corner.TopRight: return new Vector2(1f, 1f);
+            case Corner.BottomLeft: return new Vector2(0f, 0f);
+            case Corner.BottomRight: return new Vector2(1f, 0f);
+            default: return new Vector2(0f, 1f);
         }
-        
-        Debug.Log("🍑 3 peaches created!");
     }
-    
-    public void UpdateHealth(int currentHP)
+
+    /// <summary>Called by PlayerHealth on every change. deltaQuarters < 0 = bites lost, > 0 = gained, 0 = just a refresh.</summary>
+    public void SetHealth(int quarters, int maxQuarters, int goldQuarters, int deltaQuarters)
     {
-        if (peachImages == null) return;
-        
-        Debug.Log($"🍑 UpdateHealth: {currentHP}/24 HP");
-        
-        // Peach 2 (rightmost): HP 17-24
-        int peach2HP = Mathf.Clamp(currentHP - 16, 0, 8);
-        peachImages[2].sprite = GetSprite(peach2HP);
-        
-        // Peach 1 (middle): HP 9-16
-        int peach1HP = Mathf.Clamp(currentHP - 8, 0, 8);
-        peachImages[1].sprite = GetSprite(peach1HP);
-        
-        // Peach 0 (leftmost): HP 1-8
-        int peach0HP = Mathf.Clamp(currentHP, 0, 8);
-        peachImages[0].sprite = GetSprite(peach0HP);
-        
-        Debug.Log($"  Peach 0: {peach0HP}/8, Peach 1: {peach1HP}/8, Peach 2: {peach2HP}/8");
+        if (!built) BuildRow();
+        this.quarters = Mathf.Max(0, quarters);
+        this.maxQuarters = Mathf.Max(0, maxQuarters);
+        this.goldQuarters = Mathf.Max(0, goldQuarters);
+
+        int realPeaches = Mathf.CeilToInt(this.maxQuarters / 4f);
+        int goldPeaches = Mathf.CeilToInt(this.goldQuarters / 4f);
+        EnsureSlots(realPeaches + goldPeaches);
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            Slot s = slots[i];
+            bool isGold = i >= realPeaches;
+            int value = isGold ? Mathf.Clamp(this.goldQuarters - 4 * (i - realPeaches), 0, 4)
+                               : Mathf.Clamp(this.quarters - 4 * i, 0, 4);
+            bool changed = s.value != value || s.gold != isGold;
+            s.gold = isGold;
+            s.value = value;
+            s.peach.sprite = isGold ? GoldSprite(value) : RealSprite(value);
+            s.peach.enabled = s.peach.sprite != null;
+            Sprite g = isGold ? GlowSprite(value) : null;
+            s.glow.sprite = g;
+            s.glow.enabled = g != null;
+            if (changed && deltaQuarters != 0 && s.value >= 0)
+            {
+                s.punchFrom = deltaQuarters < 0 ? bitePunchScale : healPunchScale;
+                s.punchT = 0f;
+            }
+            Place(s, i);
+        }
     }
-    
-    Sprite GetSprite(int hp)
+
+    private void EnsureSlots(int count)
     {
-        if (hp >= 7) return fullPeach;        // 7-8 HP
-        if (hp >= 5) return threeQuarterPeach; // 5-6 HP
-        if (hp >= 3) return halfPeach;         // 3-4 HP
-        if (hp >= 1) return quarterPeach;      // 1-2 HP
-        return emptyPeach;                     // 0 HP
+        while (slots.Count < count)
+        {
+            Slot s = new Slot();
+            GameObject go = new GameObject($"Peach_{slots.Count}", typeof(RectTransform));
+            s.rect = go.GetComponent<RectTransform>();
+            s.rect.SetParent(row, false);
+
+            GameObject glowGo = new GameObject("Glow", typeof(RectTransform), typeof(Image));
+            glowGo.transform.SetParent(go.transform, false);
+            s.glow = glowGo.GetComponent<Image>();
+            s.glow.raycastTarget = false;
+            Stretch(glowGo.GetComponent<RectTransform>());
+
+            GameObject peachGo = new GameObject("Peach", typeof(RectTransform), typeof(Image));
+            peachGo.transform.SetParent(go.transform, false);
+            s.peach = peachGo.GetComponent<Image>();
+            s.peach.raycastTarget = false;
+            s.peach.preserveAspect = true;
+            Stretch(peachGo.GetComponent<RectTransform>());
+
+            slots.Add(s);
+        }
+        while (slots.Count > count)
+        {
+            Slot s = slots[slots.Count - 1];
+            slots.RemoveAt(slots.Count - 1);
+            if (s.rect != null) Destroy(s.rect.gameObject);
+        }
     }
+
+    private static void Stretch(RectTransform rt)
+    {
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+    }
+
+    private void Place(Slot s, int index)
+    {
+        int perRow = Mathf.Max(1, peachesPerRow);
+        int col = index % perRow;
+        int rowIndex = index / perRow;
+        Vector2 a = CornerAnchor();
+        float sx = a.x > 0.5f ? -1f : 1f;   // right corners grow leftwards
+        float sy = a.y > 0.5f ? -1f : 1f;   // top corners grow downwards
+        float x = sx * (margin.x + col * (peachSize + gap));
+        float y = sy * (margin.y + rowIndex * (peachSize + rowGap));
+        s.rect.anchorMin = a; s.rect.anchorMax = a; s.rect.pivot = a;
+        s.rect.sizeDelta = new Vector2(peachSize, peachSize);
+        s.rect.anchoredPosition = new Vector2(x, y);
+    }
+
+    private void Update()
+    {
+        float dt = Time.unscaledDeltaTime;   // hitstop must not freeze the HUD
+        bool lastOne = lastPeachPulses && goldQuarters == 0 && quarters > 0 && quarters <= 4;
+        float breath = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.05f, glowBreathSeconds));
+        float glowAlpha = Mathf.Lerp(glowBreathMin, glowBreathMax, breath);
+        float pulse = 1f + (pulseScale - 1f) * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.05f, pulseSeconds)));
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            Slot s = slots[i];
+            if (s.punchT < 1f)
+                s.punchT = Mathf.Min(1f, s.punchT + dt / Mathf.Max(0.01f, punchSeconds));
+            float ease = 1f - (1f - s.punchT) * (1f - s.punchT);          // fast out, soft landing
+            float scale = Mathf.Lerp(s.punchFrom, 1f, ease);
+            if (lastOne && i == 0 && !s.gold) scale *= pulse;
+            // Scale the images, not the slot: the slot's pivot is the screen corner, the images pivot on their centre.
+            Vector3 sc = new Vector3(scale, scale, 1f);
+            s.peach.rectTransform.localScale = sc;
+            s.glow.rectTransform.localScale = sc;
+
+            if (s.glow.enabled)
+            {
+                Color c = s.glow.color; c.a = glowAlpha; s.glow.color = c;
+            }
+        }
+    }
+
+    private Sprite RealSprite(int v)
+    {
+        switch (v)
+        {
+            case 4: return peachFull;
+            case 3: return peach3_4;
+            case 2: return peachHalf;
+            case 1: return peach1_4;
+            default: return peachPit;
+        }
+    }
+
+    private Sprite GoldSprite(int v)
+    {
+        switch (v)
+        {
+            case 4: return goldFull;
+            case 3: return gold3_4;
+            case 2: return goldHalf;
+            case 1: return gold1_4;
+            default: return null;
+        }
+    }
+
+    private Sprite GlowSprite(int v)
+    {
+        switch (v)
+        {
+            case 4: return glowFull;
+            case 3: return glow3_4;
+            case 2: return glowHalf;
+            case 1: return glow1_4;
+            default: return null;
+        }
+    }
+
+#if UNITY_EDITOR
+    // Layout dials edited in Play Mode take effect at once.
+    private void OnValidate()
+    {
+        if (!Application.isPlaying || row == null) return;
+        Vector2 a = CornerAnchor();
+        row.anchorMin = a; row.anchorMax = a; row.pivot = a;
+        for (int i = 0; i < slots.Count; i++) Place(slots[i], i);
+    }
+#endif
 }

@@ -20,6 +20,82 @@ public class EnemyHealth : MonoBehaviour
     [Tooltip("Damage at or above this in a single hit triggers a STAGGER (big interrupt); anything below triggers a quick HIT-REACT flinch. Heavy attacks also always stagger. Set this between your light and heavy player-attack damage values.")]
     [SerializeField] private int staggerDamageThreshold = 15;
 
+    [Header("Stance Meter (boss tuning, opt-in: replaces the damage threshold)")]
+    [Tooltip("ON = a stagger is earned by filling a stance meter, not by one big hit. Every hit adds stance by its TYPE (light or heavy), never by its damage, so momentum damage bonuses and the dash cannot chain-stagger him. The meter holds, then drains; each break raises the bar and grants a short immunity. A perfect parry still staggers instantly (PlayerCombat triggers that directly). OFF = the old rule: Stagger Damage Threshold or a heavy hit staggers.")]
+    [SerializeField] private bool useStanceMeter = false;
+    [Tooltip("Stance needed for the FIRST break. Elden Ring bosses sit at 80 to 120.")]
+    [SerializeField] private float stanceMax = 100f;
+    [Tooltip("Stance added by a LIGHT hit (combo hits 1 and 2, spin ticks, light bolts).")]
+    [SerializeField] private float stanceLightHit = 10f;
+    [Tooltip("Stance added by a HEAVY hit (the heavy release, the combo finisher, the heavy air shot). About three times a light hit, so cheap fast moves cannot break him on their own.")]
+    [SerializeField] private float stanceHeavyHit = 30f;
+    [Tooltip("Seconds the meter holds after the last hit before it starts draining. Keep the pressure on or lose it.")]
+    [SerializeField] private float stanceHoldSeconds = 1.5f;
+    [Tooltip("Stance drained per second once the hold is over. 20 = an empty bar five seconds after she stops.")]
+    [SerializeField] private float stanceDrainPerSecond = 20f;
+    [Tooltip("How much the bar grows after each break, for the rest of the fight. 0.5 = 100, then 150, then 225. Monster Hunter's rule. 0 = every break costs the same.")]
+    [SerializeField] private float stanceGrowthPerBreak = 0.5f;
+    [Tooltip("Seconds after a break during which hits add no stance. Set it to the stagger length plus about one second so the punish window and the get-up are never a second break.")]
+    [SerializeField] private float stanceImmunitySeconds = 3.5f;
+    [Tooltip("Log every stance change to the console.")]
+    [SerializeField] private bool logStance = false;
+
+    private float stance;
+    private float stanceLastHitTime = -999f;
+    private float stanceImmuneUntil = -999f;
+    private float stanceCurrentMax;
+    private int stanceBreaks;
+
+    /// <summary>True when this enemy staggers from a stance meter instead of a damage threshold. Boss layers
+    /// with their own damage-burst staggers stand down while this is on.</summary>
+    public bool StanceMeterActive => useStanceMeter;
+
+    /// <summary>0 to 1, how close he is to a stance break right now (for a bar later). Drains as time passes.</summary>
+    public float StanceFraction
+    {
+        get
+        {
+            if (!useStanceMeter) return 0f;
+            float max = stanceCurrentMax > 0f ? stanceCurrentMax : stanceMax;
+            return Mathf.Clamp01(DrainedStance() / max);
+        }
+    }
+
+    /// <summary>The meter as it stands now: what the last hit left, minus the drain since the hold ran out.</summary>
+    private float DrainedStance()
+    {
+        float sinceLast = Time.time - stanceLastHitTime;
+        if (sinceLast <= stanceHoldSeconds) return stance;
+        return Mathf.Max(0f, stance - (sinceLast - stanceHoldSeconds) * stanceDrainPerSecond);
+    }
+
+    /// <summary>One hit landed: add its stance and say whether the meter broke. Immunity after a break swallows the hit.</summary>
+    private bool StanceHit(bool isHeavy)
+    {
+        if (stanceCurrentMax <= 0f) stanceCurrentMax = stanceMax;
+        if (Time.time < stanceImmuneUntil)
+        {
+            if (logStance) Debug.Log($"[Stance] {gameObject.name} immune for {stanceImmuneUntil - Time.time:F1}s more, hit adds nothing");
+            return false;
+        }
+        stance = DrainedStance();
+        float add = isHeavy ? stanceHeavyHit : stanceLightHit;
+        stance += add;
+        stanceLastHitTime = Time.time;
+        if (stance < stanceCurrentMax)
+        {
+            if (logStance) Debug.Log($"[Stance] {gameObject.name} {stance:F0}/{stanceCurrentMax:F0} (+{add:F0} {(isHeavy ? "heavy" : "light")})");
+            return false;
+        }
+        stanceBreaks++;
+        stance = 0f;
+        stanceImmuneUntil = Time.time + stanceImmunitySeconds;
+        float previousMax = stanceCurrentMax;
+        stanceCurrentMax = stanceMax * Mathf.Pow(1f + Mathf.Max(0f, stanceGrowthPerBreak), stanceBreaks);
+        if (logStance) Debug.Log($"[Stance] {gameObject.name} BREAK #{stanceBreaks} at {previousMax:F0}, next break needs {stanceCurrentMax:F0}, immune {stanceImmunitySeconds:F1}s");
+        return true;
+    }
+
     [Header("Stagger Punish Window (boss tuning, optional)")]
     [Tooltip("Damage multiplier applied to hits landing WHILE this enemy is already in the Stagger state. 1 = off (default, no change). Oni boss: 1.5 — stagger becomes a reward window: open it with a heavy hit, then punish for bonus damage.")]
     [SerializeField] private float staggerDamageMultiplier = 1f;
@@ -126,7 +202,8 @@ public class EnemyHealth : MonoBehaviour
         // damage flinches (hit-react). Heavy attacks always stagger regardless of the number.
         if (enemyCombat != null)
         {
-            if (isHeavy || damage >= staggerDamageThreshold)
+            bool breaks = useStanceMeter ? StanceHit(isHeavy) : (isHeavy || damage >= staggerDamageThreshold);
+            if (breaks)
             {
                 // Re-stagger gate: while already staggered, a second big hit must not reset the
                 // stagger timer (chain-lock). With allowRestagger OFF it only deals its damage;
