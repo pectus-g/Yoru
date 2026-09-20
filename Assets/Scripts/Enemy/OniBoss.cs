@@ -2729,6 +2729,11 @@ public class OniBoss : MonoBehaviour
         // gameplay, exactly like round 52.
         bool cineRide = cineActive;
 
+        // The entrance pound is the second half of the phase-2 cinematic: he stays untouchable for it
+        // (the roar already was). Her zone and swings were flashing him red mid-jump before this.
+        bool poundWasInvulnerable = health != null && health.IsInvulnerable;
+        if (cineRide && phaseTransitionInvulnerable && health != null) health.SetInvulnerable(true);
+
         combat.TriggerStagger(3f);   // parks the agent and cancels attack/combo, same as the roar
 
         // ROUND 54: arriving from the mid-scream cut needs a real blend — 0.22s roar→crouch, so
@@ -2867,6 +2872,8 @@ public class OniBoss : MonoBehaviour
         // ROUND 53: whatever ended the loop (apex is the normal path, death or a cap the rare
         // ones), the cinematic may not outlive the pound.
         if (cineActive) EndPhaseCinematic("pound ended");
+
+        if (cineRide && phaseTransitionInvulnerable && health != null) health.SetInvulnerable(poundWasInvulnerable);
 
         poundActive = false;
         poundRoutine = null;

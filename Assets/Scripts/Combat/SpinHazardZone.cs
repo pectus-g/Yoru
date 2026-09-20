@@ -87,6 +87,7 @@ public class SpinHazardZone : MonoBehaviour
             // An enemy can have several colliders (body, weapon). One tick per enemy, not per collider.
             EnemyHealth enemy = hits[i].GetComponentInParent<EnemyHealth>();
             if (enemy == null || !hitThisTick.Add(enemy)) continue;
+            if (enemy.IsInvulnerable) continue;   // untouchable (phase-2 entrance): no damage, no flash, no tick log
 
             enemy.TakeDamageSilent(tickDamage);   // health, red flash, numbers. No flinch: he fights on through the drain.
             onTick?.Invoke(enemy, tickDamage);

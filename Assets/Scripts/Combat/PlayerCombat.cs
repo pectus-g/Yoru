@@ -188,6 +188,14 @@ public class PlayerCombat : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] private float deathAirStart = 0.343f;
     [Tooltip("Blend into the death clip, seconds. Short: death should snap.")]
     [SerializeField] private float deathBlend = 0.05f;
+    [Tooltip("ON = the world slows the instant the killing hit lands (Zelda style), holds, then eases back to normal speed while she falls.")]
+    [SerializeField] private bool deathSlowMotion = true;
+    [Tooltip("World speed at the moment of the killing hit. 0.15 = almost frozen, 0.5 = gentle.")]
+    [Range(0.02f, 1f)] [SerializeField] private float deathSlowScale = 0.15f;
+    [Tooltip("Real seconds the world stays at Death Slow Scale before it starts to recover.")]
+    [SerializeField] private float deathSlowHold = 0.5f;
+    [Tooltip("Real seconds the world takes to ease back from Death Slow Scale to normal speed.")]
+    [SerializeField] private float deathSlowRecover = 1.5f;
 
     [Tooltip("ROUND 85, Hazel's rule: a hit taken WHILE RUNNING must never stop her. ON = the running reaction plays without setting the hit-reaction flag, so PlayerMovement keeps moving her and keeps driving the run on the base layer, and the reaction melts back into the run over Running React Blend Out. OFF = the running reaction behaves like every other reaction and stops her (the old behavior). Only this reaction is affected; the medium (4-leg light) and heavy reactions still stop her exactly as before.")]
     [SerializeField] private bool runningReactKeepsMoving = true;
@@ -2506,6 +2514,7 @@ public class PlayerCombat : MonoBehaviour
         if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayPlayerHit(killingHitWasHeavy);
 
         if (activeSpinHazard != null) { activeSpinHazard.Disarm(); activeSpinHazard = null; }   // her ground hazard stops draining him
+        if (deathSlowMotion) StartCoroutine(DeathSlowMotion());
 
         // Clear every action and its coroutines so nothing crossfades over the death clip.
         if (hitReactHoldCoroutine != null) { StopCoroutine(hitReactHoldCoroutine); hitReactHoldCoroutine = null; }
@@ -2537,6 +2546,36 @@ public class PlayerCombat : MonoBehaviour
         if (startNorm > 0f) animator.CrossFade(state, 0.05f, combatLayerIndex, startNorm);
         else animator.CrossFadeInFixedTime(state, Mathf.Max(0f, deathBlend), combatLayerIndex);
         Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit): {state}{(startNorm > 0f ? $" from {startNorm:P0}" : "")}{(standIn ? " (STAND-IN: the clip for this case is not set, borrowing the air death)" : "")}");
+    }
+
+    /// <summary>Zelda style: the world drops to Death Slow Scale the instant the killing hit lands, holds,
+    /// then eases back to normal over Death Slow Recover real seconds. The physics step is scaled with
+    /// it (the tail aim's bullet time does the same) so her fall stays smooth. Runs on real time, so
+    /// it cannot stall itself. Leaves everything at 1 when it ends, whatever else touched the clock.</summary>
+    private IEnumerator DeathSlowMotion()
+    {
+        float baseFixed = Time.fixedDeltaTime / Mathf.Max(0.01f, Time.timeScale);   // the unscaled physics step
+        float scale = Mathf.Clamp(deathSlowScale, 0.02f, 1f);
+        Time.timeScale = scale;
+        Time.fixedDeltaTime = baseFixed * scale;
+
+        float t = 0f;
+        while (t < Mathf.Max(0f, deathSlowHold)) { t += Time.unscaledDeltaTime; yield return null; }
+
+        float recover = Mathf.Max(0.05f, deathSlowRecover);
+        t = 0f;
+        while (t < recover)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / recover);
+            k = k * k * (3f - 2f * k);                       // smooth ease
+            float now = Mathf.Lerp(scale, 1f, k);
+            Time.timeScale = now;
+            Time.fixedDeltaTime = baseFixed * now;
+            yield return null;
+        }
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = baseFixed;
     }
 
     /// <summary>Re-asserts the death clip until the animator has really reached it once (a stray
