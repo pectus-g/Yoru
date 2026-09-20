@@ -33,6 +33,10 @@ public class SpinHazardZone : MonoBehaviour
     /// <summary>Seconds this zone has left. Zero once it is fading out.</summary>
     public float TimeRemaining => Mathf.Max(0f, bornAt + lifetime - Time.time);
 
+    /// <summary>Switch the damage off for the rest of the zone's life (the effect keeps playing). Yoru's death calls this:
+    /// a dead cat does not keep draining him.</summary>
+    public void Disarm() { tickDamage = 0; }
+
     /// <summary>Arm the zone. Call once, right after AddComponent. onTick is optional and fires
     /// once per enemy per tick, after the damage has been applied, so the caller can keep its
     /// own bookkeeping (combat engaged timer, hit sparks) without this script knowing about it.</summary>

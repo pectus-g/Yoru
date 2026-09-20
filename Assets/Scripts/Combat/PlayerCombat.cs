@@ -175,15 +175,15 @@ public class PlayerCombat : MonoBehaviour
     [Tooltip("ROUND 42/44. How fast Yoru must actually be moving (m/s, from the CharacterController) for the running reaction above to be chosen. Her run speed is ~7. ROUND 44: lowered to 1.5 ('moving at all') because at 3 the reaction never triggered in two full test sessions, she slows the instant the hit lands.")]
     [SerializeField] private float runningReactMinSpeed = 1.5f;
 
-    [Header("Animation State Names: Death (empty = log only, no clip)")]
-    [Tooltip("Killed on 2 legs by a LIGHT hit (single swing, middle combo hit, ground wave).")]
-    [SerializeField] private string deathLight2LegState = "";
-    [Tooltip("Killed on 2 legs by a HEAVY hit (combo finisher, charge, pound).")]
-    [SerializeField] private string deathHeavy2LegState = "";
-    [Tooltip("Killed on 4 legs on the ground. Light or heavy does not matter on 4 legs.")]
-    [SerializeField] private string death4LegState = "";
+    [Header("Animation State Names: Death (Combat Layer states)")]
+    [Tooltip("Killed on 2 legs by a LIGHT hit (single swing, middle combo hit, ground wave). Empty = borrows the air clip.")]
+    [SerializeField] private string deathLight2Leg = "HR_Die_2legs";
+    [Tooltip("Killed on 2 legs by a HEAVY hit (combo finisher, charge, pound). Empty = borrows the air clip.")]
+    [SerializeField] private string deathHeavy2Leg = "HR_big_die_2legs";
+    [Tooltip("Killed on 4 legs on the ground. Light or heavy does not matter on 4 legs. Empty = borrows the air clip.")]
+    [SerializeField] private string death4Leg = "lighthit_Die_4legs";
     [Tooltip("Killed in the AIR (jump, air spin), 2 or 4 legs, light or heavy: this one clip, started at Death Air Start.")]
-    [SerializeField] private string deathAirState = "Heavyhit_jumping_Die_4";
+    [SerializeField] private string deathAir = "Heavyhit_jumping_Die_4";
     [Tooltip("Where the air death clip starts, as a fraction of the clip (0 to 1). 0.343 = frame 13 of Heavyhit_jumping_Die_4, the frame the hit lands.")]
     [Range(0f, 1f)] [SerializeField] private float deathAirStart = 0.343f;
     [Tooltip("Blend into the death clip, seconds. Short: death should snap.")]
@@ -2468,9 +2468,12 @@ public class PlayerCombat : MonoBehaviour
 
     // ---------- Death ----------
     private bool isDead;
+    private SpinHazardZone activeSpinHazard;
     private int deathStateHash;
     private float deathStartNorm;
     private bool deathClipReached;
+    private float deathHoldSeconds;
+    private bool deathMissingWarned;
 
     /// <summary>Called by PlayerHealth on the killing hit. Picks the clip: in the air = the air clip from
     /// Death Air Start; on 4 legs (running) = the 4-leg clip; on 2 legs = light or heavy by the hit.
@@ -2484,14 +2487,25 @@ public class PlayerCombat : MonoBehaviour
         bool is4Leg = playerMovement != null && playerMovement.IsRunning();
         string state;
         float startNorm = 0f;
-        if (inAir) { state = deathAirState; startNorm = deathAirStart; }
-        else if (is4Leg) state = death4LegState;
-        else state = killingHitWasHeavy ? deathHeavy2LegState : deathLight2LegState;
+        bool standIn = false;
+        if (inAir) { state = deathAir; startNorm = deathAirStart; }
+        else if (is4Leg) state = death4Leg;
+        else state = killingHitWasHeavy ? deathHeavy2Leg : deathLight2Leg;
+        if (string.IsNullOrEmpty(state) && !string.IsNullOrEmpty(deathAir))
+        {
+            // The clip for this case does not exist yet: borrow the air death from its first frame so a
+            // real death plays instead of a frozen idle. Fill the empty slot when the animator delivers it.
+            state = deathAir;
+            startNorm = 0f;
+            standIn = true;
+        }
 
         FlashDamage();
         if (vfxManager != null) vfxManager.PlayHitReactVFX(killingHitWasHeavy);
         if (CombatFeedbackManager.Instance != null) CombatFeedbackManager.Instance.PlayPlayerHitFeedback(killingHitWasHeavy);
         if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayPlayerHit(killingHitWasHeavy);
+
+        if (activeSpinHazard != null) { activeSpinHazard.Disarm(); activeSpinHazard = null; }   // her ground hazard stops draining him
 
         // Clear every action and its coroutines so nothing crossfades over the death clip.
         if (hitReactHoldCoroutine != null) { StopCoroutine(hitReactHoldCoroutine); hitReactHoldCoroutine = null; }
@@ -2499,10 +2513,21 @@ public class PlayerCombat : MonoBehaviour
         isInHitReaction = false;
         EndActiveCombatActions();
 
+        // The base layer keeps whatever Speed PlayerMovement last wrote (it stops updating once she reads
+        // as "in a hit reaction"), which was a walk cycle in place on the first test. Zero it here.
+        if (animator != null)
+        {
+            animator.SetFloat(Animator.StringToHash("Speed"), 0f);
+            animator.SetBool(Animator.StringToHash("IsGrounded"), true);
+        }
+
         string where = inAir ? "in the air" : (is4Leg ? "on 4 legs" : "on 2 legs");
         if (string.IsNullOrEmpty(state) || animator == null)
         {
-            Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit). No death clip set for this case, she just stops.");
+            // No clip for this case yet: cut whatever the combat layer was playing (her own swing was
+            // still running and its damage events kept landing on him) and hold combat idle.
+            if (animator != null) animator.CrossFadeInFixedTime(combatIdleStateName, 0.1f, combatLayerIndex);
+            Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit). No death clip set for this case, she stands still in combat idle.");
             return;
         }
         deathStateHash = Animator.StringToHash(state);
@@ -2511,7 +2536,7 @@ public class PlayerCombat : MonoBehaviour
         animator.SetLayerWeight(combatLayerIndex, 1f);
         if (startNorm > 0f) animator.CrossFade(state, 0.05f, combatLayerIndex, startNorm);
         else animator.CrossFadeInFixedTime(state, Mathf.Max(0f, deathBlend), combatLayerIndex);
-        Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit): {state}{(startNorm > 0f ? $" from {startNorm:P0}" : "")}");
+        Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit): {state}{(startNorm > 0f ? $" from {startNorm:P0}" : "")}{(standIn ? " (STAND-IN: the clip for this case is not set, borrowing the air death)" : "")}");
     }
 
     /// <summary>Re-asserts the death clip until the animator has really reached it once (a stray
@@ -2522,6 +2547,12 @@ public class PlayerCombat : MonoBehaviour
         if (animator == null || deathStateHash == 0 || deathClipReached) return;
         AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
         if (si.shortNameHash == deathStateHash) { deathClipReached = true; return; }
+        deathHoldSeconds += Time.unscaledDeltaTime;
+        if (deathHoldSeconds > 0.5f && !deathMissingWarned)
+        {
+            deathMissingWarned = true;
+            Debug.LogWarning($"[Death] the death state was never reached on combat layer {combatLayerIndex} after 0.5s. Check the name in Player Combat > Animation State Names: Death (it must be a state on the Combat Layer).");
+        }
         if (animator.IsInTransition(combatLayerIndex)) return;
         if (deathStartNorm > 0f) animator.CrossFade(deathStateHash, 0.05f, combatLayerIndex, deathStartNorm);
         else animator.CrossFadeInFixedTime(deathStateHash, Mathf.Max(0f, deathBlend), combatLayerIndex);
@@ -3428,6 +3459,7 @@ public class PlayerCombat : MonoBehaviour
 
         SpinHazardZone hazard = zone.AddComponent<SpinHazardZone>();
         hazard.Configure(life, spinHazardRadius, spinHazardTickDamage, spinHazardTickInterval, enemyLayer, OnSpinHazardTick);
+        activeSpinHazard = hazard;   // so her death can switch its damage off
 
         spinHazardReadyTime = Time.time + spinHazardCooldown;
         DebugLog($"Hazard zone laid: {life:F2}s, {spinHazardTickDamage} dmg every {spinHazardTickInterval:F2}s in {spinHazardRadius:F2}m"
@@ -3967,6 +3999,7 @@ public class PlayerCombat : MonoBehaviour
     #region Hit Detection
     public void DealDamage()
     {
+        if (isDead) return;   // a swing that was mid-clip when she died must not land
         // During the beyblade finisher, BeybladeRoutine deals the damage one enemy at a time, so the
         // Combo3 clip's own DealDamage animation event must not also fire (it would double-hit).
         if (isBeyblading) return;
@@ -3979,6 +4012,7 @@ public class PlayerCombat : MonoBehaviour
 
     public void DealHeavyDamage()
     {
+        if (isDead) return;
         int damage = combo1Damage + Mathf.RoundToInt(storedHeavyChargePercent * heavyChargeBonusMax);
         DealDamageInRange(damage, true);
     }

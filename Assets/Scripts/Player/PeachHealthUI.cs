@@ -9,7 +9,10 @@ using UnityEngine.UI;
 /// Reading the row: real peaches first, left to right, eaten from the RIGHT end (like Zelda's
 /// hearts). Full, three quarter, half, quarter, then the pit stays on screen. Gold peaches sit
 /// after the real ones, glow, are eaten first and vanish when gone. The row wraps after
-/// Peaches Per Row. The last real peach breathes when it is all she has left.
+/// Peaches Per Row.
+///
+/// Low health (only the last real peach left, no gold): the peach beats like a heart (two beats,
+/// lub dub), a red glow flares behind it on every beat, and the screen edges bleed red in time.
 /// </summary>
 public class PeachHealthUI : MonoBehaviour
 {
@@ -29,7 +32,7 @@ public class PeachHealthUI : MonoBehaviour
     public Sprite goldHalf;
     public Sprite gold1_4;
 
-    [Header("Gold Glow (halo drawn behind each gold peach, breathes)")]
+    [Header("Glow (halo drawn behind a gold peach, and tinted red behind the last peach)")]
     public Sprite glowFull;
     public Sprite glow3_4;
     public Sprite glowHalf;
@@ -56,18 +59,36 @@ public class PeachHealthUI : MonoBehaviour
     public float healPunchScale = 1.15f;
     [Tooltip("Seconds for a pop to settle back to normal size.")]
     public float punchSeconds = 0.2f;
-    [Tooltip("ON = when only the last real peach is left (and no gold), it breathes.")]
-    public bool lastPeachPulses = true;
-    [Tooltip("How big the breath gets. 1.12 = 12 percent bigger at the top of the breath.")]
-    public float pulseScale = 1.12f;
-    [Tooltip("Seconds for one full breath of the last peach.")]
-    public float pulseSeconds = 1.2f;
     [Tooltip("Gold halo brightness at the bottom of its breath (0 to 1).")]
     [Range(0f, 1f)] public float glowBreathMin = 0.55f;
     [Tooltip("Gold halo brightness at the top of its breath (0 to 1).")]
     [Range(0f, 1f)] public float glowBreathMax = 1f;
     [Tooltip("Seconds for one full breath of the gold halo.")]
     public float glowBreathSeconds = 1.6f;
+
+    [Header("Low Health (the last peach)")]
+    [Tooltip("ON = heartbeat, red glow and screen bleed when only the last real peach is left and no gold remains.")]
+    public bool lowHealthCue = true;
+    [Tooltip("Low health starts when her real bites are at or below this. 4 = the last peach (whatever is left of it).")]
+    public int lowHealthBites = 4;
+    [Tooltip("Seconds per heartbeat (two beats: lub, dub). 1.0 = 60 beats a minute; lower = faster panic.")]
+    public float heartbeatSeconds = 1f;
+    [Tooltip("How big the peach gets at the top of a beat. 1.4 = 40 percent bigger.")]
+    public float heartbeatScale = 1.4f;
+    [Tooltip("Colour of the glow that flares behind the last peach on each beat.")]
+    public Color lowGlowColor = new Color(1f, 0.16f, 0.12f, 1f);
+    [Tooltip("Glow strength at the top of a beat (0 to 1).")]
+    [Range(0f, 1f)] public float lowGlowMax = 1f;
+    [Tooltip("Full screen sprite for the red bleed at the screen edges (transparent middle). Empty = no bleed.")]
+    public Sprite lowVignette;
+    [Tooltip("Colour of the bleed.")]
+    public Color vignetteColor = new Color(0.85f, 0.05f, 0.08f, 1f);
+    [Tooltip("Bleed strength between beats (0 to 1). The cave is dark, so this needs to be high to read.")]
+    [Range(0f, 1f)] public float vignetteFloor = 0.35f;
+    [Tooltip("Bleed strength at the top of a beat (0 to 1).")]
+    [Range(0f, 1f)] public float vignetteMax = 0.85f;
+    [Tooltip("Seconds for the bleed to fade in when low health starts and out when she heals past it.")]
+    public float vignetteFade = 0.6f;
 
     private class Slot
     {
@@ -81,9 +102,12 @@ public class PeachHealthUI : MonoBehaviour
     }
 
     private RectTransform row;
+    private Image vignette;
     private readonly List<Slot> slots = new List<Slot>();
     private int quarters, maxQuarters, goldQuarters;
     private bool built;
+    private float lowBlend;        // 0 = normal, 1 = low health visuals fully in
+    private bool lowLogged;
 
     private void Awake()
     {
@@ -94,11 +118,25 @@ public class PeachHealthUI : MonoBehaviour
     {
         PlayerHealth ph = FindFirstObjectByType<PlayerHealth>();
         if (ph != null) ph.RegisterUI(this);
+        Debug.Log($"[PeachUI] row ready: {slots.Count} peaches, {peachSize:F0} px, {corner}, bleed sprite {(lowVignette != null ? "set" : "MISSING")}, PlayerHealth {(ph != null ? "found" : "NOT FOUND")}");
     }
 
     private void BuildRow()
     {
         if (row != null) return;
+
+        // The bleed goes first so everything else draws over it.
+        GameObject vg = new GameObject("LowHealthBleed", typeof(RectTransform), typeof(Image));
+        vg.transform.SetParent(transform, false);
+        RectTransform vr = vg.GetComponent<RectTransform>();
+        vr.anchorMin = Vector2.zero; vr.anchorMax = Vector2.one;
+        vr.offsetMin = Vector2.zero; vr.offsetMax = Vector2.zero;
+        vignette = vg.GetComponent<Image>();
+        vignette.raycastTarget = false;
+        vignette.sprite = lowVignette;
+        vignette.color = new Color(vignetteColor.r, vignetteColor.g, vignetteColor.b, 0f);
+        vignette.enabled = false;
+
         GameObject go = new GameObject("PeachRow", typeof(RectTransform));
         row = go.GetComponent<RectTransform>();
         row.SetParent(transform, false);
@@ -143,9 +181,16 @@ public class PeachHealthUI : MonoBehaviour
             s.value = value;
             s.peach.sprite = isGold ? GoldSprite(value) : RealSprite(value);
             s.peach.enabled = s.peach.sprite != null;
-            Sprite g = isGold ? GlowSprite(value) : null;
-            s.glow.sprite = g;
-            s.glow.enabled = g != null;
+            if (isGold)
+            {
+                s.glow.sprite = GlowSprite(value);
+                s.glow.enabled = s.glow.sprite != null;
+                s.glow.color = Color.white;
+            }
+            else if (i != 0)
+            {
+                s.glow.enabled = false;   // slot 0 is handled every frame by the low health cue
+            }
             if (changed && deltaQuarters != 0 && s.value >= 0)
             {
                 s.punchFrom = deltaQuarters < 0 ? bitePunchScale : healPunchScale;
@@ -168,6 +213,7 @@ public class PeachHealthUI : MonoBehaviour
             glowGo.transform.SetParent(go.transform, false);
             s.glow = glowGo.GetComponent<Image>();
             s.glow.raycastTarget = false;
+            s.glow.enabled = false;
             Stretch(glowGo.GetComponent<RectTransform>());
 
             GameObject peachGo = new GameObject("Peach", typeof(RectTransform), typeof(Image));
@@ -208,13 +254,35 @@ public class PeachHealthUI : MonoBehaviour
         s.rect.anchoredPosition = new Vector2(x, y);
     }
 
+    private bool IsLow()
+    {
+        return lowHealthCue && goldQuarters == 0 && quarters > 0 && quarters <= Mathf.Max(1, lowHealthBites);
+    }
+
+    /// <summary>Two beats per cycle: a strong one at the start, a softer one a quarter cycle later. 0 = rest, 1 = top of the first beat.</summary>
+    private float Heartbeat(float t01)
+    {
+        float lub = Mathf.Exp(-Mathf.Pow(t01 / 0.12f, 2f));
+        float dub = 0.7f * Mathf.Exp(-Mathf.Pow((t01 - 0.30f) / 0.12f, 2f));
+        return Mathf.Clamp01(lub + dub);
+    }
+
     private void Update()
     {
         float dt = Time.unscaledDeltaTime;   // hitstop must not freeze the HUD
-        bool lastOne = lastPeachPulses && goldQuarters == 0 && quarters > 0 && quarters <= 4;
+        bool low = IsLow();
+        if (low != lowLogged)
+        {
+            lowLogged = low;
+            Debug.Log(low ? $"[PeachUI] LOW HEALTH cue ON: {quarters} bites left, heartbeat {heartbeatSeconds:F2}s, bleed {(lowVignette != null ? "on" : "no sprite")}"
+                          : "[PeachUI] LOW HEALTH cue OFF");
+        }
+        lowBlend = Mathf.MoveTowards(lowBlend, low ? 1f : 0f, dt / Mathf.Max(0.05f, vignetteFade));
+
         float breath = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.05f, glowBreathSeconds));
-        float glowAlpha = Mathf.Lerp(glowBreathMin, glowBreathMax, breath);
-        float pulse = 1f + (pulseScale - 1f) * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.05f, pulseSeconds)));
+        float goldAlpha = Mathf.Lerp(glowBreathMin, glowBreathMax, breath);
+        float period = Mathf.Max(0.2f, heartbeatSeconds);
+        float beat = Heartbeat((Time.unscaledTime % period) / period);
 
         for (int i = 0; i < slots.Count; i++)
         {
@@ -223,15 +291,46 @@ public class PeachHealthUI : MonoBehaviour
                 s.punchT = Mathf.Min(1f, s.punchT + dt / Mathf.Max(0.01f, punchSeconds));
             float ease = 1f - (1f - s.punchT) * (1f - s.punchT);          // fast out, soft landing
             float scale = Mathf.Lerp(s.punchFrom, 1f, ease);
-            if (lastOne && i == 0 && !s.gold) scale *= pulse;
+
+            if (i == 0 && !s.gold)
+            {
+                // The last peach: heartbeat and red flare while low, nothing otherwise.
+                if (lowBlend > 0.001f)
+                {
+                    scale *= 1f + (heartbeatScale - 1f) * beat * lowBlend;
+                    Sprite g = GlowSprite(s.value);
+                    s.glow.sprite = g;
+                    s.glow.enabled = g != null;
+                    Color c = lowGlowColor;
+                    c.a = lowGlowMax * (0.25f + 0.75f * beat) * lowBlend;
+                    s.glow.color = c;
+                }
+                else
+                {
+                    s.glow.enabled = false;
+                }
+            }
+            else if (s.gold && s.glow.enabled)
+            {
+                Color c = Color.white; c.a = goldAlpha; s.glow.color = c;
+            }
+
             // Scale the images, not the slot: the slot's pivot is the screen corner, the images pivot on their centre.
             Vector3 sc = new Vector3(scale, scale, 1f);
             s.peach.rectTransform.localScale = sc;
             s.glow.rectTransform.localScale = sc;
+        }
 
-            if (s.glow.enabled)
+        if (vignette != null)
+        {
+            bool show = lowVignette != null && lowBlend > 0.001f;
+            vignette.enabled = show;
+            if (show)
             {
-                Color c = s.glow.color; c.a = glowAlpha; s.glow.color = c;
+                if (vignette.sprite != lowVignette) vignette.sprite = lowVignette;
+                Color c = vignetteColor;
+                c.a = Mathf.Lerp(vignetteFloor, vignetteMax, beat) * lowBlend;
+                vignette.color = c;
             }
         }
     }

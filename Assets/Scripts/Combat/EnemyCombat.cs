@@ -511,6 +511,21 @@ public class EnemyCombat : MonoBehaviour
             return;
         }
         
+        // Yoru is dead: the fight is over. A swing already in motion finishes on its own (Attack,
+        // HitReact and Stagger run out by themselves), then he stands down in Idle for good; Idle
+        // never re-engages a dead Yoru (see HandleIdle). Combos are dropped so Recovery cannot chain.
+        if (PlayerIsDead()
+            && currentState != EnemyState.Idle && currentState != EnemyState.Dead
+            && currentState != EnemyState.Attack && currentState != EnemyState.HitReact && currentState != EnemyState.Stagger
+            && currentState != EnemyState.LostSoul && currentState != EnemyState.Dialogue && currentState != EnemyState.Peaceful
+            && currentState != EnemyState.Teleport)
+        {
+            comboQueue.Clear();
+            activeComboName = "";
+            DebugLog("Yoru is dead: standing down");
+            SetState(EnemyState.Idle);
+        }
+
         // Phase check
         UpdatePhase();
         
@@ -572,7 +587,7 @@ public class EnemyCombat : MonoBehaviour
         PlayAnimation(idleAnim);
         
         // Transition to combat when player is in vision cone — but never engage Tomoe (GDD Doc 07).
-        if (player != null && !PlayerIsTomoe() && PlayerInVision())
+        if (player != null && !PlayerIsGone() && PlayerInVision())
         {
             SetState(EnemyState.Alert);
         }
@@ -597,7 +612,8 @@ public class EnemyCombat : MonoBehaviour
         if (player == null) return;
         
         // GDD Doc 07: enemies ignore Tomoe — no engagement from Idle while she is in human form.
-        if (PlayerIsTomoe()) return;
+        // A dead Yoru is ignored the same way: the fight is over.
+        if (PlayerIsGone()) return;
         
         if (PlayerInVision())
         {
@@ -629,7 +645,7 @@ public class EnemyCombat : MonoBehaviour
         //    Vision check applies here so Yoru can sneak around an enemy's back during return.
         //    Re-engaging from a return always runs straight in (no pull, no teleport) until the
         //    first attack lands — forceRunReengage carries that intent into HandleChase.
-        if (!PlayerIsTomoe() && PlayerInVision())
+        if (!PlayerIsGone() && PlayerInVision())
         {
             forceRunReengage = true;
             SetState(EnemyState.Chase);
@@ -2664,6 +2680,10 @@ private void TriggerHitFlash()
     /// enemies never attack Tomoe. Cheap inline check (null + bool read).
     /// </summary>
     private bool PlayerIsTomoe() => playerFormController != null && playerFormController.IsHuman;
+    /// <summary>Yoru is dead: nobody engages, chases or attacks her again. The swing already in motion runs out.</summary>
+    private bool PlayerIsDead() => playerHealthTarget != null && playerHealthTarget.IsDead();
+    /// <summary>Tomoe or dead: no engagement from any resting state.</summary>
+    private bool PlayerIsGone() => PlayerIsTomoe() || PlayerIsDead();
     
     /// <summary>
     /// Vision-based detection — player is in this enemy's forward cone AND within range.
