@@ -116,32 +116,57 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameOverController
   delayAfterDeathClip: 1
   maxWaitForDeathClip: 12
-  blackFadeSeconds: 3
+  freezeFadeSeconds: 0.35
+  inkFadeSeconds: 3
   titleFadeSeconds: 2
   buttonsDelay: 0.5
   buttonsFadeSeconds: 1.5
   skipWithAnyKey: 1
   skipAllowedAfter: 1.5
   buttonsGuardSeconds: 0.25
-  blackAlpha: 1
+  inkShader: {fileID: 4800000, guid: d6055566fe7b412f8e1af776c282afc7, type: 3}
+  paperTexture: {fileID: 2800000, guid: d1ad5d659bb64118a4f370517f70fe6e, type: 3}
+  inkColor: {r: 0.085, g: 0.08, b: 0.085, a: 1}
+  inkStrength: 0.62
+  washSoftness: 2
+  autoLevels: 1
+  blackPoint: 0.04
+  whitePoint: 0.6
+  edgeFadeStart: 0.25
+  edgeFade: 0.75
+  mistStrength: 0.82
+  mistCenterY: 0.444
+  mistSize: {x: 0.333, y: 0.306}
+  captureMode: 0
+  flipCapturedFrame: 0
   redEdgeSprite: {fileID: 21300000, guid: c60c90fe96cf4b608174e68f310ab121, type: 3}
   redEdgeColor: {r: 0.85, g: 0.05, b: 0.08, a: 1}
-  redEdgeAlpha: 0.9
+  redEdgeAlpha: 0.85
+  kanjiSprite: {fileID: 21300000, guid: 9217f28cc58249a4a8a4918d41327a4b, type: 3}
+  kanjiColor: {r: 0.85, g: 0.05, b: 0.08, a: 0.95}
+  kanjiHeight: 261
+  kanjiY: 150
+  brushLineSprite: {fileID: 21300000, guid: 41355cd8b6594e5eaec5e81ad1e4a489, type: 3}
+  brushLineWidth: 438
+  brushLineY: -78
   font: {fileID: 11400000, guid: aa67fc9827b3543efa34b05b5b6c400b, type: 2}
   titleText: GAME OVER
-  titleSize: 130
-  titleColor: {r: 0.8, g: 0.08, b: 0.09, a: 1}
-  titleLetterSpacing: 12
-  titleY: 110
-  replayText: Replay
-  mainMenuText: Main Menu
+  titleSize: 30
+  titleLetterSpacing: 75
+  titleY: -154
+  inkTextColor: {r: 0.085, g: 0.08, b: 0.085, a: 1}
+  replayText: REPLAY
+  mainMenuText: MAIN MENU
   mainMenuScene: 
-  buttonSize: 46
-  buttonColor: {r: 0.93, g: 0.89, b: 0.82, a: 1}
-  buttonSelectedColor: {r: 0.95, g: 0.16, b: 0.14, a: 1}
-  disabledAlpha: 0.35
-  buttonsY: -90
-  buttonGap: 78
+  buttonSize: 36
+  buttonLetterSpacing: 34
+  buttonsY: -298
+  buttonsGap: 150
+  dotSprite: {fileID: 21300000, guid: bb275385befc4264b0c55c896d798ed0, type: 3}
+  dotColor: {r: 0.85, g: 0.05, b: 0.08, a: 1}
+  dotSize: 9
+  idleAlpha: 0.62
+  disabledAlpha: 0.3
   coverAfterReplay: 1
   coverHoldSeconds: 1.2
   coverFadeSeconds: 0.6
