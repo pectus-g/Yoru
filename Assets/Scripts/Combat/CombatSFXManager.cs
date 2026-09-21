@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// YORU Combat SFX Manager — Phase 3B
-/// Singleton for all combat sound effects. Hooks are ready — assign AudioClips in Inspector.
+/// YORU Combat SFX Manager, Phase 3B
+/// Singleton for all combat sound effects. Hooks are ready: assign AudioClips in Inspector.
 /// Uses AudioSource pooling (3 sources) so overlapping sounds don't cut each other off.
 /// 
 /// Attach to the same "CombatManagers" GameObject as CombatFeedbackManager.
@@ -23,7 +23,7 @@ public class CombatSFXManager : MonoBehaviour
     }
     #endregion
 
-    #region Serialized Fields — Assign clips in Inspector when audio is ready
+    #region Serialized Fields (assign clips in Inspector when audio is ready)
     [Header("Swing / Whoosh")]
     [SerializeField] private AudioClip swingLight;
     [SerializeField] private AudioClip swingHeavy;
@@ -47,6 +47,19 @@ public class CombatSFXManager : MonoBehaviour
     [SerializeField] private AudioClip playerHitLight;
     [SerializeField] private AudioClip playerHitHeavy;
 
+    [Header("Player Death")]
+    [Tooltip("Played once at the killing hit, on top of the normal hit sound. Drop one or more clips: one is picked at random each death (the order sheet has 2). Fixed pitch, normal speed even in the death slow motion. Empty = silent.")]
+    [SerializeField] private AudioClip[] playerDeath;
+    [SerializeField] [Range(0f, 1f)] private float playerDeathVolume = 1f;
+
+    [Header("Low Health Heartbeat")]
+    [Tooltip("The strong first beat (lub). The peach row fires it at the top of every heartbeat of the last peach, so the sound always matches the picture, whatever Heartbeat Seconds is set to. A single file that holds the whole lub dub also goes here (then leave Heartbeat Dub empty). Empty = silent.")]
+    [SerializeField] private AudioClip heartbeatLub;
+    [Tooltip("The softer second beat (dub), fired 0.3 of a heartbeat after the lub, in time with the second pulse of the peach. Optional.")]
+    [SerializeField] private AudioClip heartbeatDub;
+    [Tooltip("Loudness of the heartbeat. The dub plays at 0.7 of this, like the second pulse of the peach.")]
+    [SerializeField] [Range(0f, 1f)] private float heartbeatVolume = 0.7f;
+
     [Header("Enemy")]
     [SerializeField] private AudioClip enemyHitVocal;
     [SerializeField] private AudioClip enemyDeathVocal;
@@ -57,7 +70,7 @@ public class CombatSFXManager : MonoBehaviour
     [SerializeField] private AudioClip heavyChargeStart;
     [Tooltip("Looping rumble/hum played for the duration of the charge. Stops on release, cancel, or hit.")]
     [SerializeField] private AudioClip heavyChargeLoop;
-    [Tooltip("One-shot played when chargePercent crosses 100% — pairs with the UI ring glow flash.")]
+    [Tooltip("One-shot played when chargePercent crosses 100%, pairs with the UI ring glow flash.")]
     [SerializeField] private AudioClip heavyChargeReady;
     [Tooltip("One-shot played at the moment of release (when the release animation triggers). The impact/strike sound.")]
     [SerializeField] private AudioClip heavyChargeRelease;
@@ -80,7 +93,8 @@ public class CombatSFXManager : MonoBehaviour
     private AudioSource[] audioSources;
     private int currentSourceIndex;
     private const int POOL_SIZE = 4;
-    private AudioSource heavyChargeLoopSource; // Dedicated source for the looping charge rumble — separate from the pool so it doesn't get stolen by round-robin.
+    private AudioSource heavyChargeLoopSource; // Dedicated source for the looping charge rumble, separate from the pool so it doesn't get stolen by round-robin.
+    private AudioSource heartbeatSource;       // Dedicated source for the low health heartbeat: the pool can never cut a beat short, and no random pitch.
     #endregion
 
     #region Unity Lifecycle
@@ -92,7 +106,7 @@ public class CombatSFXManager : MonoBehaviour
         {
             audioSources[i] = gameObject.AddComponent<AudioSource>();
             audioSources[i].playOnAwake = false;
-            audioSources[i].spatialBlend = 0f; // 2D for combat SFX — always audible
+            audioSources[i].spatialBlend = 0f; // 2D for combat SFX, always audible
         }
 
         // Dedicated source for the heavy charge loop (kept out of the pool so round-robin
@@ -102,11 +116,16 @@ public class CombatSFXManager : MonoBehaviour
         heavyChargeLoopSource.spatialBlend = 0f;
         heavyChargeLoopSource.loop = true;
 
+        // Dedicated source for the low health heartbeat. PlayOneShot lets the dub ring over the tail of the lub.
+        heartbeatSource = gameObject.AddComponent<AudioSource>();
+        heartbeatSource.playOnAwake = false;
+        heartbeatSource.spatialBlend = 0f;
+
         DebugLog("CombatSFXManager initialized");
     }
     #endregion
 
-    #region Public API — Called by PlayerCombat, CombatFeedbackManager, EnemyCombat
+    #region Public API (called by PlayerCombat, CombatFeedbackManager, EnemyCombat, PeachHealthUI)
 
     /// <summary>
     /// Play swing whoosh at start of attack animation.
@@ -191,6 +210,52 @@ public class CombatSFXManager : MonoBehaviour
         DebugLog($"Player hit: {(isHeavy ? "heavy" : "light")}");
     }
 
+    /// <summary>True when at least one death clip is in the slot. PlayerCombat prints it in the [Death] log line.</summary>
+    public bool HasPlayerDeathClip
+    {
+        get
+        {
+            if (playerDeath == null) return false;
+            for (int i = 0; i < playerDeath.Length; i++)
+                if (playerDeath[i] != null) return true;
+            return false;
+        }
+    }
+
+    /// <summary>True when the heartbeat has a sound. The peach row prints it in the LOW HEALTH log line.</summary>
+    public bool HasHeartbeatClip => heartbeatLub != null || heartbeatDub != null;
+
+    /// <summary>
+    /// Yoru's death sound. Called by PlayerCombat.PlayDeath at the killing hit. One of the clips in the
+    /// slot, picked at random, at fixed pitch (a death cry must not warble).
+    /// </summary>
+    public void PlayPlayerDeath()
+    {
+        if (playerDeath == null || playerDeath.Length == 0) return;
+        AudioClip clip = playerDeath[Random.Range(0, playerDeath.Length)];
+        if (clip == null)
+        {
+            // An empty row in the list: fall back to the first clip that is set.
+            for (int i = 0; i < playerDeath.Length && clip == null; i++) clip = playerDeath[i];
+        }
+        PlayClip(clip, playerDeathVolume * sfxVolume, false);
+        DebugLog("Player death");
+    }
+
+    /// <summary>
+    /// One beat of the low health heartbeat. Called by PeachHealthUI on the beat itself (lub at the top of
+    /// the cycle, dub 0.3 of a cycle later), so sound and picture cannot drift apart.
+    /// strength01 follows the red bleed fading in and out.
+    /// </summary>
+    public void PlayHeartbeat(bool dub, float strength01)
+    {
+        AudioClip clip = dub ? heartbeatDub : heartbeatLub;
+        if (clip == null || heartbeatSource == null) return;
+        float volume = heartbeatVolume * sfxVolume * Mathf.Clamp01(strength01) * (dub ? 0.7f : 1f);
+        if (volume <= 0.001f) return;
+        heartbeatSource.PlayOneShot(clip, volume);
+    }
+
     /// <summary>
     /// Play enemy vocalization on hit.
     /// Call from EnemyHealth.TakeDamage().
@@ -228,7 +293,7 @@ public class CombatSFXManager : MonoBehaviour
 
     /// <summary>
     /// Start the looping charge rumble. Plays on dedicated AudioSource so the pool
-    /// can't steal it. Idempotent — calling twice in a row is safe.
+    /// can't steal it. Idempotent: calling twice in a row is safe.
     /// </summary>
     public void PlayHeavyChargeLoop()
     {
@@ -242,7 +307,7 @@ public class CombatSFXManager : MonoBehaviour
 
     /// <summary>
     /// Stop the looping charge rumble. Called on release, cancel, hit, or any safety reset.
-    /// Idempotent — calling when already stopped is safe.
+    /// Idempotent: calling when already stopped is safe.
     /// </summary>
     public void StopHeavyChargeLoop()
     {
@@ -263,7 +328,7 @@ public class CombatSFXManager : MonoBehaviour
     }
 
     /// <summary>
-    /// One-shot played at the moment of release — the strike/impact sound.
+    /// One-shot played at the moment of release, the strike/impact sound.
     /// Called by PlayerCombat.ReleaseHeavyAttack alongside StopHeavyChargeLoop.
     /// </summary>
     public void PlayHeavyChargeRelease()
@@ -282,20 +347,20 @@ public class CombatSFXManager : MonoBehaviour
     #endregion
 
     #region Audio Source Pooling
-    private void PlayClip(AudioClip clip, float volume)
+    private void PlayClip(AudioClip clip, float volume, bool varyPitch = true)
     {
         if (clip == null) return;
 
         AudioSource source = GetNextSource();
         source.clip = clip;
         source.volume = volume;
-        source.pitch = 1f + Random.Range(-pitchVariation, pitchVariation);
+        source.pitch = varyPitch ? 1f + Random.Range(-pitchVariation, pitchVariation) : 1f;
         source.Play();
     }
 
     private AudioSource GetNextSource()
     {
-        // Round-robin through pool — find one that's not playing, or use next in line
+        // Round-robin through pool: find one that's not playing, or use next in line
         for (int i = 0; i < POOL_SIZE; i++)
         {
             int index = (currentSourceIndex + i) % POOL_SIZE;
@@ -306,7 +371,7 @@ public class CombatSFXManager : MonoBehaviour
             }
         }
 
-        // All playing — steal the next one
+        // All playing: steal the next one
         currentSourceIndex = (currentSourceIndex + 1) % POOL_SIZE;
         return audioSources[currentSourceIndex];
     }

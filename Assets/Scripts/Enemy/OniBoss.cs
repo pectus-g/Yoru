@@ -1158,6 +1158,10 @@ public class OniBoss : MonoBehaviour
         // ROUND 53: the entrance cinematic slows the world ON PURPOSE — that is not a leak.
         if (cineActive) { slowSinceRealTime = -1f; slowWarned = false; return; }
 
+        // 20 Sep 2026: so does Yoru's death. The kill slow motion holds the world at half speed until the
+        // game over screen's Replay puts the clock back; the 20:13 log printed this error 6 s after she died.
+        if (playerHealthRef != null && playerHealthRef.IsDead()) { slowSinceRealTime = -1f; slowWarned = false; return; }
+
         if (Time.timeScale < 0.9f)
         {
             if (slowSinceRealTime < 0f) slowSinceRealTime = Time.unscaledTime;

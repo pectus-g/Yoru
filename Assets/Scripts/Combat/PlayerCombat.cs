@@ -188,14 +188,16 @@ public class PlayerCombat : MonoBehaviour
     [Range(0f, 1f)] [SerializeField] private float deathAirStart = 0.343f;
     [Tooltip("Blend into the death clip, seconds. Short: death should snap.")]
     [SerializeField] private float deathBlend = 0.05f;
-    [Tooltip("ON = the world slows the instant the killing hit lands (Zelda style), holds, then eases back to normal speed while she falls.")]
+    [Tooltip("ON = the world slows the instant the killing hit lands, holds, then eases up to Death Slow End Scale and STAYS there until the game over screen covers it. Shipped games never go back to normal speed between the killing hit and the game over screen.")]
     [SerializeField] private bool deathSlowMotion = true;
     [Tooltip("World speed at the moment of the killing hit. 0.15 = almost frozen, 0.5 = gentle.")]
     [Range(0.02f, 1f)] [SerializeField] private float deathSlowScale = 0.15f;
-    [Tooltip("Real seconds the world stays at Death Slow Scale before it starts to recover.")]
-    [SerializeField] private float deathSlowHold = 0.5f;
-    [Tooltip("Real seconds the world takes to ease back from Death Slow Scale to normal speed.")]
-    [SerializeField] private float deathSlowRecover = 1.5f;
+    [Tooltip("Real seconds the world stays at Death Slow Scale: the impact beat. 0.8 reads clearly, 0.5 was easy to miss.")]
+    [SerializeField] private float deathSlowHold = 0.8f;
+    [Tooltip("Real seconds the world takes to ease from Death Slow Scale up to Death Slow End Scale.")]
+    [SerializeField] private float deathSlowRecover = 1f;
+    [Tooltip("World speed the clock settles at after the killing hit and KEEPS until the game over screen or the restart. 0.5 = her fall and everything after it play at half speed. 1 = back to normal speed (the old behaviour).")]
+    [Range(0.02f, 1f)] [SerializeField] private float deathSlowEndScale = 0.5f;
 
     [Tooltip("ROUND 85, Hazel's rule: a hit taken WHILE RUNNING must never stop her. ON = the running reaction plays without setting the hit-reaction flag, so PlayerMovement keeps moving her and keeps driving the run on the base layer, and the reaction melts back into the run over Running React Blend Out. OFF = the running reaction behaves like every other reaction and stops her (the old behavior). Only this reaction is affected; the medium (4-leg light) and heavy reactions still stop her exactly as before.")]
     [SerializeField] private bool runningReactKeepsMoving = true;
@@ -2482,6 +2484,7 @@ public class PlayerCombat : MonoBehaviour
     private bool deathClipReached;
     private float deathHoldSeconds;
     private bool deathMissingWarned;
+    private bool deathClockReleased;
 
     /// <summary>Called by PlayerHealth on the killing hit. Picks the clip: in the air = the air clip from
     /// Death Air Start; on 4 legs (running) = the 4-leg clip; on 2 legs = light or heavy by the hit.
@@ -2511,7 +2514,11 @@ public class PlayerCombat : MonoBehaviour
         FlashDamage();
         if (vfxManager != null) vfxManager.PlayHitReactVFX(killingHitWasHeavy);
         if (CombatFeedbackManager.Instance != null) CombatFeedbackManager.Instance.PlayPlayerHitFeedback(killingHitWasHeavy);
-        if (CombatSFXManager.Instance != null) CombatSFXManager.Instance.PlayPlayerHit(killingHitWasHeavy);
+        if (CombatSFXManager.Instance != null)
+        {
+            CombatSFXManager.Instance.PlayPlayerHit(killingHitWasHeavy);
+            CombatSFXManager.Instance.PlayPlayerDeath();   // on top of the hit sound; normal speed, the slow motion never touches audio
+        }
 
         if (activeSpinHazard != null) { activeSpinHazard.Disarm(); activeSpinHazard = null; }   // her ground hazard stops draining him
         if (deathSlowMotion) StartCoroutine(DeathSlowMotion());
@@ -2545,37 +2552,61 @@ public class PlayerCombat : MonoBehaviour
         animator.SetLayerWeight(combatLayerIndex, 1f);
         if (startNorm > 0f) animator.CrossFade(state, 0.05f, combatLayerIndex, startNorm);
         else animator.CrossFadeInFixedTime(state, Mathf.Max(0f, deathBlend), combatLayerIndex);
-        Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit): {state}{(startNorm > 0f ? $" from {startNorm:P0}" : "")}{(standIn ? " (STAND-IN: the clip for this case is not set, borrowing the air death)" : "")}");
+        bool deathSoundSet = CombatSFXManager.Instance != null && CombatSFXManager.Instance.HasPlayerDeathClip;
+        Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit): {state}{(startNorm > 0f ? $" from {startNorm:P0}" : "")}{(standIn ? " (STAND-IN: the clip for this case is not set, borrowing the air death)" : "")}. Slow motion {(deathSlowMotion ? $"x{deathSlowScale:F2} for {deathSlowHold:F1}s then x{deathSlowEndScale:F2}" : "OFF")}, death sound {(deathSoundSet ? "set" : "EMPTY")}.");
     }
 
-    /// <summary>Zelda style: the world drops to Death Slow Scale the instant the killing hit lands, holds,
-    /// then eases back to normal over Death Slow Recover real seconds. The physics step is scaled with
-    /// it (the tail aim's bullet time does the same) so her fall stays smooth. Runs on real time, so
-    /// it cannot stall itself. Leaves everything at 1 when it ends, whatever else touched the clock.</summary>
+    /// <summary>The world drops to Death Slow Scale the instant the killing hit lands, holds for the impact
+    /// beat, then eases up to Death Slow End Scale and STAYS there: between the killing hit and the game
+    /// over screen a shipped game never returns to normal speed (Smash's finish zoom, Zelda, Sekiro).
+    /// The physics step is scaled with it (the tail aim's bullet time does the same) so her fall stays
+    /// smooth. Runs on real time, so it cannot stall itself.
+    ///
+    /// It OWNS the clock while she is dead: the value is written every frame, because the tail aim
+    /// restores its own cached time scale when the death clip interrupts it, which cancelled the hold
+    /// before. It steps aside while a menu holds the clock, and for good once the game over screen calls
+    /// ReleaseDeathClock() (the restart resets the clock itself).</summary>
     private IEnumerator DeathSlowMotion()
     {
         float baseFixed = Time.fixedDeltaTime / Mathf.Max(0.01f, Time.timeScale);   // the unscaled physics step
         float scale = Mathf.Clamp(deathSlowScale, 0.02f, 1f);
-        Time.timeScale = scale;
-        Time.fixedDeltaTime = baseFixed * scale;
+        float end = Mathf.Clamp(deathSlowEndScale, scale, 1f);
+        float hold = Mathf.Max(0f, deathSlowHold);
+        float recover = Mathf.Max(0.05f, deathSlowRecover);
 
         float t = 0f;
-        while (t < Mathf.Max(0f, deathSlowHold)) { t += Time.unscaledDeltaTime; yield return null; }
-
-        float recover = Mathf.Max(0.05f, deathSlowRecover);
-        t = 0f;
-        while (t < recover)
+        while (isDead && !deathClockReleased)
         {
-            t += Time.unscaledDeltaTime;
-            float k = Mathf.Clamp01(t / recover);
+            float k = Mathf.Clamp01((t - hold) / recover);   // 0 through the hold, then 0 to 1 over the ease
             k = k * k * (3f - 2f * k);                       // smooth ease
-            float now = Mathf.Lerp(scale, 1f, k);
-            Time.timeScale = now;
-            Time.fixedDeltaTime = baseFixed * now;
+            float now = Mathf.Lerp(scale, end, k);
+            if (!MenuGuard.IsAnyMenuOpen)
+            {
+                Time.timeScale = now;
+                Time.fixedDeltaTime = baseFixed * now;
+            }
+            t += Time.unscaledDeltaTime;
             yield return null;
         }
-        Time.timeScale = 1f;
-        Time.fixedDeltaTime = baseFixed;
+    }
+
+    /// <summary>The game over screen calls this right before it resets the clock and reloads the scene,
+    /// so the slow motion above stops writing the time scale and cannot fight the restart.</summary>
+    public void ReleaseDeathClock()
+    {
+        deathClockReleased = true;
+    }
+
+    /// <summary>True once her death animation has played to its last frame (or when there is no clip for
+    /// the case, so there is nothing to wait for). The game over screen waits for this before it starts
+    /// to fade in: the first version went black 1.5 s after the hit and hid the whole animation.</summary>
+    public bool IsDeathClipFinished()
+    {
+        if (!isDead) return false;
+        if (animator == null || deathStateHash == 0) return true;
+        if (!deathClipReached) return false;                     // still blending into it (HoldDeathClip sets this)
+        AnimatorStateInfo si = animator.GetCurrentAnimatorStateInfo(combatLayerIndex);
+        return si.shortNameHash != deathStateHash || si.normalizedTime >= 1f;
     }
 
     /// <summary>Re-asserts the death clip until the animator has really reached it once (a stray
@@ -2898,7 +2929,15 @@ public class PlayerCombat : MonoBehaviour
             flashOriginalColors = new Color[flashRenderers.Length];
             for (int i = 0; i < flashRenderers.Length; i++)
             {
-                flashMaterials[i] = flashRenderers[i].material;
+                // Only her body flashes. Effects alive under her at the first hit (the air spin burst,
+                // tail glows) are skipped: their shaders have no _Color, so reading it logged one error
+                // per material (42 in one frame, 19:11 log, 20 Sep 2026), and a red particle was never
+                // the intent. A skipped slot stays null; every loop below already skips nulls.
+                Renderer r = flashRenderers[i];
+                if (r == null || r is ParticleSystemRenderer || r is TrailRenderer || r is LineRenderer) continue;
+                Material shared = r.sharedMaterial;
+                if (shared == null || !shared.HasProperty("_Color")) continue;
+                flashMaterials[i] = r.material;
                 flashOriginalColors[i] = flashMaterials[i].color;
             }
         }

@@ -63,7 +63,7 @@ Two-leg and four-leg gaits reuse the same footstep files at different rates.
 
 ---
 
-## 3. YORU, COMBAT (about 50 files)
+## 3. YORU, COMBAT (about 52 files)
 
 | Event | Files | Type |
 |---|---|---|
@@ -86,11 +86,15 @@ Two-leg and four-leg gaits reuse the same footstep files at different rates.
 | Player hit, heavy | 2 | one-shot |
 | Player effort breaths (attack, landing) | 6 | one-shot |
 | Player death | 2 | one-shot |
+| Low health heartbeat: lub (strong first beat) and dub (softer second beat), as two separate files | 2 | one-shot |
 | Dive attack | 2 | one-shot |
 | Inferno spiral | 2 | one-shot |
 
 The parry clang is the signature sound of the whole fight. Worth extra passes.
 The combo finisher impact carries a hitstop freeze, so it needs real weight.
+The heartbeat (added 20 Sep 2026) plays while she is on her last peach. The game fires the lub and the dub itself,
+in time with the pulsing peach on screen, so deliver them as two short separate thumps (not a loop, no tempo).
+Low and round, a chest sound rather than a beep, but with enough body above 100 Hz to survive laptop speakers.
 
 ---
 
@@ -174,11 +178,11 @@ not pay twice.
 
 | | Count |
 |---|---|
-| Sound effects | about **160 files** across **60 events** |
+| Sound effects | about **162 files** across **61 events** |
 | of which seamless loops | **12** |
 | Music pieces | **3**, as stems (drums, bass, melody, ambience + reference mix) |
 
-Section subtotals: Yoru locomotion 45, Yoru combat 50, Yoru tail and abilities 17,
+Section subtotals: Yoru locomotion 45, Yoru combat 52, Yoru tail and abilities 17,
 the Oni 26, the cave 21.
 
 ---

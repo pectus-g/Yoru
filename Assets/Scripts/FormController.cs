@@ -273,6 +273,12 @@ public class FormController : MonoBehaviour
         // returns false when a flag has been stuck — masking the "real" state at the worst
         // possible moment (a T-press during a freeze).
         var combat = GetComponent<PlayerCombat>();
+
+        // A dead Yoru does not transform. Without this gate T worked again as soon as the combat lock
+        // below lapsed, about 5 s after the killing hit (the known gap left by the death pass, 20 Sep 2026).
+        if (combat != null && combat.IsDead())
+            return;
+
         if (combat != null && combat.IsEngagedInCombat())
         {
             if (logTransforms)

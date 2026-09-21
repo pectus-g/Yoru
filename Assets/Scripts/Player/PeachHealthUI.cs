@@ -13,6 +13,12 @@ using UnityEngine.UI;
 ///
 /// Low health (only the last real peach left, no gold): the peach beats like a heart (two beats,
 /// lub dub), a red glow flares behind it on every beat, and the screen edges bleed red in time.
+/// The heartbeat SOUND is fired from here, on the beat itself, through CombatSFXManager (the clips
+/// live in its Low Health Heartbeat slots), so sound and picture cannot drift apart.
+///
+/// Death (0 bites): the heart stops, the pit does not pulse, and the red bleed goes to full and
+/// HOLDS. That red edge is what marks the killing hit on screen; the game over screen fades its
+/// black in underneath it.
 /// </summary>
 public class PeachHealthUI : MonoBehaviour
 {
@@ -108,6 +114,11 @@ public class PeachHealthUI : MonoBehaviour
     private bool built;
     private float lowBlend;        // 0 = normal, 1 = low health visuals fully in
     private bool lowLogged;
+    private bool deadLogged;
+    private float lastBeatPhase;   // where in the heartbeat the last frame was, to catch the lub and the dub once each
+
+    /// <summary>The second beat sits here in the cycle, for the picture AND the sound.</summary>
+    private const float DubPhase = 0.30f;
 
     private void Awake()
     {
@@ -263,7 +274,7 @@ public class PeachHealthUI : MonoBehaviour
     private float Heartbeat(float t01)
     {
         float lub = Mathf.Exp(-Mathf.Pow(t01 / 0.12f, 2f));
-        float dub = 0.7f * Mathf.Exp(-Mathf.Pow((t01 - 0.30f) / 0.12f, 2f));
+        float dub = 0.7f * Mathf.Exp(-Mathf.Pow((t01 - DubPhase) / 0.12f, 2f));
         return Mathf.Clamp01(lub + dub);
     }
 
@@ -271,18 +282,40 @@ public class PeachHealthUI : MonoBehaviour
     {
         float dt = Time.unscaledDeltaTime;   // hitstop must not freeze the HUD
         bool low = IsLow();
-        if (low != lowLogged)
+        // Dead = she owns peaches and has no bite left (Cannot Die floors her at 1, so 0 is only ever death).
+        bool dead = lowHealthCue && maxQuarters > 0 && quarters <= 0;
+        bool lowChanged = low != lowLogged;
+        if (lowChanged)
         {
             lowLogged = low;
-            Debug.Log(low ? $"[PeachUI] LOW HEALTH cue ON: {quarters} bites left, heartbeat {heartbeatSeconds:F2}s, bleed {(lowVignette != null ? "on" : "no sprite")}"
-                          : "[PeachUI] LOW HEALTH cue OFF");
+            bool sound = CombatSFXManager.Instance != null && CombatSFXManager.Instance.HasHeartbeatClip;
+            Debug.Log(low ? $"[PeachUI] LOW HEALTH cue ON: {quarters} bites left, heartbeat {heartbeatSeconds:F2}s, bleed {(lowVignette != null ? "on" : "no sprite")}, sound {(sound ? "set" : "EMPTY")}"
+                          : $"[PeachUI] LOW HEALTH cue OFF{(dead ? " (she died: heartbeat stops, bleed holds at full)" : "")}");
         }
-        lowBlend = Mathf.MoveTowards(lowBlend, low ? 1f : 0f, dt / Mathf.Max(0.05f, vignetteFade));
+        if (dead != deadLogged)
+        {
+            deadLogged = dead;
+            if (dead && !lowChanged) Debug.Log("[PeachUI] DEATH: heartbeat off, bleed held at full");   // she died without ever being low (one big hit)
+        }
+        // At death the red comes in fast (0.15 s): it is the mark of the killing hit, not a slow warning.
+        float blendSeconds = dead ? Mathf.Min(vignetteFade, 0.15f) : vignetteFade;
+        lowBlend = Mathf.MoveTowards(lowBlend, (low || dead) ? 1f : 0f, dt / Mathf.Max(0.05f, blendSeconds));
 
         float breath = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f / Mathf.Max(0.05f, glowBreathSeconds));
         float goldAlpha = Mathf.Lerp(glowBreathMin, glowBreathMax, breath);
         float period = Mathf.Max(0.2f, heartbeatSeconds);
-        float beat = Heartbeat((Time.unscaledTime % period) / period);
+        float phase = (Time.unscaledTime % period) / period;
+        float beat = dead ? 0f : Heartbeat(phase);          // the heart stops with her: no pulse on the pit
+        float bleedBeat = dead ? 1f : beat;                 // the bleed goes to full at death and holds
+
+        // The heartbeat sound, fired on the beat itself: lub when the cycle wraps, dub when it passes
+        // Dub Phase. It fades in with the bleed (lowBlend) and stops the frame she heals or dies.
+        if (low && CombatSFXManager.Instance != null)
+        {
+            if (phase < lastBeatPhase) CombatSFXManager.Instance.PlayHeartbeat(false, lowBlend);
+            else if (lastBeatPhase < DubPhase && phase >= DubPhase) CombatSFXManager.Instance.PlayHeartbeat(true, lowBlend);
+        }
+        lastBeatPhase = phase;
 
         for (int i = 0; i < slots.Count; i++)
         {
@@ -329,7 +362,7 @@ public class PeachHealthUI : MonoBehaviour
             {
                 if (vignette.sprite != lowVignette) vignette.sprite = lowVignette;
                 Color c = vignetteColor;
-                c.a = Mathf.Lerp(vignetteFloor, vignetteMax, beat) * lowBlend;
+                c.a = Mathf.Lerp(vignetteFloor, vignetteMax, bleedBeat) * lowBlend;
                 vignette.color = c;
             }
         }
