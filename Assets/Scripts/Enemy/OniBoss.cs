@@ -670,6 +670,8 @@ public class OniBoss : MonoBehaviour
 
     [Header("Debug")]
     [SerializeField] private bool showDebugLogs = true;
+    [Tooltip("ONE-OFF DIAGNOSTIC (Sep 2026, the question 'why can I not see his light and medium reactions'). After every reaction it reads the animator six times over the next second and prints what is REALLY on his bones: the state, the clip and its weight, how far through it got, the animator speed and the engine's state. It only reads, it changes nothing. Untick once the question is settled.")]
+    [SerializeField] private bool traceReactions = true;
     [Tooltip("Mirror the WHOLE console (every script's logs, warnings, errors, exceptions) plus charge telemetry into <project>/OniLogs/oni_<date>.log while playing. The folder sits next to Assets, so Unity ignores it. Keeps the newest 8 files. With this on there is nothing to copy or paste after a test — the file is read from disk.")]
     [SerializeField] private bool writeLogFile = true;
     [Tooltip("Telemetry lines per REAL second while a charge is active (file only, never the console).")]
@@ -2386,6 +2388,102 @@ public class OniBoss : MonoBehaviour
 
         animator.CrossFadeInFixedTime(state, reactCrossfade, 0);
         DebugLog($"react tier: {(damage <= lightHitMaxDamage ? "LIGHT" : "MEDIUM")} ({damage} dmg) → '{state}'");
+        TraceReaction(damage <= lightHitMaxDamage ? "LIGHT" : "MEDIUM", state, damage);
+    }
+
+    // ──────────────────────── reaction trace (one-off diagnostic) ──
+
+    private Coroutine reactionTraceRoutine;
+    private int reactionTraceId;
+
+    /// <summary>
+    /// ONE-OFF DIAGNOSTIC (20 Sep 2026). Hazel cannot see the light or the medium hit reaction while
+    /// playing, and every existing log line only proves the reaction was ASKED for. This reads the
+    /// animator six times over the second that follows and prints what is really on his bones, so the
+    /// answer is measured instead of guessed: a state that is never reached, a reaction cut short by
+    /// something else, or a clip that plays in full and is simply too small to see.
+    ///
+    /// It reads only. No animator call here writes, and nothing in it touches his behaviour.
+    /// </summary>
+    private void TraceReaction(string tier, string wantedState, int damage)
+    {
+        if (!traceReactions || animator == null || string.IsNullOrEmpty(wantedState)) return;
+        if (!isActiveAndEnabled) return;
+        if (reactionTraceRoutine != null) StopCoroutine(reactionTraceRoutine);   // one trace at a time keeps the log readable
+        reactionTraceRoutine = StartCoroutine(ReactionTraceRoutine(tier, wantedState, damage, ++reactionTraceId));
+    }
+
+    private System.Collections.IEnumerator ReactionTraceRoutine(string tier, string wantedState, int damage, int id)
+    {
+        int wanted = Animator.StringToHash(wantedState);
+        float[] at = { 0f, 0.10f, 0.25f, 0.45f, 0.70f, 0.95f };
+        float started = Time.unscaledTime;
+        bool everReached = false;
+        float maxNorm = 0f;
+        string tookOver = "";
+
+        Debug.Log($"[OniReactTrace] #{id} {tier} ({damage} dmg) asked for '{wantedState}': crossfade {reactCrossfade:F2}s, animator speed {animator.speed:F2}, world x{Time.timeScale:F2}");
+
+        yield return null;   // let the animator process the crossfade that was just issued
+
+        for (int i = 0; i < at.Length; i++)
+        {
+            while (Time.unscaledTime - started < at[i]) yield return null;
+            if (animator == null || !animator.isActiveAndEnabled) yield break;
+
+            bool onWanted; float norm; string playing;
+            string line = SampleReaction(wanted, wantedState, out onWanted, out norm, out playing);
+            if (onWanted)
+            {
+                everReached = true;
+                if (norm > maxNorm) maxNorm = norm;
+            }
+            else if (everReached && string.IsNullOrEmpty(tookOver))
+            {
+                tookOver = playing;
+            }
+            Debug.Log($"[OniReactTrace] #{id} +{Time.unscaledTime - started:F2}s {line}");
+        }
+
+        string verdict =
+            !everReached ? "NEVER REACHED that state: something else owns his animator, see the clip named on the lines above"
+            : maxNorm < 0.5f ? $"CUT SHORT at {maxNorm:P0} of the clip{(string.IsNullOrEmpty(tookOver) ? "" : $", taken over by '{tookOver}'")}"
+            : $"played to {maxNorm:P0} of the clip, so the reaction IS on screen and what is missing is movement inside the clip itself";
+        Debug.Log($"[OniReactTrace] #{id} {tier} verdict: {verdict}");
+        reactionTraceRoutine = null;
+    }
+
+    /// <summary>One reading of the animator, with no yields in it, so a failure can never break the
+    /// trace coroutine. The clip with the highest weight is the one actually shaping his body.</summary>
+    private string SampleReaction(int wantedHash, string wantedState, out bool onWanted, out float norm, out string playing)
+    {
+        onWanted = false; norm = 0f; playing = "?";
+        try
+        {
+            bool inTransition = animator.IsInTransition(0);
+            AnimatorStateInfo cur = animator.GetCurrentAnimatorStateInfo(0);
+            onWanted = cur.shortNameHash == wantedHash;
+            norm = onWanted ? Mathf.Clamp01(cur.normalizedTime) : 0f;
+
+            AnimatorClipInfo[] clips = animator.GetCurrentAnimatorClipInfo(0);
+            float best = 0f;
+            for (int i = 0; i < clips.Length; i++)
+                if (clips[i].clip != null && clips[i].weight > best) { best = clips[i].weight; playing = clips[i].clip.name; }
+
+            string next = "";
+            if (inTransition)
+            {
+                AnimatorStateInfo nx = animator.GetNextAnimatorStateInfo(0);
+                next = nx.shortNameHash == wantedHash ? $", blending INTO '{wantedState}'" : ", blending into a DIFFERENT state";
+            }
+
+            string where = onWanted ? $"'{wantedState}' at {norm:P0} of its {cur.length:F2}s" : "SOMETHING ELSE";
+            return $"state {where}, clip on his bones '{playing}' weight {best:F2}{next}, layer weight {animator.GetLayerWeight(0):F2}, animator speed {animator.speed:F2}, world x{Time.timeScale:F2}, engine {(combat != null ? combat.GetCurrentState().ToString() : "?")}";
+        }
+        catch (System.Exception e)
+        {
+            return "could not read the animator: " + e.Message;
+        }
     }
 
     // ─────────────────────────────────────────────────────── attack step-in (snap) ──
@@ -2476,6 +2574,7 @@ public class OniBoss : MonoBehaviour
         combat.SetStaggerTimer(window);
 
         DebugLog($"heavy knock-back react ({why}) → '{heavyReactState}', down for {window:F2}s");
+        TraceReaction("HEAVY", heavyReactState, 0);
     }
 
     // ──────────────────────────────────────────────────────────── rapid-hit burst ──
@@ -2522,6 +2621,7 @@ public class OniBoss : MonoBehaviour
             burstUpgraded = true;
             animator.CrossFadeInFixedTime(fullReactState, reactCrossfade, 0);
             DebugLog($"burst: {burstTicks} hits / {burstDamage} dmg → flinch upgraded to '{fullReactState}'");
+            TraceReaction("BURST UPGRADE", fullReactState, burstDamage);
         }
         return false;
     }
