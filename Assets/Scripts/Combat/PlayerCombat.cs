@@ -176,16 +176,23 @@ public class PlayerCombat : MonoBehaviour
     [SerializeField] private float runningReactMinSpeed = 1.5f;
 
     [Header("Animation State Names: Death (Combat Layer states)")]
-    [Tooltip("Killed on 2 legs by a LIGHT hit (single swing, middle combo hit, ground wave). Empty = borrows the air clip.")]
-    [SerializeField] private string deathLight2Leg = "HR_Die_2legs";
-    [Tooltip("Killed on 2 legs by a HEAVY hit (combo finisher, charge, pound). Empty = borrows the air clip.")]
-    [SerializeField] private string deathHeavy2Leg = "HR_big_die_2legs";
-    [Tooltip("Killed on 4 legs on the ground. Light or heavy does not matter on 4 legs. Empty = borrows the air clip.")]
-    [SerializeField] private string death4Leg = "lighthit_Die_4legs";
-    [Tooltip("Killed in the AIR (jump, air spin), 2 or 4 legs, light or heavy: this one clip, started at Death Air Start.")]
-    [SerializeField] private string deathAir = "Heavyhit_jumping_Die_4";
-    [Tooltip("Where the air death clip starts, as a fraction of the clip (0 to 1). 0.343 = frame 13 of Heavyhit_jumping_Die_4, the frame the hit lands.")]
-    [Range(0f, 1f)] [SerializeField] private float deathAirStart = 0.343f;
+    [Tooltip("Killed on 2 legs ON THE GROUND, light or heavy hit. Empty = borrows the 4 leg air clip.")]
+    [UnityEngine.Serialization.FormerlySerializedAs("deathLight2Leg")]
+    [SerializeField] private string death2LegGround = "HR_Die_2legs";
+    [Tooltip("Killed on 2 legs IN THE AIR (jump, air attack), light or heavy hit. Started at Death 2 Leg Air Start, so the jump at the start of the clip is never seen. Empty = borrows the 4 leg air clip.")]
+    [UnityEngine.Serialization.FormerlySerializedAs("deathHeavy2Leg")]
+    [SerializeField] private string death2LegAir = "HR_big_die_2legs";
+    [Tooltip("Where the 2 leg air death starts, as a fraction of the clip (0 to 1). 0.325 = frame 20 of HR_big_die_2legs, the first frame after its jump (Hazel's pick, 22 Sep).")]
+    [Range(0f, 1f)] [SerializeField] private float death2LegAirStart = 0.325f;
+    [Tooltip("Killed on 4 legs ON THE GROUND. Light or heavy does not matter on 4 legs. Empty = borrows the 4 leg air clip.")]
+    [UnityEngine.Serialization.FormerlySerializedAs("death4Leg")]
+    [SerializeField] private string death4LegGround = "lighthit_Die_4legs";
+    [Tooltip("Killed on 4 legs IN THE AIR (jump, air spin), light or heavy hit. Started at Death 4 Leg Air Start. Also the stand-in for any empty slot above.")]
+    [UnityEngine.Serialization.FormerlySerializedAs("deathAir")]
+    [SerializeField] private string death4LegAir = "Heavyhit_jumping_Die_4";
+    [Tooltip("Where the 4 leg air death starts, as a fraction of the clip (0 to 1). 0.343 = frame 13 of Heavyhit_jumping_Die_4, the frame the hit lands.")]
+    [UnityEngine.Serialization.FormerlySerializedAs("deathAirStart")]
+    [Range(0f, 1f)] [SerializeField] private float death4LegAirStart = 0.343f;
     [Tooltip("Blend into the death clip, seconds. Short: death should snap.")]
     [SerializeField] private float deathBlend = 0.05f;
     [Tooltip("ON = the world slows the instant the killing hit lands, holds, then eases up to Death Slow End Scale and STAYS there until the game over screen covers it. Shipped games never go back to normal speed between the killing hit and the game over screen.")]
@@ -2499,14 +2506,23 @@ public class PlayerCombat : MonoBehaviour
         string state;
         float startNorm = 0f;
         bool standIn = false;
-        if (inAir) { state = deathAir; startNorm = deathAirStart; }
-        else if (is4Leg) state = death4Leg;
-        else state = killingHitWasHeavy ? deathHeavy2Leg : deathLight2Leg;
-        if (string.IsNullOrEmpty(state) && !string.IsNullOrEmpty(deathAir))
+        if (is4Leg)
         {
-            // The clip for this case does not exist yet: borrow the air death from its first frame so a
-            // real death plays instead of a frozen idle. Fill the empty slot when the animator delivers it.
-            state = deathAir;
+            if (inAir) { state = death4LegAir; startNorm = death4LegAirStart; }
+            else state = death4LegGround;
+        }
+        else
+        {
+            // 22 Sep, Hazel: on 2 legs the clip follows WHERE she dies, not how hard she was hit.
+            // HR_big_die_2legs opens with a jump, so it plays only in the air, entered after the jump.
+            if (inAir) { state = death2LegAir; startNorm = death2LegAirStart; }
+            else state = death2LegGround;
+        }
+        if (string.IsNullOrEmpty(state) && !string.IsNullOrEmpty(death4LegAir))
+        {
+            // The clip for this case does not exist yet: borrow the 4 leg air death from its first frame so
+            // a real death plays instead of a frozen idle. Fill the empty slot when the animator delivers it.
+            state = death4LegAir;
             startNorm = 0f;
             standIn = true;
         }
@@ -2537,7 +2553,7 @@ public class PlayerCombat : MonoBehaviour
             animator.SetBool(Animator.StringToHash("IsGrounded"), true);
         }
 
-        string where = inAir ? "in the air" : (is4Leg ? "on 4 legs" : "on 2 legs");
+        string where = (inAir ? "in the air" : "on the ground") + (is4Leg ? " on 4 legs" : " on 2 legs");
         if (string.IsNullOrEmpty(state) || animator == null)
         {
             // No clip for this case yet: cut whatever the combat layer was playing (her own swing was
@@ -2553,7 +2569,7 @@ public class PlayerCombat : MonoBehaviour
         if (startNorm > 0f) animator.CrossFade(state, 0.05f, combatLayerIndex, startNorm);
         else animator.CrossFadeInFixedTime(state, Mathf.Max(0f, deathBlend), combatLayerIndex);
         bool deathSoundSet = CombatSFXManager.Instance != null && CombatSFXManager.Instance.HasPlayerDeathClip;
-        Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit): {state}{(startNorm > 0f ? $" from {startNorm:P0}" : "")}{(standIn ? " (STAND-IN: the clip for this case is not set, borrowing the air death)" : "")}. Slow motion {(deathSlowMotion ? $"x{deathSlowScale:F2} for {deathSlowHold:F1}s then x{deathSlowEndScale:F2}" : "OFF")}, death sound {(deathSoundSet ? "set" : "EMPTY")}.");
+        Debug.Log($"[Death] Yoru died {where} ({(killingHitWasHeavy ? "heavy" : "light")} hit): {state}{(startNorm > 0f ? $" from {startNorm:P1}" : "")}{(standIn ? " (STAND-IN: the clip for this case is not set, borrowing the air death)" : "")}. Slow motion {(deathSlowMotion ? $"x{deathSlowScale:F2} for {deathSlowHold:F1}s then x{deathSlowEndScale:F2}" : "OFF")}, death sound {(deathSoundSet ? "set" : "EMPTY")}.");
     }
 
     /// <summary>The world drops to Death Slow Scale the instant the killing hit lands, holds for the impact
