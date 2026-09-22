@@ -162,6 +162,13 @@ public class GameOverController : MonoBehaviour
         baseFixedDeltaTime = 0f;
     }
 
+    /// <summary>The pause menu's RESTART asks for the same paper cover Replay uses, so the new scene
+    /// does not open on the bald second while XFur builds. Nothing else is shared between the two screens.</summary>
+    public static void RequestStartCover()
+    {
+        arrivedByReplay = true;
+    }
+
     private static readonly int InkId = Shader.PropertyToID("_Ink");
     private static readonly int SoftTexId = Shader.PropertyToID("_SoftTex");
     private static readonly int PaperTexId = Shader.PropertyToID("_PaperTex");
