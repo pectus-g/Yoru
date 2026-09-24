@@ -264,6 +264,21 @@ public class StormWeather : MonoBehaviour
     private Coroutine lightningRoutine;
     private Coroutine stormRoutine;
 
+    // ROUND 84 (23 Sep 2026): read-only handoff to Yoru's own fur weather (YoruFurWeather on her).
+    // The fight keeps its wind levels and the floor; she reads them here. Reading changes nothing.
+
+    /// <summary>The fight's weather wind for the fur, smoothed, before her roof check and her own movement.</summary>
+    public float FurWeatherWind => weatherWindNow;
+
+    /// <summary>The fight's gust speed for the fur, smoothed.</summary>
+    public float FurWeatherWindFrequency => weatherFreqNow;
+
+    /// <summary>Floor wetness, 0 dry to 1 soaked.</summary>
+    public float FloorWetness => wetness;
+
+    /// <summary>Step 3a shadow only, removed in step 3b: her position as UpdateFurWeather read it this frame.</summary>
+    public Vector3 ShadowFurSamplePosition => furTargetLastPos;
+
     private void Start()
     {
         if (oniCombat == null)

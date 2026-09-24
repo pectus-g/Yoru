@@ -118879,6 +118879,32 @@ MonoBehaviour:
   _unreadableMeshError: 0
   folds: 00000000000000000000000000000000
   profileFolds: 0000000000000000000000000000000000000000000000000000000000000000
+--- !u!114 &3274519878632019643
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8266721774955611434}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 744c9a442976491e9485fdbbf60572f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::YoruFurWeather
+  furRainScale: 0.8
+  furSoakAll: 0.8
+  furSoakSeconds: 12
+  moveWindMax: 0.8
+  moveWindFullSpeed: 6
+  moveWindResponse: 0.25
+  moveWindFrequencyBoost: 3
+  skyCheckMask:
+    serializedVersion: 2
+    m_Bits: 10705
+  skyCheckHeight: 30
+  skyCheckOrigin: 2.6
+  coverBlendSeconds: 1
+  showDebugLogs: 1
 --- !u!4 &3280409563259968403
 Transform:
   m_ObjectHideFlags: 0
@@ -221336,6 +221362,7 @@ GameObject:
   - component: {fileID: 9185498216620031636}
   - component: {fileID: 9185498216620031637}
   - component: {fileID: 283845566}
+  - component: {fileID: 3274519878632019643}
   m_Layer: 0
   m_Name: PlayerYoru_1.1
   m_TagString: Player
