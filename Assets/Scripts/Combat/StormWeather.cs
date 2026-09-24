@@ -9,9 +9,12 @@ using DistantLands.Cozy.Data;
 ///
 /// ROUND 84 (23 Sep 2026): Yoru's fur weather described below (rounds 80, 81 and 83) now lives on
 /// her, in YoruFurWeather, so it travels with her to every scene. This script keeps the fight's
-/// part: the three weather wind levels and how fast they change, the floor wetness, and the
-/// phase 2 light boost on her rig. She reads the first two through FurWeatherWind,
-/// FurWeatherWindFrequency and FloorWetness.
+/// part: the three weather wind levels and how fast they change, and the floor wetness. She
+/// reads them through FurWeatherWind, FurWeatherWindFrequency and FloorWetness.
+///
+/// ROUND 86 (23 Sep 2026, step 4): the phase 2 light boost on her rig moved onto the rig
+/// (YoruLightRig > STORM, same values and maths). This script only says storm on and off,
+/// through YoruLightRig.SetStorm.
 ///
 /// ROUND 80: Yoru's fur joins the weather. XFur's wind and rain are two shader globals
 /// written by exactly one component, XFurWeatherManager (the 'Weather Zone' object). If that
@@ -41,7 +44,7 @@ using DistantLands.Cozy.Data;
 ///   lives in the open floor and dies under rock. XFur's wind enters the shader squared:
 ///   below 0.4 nothing shows, 0.5 ripples, 1.4 is a storm.
 ///   Phase 2 rule: wet fur is darker by design, and phase 2 must not read darker, so the
-///   character rig's fill and rim are boosted while the storm is on.
+///   character rig's fill and rim are boosted while the storm is on (the rig does it since round 86).
 ///
 /// ROUND 77: post processing rides the same arc. The scene volume keeps the magical night
 /// base. A second global volume (priority 10, created at runtime, weight 0) carries the
@@ -169,12 +172,6 @@ public class StormWeather : MonoBehaviour
     [Tooltip("ROUND 83 - seconds for the weather wind to rise or fall when the fight changes phase. The storm rolls in rather than snapping on.")]
     [SerializeField] private float weatherWindResponse = 2f;
 
-    [Tooltip("Phase 2 must not be darker. Added to the character rig's fill intensity while the storm is on.")]
-    [SerializeField, Range(0f, 1f)] private float stormFillBoost = 0.25f;
-
-    [Tooltip("Rim light intensity multiplier while the storm is on.")]
-    [SerializeField, Range(1f, 2f)] private float stormRimMultiplier = 1.3f;
-
     [SerializeField] private bool debugLog = true;
 
     // ---- runtime ----
@@ -206,10 +203,9 @@ public class StormWeather : MonoBehaviour
     // ROUND 63, COZY runtime.
     private CozyWeather cozy;
 
-    // ROUND 80, the phase 2 light boost on her rig.
+    // ROUND 80, the phase 2 light boost on her rig. ROUND 86: the values and the maths are on the
+    // rig (YoruLightRig > STORM); the fight only tells it storm on and off.
     private YoruLightRig furRig;
-    private float furBaseFill;
-    private float furBaseRim = -1f;
 
     // ROUND 83, the fight's weather wind for her fur (read by YoruFurWeather since round 84).
     private float weatherWindNow;                       // smoothed weather wind, without her movement
@@ -378,11 +374,6 @@ public class StormWeather : MonoBehaviour
 #else
         furRig = Object.FindObjectOfType<YoruLightRig>();
 #endif
-        if (furRig != null)
-        {
-            furBaseFill = furRig.FillIntensity;
-            if (furRig.RimLight != null) furBaseRim = furRig.RimLight.intensity;
-        }
 
         // ROUND 84 - the Weather Manager, the roof check and everything written to her fur moved to
         // YoruFurWeather on her. The fight only starts its wind level at the calm breeze.
@@ -470,13 +461,11 @@ public class StormWeather : MonoBehaviour
         ApplyFog(calmFogDensity);
     }
 
+    // ROUND 86 - storm on and off for her rig. The boost values and the maths are hers now
+    // (YoruLightRig > STORM); the rig logs what it set.
     private void BoostFurLights(bool on)
     {
-        if (furRig == null) return;
-        furRig.SetFillIntensity(on ? furBaseFill + stormFillBoost : furBaseFill);
-        if (furRig.RimLight != null && furBaseRim >= 0f)
-            furRig.RimLight.intensity = on ? furBaseRim * stormRimMultiplier : furBaseRim;
-        if (debugLog) Debug.Log(on ? $"[StormWeather] fur lights boosted for the storm: fill {furBaseFill + stormFillBoost:F2}, rim x{stormRimMultiplier:F2}." : "[StormWeather] fur lights back to base.");
+        if (furRig != null) furRig.SetStorm(on);
     }
 
     // ---- wetness: the floor itself gets wet ----

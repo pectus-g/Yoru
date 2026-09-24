@@ -21,6 +21,10 @@ using UnityEngine;
 /// The fill light is created at runtime and is never saved into the scene.
 /// Intensity, colour and range of the rim stay on the YoruRim Light component: tune them
 /// there. The fill is tuned here because it does not exist outside Play.
+///
+/// ROUND 86 (23 Sep 2026, step 4): the phase 2 storm boost lives here now, moved from
+/// StormWeather (round 80) with the same values and the same maths. A fight's weather only
+/// says storm on and off through SetStorm; Storm Fill Boost and Storm Rim Multiplier are hers.
 /// </summary>
 [DisallowMultipleComponent]
 public class YoruLightRig : MonoBehaviour
@@ -73,12 +77,30 @@ public class YoruLightRig : MonoBehaviour
 
     [SerializeField] private LayerMask characterLayers = 1 << 3;
 
+    [Header("=== STORM, a fight's weather turns it on and off ===")]
+    [Tooltip("ROUND 86 - phase 2 must not be darker. Added to the fill intensity while a fight's storm is on (StormWeather says when). Moved here from StormWeather.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float stormFillBoost = 0.25f;
+
+    [Tooltip("ROUND 86 - YoruRim intensity multiplier while a fight's storm is on. Her fur sheen reads YoruRim, so it brightens with it. Moved here from StormWeather.")]
+    [Range(1f, 2f)]
+    [SerializeField] private float stormRimMultiplier = 1.3f;
+
+    [Header("=== DEBUG ===")]
+    [Tooltip("Logs the storm boost going on and off.")]
+    [SerializeField] private bool showDebugLogs = true;
+
     #endregion
 
     #region State
 
     private Light fill;
     private Camera cachedCamera;
+
+    // ROUND 86 - the values the storm boost starts from and returns to, read at Start
+    // (StormWeather read them at the same moment before step 4).
+    private float stormBaseFill;
+    private float stormBaseRim = -1f;
 
     #endregion
 
@@ -93,6 +115,16 @@ public class YoruLightRig : MonoBehaviour
 
         ApplyMasks();
         Camera.onPreCull += OnCameraPreCull;
+    }
+
+    private void Start()
+    {
+        // ROUND 86 - the storm boost works from the values she starts with.
+        stormBaseFill = fillIntensity;
+        if (rimLight != null)
+        {
+            stormBaseRim = rimLight.intensity;
+        }
     }
 
     private void OnDisable()
@@ -279,7 +311,7 @@ public class YoruLightRig : MonoBehaviour
     }
 
     /// <summary>
-    /// ROUND 80 - read by StormWeather so it can boost the fill for the storm and restore it after.
+    /// The fill intensity in use now: her base, or base plus Storm Fill Boost while a storm is on.
     /// </summary>
     public float FillIntensity
     {
@@ -287,11 +319,43 @@ public class YoruLightRig : MonoBehaviour
     }
 
     /// <summary>
-    /// ROUND 80 - the rim light the rig drives, read by StormWeather for the storm rim boost.
+    /// The rim light the rig drives (YoruRim).
     /// </summary>
     public Light RimLight
     {
         get { return rimLight; }
+    }
+
+    /// <summary>
+    /// ROUND 86 - a fight's storm, on and off. StormWeather calls it at phase 2 and when the fight
+    /// ends. On: the fill gets Storm Fill Boost on top of her base and YoruRim is multiplied by
+    /// Storm Rim Multiplier. Off: both go back to the base. The maths StormWeather did in round 80.
+    /// </summary>
+    public void SetStorm(bool on)
+    {
+        SetFillIntensity(on ? stormBaseFill + stormFillBoost : stormBaseFill);
+
+        bool hasRim = rimLight != null && stormBaseRim >= 0f;
+        if (hasRim)
+        {
+            rimLight.intensity = on ? stormBaseRim * stormRimMultiplier : stormBaseRim;
+        }
+
+        if (!showDebugLogs)
+        {
+            return;
+        }
+
+        if (on)
+        {
+            string rimText = hasRim ? $"YoruRim {stormBaseRim:F2} -> {rimLight.intensity:F2}" : "no YoruRim";
+            Debug.Log($"[YoruLightRig] lights boosted for the storm: fill {fillIntensity:F2}, rim x{stormRimMultiplier:F2} ({rimText}).");
+        }
+        else
+        {
+            string rimText = hasRim ? $"YoruRim {rimLight.intensity:F2}" : "no YoruRim";
+            Debug.Log($"[YoruLightRig] lights back to base: fill {fillIntensity:F2}, {rimText}.");
+        }
     }
 
     #endregion
