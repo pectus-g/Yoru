@@ -1,31 +1,30 @@
 using UnityEngine;
 
 /// <summary>
-/// ROUND 84 (23 Sep 2026): Yoru's own fur weather, moving off StormWeather so it travels with her
-/// to every scene (START-HERE rule 12: Yoru's things live on Yoru). Same maths as StormWeather's
-/// UpdateFurWeather (rounds 80, 81 and 83):
+/// ROUND 84 (23 Sep 2026): Yoru's own fur weather. It moved off StormWeather so it travels with her
+/// to every scene (START-HERE rule 12: Yoru's things live on Yoru). Step 3a ran it as a shadow next
+/// to StormWeather through a whole Oni fight (rain, under rock and back, phase 2): about 12,300
+/// frames, 0 differences. Step 3b made it the writer. The maths are StormWeather's rounds 80, 81
+/// and 83, unchanged:
 ///
 ///   ROOF CHECK: a ray straight up from above her head, 5 times a second, blended over Cover Blend
 ///   Seconds. Under rock the weather wind and the rain fade out; in the open they come back.
 ///   MOVEMENT WIND: always on, under rock too, read from her real velocity, so the coat streams
 ///   behind her on every move (walk, run, jump, climb). It adds to the weather wind as a vector.
-///   RAIN ON THE COAT: floor wetness x Fur Rain Scale x open sky, for the XFur Weather Manager.
-///   WHOLE-COAT SOAK: floor wetness x Fur Soak All x open sky, eased over Fur Soak Seconds, for the
-///   global _YoruWetAll that the fur shell shader reads.
+///   RAIN ON THE COAT: floor wetness x Fur Rain Scale x open sky, into the XFur Weather Manager.
+///   WHOLE-COAT SOAK: floor wetness x Fur Soak All x open sky, eased over Fur Soak Seconds, into
+///   the global _YoruWetAll that the fur shell shader reads.
+///   The total wind goes straight to XFur's two wind globals in LateUpdate, after the Weather
+///   Manager's own Update, so this wins for the frame and the rain direction the manager drives
+///   stays as authored.
 ///
-/// The fight keeps what belongs to the fight: its weather wind level, its gust speed and the floor
-/// wetness stay on StormWeather, and this reads them from there.
-///
-/// STEP 3a, SHADOW. This version WRITES NOTHING. Every frame, after StormWeather has written the
-/// fur weather, it runs the same computation twice and compares both with what StormWeather wrote:
-///   EXACT COPY: fed the position StormWeather read this frame. It must match within 0.001 on every
-///   frame; that is the proof that the maths moved over unchanged.
-///   HER OWN: fed her own position at the end of her frame, the way step 3b will read it. Any
-///   difference here comes only from the moment in the frame the position is read (her attack
-///   position lock can move her in between), measured so step 3b is decided on real numbers.
-/// Logs the first differences, a summary every 10 seconds and a total when the scene ends.
+/// What it reads from the scene: the fight's weather wind level, its gust speed and the floor
+/// wetness from StormWeather (the fight keeps those). A scene without StormWeather gives her the
+/// calm wind below and a dry floor. XFur's fur VFX module reads its rain from the scene's XFur
+/// Weather Manager and defaults to full rain when there is none, so a scene without one gets a
+/// runtime manager at rain 0 here: that is what soaked the day Yoru on 23 Sep.
 /// </summary>
-[DefaultExecutionOrder(1)]   // after StormWeather (0) has written this frame, before YoruFurLighting (1000)
+[DefaultExecutionOrder(1)]   // after StormWeather (0) has moved its wind level this frame, before YoruFurLighting (1000)
 [DisallowMultipleComponent]
 public class YoruFurWeather : MonoBehaviour
 {
@@ -67,8 +66,15 @@ public class YoruFurWeather : MonoBehaviour
     [Tooltip("Seconds for the wind and the rain to fade out under cover and back in the open.")]
     [SerializeField] private float coverBlendSeconds = 1f;
 
+    [Header("A scene without StormWeather")]
+    [Tooltip("Weather wind on her coat when the scene has no StormWeather: the cave's calm breeze. The shader squares it: 0.4 invisible, 0.5 ripple, 1.0 real wind.")]
+    [SerializeField, Range(0f, 2f)] private float calmWind = 0.5f;
+
+    [Tooltip("Gust speed when the scene has no StormWeather: the cave's calm gusts. 2 to 3 breathes.")]
+    [SerializeField, Range(0f, 32f)] private float calmWindFrequency = 2.5f;
+
     [Header("Debug")]
-    [Tooltip("Shadow log lines: the first differences, a summary every 10 seconds and a total when the scene ends.")]
+    [Tooltip("Log lines for the Weather Manager she found or made, going under cover and back into the open, and rain starting and stopping on the coat.")]
     [SerializeField] private bool showDebugLogs = true;
 
     #endregion
@@ -81,9 +87,6 @@ public class YoruFurWeather : MonoBehaviour
 
     private const float SkyCheckInterval = 0.2f;        // 5 times a second
     private const float MaxTrustedSpeedSqr = 2500f;     // above 50 m/s it is a teleport or a respawn, not movement
-    private const float ShadowTolerance = 0.001f;
-    private const float ShadowSummarySeconds = 10f;
-    private const int ShadowDetailLines = 10;
 
     /// <summary>What one computation remembers between frames, and what it produced this frame.</summary>
     private sealed class FurState
@@ -104,51 +107,12 @@ public class YoruFurWeather : MonoBehaviour
         public float rain;                  // for the Weather Manager's Rain Intensity
     }
 
-    /// <summary>Differences counted for one shadow report.</summary>
-    private sealed class ShadowStats
-    {
-        public int frames;
-        public int copyFrames;
-        public float copyLargest;
-        public string copyWhat = "nothing";
-        public int ownFrames;
-        public float ownLargest;
-        public string ownWhat = "nothing";
-        public float positionLargest;
-
-        public void Add(float copyDiff, string copyName, float ownDiff, string ownName, float positionDiff)
-        {
-            frames++;
-            if (copyDiff > ShadowTolerance) copyFrames++;
-            if (copyDiff > copyLargest) { copyLargest = copyDiff; copyWhat = copyName; }
-            if (ownDiff > ShadowTolerance) ownFrames++;
-            if (ownDiff > ownLargest) { ownLargest = ownDiff; ownWhat = ownName; }
-            if (positionDiff > positionLargest) positionLargest = positionDiff;
-        }
-
-        public void Reset()
-        {
-            frames = 0;
-            copyFrames = 0;
-            copyLargest = 0f;
-            copyWhat = "nothing";
-            ownFrames = 0;
-            ownLargest = 0f;
-            ownWhat = "nothing";
-            positionLargest = 0f;
-        }
-    }
-
     private StormWeather storm;
     private XFurStudio.Utilities.XFurWeatherManager furWeather;
     private Vector3 weatherWindDir = Vector3.forward;    // the Weather Zone's authored heading, read once
-    private readonly FurState copy = new FurState();     // fed the position StormWeather read
-    private readonly FurState own = new FurState();      // fed her own end-of-frame position
-    private readonly ShadowStats window = new ShadowStats();
-    private readonly ShadowStats session = new ShadowStats();
-    private bool shadowReady;
-    private int detailLinesLogged;
-    private float nextSummaryRealTime;
+    private readonly FurState state = new FurState();
+    private bool wasCovered;
+    private bool rainWasOn;
 
     #endregion
 
@@ -159,45 +123,74 @@ public class YoruFurWeather : MonoBehaviour
         storm = Object.FindFirstObjectByType<StormWeather>();
         furWeather = Object.FindFirstObjectByType<XFurStudio.Utilities.XFurWeatherManager>();
 
-        if (storm == null || furWeather == null)
+        if (furWeather == null)
         {
+            // Safety net. The fur VFX module reads its rain amount from the manager; with no manager the
+            // shader default is full rain and the coat soaks in seconds. A runtime manager at rain 0
+            // under her makes that impossible in any scene.
+            GameObject go = new GameObject("XFur Weather (runtime fallback)");
+            go.transform.SetParent(transform, false);
+            furWeather = go.AddComponent<XFurStudio.Utilities.XFurWeatherManager>();
             if (showDebugLogs)
-                Debug.Log("[YoruFurWeather] SHADOW idle: " + (storm == null ? "no StormWeather" : "no XFur Weather Manager")
-                          + " in this scene, nothing to compare with. Writes nothing.");
-            return;
+                Debug.LogWarning("[YoruFurWeather] no XFur Weather Manager in this scene, made a runtime one at rain 0 so her fur cannot soak by default.");
         }
+        XFurStudio.Core.XFurStudioInstance.WeatherManager = furWeather;
 
-        // The same heading StormWeather reads once from the Weather Zone.
+        // The heading the Weather Zone was authored with, read once. Nothing about that object is
+        // changed, rotation included, so the rain and snow directions it computes stay as set.
         weatherWindDir = furWeather.transform.forward;
         if (weatherWindDir.sqrMagnitude < 0.0001f) weatherWindDir = Vector3.forward;
         weatherWindDir.Normalize();
 
-        shadowReady = true;
-        nextSummaryRealTime = Time.unscaledTime + ShadowSummarySeconds;
+        furWeather.RainIntensity = 0f;
+        furWeather.SnowIntensity = 0f;
+        furWeather.WindStrength = WeatherWind();
+        furWeather.WindFrequency = WeatherFrequency();
         if (showDebugLogs)
-            Debug.Log($"[YoruFurWeather] SHADOW ON (step 3a): computing her fur wind, rain and soak next to StormWeather on '{storm.name}' "
-                      + $"with the Weather Manager on '{furWeather.name}'. Writes nothing. Tolerance {ShadowTolerance}, summary every {ShadowSummarySeconds:F0} s.");
+            Debug.Log($"[YoruFurWeather] fur weather ready on '{furWeather.name}'. Rain 0, wind {WeatherWind():F2} in the open, roof check {skyCheckHeight:F0} m above her. "
+                      + (storm != null ? $"Wind level and floor from StormWeather on '{storm.name}'." : "No StormWeather in this scene: calm wind and a dry floor."));
     }
 
     private void LateUpdate()
     {
-        if (!shadowReady) return;
-
-        float weatherWind = storm.FurWeatherWind;
-        float weatherFreq = storm.FurWeatherWindFrequency;
-        float wetness = storm.FloorWetness;
-        Vector3 stormSample = storm.ShadowFurSamplePosition;
-        Vector3 ownSample = transform.position;
-
-        Compute(copy, stormSample, weatherWind, weatherFreq, wetness);
-        Compute(own, ownSample, weatherWind, weatherFreq, wetness);
-        CompareWithStorm(Vector3.Distance(stormSample, ownSample));
+        Compute(state, transform.position, WeatherWind(), WeatherFrequency(), FloorWetness());
+        Write(state);
     }
 
     private void OnDisable()
     {
-        if (!shadowReady || !showDebugLogs) return;
-        Debug.Log(Summary("SHADOW TOTAL for this session", session));
+        // Leave the manager dry and calm and the coat dry while this is not running (the rule
+        // StormWeather's OnDisable kept for rounds 80, 81 and 83).
+        if (furWeather != null)
+        {
+            furWeather.RainIntensity = 0f;
+            furWeather.WindStrength = 0f;
+        }
+        state.soak = 0f;
+        Shader.SetGlobalFloat(WetAllId, 0f);
+        Shader.SetGlobalFloat(WindStrengthId, 0f);   // stop driving the wind, the manager takes it back
+    }
+
+    #endregion
+
+    #region Scene weather
+
+    /// <summary>The fight's weather wind level from StormWeather, or her calm wind without one.</summary>
+    private float WeatherWind()
+    {
+        return storm != null ? storm.FurWeatherWind : calmWind;
+    }
+
+    /// <summary>The fight's gust speed from StormWeather, or her calm gusts without one.</summary>
+    private float WeatherFrequency()
+    {
+        return storm != null ? storm.FurWeatherWindFrequency : calmWindFrequency;
+    }
+
+    /// <summary>The floor wetness from StormWeather, or a dry floor without one.</summary>
+    private float FloorWetness()
+    {
+        return storm != null ? storm.FloorWetness : 0f;
     }
 
     #endregion
@@ -257,71 +250,37 @@ public class YoruFurWeather : MonoBehaviour
         s.soak = Mathf.MoveTowards(s.soak, soakTarget, soakStep);
     }
 
-    #endregion
-
-    #region Shadow
-
-    /// <summary>Compares both computations with what StormWeather wrote this frame and logs the result.</summary>
-    private void CompareWithStorm(float positionDiff)
+    /// <summary>
+    /// Writes one frame of her fur weather where XFur reads it, the same writes StormWeather made,
+    /// and logs going under cover and back, and rain starting and stopping on the coat.
+    /// </summary>
+    private void Write(FurState s)
     {
-        Vector4 stormDirFreq = Shader.GetGlobalVector(WindDirFreqId);
-        float stormStrength = Shader.GetGlobalFloat(WindStrengthId);
-        float stormSoak = Shader.GetGlobalFloat(WetAllId);
-
-        float copyDiff = LargestDifference(copy, stormDirFreq, stormStrength, stormSoak, out string copyWhat);
-        float ownDiff = LargestDifference(own, stormDirFreq, stormStrength, stormSoak, out string ownWhat);
-        window.Add(copyDiff, copyWhat, ownDiff, ownWhat, positionDiff);
-        session.Add(copyDiff, copyWhat, ownDiff, ownWhat, positionDiff);
-
-        if (showDebugLogs && copyDiff > ShadowTolerance && detailLinesLogged < ShadowDetailLines)
+        if (s.covered != wasCovered)
         {
-            detailLinesLogged++;
-            Debug.LogWarning($"[YoruFurWeather] SHADOW DIFF {detailLinesLogged}/{ShadowDetailLines} (exact copy): largest on {copyWhat} by {copyDiff:F6}. "
-                + $"StormWeather wrote wind {stormStrength:F4} dir ({stormDirFreq.x:F3}, {stormDirFreq.y:F3}, {stormDirFreq.z:F3}) gust {stormDirFreq.w:F3}, "
-                + $"zone wind {furWeather.WindStrength:F4} gust {furWeather.WindFrequency:F3}, rain {furWeather.RainIntensity:F4}, soak {stormSoak:F4}. "
-                + $"Copy has wind {copy.windStrength:F4} dir ({copy.windDirFreq.x:F3}, {copy.windDirFreq.y:F3}, {copy.windDirFreq.z:F3}) gust {copy.windDirFreq.w:F3}, "
-                + $"zone wind {copy.zoneWind:F4} gust {copy.zoneFrequency:F3}, rain {copy.rain:F4}, soak {copy.soak:F4}.");
+            wasCovered = s.covered;
+            if (showDebugLogs) Debug.Log(s.covered ? "[YoruFurWeather] under cover, wind fading out." : "[YoruFurWeather] open sky, wind back.");
         }
 
-        if (Time.unscaledTime >= nextSummaryRealTime)
+        // The Weather Manager writes these same two globals in its own Update. This runs in
+        // LateUpdate, so this wins for the frame, and the manager's Wind Strength below still drives
+        // its rain and snow directions from the authored heading only.
+        Shader.SetGlobalVector(WindDirFreqId, s.windDirFreq);
+        Shader.SetGlobalFloat(WindStrengthId, s.windStrength);
+
+        furWeather.WindStrength = s.zoneWind;
+        furWeather.WindFrequency = s.zoneFrequency;
+        furWeather.RainIntensity = s.rain;
+
+        bool rainOn = s.rain > 0.01f;
+        if (rainOn != rainWasOn)
         {
-            nextSummaryRealTime = Time.unscaledTime + ShadowSummarySeconds;
-            if (showDebugLogs) Debug.Log(Summary("SHADOW last 10 s", window));
-            window.Reset();
+            rainWasOn = rainOn;
+            if (showDebugLogs)
+                Debug.Log(rainOn ? $"[YoruFurWeather] rain reaching the coat (intensity {s.rain:F2}, follows floor wetness)." : "[YoruFurWeather] rain off the coat, drying.");
         }
-    }
 
-    /// <summary>Largest absolute difference between one computation and what StormWeather wrote.</summary>
-    private float LargestDifference(FurState s, Vector4 stormDirFreq, float stormStrength, float stormSoak, out string what)
-    {
-        float largest = 0f;
-        what = "nothing";
-        Keep(ref largest, ref what, Mathf.Abs(s.windDirFreq.x - stormDirFreq.x), "wind direction x");
-        Keep(ref largest, ref what, Mathf.Abs(s.windDirFreq.y - stormDirFreq.y), "wind direction y");
-        Keep(ref largest, ref what, Mathf.Abs(s.windDirFreq.z - stormDirFreq.z), "wind direction z");
-        Keep(ref largest, ref what, Mathf.Abs(s.windDirFreq.w - stormDirFreq.w), "gust speed");
-        Keep(ref largest, ref what, Mathf.Abs(s.windStrength - stormStrength), "wind strength");
-        Keep(ref largest, ref what, Mathf.Abs(s.zoneWind - furWeather.WindStrength), "Weather Zone wind");
-        Keep(ref largest, ref what, Mathf.Abs(s.zoneFrequency - furWeather.WindFrequency), "Weather Zone gust speed");
-        Keep(ref largest, ref what, Mathf.Abs(s.rain - furWeather.RainIntensity), "rain");
-        Keep(ref largest, ref what, Mathf.Abs(s.soak - stormSoak), "soak");
-        return largest;
-    }
-
-    private static void Keep(ref float largest, ref string what, float difference, string name)
-    {
-        if (difference > largest)
-        {
-            largest = difference;
-            what = name;
-        }
-    }
-
-    private static string Summary(string title, ShadowStats s)
-    {
-        return $"[YoruFurWeather] {title}: {s.frames} frames. Exact copy: {s.copyFrames} frames differ "
-             + $"(largest {s.copyLargest:F6} on {s.copyWhat}). Her own position: {s.ownFrames} frames differ "
-             + $"(largest {s.ownLargest:F4} on {s.ownWhat}; she was up to {s.positionLargest:F3} m from where StormWeather read her).";
+        Shader.SetGlobalFloat(WetAllId, s.soak);
     }
 
     #endregion

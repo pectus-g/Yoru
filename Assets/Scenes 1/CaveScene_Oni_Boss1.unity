@@ -3059,7 +3059,7 @@ MonoBehaviour:
   usePhysicalSunHeight: 1
   sunDirection: 120
   sunPitch: 0
-  moonDirection: {x: -0.42427233, y: 0.3185166, z: 0.8476676}
+  moonDirection: {x: 0.1625286, y: -0.94145423, z: -0.29537842}
   skyZenithColor: {r: 0, g: 0.045963235, b: 0.08899265, a: 1}
   skyHorizonColor: {r: 0.013701539, g: 0.19307761, b: 0.29925093, a: 1}
   cloudColor: {r: 0.39864698, g: 0.24476075, b: 0.2248649, a: 1}
@@ -3236,7 +3236,7 @@ Transform:
   m_GameObject: {fileID: 579351699}
   serializedVersion: 2
   m_LocalRotation: {x: 0.0000000037252899, y: -0, z: -0.0000000074505797, w: 1}
-  m_LocalPosition: {x: 540.45184, y: 37.954662, z: 411.49115}
+  m_LocalPosition: {x: 474.49777, y: 4.5, z: 422.2276}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -16385,28 +16385,13 @@ MonoBehaviour:
   strikeFlashExposure: 0.5
   strikeFlashChromatic: 0.2
   strikeFlashSeconds: 0.12
-  furWeather: {fileID: 0}
-  furWindTarget: {fileID: 0}
-  furRainScale: 0.8
-  furSoakAll: 0.8
-  furSoakSeconds: 12
   calmWind: 0.5
   phase1Wind: 0.9
   stormWind: 1.4
   calmWindFrequency: 2.5
   phase1WindFrequency: 4
   stormWindFrequency: 7
-  moveWindMax: 0.8
-  moveWindFullSpeed: 6
-  moveWindResponse: 0.25
-  moveWindFrequencyBoost: 3
   weatherWindResponse: 2
-  skyCheckMask:
-    serializedVersion: 2
-    m_Bits: 10705
-  skyCheckHeight: 30
-  skyCheckOrigin: 2.6
-  coverBlendSeconds: 1
   stormFillBoost: 0.25
   stormRimMultiplier: 1.3
   debugLog: 1
@@ -24785,7 +24770,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 117.41074, y: 117.41074, z: 117.41074}
+  m_LocalScale: {x: 5, y: 5, z: 5}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 700040834}
@@ -26843,7 +26828,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1729642447}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.037108485, y: 0.9604461, z: -0.15704878, w: 0.22694038}
+  m_LocalRotation: {x: -0.55758595, y: -0.20349129, z: -0.14327416, w: 0.79193544}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -26860,7 +26845,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 11
   m_Type: 1
-  m_Color: {r: 0.7963621, g: 0.85311425, b: 0.96415097, a: 0}
+  m_Color: {r: 0, g: 0, b: 0, a: 0}
   m_Intensity: 0
   m_Range: 10
   m_SpotAngle: 30
@@ -118904,6 +118889,8 @@ MonoBehaviour:
   skyCheckHeight: 30
   skyCheckOrigin: 2.6
   coverBlendSeconds: 1
+  calmWind: 0.5
+  calmWindFrequency: 2.5
   showDebugLogs: 1
 --- !u!4 &3280409563259968403
 Transform:
@@ -224954,11 +224941,12 @@ MonoBehaviour:
   heavy4LegReactState: Bhit_run_reaction_4
   runningLightReactState: HitReact_Running_4Leg
   runningReactMinSpeed: 3
-  deathLight2Leg: HR_Die_2legs
-  deathHeavy2Leg: HR_big_die_2legs
-  death4Leg: lighthit_Die_4legs
-  deathAir: Heavyhit_jumping_Die_4
-  deathAirStart: 0.343
+  death2LegGround: HR_Die_2legs
+  death2LegAir: HR_big_die_2legs
+  death2LegAirStart: 0.325
+  death4LegGround: lighthit_Die_4legs
+  death4LegAir: Heavyhit_jumping_Die_4
+  death4LegAirStart: 0.343
   deathBlend: 0.05
   deathSlowMotion: 1
   deathSlowScale: 0.15

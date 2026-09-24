@@ -7,6 +7,12 @@ using DistantLands.Cozy.Data;
 /// <summary>
 /// The Oni arena's weather profile.
 ///
+/// ROUND 84 (23 Sep 2026): Yoru's fur weather described below (rounds 80, 81 and 83) now lives on
+/// her, in YoruFurWeather, so it travels with her to every scene. This script keeps the fight's
+/// part: the three weather wind levels and how fast they change, the floor wetness, and the
+/// phase 2 light boost on her rig. She reads the first two through FurWeatherWind,
+/// FurWeatherWindFrequency and FloorWetness.
+///
 /// ROUND 80: Yoru's fur joins the weather. XFur's wind and rain are two shader globals
 /// written by exactly one component, XFurWeatherManager (the 'Weather Zone' object). If that
 /// component is missing while the fur's VFX module is on, the rain global defaults to 1 and
@@ -141,22 +147,7 @@ public class StormWeather : MonoBehaviour
     [Tooltip("Seconds a strike flash lasts on screen. Shorter than the light flash reads sharper.")]
     [SerializeField] private float strikeFlashSeconds = 0.12f;
 
-    [Header("Fur weather - round 80 (Yoru's XFur wind and rain)")]
-    [Tooltip("ROUND 80 - the scene's XFur Weather Manager (object 'Weather Zone'). Auto-found if empty. It is the only thing that writes XFur's wind and rain globals. Its own inspector values are the scene defaults; this script overrides Rain Intensity, Wind Strength and Wind Frequency while playing.")]
-    [SerializeField] private XFurStudio.Utilities.XFurWeatherManager furWeather;
-
-    [Tooltip("Whose head the sky check starts from. Auto-found by the Player tag.")]
-    [SerializeField] private Transform furWindTarget;
-
-    [Tooltip("Fur rain = floor wetness x this x open sky. 0.5 at full storm wets what faces up. Lower values wet only her back and head. 1.0 is the demo's fire hose. Under rock it is 0 and she dries over the module's Fade Time.")]
-    [SerializeField, Range(0f, 1f)] private float furRainScale = 0.5f;
-
-    [Tooltip("ROUND 81 - base soak for the whole coat. XFur's rain only wets surfaces that face the sky, so her chest, legs, belly and the undersides of the tails stayed bone dry and fluffy next to a dark flattened back: a two-tone cat. This soaks everything to floor wetness x this (x open sky), the rain still adds more on top. 0.6 reads drenched with a wetter back. 0 is XFur's sky-facing only behaviour.")]
-    [SerializeField, Range(0f, 1f)] private float furSoakAll = 0.6f;
-
-    [Tooltip("Seconds for the base soak to build up and to dry off. Keep it equal to the Rain FX Fade Time on the fur objects (12) so the underside dries with the back.")]
-    [SerializeField] private float furSoakSeconds = 12f;
-
+    [Header("Fight wind for Yoru's fur - round 83 (her fur weather itself is YoruFurWeather on her, round 84)")]
     [Tooltip("XFur wind strength before the storm, in the open. The shader squares it: 0.4 invisible, 0.5 ripple, 1.0 real wind.")]
     [SerializeField, Range(0f, 2f)] private float calmWind = 0.5f;
 
@@ -175,32 +166,8 @@ public class StormWeather : MonoBehaviour
     [Tooltip("Gust speed at full storm. 6 to 8 flutters.")]
     [SerializeField, Range(0f, 32f)] private float stormWindFrequency = 7f;
 
-    [Tooltip("ROUND 83 - how much wind her own movement makes, on top of the weather. This is always on, in every phase and under cover too, because she makes this air herself by moving through it. 0 is off, 0.8 reads as a run, 1.5 is a sprint through a gale.")]
-    [SerializeField, Range(0f, 2f)] private float moveWindMax = 0.8f;
-
-    [Tooltip("ROUND 83 - the speed in metres per second at which her movement wind reaches the maximum above. Set it near her run speed. Below this it scales down smoothly, so a walk moves the coat a little and a run moves it fully.")]
-    [SerializeField] private float moveWindFullSpeed = 6f;
-
-    [Tooltip("ROUND 83 - seconds for the movement wind to catch up when she starts, stops or turns. Small values snap, large values lag. 0.25 reads like real air.")]
-    [SerializeField] private float moveWindResponse = 0.25f;
-
-    [Tooltip("ROUND 83 - extra gust speed added at a full run, so the coat flutters faster while she moves rather than only leaning.")]
-    [SerializeField, Range(0f, 16f)] private float moveWindFrequencyBoost = 3f;
-
     [Tooltip("ROUND 83 - seconds for the weather wind to rise or fall when the fight changes phase. The storm rolls in rather than snapping on.")]
     [SerializeField] private float weatherWindResponse = 2f;
-
-    [Tooltip("Layers that count as a roof for the sky check. Default: everything except TransparentFX, Ignore Raycast, Player, UI, Post_Processing, Enemy and CameraIgnore.")]
-    [SerializeField] private LayerMask skyCheckMask = ~((1 << 1) | (1 << 2) | (1 << 3) | (1 << 5) | (1 << 9) | (1 << 10) | (1 << 12));
-
-    [Tooltip("How far up the sky check looks for rock, metres from her head.")]
-    [SerializeField] private float skyCheckHeight = 30f;
-
-    [Tooltip("Metres above her root the sky ray starts. 2.6 clears her ears when she stands.")]
-    [SerializeField] private float skyCheckOrigin = 2.6f;
-
-    [Tooltip("Seconds for the wind to fade out under cover and back in the open.")]
-    [SerializeField] private float coverBlendSeconds = 1f;
 
     [Tooltip("Phase 2 must not be darker. Added to the character rig's fill intensity while the storm is on.")]
     [SerializeField, Range(0f, 1f)] private float stormFillBoost = 0.25f;
@@ -239,25 +206,12 @@ public class StormWeather : MonoBehaviour
     // ROUND 63, COZY runtime.
     private CozyWeather cozy;
 
-    // ROUND 80, fur weather runtime.
+    // ROUND 80, the phase 2 light boost on her rig.
     private YoruLightRig furRig;
     private float furBaseFill;
     private float furBaseRim = -1f;
-    private float openSky = 1f;             // 1 under the sky, 0 under rock, blended
-    private float openSkyTarget = 1f;
-    private float nextSkyCheck;
-    private bool furRainWasOn;
-    private bool furWasCovered;
-    private float furSoak;                  // ROUND 81, current whole-coat soak 0..1, written to _YoruWetAll
-    private static readonly int WetAllId = Shader.PropertyToID("_YoruWetAll");
 
-    // ROUND 83, layered wind runtime.
-    private static readonly int WindDirFreqId = Shader.PropertyToID("_XFurWindDirectionFreq");
-    private static readonly int WindStrengthId = Shader.PropertyToID("_XFurWindStrength");
-    private Vector3 weatherWindDir = Vector3.forward;   // the Weather Zone's authored heading, read once
-    private Vector3 furTargetLastPos;
-    private bool furTargetPosValid;
-    private Vector3 furMoveVelocity;                    // smoothed, metres per second
+    // ROUND 83, the fight's weather wind for her fur (read by YoruFurWeather since round 84).
     private float weatherWindNow;                       // smoothed weather wind, without her movement
     private float weatherFreqNow;
     private bool fightOver;                             // he is down, the sky goes back to normal
@@ -275,9 +229,6 @@ public class StormWeather : MonoBehaviour
 
     /// <summary>Floor wetness, 0 dry to 1 soaked.</summary>
     public float FloorWetness => wetness;
-
-    /// <summary>Step 3a shadow only, removed in step 3b: her position as UpdateFurWeather read it this frame.</summary>
-    public Vector3 ShadowFurSamplePosition => furTargetLastPos;
 
     private void Start()
     {
@@ -418,21 +369,10 @@ public class StormWeather : MonoBehaviour
         UpdateFurWeather();   // ROUND 80 - after Update so it sees this frame's storm and wetness
     }
 
-    // ---- ROUND 80: fur weather, wind and rain on Yoru's XFur ----
+    // ---- ROUND 80 / 84: the fight's weather wind level for her fur (her fur weather itself is YoruFurWeather on her) ----
 
     private void SetupFurWeather()
     {
-        if (furWeather == null)
-#if UNITY_2023_1_OR_NEWER
-            furWeather = Object.FindFirstObjectByType<XFurStudio.Utilities.XFurWeatherManager>();
-#else
-            furWeather = Object.FindObjectOfType<XFurStudio.Utilities.XFurWeatherManager>();
-#endif
-        if (furWindTarget == null)
-        {
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null) furWindTarget = player.transform;
-        }
 #if UNITY_2023_1_OR_NEWER
         furRig = Object.FindFirstObjectByType<YoruLightRig>();
 #else
@@ -444,72 +384,17 @@ public class StormWeather : MonoBehaviour
             if (furRig.RimLight != null) furBaseRim = furRig.RimLight.intensity;
         }
 
-        if (furWeather == null)
-        {
-            // Safety net. The fur VFX module reads its rain amount from the manager; with no manager the
-            // shader default is full rain and the coat soaks to black in seconds. A runtime manager at
-            // zero makes that impossible, whatever happened to the Weather Zone object.
-            GameObject go = new GameObject("XFur Weather (runtime fallback)");
-            go.transform.SetParent(transform, false);
-            furWeather = go.AddComponent<XFurStudio.Utilities.XFurWeatherManager>();
-            XFurStudio.Core.XFurStudioInstance.WeatherManager = furWeather;
-            if (debugLog) Debug.LogWarning("[StormWeather] ROUND 80: no XFur Weather Manager found in the scene, created a runtime one at rain 0 so the fur cannot soak by default. The 'Weather Zone' object is missing or its script did not resolve: reload the scene from disk.");
-        }
-        else
-        {
-            XFurStudio.Core.XFurStudioInstance.WeatherManager = furWeather;
-        }
-
-        // ROUND 83 - remember the heading the Weather Zone was authored with. Nothing about that
-        // object is changed, rotation included, so the rain and snow directions it computes stay
-        // exactly as set. The fur's own wind direction is built from this heading plus her movement
-        // and written straight to the shader globals below.
-        weatherWindDir = furWeather.transform.forward;
-        if (weatherWindDir.sqrMagnitude < 0.0001f) weatherWindDir = Vector3.forward;
-        weatherWindDir.Normalize();
+        // ROUND 84 - the Weather Manager, the roof check and everything written to her fur moved to
+        // YoruFurWeather on her. The fight only starts its wind level at the calm breeze.
         weatherWindNow = calmWind;
         weatherFreqNow = calmWindFrequency;
-        furTargetPosValid = false;
-
-        furWeather.RainIntensity = 0f;
-        furWeather.SnowIntensity = 0f;
-        furWeather.WindStrength = calmWind;
-        furWeather.WindFrequency = calmWindFrequency;
-        if (debugLog) Debug.Log($"[StormWeather] ROUND 80: fur weather ready on '{furWeather.name}'. Rain 0, wind {calmWind:F2} in the open, sky check {skyCheckHeight:F0} m"
-                              + (furWindTarget != null ? $" from '{furWindTarget.name}'." : ", no Player found: wind treats her as always in the open."));
     }
 
     private void UpdateFurWeather()
     {
-        if (furWeather == null) return;   // warned once in SetupFurWeather
-
-        // Sky check at 5 Hz, blended every frame.
-        if (furWindTarget != null && Time.time >= nextSkyCheck)
-        {
-            nextSkyCheck = Time.time + 0.2f;
-            Vector3 origin = furWindTarget.position + Vector3.up * skyCheckOrigin;
-            bool covered = Physics.Raycast(origin, Vector3.up, skyCheckHeight, skyCheckMask, QueryTriggerInteraction.Ignore);
-            openSkyTarget = covered ? 0f : 1f;
-            if (covered != furWasCovered)
-            {
-                furWasCovered = covered;
-                if (debugLog) Debug.Log(covered ? "[StormWeather] fur: under cover, wind fading out." : "[StormWeather] fur: open sky, wind back.");
-            }
-        }
-        float blend = coverBlendSeconds <= 0f ? 1f : Time.deltaTime / coverBlendSeconds;
-        openSky = Mathf.MoveTowards(openSky, openSkyTarget, blend);
-
-        // ---- ROUND 83, layered wind ----------------------------------------------------------
-        // Two winds are added as vectors, the way two real airflows would be.
-        //
-        //   weather wind: three steps, breeze before the fight, more in phase 1, storm in phase 2,
-        //   and back to the breeze once he is down. Gated by open sky, so it dies under rock.
-        //
-        //   movement wind: always on, in every phase and under rock too, because she makes this air
-        //   herself. Its heading is the opposite of where she is going, so the coat streams behind
-        //   her, and it covers every move she has, walking, running, jumping and climbing, because
-        //   it is read from her actual velocity rather than from any animation state.
-
+        // ROUND 83 - the weather wind steps up with the fight: a breeze before it, more in phase 1,
+        // a storm in phase 2, and back to the breeze once he is down. Her roof check and her own
+        // movement wind are added on her side (YoruFurWeather, round 84), which reads this level.
         float weatherTarget;
         float freqTarget;
         if (!fightStarted)
@@ -531,60 +416,6 @@ public class StormWeather : MonoBehaviour
         float windBlend = weatherWindResponse <= 0f ? 999f : Time.deltaTime * 2f / weatherWindResponse;
         weatherWindNow = Mathf.MoveTowards(weatherWindNow, weatherTarget, windBlend);
         weatherFreqNow = Mathf.MoveTowards(weatherFreqNow, freqTarget, windBlend * 16f);
-
-        // Her velocity, straight from the transform, so nothing here depends on PlayerMovement.
-        Vector3 rawVelocity = Vector3.zero;
-        if (furWindTarget != null)
-        {
-            Vector3 here = furWindTarget.position;
-            if (furTargetPosValid && Time.deltaTime > 0.0001f)
-                rawVelocity = (here - furTargetLastPos) / Time.deltaTime;
-            // A teleport or a respawn would read as a huge one frame velocity, so anything faster
-            // than she can possibly run is treated as a jump in position, not as movement.
-            if (rawVelocity.sqrMagnitude > 2500f) rawVelocity = Vector3.zero;
-            furTargetLastPos = here;
-            furTargetPosValid = true;
-        }
-        float moveBlend = moveWindResponse <= 0f ? 1f : Mathf.Clamp01(Time.deltaTime / moveWindResponse);
-        furMoveVelocity = Vector3.Lerp(furMoveVelocity, rawVelocity, moveBlend);
-
-        float speed = furMoveVelocity.magnitude;
-        float move01 = moveWindFullSpeed <= 0f ? 0f : Mathf.Clamp01(speed / moveWindFullSpeed);
-        Vector3 moveWind = speed > 0.05f ? -(furMoveVelocity / speed) * (moveWindMax * move01) : Vector3.zero;
-
-        Vector3 totalWind = weatherWindDir * (weatherWindNow * openSky) + moveWind;
-        float totalStrength = totalWind.magnitude;
-        Vector3 totalDir = totalStrength > 0.0001f ? totalWind / totalStrength : weatherWindDir;
-        totalStrength = Mathf.Clamp(totalStrength, 0f, 2f);
-        float totalFreq = Mathf.Clamp(weatherFreqNow + moveWindFrequencyBoost * move01, 0f, 32f);
-
-        // The Weather Manager writes these same two globals in its own Update. This runs in
-        // LateUpdate, so this wins for the frame, and the manager's WindStrength below still drives
-        // its rain and snow directions from the authored heading only.
-        Shader.SetGlobalVector(WindDirFreqId, new Vector4(totalDir.x, totalDir.y, totalDir.z, totalFreq));
-        Shader.SetGlobalFloat(WindStrengthId, totalStrength);
-
-        furWeather.WindStrength = weatherWindNow * openSky;
-        furWeather.WindFrequency = weatherFreqNow;
-
-        // Rain follows the floor: dry before the fight, wet back in phase 1, drenched in phase 2.
-        // Gated by the same sky check as the wind, so under rock she dries out over the module's fade time.
-        float rain = Mathf.Clamp01(wetness * furRainScale * openSky);
-        furWeather.RainIntensity = rain;
-        bool rainOn = rain > 0.01f;
-        if (rainOn != furRainWasOn)
-        {
-            furRainWasOn = rainOn;
-            if (debugLog) Debug.Log(rainOn ? $"[StormWeather] fur: rain reaching the coat (intensity {rain:F2}, follows floor wetness)." : "[StormWeather] fur: rain off the coat, drying.");
-        }
-
-        // ROUND 81 - whole-coat soak. The rain pass above only wets what faces the sky; this lifts the
-        // rest of the coat toward the same wetness, slower than the rain (tops first), and dries it at
-        // the same pace as the module's fade so the underside never stays wet after the back is dry.
-        float soakTarget = Mathf.Clamp01(wetness * furSoakAll * openSky);
-        float soakStep = furSoakSeconds <= 0f ? 1f : Time.deltaTime / furSoakSeconds;
-        furSoak = Mathf.MoveTowards(furSoak, soakTarget, soakStep);
-        Shader.SetGlobalFloat(WetAllId, furSoak);
     }
 
     /// <summary>
@@ -962,14 +793,7 @@ public class StormWeather : MonoBehaviour
         if (flashLight) flashLight.intensity = 0f;
         if (stormVolume) stormVolume.weight = 0f;   // ROUND 77
         if (flashVolume) flashVolume.weight = 0f;
-        if (furWeather != null)   // ROUND 80 - leave the manager dry and calm
-        {
-            furWeather.RainIntensity = 0f;
-            furWeather.WindStrength = 0f;
-        }
-        furSoak = 0f;
-        Shader.SetGlobalFloat(WetAllId, 0f);   // ROUND 81 - the coat is dry when this is not running
-        Shader.SetGlobalFloat(WindStrengthId, 0f);   // ROUND 83 - stop driving the wind, the manager takes it back
+        // ROUND 84 - the Weather Manager and her coat are reset by YoruFurWeather's own OnDisable now.
         if (phase2) BoostFurLights(false);
     }
     private void OnApplicationQuit() { RestoreTerrain(); }
@@ -1018,9 +842,8 @@ public class StormWeather : MonoBehaviour
     private void TestFurWet()
     {
         if (!Application.isPlaying) { Debug.Log("Enter Play mode first."); return; }
-        if (furWeather == null) { Debug.Log("[StormWeather] no XFur Weather Manager in the scene."); return; }
         wetness = 1f; ApplyWetness(1f);
-        Debug.Log("[StormWeather] floor and fur set to fully wet - the coat should darken and gloss over the next seconds, tops first.");
+        Debug.Log("[StormWeather] floor set to fully wet - YoruFurWeather on her follows it: the coat should darken and gloss over the next seconds, tops first.");
     }
 
     [ContextMenu("Test: Instant full wetness")]
