@@ -1390,7 +1390,6 @@ GameObject:
   m_Component:
   - component: {fileID: 283845565}
   - component: {fileID: 283845564}
-  - component: {fileID: 283845566}
   - component: {fileID: 283845567}
   m_Layer: 0
   m_Name: Directional Light
@@ -1485,7 +1484,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 283845563}
+  m_GameObject: {fileID: 8266721774955611434}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: aacc1a250450a4e40bb34129de85e057, type: 3}
@@ -27641,7 +27640,7 @@ MonoBehaviour:
   traceReactions: 1
   writeLogFile: 1
   chargeTelemetryHz: 12
-  configureYoruLaunch: 1
+  configureYoruLaunch: 0
 --- !u!114 &1765026190
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -221336,6 +221335,7 @@ GameObject:
   - component: {fileID: 1765026200}
   - component: {fileID: 9185498216620031636}
   - component: {fileID: 9185498216620031637}
+  - component: {fileID: 283845566}
   m_Layer: 0
   m_Name: PlayerYoru_1.1
   m_TagString: Player
@@ -225064,17 +225064,17 @@ MonoBehaviour:
   noTargetFinisherNudge: 0.5
   launchEnabled: 1
   launchMaxDistance: 6
-  launchSpeed: 20
+  launchSpeed: 10
   launchMaxDuration: 0.32
   launchGroundedGrace: 0.15
-  launchMinDistance: 0.8
+  launchMinDistance: 0
   launchMinDuration: 0.13
-  launchWithNoTarget: 0
+  launchWithNoTarget: 1
   launchNoTargetDistance: 0.9
-  launchEngageDistance: 4.5
+  launchEngageDistance: 4.7
   launchStopGap: 0
   launchGroundStick: 2
-  launchInAir: 0
+  launchInAir: 1
   airDodgeFallMultiplier: 0.45
   airDodgeKeepEntryFall: 0
   airDashHoldsHeight: 1
