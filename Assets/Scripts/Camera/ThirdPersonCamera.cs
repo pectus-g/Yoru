@@ -78,9 +78,12 @@ public class ThirdPersonCamera : MonoBehaviour
     // Double-tap detection
     private float lastRightClickTime = -1f;
     
-    // DOF
-    private DepthOfField dofSettings;
-    private bool dofWasActive;
+    // DOF: every Depth Of Field that was switched on in the scene's post-processing volumes at Start.
+    // ROUND 91 (25 Sep 2026, step 7d): the camera used to take only the FIRST volume it found. After
+    // the combat managers moved (step 7c) the hit pulse's own volume came first, so the day's depth of
+    // field was never switched off and close-ups blurred. A depth of field that is off in its profile
+    // (the cave's) is never touched.
+    private readonly System.Collections.Generic.List<DepthOfField> dofSettings = new System.Collections.Generic.List<DepthOfField>();
     
     private void Start()
     {
@@ -117,27 +120,44 @@ public class ThirdPersonCamera : MonoBehaviour
         targetDistance = cameraDistance;
         currentDistance = cameraDistance;
         
-        // Find DOF settings from any PostProcessVolume in the scene
+        // Find every depth of field that is switched on in the scene's post-processing volumes
+        // (round 91). Volumes without one, like the hit pulse's, are skipped.
         if (autoDofControl)
         {
-            PostProcessVolume volume = FindObjectOfType<PostProcessVolume>();
-            if (volume != null && volume.profile != null)
+            var dofNames = new System.Text.StringBuilder();
+            foreach (PostProcessVolume volume in FindObjectsByType<PostProcessVolume>(FindObjectsSortMode.None))
             {
-                volume.profile.TryGetSettings(out dofSettings);
-                if (dofSettings != null)
-                {
-                    dofWasActive = dofSettings.active;
-                    Debug.Log("[Camera] DOF auto-control enabled, will disable when zoomed in");
-                }
+                PostProcessProfile source = volume.HasInstantiatedProfile() ? volume.profile : volume.sharedProfile;
+                DepthOfField switchedOn;
+                if (source == null || !source.TryGetSettings(out switchedOn) || !switchedOn.active)
+                    continue;
+
+                // The volume's own copy of its profile, as before: the profile file is never changed.
+                DepthOfField dof;
+                if (!volume.profile.TryGetSettings(out dof))
+                    continue;
+
+                dofSettings.Add(dof);
+                if (dofNames.Length > 0) dofNames.Append(", ");
+                dofNames.Append(volume.name);
             }
+
+            if (dofSettings.Count > 0)
+                Debug.Log("[Camera] DOF auto-control on " + dofSettings.Count + " volume(s): " + dofNames + ". Off below " + dofDisableDistance + " m, on above.");
+            else
+                Debug.Log("[Camera] DOF auto-control: no depth of field switched on in this scene, nothing to control.");
         }
     }
     
     private void OnDestroy()
     {
-        // Restore DOF to its original state when this script is destroyed (exiting play mode)
-        if (dofSettings != null)
-            dofSettings.active = dofWasActive;
+        // Restore DOF to its original state when this script is destroyed (exiting play mode):
+        // every one this camera controls was switched on at Start.
+        foreach (DepthOfField dof in dofSettings)
+        {
+            if (dof != null)
+                dof.active = true;
+        }
     }
     
     private void LateUpdate()
@@ -211,10 +231,15 @@ public class ThirdPersonCamera : MonoBehaviour
         // Smooth zoom interpolation
         currentDistance = Mathf.SmoothDamp(currentDistance, targetDistance, ref zoomVelocity, zoomSmoothTime);
         
-        // === DOF control — OFF when zoomed in, ON when zoomed out ===
-        if (autoDofControl && dofSettings != null)
+        // === DOF control: OFF when zoomed in, ON when zoomed out (every one found at Start) ===
+        if (autoDofControl && dofSettings.Count > 0)
         {
-            dofSettings.active = currentDistance >= dofDisableDistance;
+            bool dofOn = currentDistance >= dofDisableDistance;
+            for (int i = 0; i < dofSettings.Count; i++)
+            {
+                if (dofSettings[i] != null)
+                    dofSettings[i].active = dofOn;
+            }
         }
         
         // Calculate camera offset
