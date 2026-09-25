@@ -28,6 +28,10 @@ public class ThirdPersonCamera : MonoBehaviour
     [SerializeField] private bool autoDofControl = true;
     [Tooltip("DOF turns OFF below this distance, ON above it")]
     [SerializeField] private float dofDisableDistance = 4f;
+    [Tooltip("ROUND 98: while depth of field is on, keep Yoru in focus. The focus follows the camera's distance to her every frame, so she stays sharp at every zoom and only the background blurs. Untick = the fixed focus of the scene's profile.")]
+    [SerializeField] private bool focusOnYoru = true;
+    [Tooltip("Metres above her feet that stay sharp (her head in cat form).")]
+    [SerializeField] private float focusHeight = 1f;
     
     [Header("Ground Clamp")]
     [Tooltip("Lowest the camera may sit, measured above the player's footing. At low pitch the " +
@@ -84,6 +88,9 @@ public class ThirdPersonCamera : MonoBehaviour
     // field was never switched off and close-ups blurred. A depth of field that is off in its profile
     // (the cave's) is never touched.
     private readonly System.Collections.Generic.List<DepthOfField> dofSettings = new System.Collections.Generic.List<DepthOfField>();
+    // ROUND 98: each one's own focus as found at Start.
+    private readonly System.Collections.Generic.List<bool> dofFocusWasOverridden = new System.Collections.Generic.List<bool>();
+    private readonly System.Collections.Generic.List<float> dofFocusWas = new System.Collections.Generic.List<float>();
     
     private void Start()
     {
@@ -138,12 +145,15 @@ public class ThirdPersonCamera : MonoBehaviour
                     continue;
 
                 dofSettings.Add(dof);
+                dofFocusWasOverridden.Add(dof.focusDistance.overrideState);
+                dofFocusWas.Add(dof.focusDistance.value);
                 if (dofNames.Length > 0) dofNames.Append(", ");
                 dofNames.Append(volume.name);
             }
 
             if (dofSettings.Count > 0)
-                Debug.Log("[Camera] DOF auto-control on " + dofSettings.Count + " volume(s): " + dofNames + ". Off below " + dofDisableDistance + " m, on above.");
+                Debug.Log("[Camera] DOF auto-control on " + dofSettings.Count + " volume(s): " + dofNames + ". Off below " + dofDisableDistance + " m, on above."
+                    + (focusOnYoru ? " Focus follows Yoru (" + focusHeight + " m above her feet)." : " Fixed focus from the profile."));
             else
                 Debug.Log("[Camera] DOF auto-control: no depth of field switched on in this scene, nothing to control.");
         }
@@ -152,11 +162,15 @@ public class ThirdPersonCamera : MonoBehaviour
     private void OnDestroy()
     {
         // Restore DOF to its original state when this script is destroyed (exiting play mode):
-        // every one this camera controls was switched on at Start.
-        foreach (DepthOfField dof in dofSettings)
+        // every one this camera controls was switched on at Start, with its own focus (round 98).
+        for (int i = 0; i < dofSettings.Count; i++)
         {
-            if (dof != null)
-                dof.active = true;
+            DepthOfField dof = dofSettings[i];
+            if (dof == null)
+                continue;
+            dof.active = true;
+            dof.focusDistance.overrideState = dofFocusWasOverridden[i];
+            dof.focusDistance.value = dofFocusWas[i];
         }
     }
     
@@ -235,10 +249,32 @@ public class ThirdPersonCamera : MonoBehaviour
         if (autoDofControl && dofSettings.Count > 0)
         {
             bool dofOn = currentDistance >= dofDisableDistance;
+
+            // ROUND 98: keep Yoru sharp. The focus is the camera's depth (along its view) to the point
+            // Focus Height above her feet, so zooming never passes her through the blurred zone.
+            float focus = 0f;
+            if (dofOn && focusOnYoru)
+            {
+                Vector3 toHer = playerTransform.position + Vector3.up * focusHeight - transform.position;
+                focus = Mathf.Max(0.1f, Vector3.Dot(toHer, transform.forward));
+            }
+
             for (int i = 0; i < dofSettings.Count; i++)
             {
-                if (dofSettings[i] != null)
-                    dofSettings[i].active = dofOn;
+                DepthOfField dof = dofSettings[i];
+                if (dof == null)
+                    continue;
+                dof.active = dofOn;
+                if (!focusOnYoru)
+                {
+                    dof.focusDistance.overrideState = dofFocusWasOverridden[i];
+                    dof.focusDistance.value = dofFocusWas[i];
+                }
+                else if (dofOn)
+                {
+                    dof.focusDistance.overrideState = true;
+                    dof.focusDistance.value = focus;
+                }
             }
         }
         

@@ -1,12 +1,11 @@
-# Oni combat log — 2026-09-25 14:36:07
+# Oni combat log — 2026-09-25 16:21:04
 # Unity 6000.2.7f2 | scene 'DemoScene_Day' | platform OSXEditor
 # columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
 #
-[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-25_14-36-07.log
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-25_16-21-04.log
+[     1    0.000 x1.00] LOG  [PeachUI] row ready: 4 peaches, 64 px, TopLeft, bleed sprite set, PlayerHealth found
 [     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
-[     1    0.000 x1.00] LOG  Nopperabo_copy initialized with 100 HP
-[     1    0.000 x1.00] LOG  [Nopperabo_copy] ANIMATOR SETUP: cullingMode=AlwaysAnimate updateMode=Normal applyRootMotion=False speed=1
-[     1    0.000 x1.00] LOG  [Nopperabo_copy] Initialized
+[     1    0.000 x1.00] LOG  [GameOver] ready (sumi-e): PlayerCombat found, ink shader ok, paper set, kanji set, font YujiSyuku-Regular SDF, Main Menu faint (no scene set)
 [     1    0.000 x1.00] LOG  [LightingController] Note: Not controlling sun (COZY Weather manages it)
 [     1    0.000 x1.00] LOG  [LightingController] ✓ Created YORU_Moon light
 [     1    0.000 x1.00] LOG  [LightingController] ✓ Created YORU_DarkPathLight (range: 100)
@@ -16,15 +15,6 @@
 [     1    0.000 x1.00] LOG  [LightingController] ✓ Created YORU_Lightning light
 [     1    0.000 x1.00] LOG  [LightingController] Ambient mode: Trilight, color: RGBA(0.840, 0.698, 0.656, 1.238)
 [     1    0.000 x1.00] LOG  [LightingController] Transitioning to: Neutral (Balance 0)
-[     1    0.000 x1.00] LOG  [HealthBar] kodoma_Final health bar ready (max: 60)
-[     1    0.000 x1.00] LOG  kodoma_Final initialized with 60 HP
-[     1    0.000 x1.00] LOG  [kodoma_Final] ANIMATOR SETUP: cullingMode=AlwaysAnimate updateMode=Normal applyRootMotion=False speed=1
-[     1    0.000 x1.00] LOG  [kodoma_Final] Initialized
-[     1    0.000 x1.00] LOG  [PeachUI] row ready: 4 peaches, 64 px, TopLeft, bleed sprite set, PlayerHealth found
-[     1    0.000 x1.00] LOG  [VolumetricFogController] Found VolumetricFog component on mainCamera (1)
-[     1    0.000 x1.00] LOG  [VolumetricFogController] Reflection init: density=True, height=True, baselineHeight=True, alpha=True, noiseStrength=True, lightScatteringExposure=True
-[     1    0.000 x1.00] LOG  [VolumetricFogController] Initialized with Neutral preset (height=150, baselineHeight=10)
-[     1    0.000 x1.00] LOG  [Camera] DOF auto-control on 2 volume(s): PostProcessing_World, PP. Off below 4 m, on above.
 [     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
   arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
   aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
@@ -43,12 +33,7 @@
 [     1    0.000 x1.00] LOG  Prefabs: Jump=True, Land=True, LTail=True, RTail=True
 [     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailTip_Anchor
 [     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
-[     1    0.000 x1.00] LOG  Nopperabo_prefab initialized with 100 HP
-[     1    0.000 x1.00] LOG  [Nopperabo_prefab] ANIMATOR SETUP: cullingMode=AlwaysAnimate updateMode=Normal applyRootMotion=False speed=1
-[     1    0.000 x1.00] LOG  [Nopperabo_prefab] Initialized
 [     1    0.000 x1.00] LOG  [Pause] ready: key Escape, paper shader ok, paper set, kanji set, font YujiSyuku-Regular SDF, capture ScreenGrab, Main Menu faint (no scene set)
-[     1    0.000 x1.00] LOG  [PostProcessController] 0L/0R → Neutral (0L/0R, 1L/1R)
-[     1    0.000 x1.00] LOG  [GameOver] ready (sumi-e): PlayerCombat found, ink shader ok, paper set, kanji set, font YujiSyuku-Regular SDF, Main Menu faint (no scene set)
 [     1    0.000 x1.00] LOG  [AmbienceController] 0L/0R → Neutral (0 particles)
 [     1    0.000 x1.00] LOG  [AmbienceController] Initialized. COZY: True, Player: True
 [     1    0.000 x1.00] LOG  [YORU] Found 14 foliage materials
@@ -72,8 +57,22 @@
 [     1    0.000 x1.00] LOG  ============================
 [     1    0.000 x1.00] LOG  [WorldStateManager] 0L + 0R = Balance 0 → Neutral
 [     1    0.000 x1.00] LOG  [RingMesh] Transitioning to 0L / 0R
-[     1    0.000 x1.00] LOG  [PostProcessController] 0L/0R → Neutral (0L/0R, 1L/1R)
 [     1    0.000 x1.00] LOG  [YORU] 0L/0R → 9:00 AM, Clear, wind:0.20
+[     1    0.000 x1.00] LOG  [PostProcessController] 0L/0R → Neutral (0L/0R, 1L/1R)
+[     1    0.000 x1.00] LOG  [HealthBar] kodoma_Final health bar ready (max: 60)
+[     1    0.000 x1.00] LOG  kodoma_Final initialized with 60 HP
+[     1    0.000 x1.00] LOG  [kodoma_Final] ANIMATOR SETUP: cullingMode=AlwaysAnimate updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [kodoma_Final] Initialized
+[     1    0.000 x1.00] LOG  Nopperabo_copy initialized with 100 HP
+[     1    0.000 x1.00] LOG  [Nopperabo_copy] ANIMATOR SETUP: cullingMode=AlwaysAnimate updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [Nopperabo_copy] Initialized
+[     1    0.000 x1.00] LOG  Nopperabo_prefab initialized with 100 HP
+[     1    0.000 x1.00] LOG  [Nopperabo_prefab] ANIMATOR SETUP: cullingMode=AlwaysAnimate updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [Nopperabo_prefab] Initialized
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Found VolumetricFog component on mainCamera (1)
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Reflection init: density=True, height=True, baselineHeight=True, alpha=True, noiseStrength=True, lightScatteringExposure=True
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Initialized with Neutral preset (height=150, baselineHeight=10)
+[     1    0.000 x1.00] LOG  [Camera] DOF auto-control on 2 volume(s): PostProcessing_World, PP. Off below 4 m, on above. Focus follows Yoru (1 m above her feet).
 [     1    0.000 x1.00] LOG  [Hallucination] Hallucination volume + 6 effects built (priority 101, weight 0)
 [     1    0.000 x1.00] LOG  [Hallucination] PPv2 setup validated — camera has PostProcessLayer, volume ready on layer 9
 [     1    0.000 x1.00] LOG  [Hallucination] HallucinationEffect ready
@@ -91,17 +90,14 @@
 [     1    0.000 x1.00] WARN [YoruFurWeather] no XFur Weather Manager in this scene, made a runtime one at rain 0 so her fur cannot soak by default.
 [     1    0.000 x1.00] LOG  [YoruFurWeather] fur weather ready on 'XFur Weather (runtime fallback)'. Rain 0, wind 0.50 in the open, roof check 30 m above her. No StormWeather in this scene: calm wind and a dry floor.
 [     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
-[     1   28.189 x1.00] LOG  [kodoma_Final] Playing animation: idle
-[     1   28.189 x1.00] LOG  [Nopperabo_prefab] Playing animation: Float_Idle
-[     1   28.189 x1.00] WARN Path Material is null.
-[     3   31.125 x1.00] LOG  [EyeGlow] first reading: screen 0.51 (dark end 0.25, bright end 0.77) -> eyes x4.79
-[     3   31.125 x1.00] LOG  [EyeGlow] last 10 s: 1 readings, screen 0.51 to 0.51, eyes x4.79
-[     7   31.859 x1.00] LOG  [EyeGlow] screen 0.48 (dark end 0.26, bright end 0.70) -> eyes x4.56
-[     9   32.107 x1.00] LOG  [EyeGlow] screen 0.51 (dark end 0.26, bright end 0.78) -> eyes x4.79
-[    22   32.408 x1.00] LOG  [EyeGlow] screen 0.55 (dark end 0.28, bright end 0.83) -> eyes x5.09
-[    71   33.055 x1.00] LOG  [EyeGlow] screen 0.52 (dark end 0.21, bright end 0.72) -> eyes x4.91
-[    91   33.295 x1.00] LOG  [EyeGlow] screen 0.46 (dark end 0.21, bright end 0.72) -> eyes x4.46
-[   133   33.792 x1.00] LOG  [EyeGlow] screen 0.50 (dark end 0.26, bright end 0.74) -> eyes x4.73
-[   159   34.105 x0.00] LOG  [Pause] screen frozen: 1426 x 802 from screen copy, turned the right way up (Auto), levels 0.26 to 0.74 (measured), world 0.58, blur mip 3.0
-[   192   34.556 x0.00] LOG  [Pause] paused: world clock was x1.00, screen frozen and blurred, up in 0.45s real
-# end — 97 lines
+[     1   29.865 x1.00] LOG  [kodoma_Final] Playing animation: idle
+[     1   29.865 x1.00] LOG  [Nopperabo_prefab] Playing animation: Float_Idle
+[     1   29.865 x1.00] LOG  [EyeGlow] first reading: light on her 1.79 (sun 1.73 clear, sky 0.06 open, the scene's sun 'Sun Light') -> eyes x5.00
+[     1   29.865 x1.00] LOG  [EyeGlow] last 10 s: 1 readings, light on her 1.79 to 1.79 (sun 1.73 clear 100%, sky 0.06 open 100%), eyes x5.00
+[     1   29.865 x1.00] WARN Path Material is null.
+[    10   32.599 x1.00] LOG  [EyeGlow] light on her 0.73 (sun 0.67 clear, sky 0.06 open) -> eyes x3.82
+[   192   34.909 x1.00] LOG  [EyeGlow] light on her 1.18 (sun 0.67 clear, sky 0.52 open) -> eyes x4.95
+[   699   40.018 x1.00] LOG  [EyeGlow] last 10 s: 31 readings, light on her 0.73 to 1.21 (sun 0.67 clear 100%, sky 0.41 open 100%), eyes x3.82 to x5.00
+[   932   42.343 x0.00] LOG  [Pause] screen frozen: 1426 x 802 from screen copy, turned the right way up (Auto), levels 0.29 to 0.71 (measured), world 0.58, blur mip 3.0
+[   970   42.801 x0.00] LOG  [Pause] paused: world clock was x1.00, screen frozen and blurred, up in 0.46s real
+# end — 93 lines
