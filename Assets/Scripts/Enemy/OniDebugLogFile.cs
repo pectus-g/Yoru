@@ -17,7 +17,8 @@ using UnityEngine;
 /// trace. Telemetry lines (Line) go ONLY to the file — never to the console — so per-frame charge
 /// data cannot spam the editor.
 ///
-/// Started by OniBoss.Awake when its Write Log File toggle is on. Keeps the newest few files only.
+/// In the editor it opens by itself when Play starts, in every scene (round 92, step 8a); in a player
+/// build only OniBoss opens it, when its Write Log File toggle is on. Keeps the newest few files only.
 /// </summary>
 public static class OniDebugLogFile
 {
@@ -28,6 +29,18 @@ public static class OniDebugLogFile
 
     public static bool IsOpen => writer != null;
     public static string CurrentPath => path;
+
+    /// <summary>
+    /// ROUND 92 (25 Sep 2026, step 8a): in the editor every Play session writes its log, in any scene,
+    /// not only where OniBoss opens it (his own Begin call then finds the file open and does nothing).
+    /// Unity calls this once per Play session, when the first scene has loaded and its objects have run Awake.
+    /// Player builds are unchanged: there only a script that calls Begin (OniBoss) opens a log.
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void BeginInEveryScene()
+    {
+        if (Application.isEditor) Begin();
+    }
 
     /// <summary>Open a fresh log file for this play session (no-op if one is already open).</summary>
     public static void Begin(string subFolder = "OniLogs", int keepNewest = 8)
