@@ -75765,6 +75765,7 @@ GameObject:
   - component: {fileID: 2918641154595929733}
   - component: {fileID: 7984780868616962201}
   - component: {fileID: 3700778141028068452}
+  - component: {fileID: 6739951069782579953}
   m_Layer: 0
   m_Name: Yoru_Original
   m_TagString: Player
@@ -197238,3 +197239,32 @@ ParticleSystemRenderer:
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
   m_MaskInteraction: 0
+--- !u!114 &6739951069782579953
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4053395586985744864}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3eae3021938b4864a423e74c222ba9fd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::YoruEyeGlow
+  eyeRenderer: {fileID: 3699305114652346404}
+  eyeMaterial: {fileID: 2100000, guid: fd3a3834806eebd428697ba552d830eb, type: 2}
+  darkestLight: 0.4
+  glowInDarkest: 3
+  brightestLight: 1.2
+  glowInBrightest: 5
+  readingsPerSecond: 4
+  adaptSeconds: 1
+  lightCheckOrigin: 2.6
+  sunCheckDistance: 200
+  skyCheckHeight: 30
+  lightCheckMask:
+    serializedVersion: 2
+    m_Bits: 10705
+  showDebugLogs: 1
+  lightNow: 0
+  glowNow: 1

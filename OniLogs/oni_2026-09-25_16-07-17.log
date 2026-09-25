@@ -1,0 +1,166 @@
+# Oni combat log — 2026-09-25 16:07:17
+# Unity 6000.2.7f2 | scene 'DemoScene_Day' | platform OSXEditor
+# columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
+#
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-25_16-07-17.log
+[     1    0.000 x1.00] LOG  [PeachUI] row ready: 4 peaches, 64 px, TopLeft, bleed sprite set, PlayerHealth found
+[     1    0.000 x1.00] LOG  [BossBar] BossHealthBarUI initialized
+[     1    0.000 x1.00] LOG  [GameOver] ready (sumi-e): PlayerCombat found, ink shader ok, paper set, kanji set, font YujiSyuku-Regular SDF, Main Menu faint (no scene set)
+[     1    0.000 x1.00] LOG  [LightingController] Note: Not controlling sun (COZY Weather manages it)
+[     1    0.000 x1.00] LOG  [LightingController] ✓ Created YORU_Moon light
+[     1    0.000 x1.00] LOG  [LightingController] ✓ Created YORU_DarkPathLight (range: 100)
+[     1    0.000 x1.00] LOG  [LightingController] ✓ Created YORU_DivineGlow light
+[     1    0.000 x1.00] LOG  [LightingController] ✓ Found player: PlayerYoru_1.1
+[     1    0.000 x1.00] LOG  [LightingController] ✓ Created YORU_CharacterRim light
+[     1    0.000 x1.00] LOG  [LightingController] ✓ Created YORU_Lightning light
+[     1    0.000 x1.00] LOG  [LightingController] Ambient mode: Trilight, color: RGBA(0.840, 0.698, 0.656, 1.238)
+[     1    0.000 x1.00] LOG  [LightingController] Transitioning to: Neutral (Balance 0)
+[     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
+  aim VFX right: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/Glow_4Leg_R
+[     1    0.000 x1.00] LOG  [TailAirShot] Ready. drawState=RightTail_Fast castParam=TailCastSpeed (found)
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/vfx_Muzzle_Fireball01Blue
+[     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
+[     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized, Phase 3C v27
+[     1    0.000 x1.00] LOG  [RingMesh] VFX Status:
+[     1    0.000 x1.00] LOG    Left: Prefab=✓, Spawn=Tail6_L_end_end_end
+[     1    0.000 x1.00] LOG    Right: Prefab=✓, Spawn=Tail6_R_end_end_end
+[     1    0.000 x1.00] LOG  === VFX MANAGER INITIALIZED ===
+[     1    0.000 x1.00] LOG  Auto-detect animations: False
+[     1    0.000 x1.00] LOG  Parent effects to tail: True
+[     1    0.000 x1.00] LOG  Prefabs: Jump=True, Land=True, LTail=True, RTail=True
+[     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailTip_Anchor
+[     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
+[     1    0.000 x1.00] LOG  [Pause] ready: key Escape, paper shader ok, paper set, kanji set, font YujiSyuku-Regular SDF, capture ScreenGrab, Main Menu faint (no scene set)
+[     1    0.000 x1.00] LOG  [AmbienceController] 0L/0R → Neutral (0 particles)
+[     1    0.000 x1.00] LOG  [AmbienceController] Initialized. COZY: True, Player: True
+[     1    0.000 x1.00] LOG  [YORU] Found 14 foliage materials
+[     1    0.000 x1.00] LOG  [YORU] Found 10 grass materials
+[     1    0.000 x1.00] LOG  [YORU] ✓ Eclipse Module ready (field: eclipseRatio)
+[     1    0.000 x1.00] LOG  [YORU] Searching for Satellite Module (V10 - correct path)...
+[     1    0.000 x1.00] LOG  [YORU] Found CozySatelliteModule on: Modules
+[     1    0.000 x1.00] LOG  [YORU] Found main moon profile: SatelliteProfile
+[     1    0.000 x1.00] LOG  [YORU] ✓ Satellite Module ready! rotationPeriodOffset field found (type: Int32)
+[     1    0.000 x1.00] LOG  [YORU] Current rotationPeriodOffset: 0
+[     1    0.000 x1.00] LOG  [YORU] Eclipse: 0.53 → 0.00
+[     1    0.000 x1.00] LOG  [YORU] 0L/0R → 9:00 AM, Clear, wind:0.20
+[     1    0.000 x1.00] LOG  [YORU] ===== STATUS (V10) =====
+[     1    0.000 x1.00] LOG    Weather Module: ✓
+[     1    0.000 x1.00] LOG    Eclipse Module: ✓
+[     1    0.000 x1.00] LOG    Satellite Module: ✓
+[     1    0.000 x1.00] LOG    WindZone: ✓
+[     1    0.000 x1.00] LOG    Terrain: ✓
+[     1    0.000 x1.00] LOG    Foliage Materials: 14
+[     1    0.000 x1.00] LOG    Grass Materials: 10
+[     1    0.000 x1.00] LOG  ============================
+[     1    0.000 x1.00] LOG  [WorldStateManager] 0L + 0R = Balance 0 → Neutral
+[     1    0.000 x1.00] LOG  [RingMesh] Transitioning to 0L / 0R
+[     1    0.000 x1.00] LOG  [YORU] 0L/0R → 9:00 AM, Clear, wind:0.20
+[     1    0.000 x1.00] LOG  [PostProcessController] 0L/0R → Neutral (0L/0R, 1L/1R)
+[     1    0.000 x1.00] LOG  [HealthBar] kodoma_Final health bar ready (max: 60)
+[     1    0.000 x1.00] LOG  kodoma_Final initialized with 60 HP
+[     1    0.000 x1.00] LOG  [kodoma_Final] ANIMATOR SETUP: cullingMode=AlwaysAnimate updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [kodoma_Final] Initialized
+[     1    0.000 x1.00] LOG  Nopperabo_copy initialized with 100 HP
+[     1    0.000 x1.00] LOG  [Nopperabo_copy] ANIMATOR SETUP: cullingMode=AlwaysAnimate updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [Nopperabo_copy] Initialized
+[     1    0.000 x1.00] LOG  Nopperabo_prefab initialized with 100 HP
+[     1    0.000 x1.00] LOG  [Nopperabo_prefab] ANIMATOR SETUP: cullingMode=AlwaysAnimate updateMode=Normal applyRootMotion=False speed=1
+[     1    0.000 x1.00] LOG  [Nopperabo_prefab] Initialized
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Found VolumetricFog component on mainCamera (1)
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Reflection init: density=True, height=True, baselineHeight=True, alpha=True, noiseStrength=True, lightScatteringExposure=True
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Initialized with Neutral preset (height=150, baselineHeight=10)
+[     1    0.000 x1.00] LOG  [Camera] DOF auto-control on 2 volume(s): PP, PostProcessing_World. Off below 4 m, on above.
+[     1    0.000 x1.00] LOG  [Hallucination] Hallucination volume + 6 effects built (priority 101, weight 0)
+[     1    0.000 x1.00] LOG  [Hallucination] PPv2 setup validated — camera has PostProcessLayer, volume ready on layer 9
+[     1    0.000 x1.00] LOG  [Hallucination] HallucinationEffect ready
+[     1    0.000 x1.00] LOG  Komainu initialized with 1500 HP
+[     1    0.000 x1.00] LOG  [Komainu] Dormant, waiting for the gate.
+[     1    0.000 x1.00] LOG  [CombatMusic] CombatMusicManager initialized (clip: Videmar - Boom Tick Pow)
+[     1    0.000 x1.00] LOG  GhostEffect3D: Setup complete - 1 materials prepared
+[     1    0.000 x1.00] LOG  GhostEffect3D Setup: Renderers: 1, Materials: 1
+[     1    0.000 x1.00] LOG  [GlowTrail] FollowTrail_goback_Kodoma: 6 ring(s), sequence: P06(10) -> P05(20) -> P04(30) -> P03(40) -> P02(50) -> P01(60), one ring shown at a time
+[     1    0.000 x1.00] LOG  [GlowTrail] FollowTrail_goback_Kodoma: off
+[     1    0.000 x1.00] LOG  [GlowTrail] FollowTrail_Seed_Kodoma: 6 ring(s), sequence: P01(10) -> P02(20) -> P03(30) -> P04(40) -> P05(50) -> P06(60), one ring shown at a time
+[     1    0.000 x1.00] LOG  [GlowTrail] FollowTrail_Seed_Kodoma: off
+[     1    0.000 x1.00] LOG  [GlowTrail] FollowTrailsNappero1: 4 ring(s), sequence: P01(10) -> P02(20) -> P03(30) -> P04(40), one ring shown at a time
+[     1    0.000 x1.00] LOG  [GlowTrail] FollowTrailsNappero1: off
+[     1    0.000 x1.00] WARN [YoruFurWeather] no XFur Weather Manager in this scene, made a runtime one at rain 0 so her fur cannot soak by default.
+[     1    0.000 x1.00] LOG  [YoruFurWeather] fur weather ready on 'XFur Weather (runtime fallback)'. Rain 0, wind 0.50 in the open, roof check 30 m above her. No StormWeather in this scene: calm wind and a dry floor.
+[     1    0.000 x1.00] LOG  [CameraGameFeel] CameraGameFeel initialized (shake + FOV)
+[     1   27.457 x1.00] LOG  [kodoma_Final] Playing animation: idle
+[     1   27.457 x1.00] LOG  [Nopperabo_prefab] Playing animation: Float_Idle
+[     1   27.457 x1.00] LOG  [EyeGlow] first reading: light on her 1.79 (sun 1.73 clear, sky 0.06 open, the scene's sun 'Sun Light') -> eyes x5.00
+[     1   27.457 x1.00] LOG  [EyeGlow] last 10 s: 1 readings, light on her 1.79 to 1.79 (sun 1.73 clear 100%, sky 0.06 open 100%), eyes x5.00
+[     1   27.457 x1.00] WARN Path Material is null.
+[    21   30.327 x1.00] LOG  💨 Landing VFX spawned!
+[    21   30.327 x1.00] LOG  ✅ LANDED! (was jump #0)
+[    24   30.434 x1.00] LOG  [EyeGlow] light on her 0.73 (sun 0.67 clear, sky 0.06 open) -> eyes x3.82
+[   382   32.802 x1.00] LOG  [EyeGlow] light on her 1.18 (sun 0.67 clear, sky 0.52 open) -> eyes x4.96
+[  1179   37.609 x1.00] LOG  [EyeGlow] last 10 s: 30 readings, light on her 0.73 to 1.21 (sun 0.67 clear 100%, sky 0.41 open 100%), eyes x3.82 to x5.00
+[  1759   41.536 x1.00] LOG  [WorldStateManager] 5L + 0R = Balance -5 → Dark5
+[  1759   41.536 x1.00] LOG  [RingMesh] LEFT: 🔥 VFX spawned!
+[  1759   41.536 x1.00] LOG  [RingMesh] Transitioning to 5L / 0R
+[  1759   41.536 x1.00] LOG  [AmbienceController] 5L/0R → Dark5 (Midnight) (0 particles)
+[  1759   41.536 x1.00] LOG  [YORU] Moon rotationPeriodOffset: 0 → 14 (for 5L)
+[  1759   41.536 x1.00] LOG  [YORU] 5L/0R → 12:00 AM, Overcast, wind:0.35
+[  1759   41.536 x1.00] LOG  [PostProcessController] 5L/0R → Dark5 (5L/0R, 6L/1R, 7L/2R, 7L/3R) - Midnight Visible
+[  1759   41.536 x1.00] LOG  [VolumetricFogController] 5L/0R → Dark5 (Midnight) (density=0.25, height=220, baselineHeight=0)
+[  1759   41.536 x1.00] LOG  [LightingController] Transitioning to: Dark5 (-5, Midnight - VISIBLE!)
+[  1775   41.659 x1.00] LOG  [EyeGlow] in shadow, sky open: light on her 0.03 (sun 0.00 blocked, sky 0.03 open)
+[  1836   42.039 x1.00] LOG  [RingMesh] LEFT: Activated mesh [5]
+[  1854   42.166 x1.00] LOG  [EyeGlow] light on her 0.03 (sun 0.00 blocked, sky 0.01 open) -> eyes x3.00
+[  2142   44.543 x1.00] LOG  [RingMesh] LEFT: Deactivated mesh [0]
+[  2379   46.435 x1.00] LOG  [WorldStateManager] 9L + 0R = Balance -9 → Dark5 + Stage4
+[  2379   46.435 x1.00] LOG  [RingMesh] LEFT: 🔥 VFX spawned!
+[  2379   46.435 x1.00] LOG  [RingMesh] Transitioning to 9L / 0R
+[  2379   46.435 x1.00] LOG  [AmbienceController] 9L/0R → Dark+Stage4 (0 particles)
+[  2379   46.435 x1.00] LOG  [YORU] 9L/0R → 12:00 AM, Heavy Precipitation, wind:0.85 [Stage 4]
+[  2379   46.435 x1.00] LOG  [PostProcessController] 9L/0R → Dark+Stage4 (9L/0R) Heavy Rain
+[  2379   46.435 x1.00] LOG  [VolumetricFogController] 9L/0R → Dark+Stage4 (Heavy Rain) (density=0.75, height=350, baselineHeight=0)
+[  2379   46.435 x1.00] LOG  [LightingController] Transitioning to: Dark5+Stage4 (-9, Heavy Rain)
+[  2442   46.936 x1.00] LOG  [RingMesh] LEFT: Activated mesh [9]
+[  2532   47.762 x1.00] LOG  [EyeGlow] last 10 s: 40 readings, light on her 0.01 to 1.23 (sun 0.25 clear 37%, sky 0.23 open 100%), eyes x3.00 to x5.00
+[  2713   49.443 x1.00] LOG  [RingMesh] LEFT: Deactivated mesh [5]
+[  2997   51.754 x1.00] LOG  [WorldStateManager] 2L + 0R = Balance -2 → Dark2
+[  2997   51.754 x1.00] LOG  [RingMesh] LEFT: 🔥 VFX spawned!
+[  2997   51.754 x1.00] LOG  [RingMesh] Transitioning to 2L / 0R
+[  2997   51.754 x1.00] LOG  [AmbienceController] 2L/0R → Dark2 (0 particles)
+[  2997   51.754 x1.00] LOG  [YORU] Moon rotationPeriodOffset: 14 → 7 (for 2L)
+[  2997   51.754 x1.00] LOG  [YORU] 2L/0R → 6:00 PM, Clear, wind:0.26
+[  2997   51.754 x1.00] LOG  [PostProcessController] 2L/0R → Dark2 (2L/0R)
+[  2997   51.754 x1.00] LOG  [VolumetricFogController] 2L/0R → Dark2 (density=0.28, height=170, baselineHeight=0)
+[  2997   51.754 x1.00] LOG  [LightingController] Transitioning to: Dark2 (-2, Sunset)
+[  2997   51.754 x1.00] LOG  [LightingController] Transitioning to: Dark2 (-2, Sunset)
+[  3058   52.258 x1.00] LOG  [RingMesh] LEFT: Activated mesh [2]
+[  3397   54.759 x1.00] LOG  [RingMesh] LEFT: Deactivated mesh [9]
+[  3919   57.933 x1.00] LOG  [EyeGlow] last 10 s: 40 readings, light on her 0.02 to 0.16 (sun 0.00 clear 0%, sky 0.10 open 100%), eyes x3.00
+[  5178   65.685 x1.00] LOG  [WorldStateManager] 0L + 0R = Balance 0 → Neutral
+[  5178   65.685 x1.00] LOG  [RingMesh] LEFT: 🔥 VFX spawned!
+[  5178   65.685 x1.00] LOG  [RingMesh] Transitioning to 0L / 0R
+[  5178   65.685 x1.00] LOG  [AmbienceController] 0L/0R → Neutral (0 particles)
+[  5178   65.685 x1.00] LOG  [YORU] Moon rotationPeriodOffset: 7 → 0 (for 0L)
+[  5178   65.685 x1.00] LOG  [YORU] 0L/0R → 9:00 AM, Clear, wind:0.20
+[  5178   65.685 x1.00] LOG  [PostProcessController] 0L/0R → Neutral (0L/0R, 1L/1R)
+[  5178   65.685 x1.00] LOG  [VolumetricFogController] 0L/0R → Neutral (density=0.12, height=150, baselineHeight=10)
+[  5178   65.685 x1.00] LOG  [LightingController] Transitioning to: Neutral (Balance 0)
+[  5196   65.807 x1.00] LOG  [EyeGlow] in the open: light on her 0.69 (sun 0.62 clear, sky 0.07 open)
+[  5250   66.186 x1.00] LOG  [RingMesh] LEFT: Activated mesh [0]
+[  5267   66.316 x1.00] LOG  [EyeGlow] light on her 0.68 (sun 0.62 clear, sky 0.06 open) -> eyes x3.70
+[  5501   68.100 x1.00] LOG  [EyeGlow] last 10 s: 40 readings, light on her 0.16 to 1.21 (sun 0.16 clear 25%, sky 0.17 open 100%), eyes x3.00 to x3.73
+[  5533   68.357 x1.00] LOG  [EyeGlow] light on her 1.21 (sun 0.63 clear, sky 0.58 open) -> eyes x5.00
+[  5579   68.686 x1.00] LOG  [RingMesh] LEFT: Deactivated mesh [2]
+[  6984   78.252 x1.00] LOG  [EyeGlow] last 10 s: 40 readings, light on her 1.21 to 1.24 (sun 0.64 clear 100%, sky 0.58 open 100%), eyes x5.00
+[  6997   78.348 x1.00] LOG  💨 Landing VFX spawned!
+[  7679   83.069 x1.00] LOG  [YoruVFX] guard bubble on at y=91.693 (floor 91.207, her root y=91.189, lift 0.05, floor tilt 5 deg)
+[  7679   83.069 x1.00] LOG  [Combat] Guard START (perfect parry window: 0.2s)
+[  7842   84.157 x1.00] LOG  [Combat] Guard END
+[  7955   84.909 x1.00] LOG  [YoruVFX] guard bubble on at y=91.693 (floor 91.207, her root y=91.189, lift 0.05, floor tilt 5 deg)
+[  7955   84.909 x1.00] LOG  [Combat] Guard START (perfect parry window: 0.2s)
+[  7970   85.017 x1.00] LOG  [Combat] Guard END
+[  8576   88.412 x1.00] LOG  [EyeGlow] last 10 s: 40 readings, light on her 1.24 to 1.24 (sun 0.66 clear 100%, sky 0.58 open 100%), eyes x5.00
+[  8763   89.431 x0.00] LOG  [Pause] screen frozen: 1426 x 802 from screen copy, turned the right way up (Auto), levels 0.18 to 0.65 (measured), world 0.58, blur mip 3.0
+[  8840   89.878 x0.00] LOG  [Pause] paused: world clock was x1.00, screen frozen and blurred, up in 0.45s real
+# end — 156 lines
