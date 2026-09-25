@@ -1,0 +1,130 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3352291960886774904
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7096211958684466697}
+  - component: {fileID: 6565392064872483931}
+  - component: {fileID: 8778396852868279336}
+  - component: {fileID: 4329331307155495535}
+  m_Layer: 0
+  m_Name: CombatManagers
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7096211958684466697
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3352291960886774904}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 452.56122, y: 55.49814, z: 431.0125}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6565392064872483931
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3352291960886774904}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e952a54ad5c274dda90676ede9bce4dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatFeedbackManager
+  lightHitStopDuration: 0.04
+  heavyHitStopDuration: 0.08
+  parryHitStopDuration: 0.12
+  guardHitStopDuration: 0.04
+  lightShakeIntensity: 0.5
+  heavyShakeIntensity: 0.75
+  parryShakeIntensity: 0.75
+  shakeDuration: 0.2
+  shakeIntensityMultiplier: 1
+  enablePostProcessPulse: 1
+  pulseIntensity: 0.4
+  pulseDuration: 0.15
+  multiHitWindow: 0.2
+  multiHitShakeScale: 0.35
+  showDebugLogs: 0
+--- !u!114 &8778396852868279336
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3352291960886774904}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 237cff00775b34635aad7cb0f097cfb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatSFXManager
+  swingLight: {fileID: 0}
+  swingHeavy: {fileID: 0}
+  swingCombo3: {fileID: 0}
+  impactLight: {fileID: 0}
+  impactHeavy: {fileID: 0}
+  impactCombo3: {fileID: 0}
+  phantomHit: {fileID: 0}
+  dodgeWhoosh: {fileID: 0}
+  parryClang: {fileID: 0}
+  guardBlock: {fileID: 0}
+  playerHitLight: {fileID: 0}
+  playerHitHeavy: {fileID: 0}
+  playerDeath:
+  - {fileID: 8300000, guid: cdd5117f6ec6f4e40b198597d90b36b8, type: 3}
+  playerDeathVolume: 1
+  heartbeatLub: {fileID: 8300000, guid: 55f3e0e02bbc24b8a8b9aaf5ffa8725b, type: 3}
+  heartbeatDub: {fileID: 8300000, guid: 877b103613a9a4d7eb43028163030b69, type: 3}
+  heartbeatVolume: 0.7
+  enemyHitVocal: {fileID: 0}
+  enemyDeathVocal: {fileID: 0}
+  enemyAttackVocal: {fileID: 0}
+  heavyChargeStart: {fileID: 0}
+  heavyChargeLoop: {fileID: 0}
+  heavyChargeReady: {fileID: 0}
+  heavyChargeRelease: {fileID: 0}
+  heavyChargeLoopVolume: 0.6
+  sfxVolume: 0.8
+  swingVolume: 0.5
+  impactVolume: 0.9
+  pitchVariation: 0.1
+  showDebugLogs: 0
+--- !u!114 &4329331307155495535
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3352291960886774904}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 497c4e55882c645c4bde11708cd1bd15, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatPostProcessPulse
+  hitChromatic: 0.4
+  hitVignette: 0.15
+  hitDuration: 0.15
+  parryChromatic: 0.55
+  parryVignette: 0.2
+  parryDuration: 0.2
+  damageChromatic: 0.3
+  damageVignette: 0.25
+  damageDuration: 0.2
+  damageVignetteColor: {r: 0.4, g: 0.05, b: 0.05, a: 1}
+  defaultVignetteColor: {r: 0.1, g: 0.06, b: 0.12, a: 1}
+  showDebugLogs: 0
