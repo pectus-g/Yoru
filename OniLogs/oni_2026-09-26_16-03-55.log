@@ -1,0 +1,158 @@
+# Oni combat log — 2026-09-26 16:03:55
+# Unity 6000.2.7f2 | scene 'DemoScene_BlueNight' | platform OSXEditor
+# columns: [frame realSeconds timeScale] KIND message      (KIND: LOG WARN ERR EXC TEL)
+#
+[     0    0.000 x1.00] LOG  [OniLog] console + telemetry → /Users/asenahazal/Documents/Yoru/OniLogs/oni_2026-09-26_16-03-55.log
+[     1    0.000 x1.00] LOG  [TailAirShot4Leg] Ready. drawState=shoot_4Leg castParam=Shoot4LegSpeed (found) readyFrame=5 fireFrame=10 frames=24 slowBudget=3s real damageMultiplier=2.00
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX left:  PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_L/Tail151_L/Tail152_L/Tail153_L/Tail154_L/Tail155_L/Tail156_L/Tail157_L/Tail158_L/Tail159_L/Tail1510_L/Tail1511_L/Tail1512_L/Tail6_L/Tail6_L_end/Tail6_L_end_end/Tail6_L_end_end_end/LeftTailTip_Anchor/Glow_4Leg_L
+  aim VFX right: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/Glow_4Leg_R
+[     1    0.000 x1.00] LOG  [TailAirShot] Ready. drawState=RightTail_Fast castParam=TailCastSpeed (found)
+  arrow leaves: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor
+  aim VFX: PlayerYoru_1.1/Cat_All_10_Tails_v4/Group/DeformationSystem/root/Root_M/Tail15_R/Tail151_R/Tail152_R/Tail153_R/Tail154_R/Tail155_R/Tail156_R/Tail157_R/Tail158_R/Tail159_R/Tail1510_R/Tail1511_R/Tail1512_R/Tail6_R/Tail6_R_end/Tail6_R_end_end/Tail6_R_end_end_end/RightTailTip_Anchor/vfx_Muzzle_Fireball01Blue
+[     1    0.000 x1.00] LOG  [PlayerCombat] Phase 2 form gate CONNECTED (FormController found on this GameObject).
+[     1    0.000 x1.00] LOG  [Combat] PlayerCombat initialized, Phase 3C v27
+[     1    0.000 x1.00] LOG  [RingMesh] VFX Status:
+[     1    0.000 x1.00] LOG    Left: Prefab=✓, Spawn=Tail6_L_end_end_end
+[     1    0.000 x1.00] LOG    Right: Prefab=✓, Spawn=Tail6_R_end_end_end
+[     1    0.000 x1.00] LOG  === VFX MANAGER INITIALIZED ===
+[     1    0.000 x1.00] LOG  Auto-detect animations: False
+[     1    0.000 x1.00] LOG  Parent effects to tail: True
+[     1    0.000 x1.00] LOG  Prefabs: Jump=True, Land=True, LTail=True, RTail=True
+[     1    0.000 x1.00] LOG  ✅ Left Tail Tip: LeftTailTip_Anchor
+[     1    0.000 x1.00] LOG  ✅ Right Tail Tip: RightTailTip_Anchor
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Found VolumetricFog component on mainCamera (1)
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Reflection init: density=True, height=True, baselineHeight=True, alpha=True, noiseStrength=True, lightScatteringExposure=True
+[     1    0.000 x1.00] LOG  [VolumetricFogController] Initialized with Neutral preset (height=6, baselineHeight=0)
+[     1    0.000 x1.00] WARN [VolumetricFogController] WorldStateManager not found!
+[     1    0.000 x1.00] LOG  [Camera] DOF auto-control on 1 volume(s): Post-Processing Volume. Off below 4 m, on above. Focus follows Yoru (1 m above her feet).
+[     1    0.000 x1.00] LOG  GhostEffect3D: Setup complete - 1 materials prepared
+[     1    0.000 x1.00] LOG  GhostEffect3D Setup: Renderers: 1, Materials: 1
+[     1    0.000 x1.00] LOG  Yuki Setup: Found 1 hiding spots
+[     1    0.000 x1.00] LOG  === APPEARING NEAR ELEMENT 0 === Distance 6.2m from PF_EastLands_Lamp_Tall_Moss (22)
+[     1    0.000 x1.00] LOG  === GAME STARTED === Element 0, Round 1
+[     1    0.000 x1.00] WARN [YoruFurWeather] no XFur Weather Manager in this scene, made a runtime one at rain 0 so her fur cannot soak by default.
+[     1    0.000 x1.00] LOG  [YoruFurWeather] fur weather ready on 'XFur Weather (runtime fallback)'. Rain 0, wind 0.50 in the open, roof check 30 m above her. No StormWeather in this scene: calm wind and a dry floor.
+[     1   12.631 x1.00] LOG  [EyeGlow] first reading: light on her 0.24 (sun 0.14 clear, sky 0.10 open, the scene's sun 'Directional Light') -> eyes x1.00
+[     1   12.631 x1.00] LOG  [EyeGlow] last 10 s: 1 readings, light on her 0.24 to 0.24 (sun 0.14 clear 100%, sky 0.10 open 100%), eyes x1.00
+[   165   16.934 x1.00] LOG  === NOW WAITING === Near Element 0 for player to get close (detection range: 8)
+[   262   17.712 x1.00] LOG  🐾 4-LEG JUMP #0
+[   262   17.712 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   314   18.061 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[   314   18.061 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[   314   18.061 x1.00] LOG  [YoruVFX] Air spin: 'VFX_Void_Burst_AirSpinYoru' at CenterVFX, 46 systems, longest 1.00s fitted to 0.79s at speed 1.27, 8 forced Local, 38 delays zeroed, tail 2.37s
+[   314   18.061 x1.00] LOG  [AirPosePin] engaged, holding body at 1.153m above the transform
+[   330   18.192 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=1.53m, completed
+[   383   18.573 x1.00] LOG  💨 Landing VFX spawned!
+[   383   18.573 x1.00] LOG  ✅ LANDED! (was jump #1)
+[   383   18.573 x1.00] LOG  [AirPosePin] released, peak correction was 0.019m
+[   392   18.663 x1.00] LOG  🐾 4-LEG JUMP #0
+[   392   18.663 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   393   18.670 x1.00] LOG  [AirPosePin] engaged, holding body at 0.763m above the transform
+[   404   18.744 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[   409   18.776 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[   410   18.785 x1.00] LOG  [AirPosePin] released, peak correction was 0.078m
+[   524   19.534 x1.00] LOG  💨 Landing VFX spawned!
+[   524   19.534 x1.00] LOG  ✅ LANDED! (was jump #1)
+[   561   19.768 x1.00] LOG  🐾 4-LEG JUMP #0
+[   561   19.768 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   617   20.128 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[   617   20.128 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[   617   20.128 x1.00] LOG  [YoruVFX] Air spin: 'VFX_Void_Burst_AirSpinYoru' at CenterVFX, 46 systems, longest 1.00s fitted to 0.79s at speed 1.27, 8 forced Local, 38 delays zeroed, tail 2.37s
+[   617   20.128 x1.00] LOG  [AirPosePin] engaged, holding body at 1.222m above the transform
+[   635   20.258 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=1.53m, completed
+[   686   20.613 x1.00] LOG  💨 Landing VFX spawned!
+[   686   20.613 x1.00] LOG  ✅ LANDED! (was jump #1)
+[   686   20.613 x1.00] LOG  [AirPosePin] released, peak correction was 0.040m
+[   710   20.801 x1.00] LOG  🐾 4-LEG JUMP #0
+[   710   20.801 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[   712   20.814 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[   712   20.814 x1.00] LOG  [AirPosePin] engaged, holding body at 0.706m above the transform
+[   716   20.838 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.90 clipLen=0.79s queued=0 elapsed=0.71s
+[   717   20.844 x1.00] LOG  [AirPosePin] released, peak correction was 0.018m
+[   761   21.138 x1.00] LOG  🐾 4-LEG JUMP #1
+[   761   21.138 x1.00] LOG  🐾 Jump 2 VFX spawned!
+[   822   21.526 x1.00] LOG  🐾 4-LEG JUMP #2
+[   822   21.526 x1.00] LOG  🐾 Jump 3 VFX spawned!
+[   822   21.526 x1.00] LOG  🚫 Max jumps reached!
+[   974   22.532 x1.00] LOG  💨 Landing VFX spawned!
+[   974   22.532 x1.00] LOG  ✅ LANDED! (was jump #3)
+[   994   22.666 x1.00] LOG  [EyeGlow] last 10 s: 29 readings, light on her 0.24 to 0.24 (sun 0.14 clear 100%, sky 0.10 open 100%), eyes x1.00
+[  1030   22.933 x1.00] LOG  🐾 4-LEG JUMP #0
+[  1030   22.933 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  1073   23.257 x1.00] LOG  🐾 4-LEG JUMP #1
+[  1073   23.257 x1.00] LOG  🐾 Jump 2 VFX spawned!
+[  1109   23.525 x1.00] LOG  🐾 4-LEG JUMP #2
+[  1109   23.525 x1.00] LOG  🐾 Jump 3 VFX spawned!
+[  1109   23.525 x1.00] LOG  🚫 Max jumps reached!
+[  1262   24.573 x1.00] LOG  💨 Landing VFX spawned!
+[  1262   24.573 x1.00] LOG  ✅ LANDED! (was jump #3)
+[  1290   24.757 x1.00] LOG  🐾 4-LEG JUMP #0
+[  1290   24.757 x1.00] LOG  🐾 Jump 1 VFX spawned!
+[  1365   25.322 x1.00] LOG  [ComboTrace] LAUNCH STEP (no enemy) dist=0.90m in 0.13s [AIRBORNE]
+[  1365   25.322 x1.00] LOG  [Combat] Aerial spin, 25 dmg
+[  1365   25.322 x1.00] LOG  [YoruVFX] Air spin: 'VFX_Void_Burst_AirSpinYoru' at CenterVFX, 46 systems, longest 1.00s fitted to 0.79s at speed 1.27, 8 forced Local, 38 delays zeroed, tail 2.37s
+[  1365   25.322 x1.00] LOG  [AirPosePin] engaged, holding body at 1.984m above the transform
+[  1381   25.458 x1.00] LOG  [ComboTrace] LAUNCH RESULT wanted=0.90m actually moved=1.53m, completed
+[  1419   25.754 x1.00] LOG  💨 Landing VFX spawned!
+[  1419   25.754 x1.00] LOG  ✅ LANDED! (was jump #1)
+[  1419   25.754 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  1450   26.008 x1.00] LOG  [YoruVFX] Spin VFX stopped, fading for 2.37s
+[  1454   26.038 x1.00] LOG  [ComboTrace] END step=3 clipProgress=0.91 clipLen=0.79s queued=0 elapsed=0.72s
+[  2033   30.311 x1.00] LOG  [Combat] Dodge: Dodge_2Leg (4m, 2leg)
+[  2033   30.311 x1.00] LOG  [AirPosePin] engaged, holding body at 0.657m above the transform
+[  2120   30.990 x1.00] LOG  [DodgeTrace] 2leg flip: clip 0.67s, ran 0.69s, asked 4.0m, actually moved 4.06m forward and rose 1.50m at the peak (Dodge Height 1.5), travel finished at 0.68s, leaving 0.01s of clip with nothing moving.
+[  2120   30.990 x1.00] LOG  [ComboTrace] move ended, combo kept at step 3, window restarted
+[  2120   30.990 x1.00] LOG  [Combat] Dodge ended
+[  2120   30.990 x1.00] LOG  [AirPosePin] released, peak correction was 0.002m
+[  2138   31.130 x1.00] LOG  💨 Landing VFX spawned!
+[  2138   31.130 x1.00] LOG  ✅ LANDED! (was jump #0)
+[  2159   31.297 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  2159   31.297 x1.00] LOG  [YoruVFX] dash trail 'LightningFloorPurpleTrail 1' started, riding with her
+[  2159   31.297 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  2159   31.297 x1.00] LOG  [AirPosePin] engaged, holding body at 0.610m above the transform
+[  2185   31.507 x1.00] LOG  [AirPosePin] released, peak correction was 0.013m
+[  2186   31.518 x1.00] LOG  💨 Landing VFX spawned!
+[  2186   31.518 x1.00] LOG  [Combat] Dash hit a wall: PF_EastLands_MedBoulder_04 (33)
+[  2190   31.749 x1.00] LOG  [Combat] Dash done: ground dash, grounded 5/31 frames, pose pin off, pin correction now 0.000m, manual lift 0.150m, controller height wobble 24.9cm
+[  2190   31.749 x1.00] LOG  [ComboTrace] move ended, combo kept at step 3, window restarted
+[  2190   31.749 x1.00] LOG  [Combat] Dash ended
+[  2191   31.767 x1.00] LOG  ✅ LANDED! (was jump #0)
+[  2303   32.674 x1.00] LOG  [EyeGlow] last 10 s: 39 readings, light on her 0.24 to 0.24 (sun 0.14 clear 100%, sky 0.10 open 100%), eyes x1.00
+[  2418   33.558 x1.00] LOG  [Combat] Dodge: Dodge_2Leg (4m, 2leg)
+[  2418   33.558 x1.00] LOG  [AirPosePin] engaged, holding body at 0.627m above the transform
+[  2419   33.568 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  2420   33.574 x1.00] LOG  [AirPosePin] engaged, holding body at 0.634m above the transform
+[  2464   33.916 x1.00] LOG  [AirPosePin] released, peak correction was -0.332m
+[  2496   34.167 x1.00] LOG  [AirPosePin] engaged, holding body at 0.679m above the transform
+[  2504   34.232 x1.00] LOG  [DodgeTrace] 2leg flip: clip 0.67s, ran 0.68s, asked 4.0m, actually moved 4.06m forward and rose 1.51m at the peak (Dodge Height 1.5), travel finished at 0.68s, leaving 0.00s of clip with nothing moving.
+[  2504   34.232 x1.00] LOG  [ComboTrace] move ended, combo kept at step 3, window restarted
+[  2504   34.232 x1.00] LOG  [Combat] Dodge ended
+[  2504   34.232 x1.00] LOG  [AirPosePin] released, peak correction was 0.014m
+[  2522   34.374 x1.00] LOG  💨 Landing VFX spawned!
+[  2522   34.374 x1.00] LOG  ✅ LANDED! (was jump #0)
+[  2540   34.511 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  2540   34.511 x1.00] LOG  [YoruVFX] dash trail 'LightningFloorPurpleTrail 1' started, riding with her
+[  2540   34.511 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  2544   34.544 x1.00] LOG  [AirPosePin] engaged, holding body at 0.516m above the transform
+[  2545   34.551 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  2551   34.596 x1.00] LOG  [Combat] Dash hit a wall: PF_EastLands_MedBoulder_01 (73)
+[  2592   34.919 x1.00] LOG  [Combat] Dash done: ground dash, grounded 51/52 frames, pose pin off, pin correction now 0.000m, manual lift 0.150m, controller height wobble 15.9cm
+[  2592   34.919 x1.00] LOG  [ComboTrace] move ended, combo kept at step 3, window restarted
+[  2592   34.919 x1.00] LOG  [Combat] Dash ended
+[  2664   35.473 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  2664   35.473 x1.00] LOG  [YoruVFX] dash trail 'LightningFloorPurpleTrail 1' started, riding with her
+[  2664   35.473 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  2716   35.883 x1.00] LOG  [Combat] Dash done: ground dash, grounded 52/52 frames, pose pin off, pin correction now 0.000m, manual lift 0.150m, controller height wobble 11.5cm
+[  2716   35.883 x1.00] LOG  [ComboTrace] move ended, combo kept at step 3, window restarted
+[  2716   35.883 x1.00] LOG  [Combat] Dash ended
+[  2741   36.094 x1.00] LOG  [Combat] Dash: DodgeDash_2Leg (4m, 20 dmg, 2leg)
+[  2741   36.094 x1.00] LOG  [YoruVFX] dash trail 'LightningFloorPurpleTrail 1' started, riding with her
+[  2741   36.094 x1.00] LOG  [Combat] Dash movement: 4.0m over 0.40s (Dash Move Duration) = 10.0 m/s
+[  2746   36.132 x1.00] LOG  [AirPosePin] engaged, holding body at 0.520m above the transform
+[  2748   36.148 x1.00] LOG  [AirPosePin] released, peak correction was 0.000m
+[  2792   36.497 x1.00] LOG  [Combat] Dash done: ground dash, grounded 49/51 frames, pose pin off, pin correction now 0.000m, manual lift 0.150m, controller height wobble 42.3cm
+[  2792   36.497 x1.00] LOG  [ComboTrace] move ended, combo kept at step 3, window restarted
+[  2792   36.497 x1.00] LOG  [Combat] Dash ended
+[  3715   42.793 x1.00] LOG  [EyeGlow] last 10 s: 40 readings, light on her 0.24 to 0.24 (sun 0.14 clear 100%, sky 0.10 open 100%), eyes x1.00
+# end — 148 lines
